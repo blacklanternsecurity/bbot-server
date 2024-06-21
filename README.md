@@ -8,11 +8,11 @@ BBOT I/O is a (WIP) database for your BBOT scan data.
 
 ## I/O Modules
 
-The main goal of BBOT I/O is to make BBOT scan data easy to view and manage.
+The main goal of BBOT I/O is to make BBOT scan data easy to view and manage and over time.
 
 **I/O Modules** provide a uniform Python + REST API across many backends. They allow `bbot-server` to be deployed either as a lightweight standalone tool, or as a central hub for BBOT multiplayer ;)
 
-Most importantly, I/O modules will provide a solid foundation for new projects built on top of BBOT:
+Most importantly, I/O modules will provide a solid foundation for new BBOT projects going forward:
 - Asset Inventory
 - Interactive CLI (DIY ASM for hackers)
 - BBOT Frontend (eventually?)
