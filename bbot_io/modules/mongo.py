@@ -7,13 +7,11 @@ from bbot_io.modules.base import BaseIO
 
 class mongo(BaseIO):
 
-    default_url = "mongodb://localhost:27017"
-
-    def setup(self, db_name: str = "bbot", collection_name: str = "events"):
-
+    def setup(self, uri: str = "mongodb://localhost:27017", db_name: str = "bbot", collection_name: str = "events"):
+        self.uri = uri
         self.db_name = db_name
         self.collection_name = collection_name
-        self.client = AsyncIOMotorClient(self.default_url)
+        self.client = AsyncIOMotorClient(self.uri)
         self.database = getattr(self.client, db_name)
         self.collection = getattr(self.database, collection_name)
 

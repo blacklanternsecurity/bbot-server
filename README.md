@@ -74,8 +74,10 @@ from bbot_io.models import Event
 
 
 async def main():
-    # create BBOT I/O
+    # create SQLite database
     io = IO("sqlite", db_file="./bbot.db")
+    # or MongoDB
+    io = IO("mongo", uri="mongodb://localhost:27017")
 
     # fill database with BBOT data
     scan = Scanner("blacklanternsecurity.com")
