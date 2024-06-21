@@ -19,7 +19,7 @@ Most importantly, I/O modules will provide a solid foundation for new projects b
 
 ## BBOT Server
 
-`bbot-server` is a tiny REST API built on top of BBOT I/O. It will evolve with these projects, and may end up being split off into its own project.
+`bbot-server` is a tiny REST API built on top of BBOT I/O. It will evolve over time, and may eventually become its own project.
 
 ## Backends
 
