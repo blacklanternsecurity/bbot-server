@@ -1,0 +1,12 @@
+target:
+  - blacklanternsecurity.com
+
+modules:
+  - httpx
+
+# debug: true
+
+config:
+  home: /tmp/.bbotio_test
+  omit_event_types: []
+  deps_behavior: disable

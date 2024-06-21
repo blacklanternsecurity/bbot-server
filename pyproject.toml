@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "bbot-io"
+version = "0.1.0"
+description = ""
+authors = ["TheTechromancer"]
+license = "GPL-v3.0"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+uvicorn = "^0.30.1"
+motor = "^3.4.0"
+fastapi = "^0.111.0"
+
+[tool.poetry.scripts]
+bbot-server = 'bbot_io.server:main'
+
+[tool.black]
+line-length = 119
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.2"
+pytest-asyncio = "^0.23.7"
+bbot = {git = "https://github.com/blacklanternsecurity/bbot", rev = "bbot-2.0"}
+black = "^24.4.2"
+flake8 = "^7.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
