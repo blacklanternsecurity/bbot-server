@@ -6,36 +6,7 @@ from bbot.scanner import Scanner, Preset
 from bbot_io.models import Event
 
 
-bbot_preset_file = Path(__file__).parent / "bbot_preset.yml"
-
-
-base_dns_mock = {
-    "blacklanternsecurity.com": {
-        "A": ["127.0.0.1"],
-        "TXT": ["www.blacklanternsecurity.com", "asdf.blacklanternsecurity.com", "api.blacklanternsecurity.com"],
-    },
-    "www.blacklanternsecurity.com": {
-        "A": ["127.0.0.1"],
-    },
-}
-
-dns_mock_1 = dict(base_dns_mock)
-dns_mock_1.update(
-    {
-        "asdf.blacklanternsecurity.com": {
-            "A": ["127.0.0.1"],
-        }
-    }
-)
-
-dns_mock_2 = dict(base_dns_mock)
-dns_mock_2.update(
-    {
-        "api.blacklanternsecurity.com": {
-            "A": ["127.0.0.1"],
-        }
-    }
-)
+bbot_preset_file = Path(__file__).parent.parent / "bbot_preset.yml"
 
 
 log = logging.getLogger("bbot.test.modules")
@@ -43,6 +14,18 @@ log = logging.getLogger("bbot.test.modules")
 
 class IOTestBase:
     log = logging.getLogger("bbot.io")
+
+    from .events import _test_events
+
+    base_dns_mock = {
+        "blacklanternsecurity.com": {
+            "A": ["127.0.0.1"],
+            "TXT": ["www.blacklanternsecurity.com", "asdf.blacklanternsecurity.com", "api.blacklanternsecurity.com"],
+        },
+        "www.blacklanternsecurity.com": {
+            "A": ["127.0.0.1"],
+        },
+    }
 
     class Fixtures:
         def __init__(self, monkeypatch):
@@ -53,68 +36,30 @@ class IOTestBase:
         self.fixtures = self.Fixtures(monkeypatch)
 
         # instantiate io module
-        io = await self.setup()
+        self.io = await self.setup()
 
+        await self.ensure_empty()
+
+        await self._test_events()
+
+        await self.ensure_empty()
+
+    async def ensure_empty(self):
         # clear database
-        await io.drop_database()
+        await self.io.drop_database()
 
         # make sure everything is empty
-        await self.assert_empty(io)
+        await self.assert_empty()
 
-        input_events = []
-
-        # run a bbot scan
-        async for event in self.run_bbot_scan(dns_mock_1):
-            input_events.append(event)
-            await io.insert_event(event)
-
-        # make sure the data is there
-        scans = await io.get_scans()
-        assert len(scans) == 1
-        events = await io.get_events()
-        assert len(events) == 11
-        subdomains = await io.get_subdomains()
-        assert len(subdomains) == 3
-        assert "blacklanternsecurity.com" in subdomains
-        assert "www.blacklanternsecurity.com" in subdomains
-        assert "asdf.blacklanternsecurity.com" in subdomains
-
-        # run another scan
-        async for event in self.run_bbot_scan(dns_mock_2):
-            input_events.append(event)
-            await io.insert_event(event)
-
-        # make sure we have data from both scans
-        scans = await io.get_scans()
-        assert len(scans) == 2
-        events = await io.get_events()
-        assert len(events) == 22
-        subdomains = await io.get_subdomains()
-        assert len(subdomains) == 4
-        assert "blacklanternsecurity.com" in subdomains
-        assert "api.blacklanternsecurity.com" in subdomains
-        assert "www.blacklanternsecurity.com" in subdomains
-        assert "asdf.blacklanternsecurity.com" in subdomains
-
-        # make sure events match perfectly after being inserted and retrieved from the database
-        output_events = await io.get_events()
-        assert set(input_events) == set(output_events)
-
-        # clear database
-        await io.drop_database()
-
-        # make sure everything is empty
-        await self.assert_empty(io)
-
-    async def assert_empty(self, io):
+    async def assert_empty(self):
         # scans
-        scans = await io.get_scans()
+        scans = await self.io.get_scans()
         assert scans == []
         # events
-        events = await io.get_events()
+        events = await self.io.get_events()
         assert events == []
         # subdomains
-        subdomains = await io.get_subdomains()
+        subdomains = await self.io.get_subdomains()
         assert subdomains == []
 
     async def run_bbot_scan(self, dns_mock):

@@ -1,4 +1,4 @@
-from .base import *
+from .lib import *
 
 
 class TestSqlite(IOTestBase):
