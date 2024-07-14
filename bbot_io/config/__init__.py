@@ -1,5 +1,3 @@
-from bbot.core import CORE
+from pathlib import Path
 
-
-def get_home_dir():
-    return CORE.home / "io"
+home = Path.home() / ".bbot-io"

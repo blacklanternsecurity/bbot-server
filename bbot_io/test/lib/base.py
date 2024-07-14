@@ -16,6 +16,7 @@ class IOTestBase:
     log = logging.getLogger("bbot.io")
 
     from .events import _test_events
+    from .scans import _test_scans
 
     base_dns_mock = {
         "blacklanternsecurity.com": {
@@ -27,6 +28,24 @@ class IOTestBase:
         },
     }
 
+    dns_mock_1 = dict(base_dns_mock)
+    dns_mock_1.update(
+        {
+            "asdf.blacklanternsecurity.com": {
+                "A": ["127.0.0.1"],
+            }
+        }
+    )
+
+    dns_mock_2 = dict(base_dns_mock)
+    dns_mock_2.update(
+        {
+            "api.blacklanternsecurity.com": {
+                "A": ["127.0.0.1"],
+            }
+        }
+    )
+
     class Fixtures:
         def __init__(self, monkeypatch):
             self.monkeypatch = monkeypatch
@@ -37,10 +56,13 @@ class IOTestBase:
 
         # instantiate io module
         self.io = await self.setup()
+        await self.io.setup()
 
         await self.ensure_empty()
-
         await self._test_events()
+
+        await self.ensure_empty()
+        await self._test_scans()
 
         await self.ensure_empty()
 
@@ -62,14 +84,19 @@ class IOTestBase:
         subdomains = await self.io.get_subdomains()
         assert subdomains == []
 
+    async def ingest_bbot_scan(self, *args, **kwargs):
+        async for event in self.run_bbot_scan(*args, **kwargs):
+            await self.io.put_event(event)
+            yield event
+
     async def run_bbot_scan(self, dns_mock):
         bbot_preset = Preset.from_yaml_file(bbot_preset_file)
         scan = Scanner(preset=bbot_preset)
         self.patch_scan(scan)
         await scan.helpers.dns._mock_dns(dns_mock)
 
-        async for event in scan.async_start():
-            print(event)
+        events = [e async for e in scan.async_start()]
+        for event in events:
             yield Event(**event.json())
 
     def patch_scan(self, scan):

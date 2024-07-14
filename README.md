@@ -26,9 +26,9 @@ Most importantly, I/O modules will provide a solid foundation for new BBOT proje
 Backends are modular and easy to add!
 
 - [x] SQLite (default)
-- [x] MongoDB
+- [ ] MongoDB
 - [ ] REST Client
-- [ ] Postgres
+- [x] Postgres
 - [ ] Neo4j
 
 ### Other TODOs
@@ -75,7 +75,7 @@ from bbot_io.models import Event
 
 async def main():
     # create SQLite database
-    io = IO("sqlite", db_file="./bbot.db")
+    io = IO("sqlite", database="./bbot.db")
     # or MongoDB
     io = IO("mongo", uri="mongodb://localhost:27017")
 
@@ -109,3 +109,28 @@ docker run --rm -it -p 27017:27017 mongo
 # run tests
 poetry run pytest
 ```
+
+## Thoughts on Libraries
+
+Choosing the right underlying libraries for this project is really important. It's also a difficult decision, especially because of the way this library needs to expose both a *python* API and and *web* API.
+
+The goal of this project is to a have a single interface to the BBOT database, with friendly functions like `get_subdomains()` and `delete_scan()`:
+
+```python
+io = BBOTIO(backend="sqlite")
+io.get_subdomains()
+io.delete_scan(scan_id)
+```
+
+With matching REST API endpoints:
+
+```bash
+curl http://bbot.server/get_subdomains
+curl http://bbot.server/delete_scan?scan_id=scan_id
+```
+
+These matching endpoints will allow us to make an *HTTP client* that behaves exactly like the *python API*, so they can be used interchangeably.
+
+We need to support multiple backends, so we can scale hugely if needed. We also need the ability to deploy a lightweight, standalone version, for personal setups.
+
+

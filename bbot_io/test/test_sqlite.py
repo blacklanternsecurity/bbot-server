@@ -3,6 +3,6 @@ from .lib import *
 
 class TestSqlite(IOTestBase):
     async def setup(self):
-        from bbot_io.modules.sqlite import sqlite
+        from bbot_io import BBOTIO
 
-        return sqlite(table_name="events_pytest")
+        return BBOTIO(database="/tmp/bbot-io-test.db")

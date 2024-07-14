@@ -8,5 +8,7 @@ modules:
 
 config:
   home: /tmp/.bbotio_test
-  omit_event_types: []
+  omit_event_types:
+  - RAW_DNS_RECORD
+  - WEB_PARAMETER
   deps_behavior: disable

@@ -3,30 +3,11 @@ async def _test_events(self):
     Basic tests CRUD tests for events, making sure we can insert and delete data properly
     """
 
-    dns_mock_1 = dict(self.base_dns_mock)
-    dns_mock_1.update(
-        {
-            "asdf.blacklanternsecurity.com": {
-                "A": ["127.0.0.1"],
-            }
-        }
-    )
-
-    dns_mock_2 = dict(self.base_dns_mock)
-    dns_mock_2.update(
-        {
-            "api.blacklanternsecurity.com": {
-                "A": ["127.0.0.1"],
-            }
-        }
-    )
-
     input_events = []
 
     # run a bbot scan
-    async for event in self.run_bbot_scan(dns_mock_1):
+    async for event in self.ingest_bbot_scan(self.dns_mock_1):
         input_events.append(event)
-        await self.io.insert_event(event)
 
     # make sure the data is there
     scans = await self.io.get_scans()
@@ -40,9 +21,8 @@ async def _test_events(self):
     assert "asdf.blacklanternsecurity.com" in subdomains
 
     # run another scan
-    async for event in self.run_bbot_scan(dns_mock_2):
+    async for event in self.ingest_bbot_scan(self.dns_mock_2):
         input_events.append(event)
-        await self.io.insert_event(event)
 
     # make sure we have data from both scans
     scans = await self.io.get_scans()
