@@ -4,7 +4,7 @@ from bbot_io.applets.base import BaseApplet, api_endpoint
 
 class Subdomains(BaseApplet):
 
-    nest_route = False
+    nested = False
 
     @api_endpoint("/", methods=["GET"], summary="Get Subdomains")
     async def get_subdomains(self, in_scope_only: bool = True) -> list[str]:
