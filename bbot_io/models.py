@@ -1,9 +1,9 @@
 import json
 from datetime import datetime
 from pydantic import ConfigDict
-from typing import List, Optional
 from sqlalchemy import Boolean, String
 from typing_extensions import Annotated
+from typing import List, Optional, Union
 from sqlalchemy.sql.schema import Column
 from sqlmodel import Field, SQLModel, JSON
 from pydantic.functional_validators import AfterValidator
