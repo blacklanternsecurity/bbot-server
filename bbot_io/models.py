@@ -30,7 +30,7 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 
 class BBOTBaseModel(SQLModel):
-    row_id: int | None = Field(default=None, primary_key=True, exclude=True)
+    row_id: Union[int, None] = Field(default=None, primary_key=True, exclude=True)
 
     model_config = ConfigDict(extra="ignore")
 
