@@ -2,7 +2,7 @@ import json
 from fastapi import WebSocket
 from starlette.websockets import WebSocketDisconnect
 
-from bbot_io.models import Event, Scan, Target
+from bbot_io.models import Event, Scan  # , Target
 from bbot_io.applets.base import BaseApplet, api_endpoint
 
 
