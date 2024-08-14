@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlmodel import Session, SQLModel, select, delete, create_engine
 from sqlalchemy_utils.functions import database_exists, create_database
 
@@ -10,6 +11,10 @@ class SQLTable(BaseTable):
     def select(self):
         return select(self.model)
 
+    async def exec(self, statement):
+        with Session(self.backend.engine) as session:
+            return session.exec(statement).all()
+
     async def find(self):
         with Session(self.backend.engine) as session:
             statement = select(self.model)
@@ -19,19 +24,19 @@ class SQLTable(BaseTable):
     async def find_one(self):
         pass
 
-    async def exec(self, statement):
-        with Session(self.backend.engine) as session:
-            return session.exec(statement).all()
-
     async def insert(self, obj):
         with Session(self.backend.engine, expire_on_commit=False) as session:
             session.add(obj)
             session.commit()
 
+    async def count(self):
+        with Session(self.backend.engine) as session:
+            return session.exec(func.count(self.model.row_id)).scalar()
+
     def clear(self):
         with Session(self.backend.engine) as session:
-            stmt = delete(self.model)
-            session.exec(stmt)
+            statement = delete(self.model)
+            session.exec(statement)
             session.commit()
 
 

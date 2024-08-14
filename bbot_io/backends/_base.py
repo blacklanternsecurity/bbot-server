@@ -18,7 +18,10 @@ class BaseTable:
         raise NotImplementedError
 
     async def insert(self, obj):
-        return await self._insert(obj)
+        raise NotImplementedError
+
+    async def count(self):
+        raise NotImplementedError
 
 
 class BaseBackend:

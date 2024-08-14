@@ -16,9 +16,11 @@ async def _test_events(self):
     assert len(events) == 11
     subdomains = await self.io.get_subdomains()
     assert len(subdomains) == 3
-    assert "blacklanternsecurity.com" in subdomains
-    assert "www.blacklanternsecurity.com" in subdomains
-    assert "asdf.blacklanternsecurity.com" in subdomains
+    assert sorted(subdomains) == [
+        "asdf.blacklanternsecurity.com",
+        "blacklanternsecurity.com",
+        "www.blacklanternsecurity.com",
+    ]
 
     # run another scan
     async for event in self.ingest_bbot_scan(self.dns_mock_2):
@@ -31,11 +33,27 @@ async def _test_events(self):
     assert len(events) == 22
     subdomains = await self.io.get_subdomains()
     assert len(subdomains) == 4
-    assert "blacklanternsecurity.com" in subdomains
-    assert "api.blacklanternsecurity.com" in subdomains
-    assert "www.blacklanternsecurity.com" in subdomains
-    assert "asdf.blacklanternsecurity.com" in subdomains
+    assert sorted(subdomains) == [
+        "api.blacklanternsecurity.com",
+        "asdf.blacklanternsecurity.com",
+        "blacklanternsecurity.com",
+        "www.blacklanternsecurity.com",
+    ]
 
     # make sure events match perfectly after being inserted and retrieved from the database
     output_events = await self.io.get_events()
     assert set(input_events) == set(output_events)
+
+    subdomain_summary = await self.io.get_subdomain_summary()
+    assert subdomain_summary == {
+        "api.blacklanternsecurity.com": {"DNS_NAME": 1, "DNS_NAME_UNRESOLVED": 1},
+        "asdf.blacklanternsecurity.com": {"DNS_NAME": 1, "DNS_NAME_UNRESOLVED": 1},
+        "blacklanternsecurity.com": {
+            "DNS_NAME": 4,
+            "HTTP_RESPONSE": 2,
+            "OPEN_TCP_PORT": 2,
+            "URL": 2,
+            "URL_UNVERIFIED": 2,
+        },
+        "www.blacklanternsecurity.com": {"DNS_NAME": 2},
+    }

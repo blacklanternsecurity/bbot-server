@@ -82,11 +82,11 @@ class IOTestBase:
         assert events == []
         # subdomains
         subdomains = await self.io.get_subdomains()
-        assert subdomains == []
+        assert subdomains == [], f"subdomains: {subdomains}"
 
     async def ingest_bbot_scan(self, *args, **kwargs):
         async for event in self.run_bbot_scan(*args, **kwargs):
-            await self.io.put_event(event)
+            await self.io.create_event(event)
             yield event
 
     async def run_bbot_scan(self, dns_mock):

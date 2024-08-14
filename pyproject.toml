@@ -25,7 +25,7 @@ pytest = "^8.2.2"
 pytest-asyncio = "^0.23.7"
 black = "^24.4.2"
 flake8 = "^7.1.0"
-bbot = {git = "https://github.com/blacklanternsecurity/bbot", rev = "misc-small-bugfixes"}
+bbot = "^2.0.0"
 
 [build-system]
 requires = ["poetry-core"]

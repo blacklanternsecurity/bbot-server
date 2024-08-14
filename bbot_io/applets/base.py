@@ -1,3 +1,4 @@
+import logging
 import importlib
 from fastapi import APIRouter
 
@@ -15,11 +16,16 @@ class BaseApplet:
     # must define model
     model = None
 
+    # whether to nest this applet under its own path
+    nested = True
+
     def __init__(self, backend, parent=None):
+        self.log = logging.getLogger(f"bbot.io.{self.name.lower()}")
         self.backend = backend
         self.parent = parent
         self.router = APIRouter()
         self.child_applets = []
+        self.db = None
 
         # automatically add API routes for any methods marked with @api_endpoint decorator
         for attr in dir(self):
@@ -35,10 +41,21 @@ class BaseApplet:
                     self.router.add_api_websocket_route(endpoint, val, **kwargs)
 
     async def setup(self):
+        # backend first
         await self.backend.setup()
         self.db = await self.backend.get_table(self)
+        # inherit db, model from parent
+        if self.parent is not None:
+            if self.db is None:
+                self.db = self.parent.db
+            if self.model is None:
+                self.model = self.parent.model
+        # then children
         for child_applet in self.child_applets:
             await child_applet.setup()
+
+    def _setup(self):
+        pass
 
     def include_app(self, app_name):
         app_name_lower = app_name.lower()
@@ -48,11 +65,14 @@ class BaseApplet:
         app_class = getattr(module, app_name)
         # instantiate it
         applet = app_class(self.backend, parent=self)
+        applet._setup()
         # set it as an attribute on self
         setattr(self, app_name_lower, applet)
         # add it to our FastAPI router
-        # self.router.include_router(applet.router, prefix=f"/{app_name_lower}")
-        self.router.include_router(applet.router)
+        if applet.nested:
+            self.router.include_router(applet.router, prefix=f"/{app_name_lower}")
+        else:
+            self.router.include_router(applet.router)
         # add it to our list of child apps
         self.child_applets.append(applet)
 
@@ -64,7 +84,7 @@ class BaseApplet:
     def tag(self):
         if self.parent is None:
             return ""
-        if self.parent.parent is not None:
+        if self.nested and self.parent.parent is not None:
             return f"{self.parent.name} -> {self.name}"
         return self.name
 

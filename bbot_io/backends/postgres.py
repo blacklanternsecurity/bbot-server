@@ -1,12 +1,10 @@
-from typing import Union
-from pathlib import Path
-from contextlib import suppress
-from sqlmodel import Session
-
 from ._sqlbase import SQLBackend
 
 
 class postgres(SQLBackend):
+    """
+    docker run --rm -e POSTGRES_PASSWORD=bbotislife -p 5432:5432 postgres
+    """
 
     protocol = "postgresql"
     default_username = "postgres"

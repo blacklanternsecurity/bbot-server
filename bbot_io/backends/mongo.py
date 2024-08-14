@@ -1,19 +1,75 @@
 from pymongo import ASCENDING
 from motor.motor_asyncio import AsyncIOMotorClient
-from sqlalchemy.sql.elements import BinaryExpression, BooleanClauseList, SelectOfScalar
+from sqlalchemy.sql.elements import BinaryExpression, BooleanClauseList, UnaryExpression
+from sqlalchemy.sql import Select  # , ColumnElement, Alias
+from sqlalchemy.sql.sqltypes import NullType
+
+# from sqlalchemy.sql.functions import Function
 
 
-from bbot_io.models import *
+# from bbot_io.models import *
 from bbot_io.backends._base import BaseBackend, BaseTable
+
+
+# def sqlalchemy_to_mongodb(clause):
+#     """
+#     Translate a sqlalchemy query to mongodb
+#     """
+#     if isinstance(clause, Select):
+#         print(f'DIR: {clause._where_criteria}')
+#         return sqlalchemy_to_mongodb(clause._where_criteria[0])
+
+#     elif isinstance(clause, BinaryExpression):
+#         key = clause.left.key
+#         if isinstance(clause.right.type, NullType):
+#             value = None
+#         else:
+#             value = clause.right.value
+#         op = clause.operator.__name__
+
+#         mongo_op = {
+#             "eq": "$eq",
+#             "ne": "$ne",
+#             "gt": "$gt",
+#             "lt": "$lt",
+#             "ge": "$gte",
+#             "le": "$lte",
+#             "is_not": "$ne",
+#         }.get(op, op)
+
+#         return {key: {mongo_op: value}}
+
+#     elif isinstance(clause, BooleanClauseList):
+#         mongo_op = "$and" if clause.operator.__name__ == "and_" else "$or"
+#         return {mongo_op: [sqlalchemy_to_mongodb(child) for child in clause.clauses]}
+
+#     else:
+#         print(f'UNKNOWN CLAUSE "{clause}" (type: {clause.__class__.__mro__})')
 
 
 def sqlalchemy_to_mongodb(clause):
     """
     Translate a sqlalchemy query to mongodb
     """
-    if isinstance(clause, BinaryExpression):
+    if isinstance(clause, Select):
+        mongo_query = {}
+        distinct_field = None
+        if clause._where_criteria:
+            mongo_query["$match"] = sqlalchemy_to_mongodb(clause._where_criteria[0])
+        for column in clause.columns:
+            if isinstance(column, UnaryExpression) and column.operator.__name__ == "distinct":
+                distinct_field = column.element.key
+
+        if distinct_field:
+            mongo_query["distinct"] = distinct_field
+        return mongo_query
+
+    elif isinstance(clause, BinaryExpression):
         key = clause.left.key
-        value = clause.right.value
+        if isinstance(clause.right.type, NullType):
+            value = None
+        else:
+            value = clause.right.value
         op = clause.operator.__name__
 
         mongo_op = {
@@ -31,8 +87,16 @@ def sqlalchemy_to_mongodb(clause):
         mongo_op = "$and" if clause.operator.__name__ == "and_" else "$or"
         return {mongo_op: [sqlalchemy_to_mongodb(child) for child in clause.clauses]}
 
-    else:
-        print(f'UNKNOWN CLAUSE "{clause}" (type: {type(clause)})')
+    elif isinstance(clause, UnaryExpression):
+        op = clause.operator.__name__
+        if op == "distinct":
+            return {"$group": {"_id": f"${clause.element.key}"}}
+        elif op == "is_":
+            return {clause.element.key: {"$exists": True, "$ne": None}}
+        elif op == "is_not":
+            return {"$or": [{clause.element.key: {"$exists": False}}, {clause.element.key: None}]}
+
+    return {}
 
 
 class MongoCollection(BaseTable):

@@ -9,6 +9,6 @@ class Scans(BaseApplet):
     async def put_scan(self, scan: Scan):
         return await self.db.insert(scan)
 
-    @api_endpoint("/get_scans", methods=["GET"])
+    @api_endpoint("/", methods=["GET"], summary="Get Scans")
     async def get_scans(self) -> list[Scan]:
         return await self.db.find()

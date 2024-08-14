@@ -1,9 +1,11 @@
 import json
+from datetime import datetime
 from pydantic import ConfigDict
 from typing import List, Optional
-from datetime import datetime, UTC
+from sqlalchemy import Boolean, String
 from typing_extensions import Annotated
-from sqlmodel import Field, SQLModel, JSON, DateTime
+from sqlalchemy.sql.schema import Column
+from sqlmodel import Field, SQLModel, JSON
 from pydantic.functional_validators import AfterValidator
 
 
@@ -84,7 +86,7 @@ class Event(BBOTBaseModel, table=True):
     module: str = Field(index=True)
     module_sequence: str
     discovery_context: str = ""
-    discovery_path: List[str] = Field(default=[], sa_type=JSON)
+    discovery_path: List[List[str]] = Field(default=[], sa_type=JSON)
 
 
 class Scan(BBOTBaseModel, table=True):
@@ -94,13 +96,19 @@ class Scan(BBOTBaseModel, table=True):
     preset: dict = Field(sa_type=JSON)
 
 
-class Target(BBOTBaseModel):
+class Target(BBOTBaseModel, table=True):
+    name: str = "Default Target"
     strict_scope: bool = False
-    seeds: List = []
-    whitelist: List = None
-    blacklist: List = []
-    hash: str
+    seeds: List = Field(default=[], sa_type=JSON)
+    whitelist: List = Field(default=None, sa_type=JSON)
+    blacklist: List = Field(default=[], sa_type=JSON)
+    hash: str = Field(sa_column=Column("hash", String, unique=True))
     scope_hash: str
     seed_hash: str
     whitelist_hash: str
     blacklist_hash: str
+    is_default: bool = Field(sa_column=Column("is_default", Boolean, unique=True))
+
+
+class UserState(BBOTBaseModel, table=True):
+    current_target: str
