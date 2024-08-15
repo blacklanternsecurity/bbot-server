@@ -3,11 +3,9 @@ async def _test_events(self):
     Basic tests CRUD tests for events, making sure we can insert and delete data properly
     """
 
-    input_events = []
-
     # run a bbot scan
-    async for event in self.ingest_bbot_scan(self.dns_mock_1):
-        input_events.append(event)
+    for event in self.scan1_events:
+        await self.io.create_event(event)
 
     # make sure the data is there
     scans = await self.io.get_scans()
@@ -22,9 +20,9 @@ async def _test_events(self):
         "www.blacklanternsecurity.com",
     ]
 
-    # run another scan
-    async for event in self.ingest_bbot_scan(self.dns_mock_2):
-        input_events.append(event)
+    # run a bbot scan
+    for event in self.scan2_events:
+        await self.io.create_event(event)
 
     # make sure we have data from both scans
     scans = await self.io.get_scans()
@@ -42,7 +40,7 @@ async def _test_events(self):
 
     # make sure events match perfectly after being inserted and retrieved from the database
     output_events = await self.io.get_events()
-    assert set(input_events) == set(output_events)
+    assert set(self.scan1_events + self.scan2_events) == set(output_events)
 
     subdomain_summary = await self.io.get_subdomain_summary()
     assert subdomain_summary == {

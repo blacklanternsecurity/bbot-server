@@ -1,4 +1,5 @@
-from sqlalchemy import func
+from sqlalchemy import func, inspect
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, select, delete, create_engine
 from sqlalchemy_utils.functions import database_exists, create_database
 
@@ -28,6 +29,26 @@ class SQLTable(BaseTable):
         with Session(self.backend.engine, expire_on_commit=False) as session:
             session.add(obj)
             session.commit()
+
+    async def insert_if_not_exists(self, obj):
+        with Session(self.backend.engine, expire_on_commit=False) as session:
+            # Get the primary key columns
+            mapper = inspect(obj.__class__)
+            pk_columns = mapper.primary_key
+
+            # Construct a filter condition for all primary key columns
+            filter_condition = {col.name: getattr(obj, col.name) for col in pk_columns}
+
+            try:
+                # Check if an object with the same primary key already exists
+                existing = session.execute(select(obj.__class__).filter_by(**filter_condition)).scalar_one_or_none()
+
+                if existing is None:
+                    session.add(obj)
+                    session.commit()
+                # If it exists, we do nothing (effectively a no-op)
+            except IntegrityError:
+                session.rollback()
 
     async def count(self):
         with Session(self.backend.engine) as session:

@@ -1,5 +1,5 @@
 from sqlmodel import distinct, func, select
-from bbot_io.applets.base import BaseApplet, api_endpoint
+from bbot_io.applets._base import BaseApplet, api_endpoint
 
 
 class Subdomains(BaseApplet):

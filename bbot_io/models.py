@@ -65,6 +65,7 @@ class Event(BBOTBaseModel, table=True):
             self.data = {self.type: self.data}
 
     def get_data(self):
+        # handle SIEM-friendly format
         if isinstance(self.data, dict) and list(self.data) == [self.type]:
             return self.data[self.type]
         return self.data
@@ -107,6 +108,7 @@ class Target(BBOTBaseModel, table=True):
     seed_hash: str
     whitelist_hash: str
     blacklist_hash: str
+    # only one target can be the default
     is_default: bool = Field(sa_column=Column("is_default", Boolean, unique=True))
 
 

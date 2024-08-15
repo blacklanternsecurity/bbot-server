@@ -1,4 +1,4 @@
-from .lib import *
+from .base import IOTestBase
 
 
 class TestPostgres(IOTestBase):

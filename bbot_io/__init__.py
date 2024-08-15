@@ -1,5 +1,5 @@
 from bbot_io.backends import BBOTBackend
-from bbot_io.applets.base import BaseApplet
+from bbot_io.applets._base import BaseApplet
 
 
 class BBOTIO(BaseApplet):
