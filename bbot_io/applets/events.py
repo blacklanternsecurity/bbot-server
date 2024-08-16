@@ -33,8 +33,6 @@ class Events(BaseApplet):
             if not isinstance(target_data, dict):
                 raise ValueError(f"Invalid target for SCAN event: {target_data}")
             target = Target(**target_data)
-            print(f"EVENT DATA: {event_data}")
-            print(f"THE TARGET: {target}")
             await self.parent.create_target(target)
         return await self.db.insert(event.validated)
 

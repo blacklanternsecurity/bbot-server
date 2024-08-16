@@ -1,5 +1,7 @@
 import pytest
 import logging
+from copy import copy
+from bbot_io.test.applets import applet_tests
 
 
 log = logging.getLogger("bbot.test.modules")
@@ -8,38 +10,38 @@ log = logging.getLogger("bbot.test.modules")
 class IOTestBase:
     log = logging.getLogger("bbot.io")
 
-    from bbot_io.test.applets.events import _test_events
-    from bbot_io.test.applets.scans import _test_scans
-    from bbot_io.test.applets.targets import _test_targets
-
     from ._gen_scan_data import gen_scan_data, patch_scan
 
     class Fixtures:
         def __init__(self, monkeypatch):
             self.monkeypatch = monkeypatch
 
+    @property
+    def scan1_events(self):
+        return [copy(e) for e in self._scan1_events]
+
+    @property
+    def scan2_events(self):
+        return [copy(e) for e in self._scan2_events]
+
     @pytest.mark.asyncio
     async def test_module_run(self, monkeypatch):
         self.fixtures = self.Fixtures(monkeypatch)
 
-        self.scan1_events, self.scan2_events = await self.gen_scan_data()
+        self._scan1_events, self._scan2_events = await self.gen_scan_data()
 
-        # instantiate io module
-        self.io = await self.setup()
-        await self.io.setup()
+        # test applets
+        for applet_name, applet_test in applet_tests.items():
+            # instantiate io module
+            self.io = await self.setup()
+            await self.io.setup()
 
-        # test events
-        await self.ensure_empty()
-        await self._test_events()
+            log.info(f"Testing applet: {applet_name}")
+            # test events
+            await self.ensure_empty()
+            await applet_test(self)
 
-        # test scans
-        await self.ensure_empty()
-        await self._test_scans()
-
-        # test targets
-        await self.ensure_empty()
-        await self._test_targets()
-
+        # clean up
         await self.ensure_empty()
 
     async def ensure_empty(self):
@@ -59,6 +61,9 @@ class IOTestBase:
         # subdomains
         subdomains = await self.io.get_subdomains()
         assert subdomains == [], f"subdomains: {subdomains}"
+        # targets
+        targets = await self.io.get_targets()
+        assert targets == [], f"targets: {targets}"
 
     async def setup(self):
         pass

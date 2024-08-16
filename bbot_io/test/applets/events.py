@@ -1,10 +1,11 @@
-async def _test_events(self):
+async def events_test(self):
     """
     Basic tests CRUD tests for events, making sure we can insert and delete data properly
     """
 
     # run a bbot scan
     for event in self.scan1_events:
+        events = await self.io.get_events()
         await self.io.create_event(event)
 
     # make sure the data is there

@@ -1,4 +1,5 @@
 from pathlib import Path
+from inspect import iscoroutinefunction
 
 
 def test_io_tests():
@@ -16,9 +17,9 @@ def test_io_tests():
 
     # require test for every applet
     from bbot_io.applets import available_applets
-
-    applets_test_dir = Path(__file__).parent / "applets"
-    applet_tests = [f.stem for f in applets_test_dir.iterdir() if f.is_file() and f.suffix == ".py"]
+    from bbot_io.test.applets import applet_tests
 
     for applet in available_applets:
         assert applet in applet_tests, f"No test for {applet} applet"
+        test_fn = applet_tests[applet]
+        assert iscoroutinefunction(test_fn), f"{test_fn} is not an async callable function"

@@ -1,2 +1,3 @@
-async def _test_targets(self):
+
+async def targets_test(self):
     pass
