@@ -3,6 +3,6 @@ from .base import IOTestBase
 
 class TestPostgres(IOTestBase):
     async def setup(self):
-        from bbot_io import BBOTIO
+        from bbot_io import BBOT_IO
 
-        return BBOTIO("postgres", password="bbotislife")
+        return BBOT_IO("postgres", password="bbotislife")

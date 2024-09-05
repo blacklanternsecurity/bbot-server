@@ -9,9 +9,7 @@ from bbot_io.applets._base import BaseApplet, api_endpoint
 class Events(BaseApplet):
 
     model = Event
-
-    def _setup(self):
-        self.include_app("Subdomains")
+    include_apps = ["Subdomains"]
 
     @api_endpoint("/", methods=["GET"], summary="Get Events")
     async def get_events(self) -> list[Event]:

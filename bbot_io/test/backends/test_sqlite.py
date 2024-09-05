@@ -3,6 +3,6 @@ from .base import IOTestBase
 
 class TestSqlite(IOTestBase):
     async def setup(self):
-        from bbot_io import BBOTIO
+        from bbot_io import BBOT_IO
 
-        return BBOTIO(database="/tmp/bbot-io-test.db")
+        return BBOT_IO(database="/tmp/bbot-io-test.db")

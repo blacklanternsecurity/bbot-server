@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 
 def api_endpoint(endpoint, **kwargs):
+
     def decorator(fn):
         fn._kwargs = kwargs
         fn._endpoint = endpoint
@@ -13,8 +14,17 @@ def api_endpoint(endpoint, **kwargs):
 
 
 class BaseApplet:
+    """
+    Applets are where the core business logic lives.
+
+    User --> Interface --> Applets --> Backend
+    """
+
     # must define model
     model = None
+
+    # optionally you can include other applets
+    include_apps = []
 
     # whether to nest this applet under its own path
     nested = True
@@ -23,9 +33,8 @@ class BaseApplet:
         self.log = logging.getLogger(f"bbot.io.{self.name.lower()}")
         self.backend = backend
         self.parent = parent
-        self.router = APIRouter()
         self.child_applets = []
-        self.db = None
+        self.router = APIRouter()
 
         # automatically add API routes for any methods marked with @api_endpoint decorator
         for attr in dir(self):
@@ -40,10 +49,13 @@ class BaseApplet:
                 elif endpoint_type == "websocket":
                     self.router.add_api_websocket_route(endpoint, val, **kwargs)
 
+        for app in self.include_apps:
+            self.include_app(app)
+
     async def setup(self):
         # backend first
-        await self.backend.setup()
-        self.db = await self.backend.get_table(self)
+        await self.backend._setup()
+        self.db = await self.backend.make_table(self)
         # inherit db, model from parent
         if self.parent is not None:
             if self.db is None:
@@ -54,10 +66,8 @@ class BaseApplet:
         for child_applet in self.child_applets:
             await child_applet.setup()
 
-    def _setup(self):
-        pass
-
     def include_app(self, app_name):
+        self.log.info(f"Including {app_name}")
         app_name_lower = app_name.lower()
         # import the app
         module = importlib.import_module(f"bbot_io.applets.{app_name_lower}")
@@ -65,7 +75,6 @@ class BaseApplet:
         app_class = getattr(module, app_name)
         # instantiate it
         applet = app_class(self.backend, parent=self)
-        applet._setup()
         # set it as an attribute on self
         setattr(self, app_name_lower, applet)
         # add it to our FastAPI router
