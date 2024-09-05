@@ -117,7 +117,7 @@ Choosing the right underlying libraries for this project is really important. It
 The goal of this project is to a have a single interface to the BBOT database, with friendly functions like `get_subdomains()` and `delete_scan()`:
 
 ```python
-io = BBOTIO(backend="sqlite")
+io = BBOT_IO(backend="sqlite")
 io.get_subdomains()
 io.delete_scan(scan_id)
 ```
@@ -132,5 +132,3 @@ curl http://bbot.server/delete_scan?scan_id=scan_id
 These matching endpoints will allow us to make an *HTTP client* that behaves exactly like the *python API*, so they can be used interchangeably.
 
 We need to support multiple backends, so we can scale hugely if needed. We also need the ability to deploy a lightweight, standalone version, for personal setups.
-
-
