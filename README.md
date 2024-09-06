@@ -32,7 +32,9 @@ BBOT server has several layers of abstraction which make it extremely versatile:
 
 ### **User** --> **Interfaces** --> **Applets** --> **Backends**
 
-#### 1. Interfaces (`bbot_io/interfaces/*.py`)
+---
+
+### 1. Interfaces (`bbot_io/interfaces/*.py`)
 
 To interact with BBOT server, we use the `BBOT_IO()` interface, which lets you pick a backend such as `sqlite`, `postgres`, or `http`.
 
@@ -40,11 +42,11 @@ However, `http` isn't really a backend, it's an interface. Interfaces completely
 
 The interface returns pydantic objects.
 
-#### 2. Applets (`bbot_io/applets/*.py`)
+### 2. Applets (`bbot_io/applets/*.py`)
 
 Applets are where each of the API functions (e.g. `get_subdomains()`) are defined, along with their HTTP API endpoints. It's also where any logic is defined.
 
-#### 3. Backends (`bbot_io/backends/*.py`)
+### 3. Backends (`bbot_io/backends/*.py`)
 
 Backends are abstracted using SQLAlchemy. Current supported backends are `sqlite` and `postgres`.
 
