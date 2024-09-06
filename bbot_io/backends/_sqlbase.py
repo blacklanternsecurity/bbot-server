@@ -66,16 +66,19 @@ class SQLBackend(BaseBackend):
     table_class = SQLTable
 
     async def setup(self):
-        if not database_exists(self.connection_string):
-            create_database(self.connection_string)
-        self.engine = create_engine(self.connection_string)
+        self.log.info(f"Connecting to {self.connection_string(mask_password=True)}")
+        if not database_exists(self.connection_string()):
+            create_database(self.connection_string())
+        self.engine = create_engine(self.connection_string())
         SQLModel.metadata.create_all(self.engine)
 
-    @property
-    def connection_string(self):
+    def connection_string(self, mask_password=False):
         connection_string = f"{self.protocol}://"
         if self.username:
-            connection_string += f"{self.username}:{self.password}"
+            password = self.password
+            if mask_password:
+                password = "****"
+            connection_string += f"{self.username}:{password}"
         if self.host:
             connection_string += f"@{self.host}"
             if self.port:

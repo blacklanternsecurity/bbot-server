@@ -22,10 +22,10 @@ def test_event_validation():
         "module_sequence": "TARGET",
         "discovery_context": "Scan elden_tammy seeded with IP_ADDRESS: 127.0.0.1",
         "discovery_path": [
-            [
-                "IP_ADDRESS:4b84b15bff6ee5796152495a230e45e3d7e947d9",
-                "Scan elden_tammy seeded with IP_ADDRESS: 127.0.0.1",
-            ]
+            "Scan elden_tammy seeded with IP_ADDRESS: 127.0.0.1",
+        ],
+        "parent_chain": [
+            "IP_ADDRESS:4b84b15bff6ee5796152495a230e45e3d7e947d9",
         ],
     }
 

@@ -19,7 +19,7 @@ class Events(BaseApplet):
     # async def get_events(self, event_id: str) -> list[Event]:
     #     main_event = self.db.find()
 
-    @api_endpoint("/", methods=["POST", "PUT"], summary="Create Event")
+    @api_endpoint("/", methods=["POST"], summary="Create Event")
     async def create_event(self, event: Event):
         if event.type == "SCAN":
             event_data = event.get_data()

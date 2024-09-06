@@ -42,10 +42,9 @@ class IOTestBase:
             import multiprocessing
             from bbot_io.server import run_server
 
-            kwargs = dict(self.kwargs)
-            kwargs["uvicorn_options"] = {"port": 7777}
+            kwargs = {"database": "/tmp/.bbotio_test/test.db", "uvicorn_options": {"port": 7777}}
             # start bbot server in a separate process
-            proc = multiprocessing.Process(target=run_server, daemon=True, args=(self.backend,), kwargs=kwargs)
+            proc = multiprocessing.Process(target=run_server, daemon=True, args=("sqlite",), kwargs=kwargs)
             proc.start()
 
             # allow some time for the server to start

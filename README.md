@@ -1,42 +1,29 @@
-# BBOT I/O
+# BBOT Server
 
 [![Python Version](https://img.shields.io/badge/python-3.9+-FF8400)](https://www.python.org) [![License](https://img.shields.io/badge/license-GPLv3-FF8400.svg)](https://github.com/blacklanternsecurity/bbot/blob/dev/LICENSE) [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Discord](https://img.shields.io/discord/859164869970362439)](https://discord.com/invite/PZqkgxu5SA)
 
-BBOT I/O is a (WIP) database for your BBOT scan data.
+BBOT Server is a database for your BBOT scan data. Can be deployed in a single command!
 
-![bbot-server](https://github.com/blacklanternsecurity/bbot/assets/20261699/49bd62a9-b862-44cb-aa36-1c347378a734)
+![bbot-server](https://github.com/user-attachments/assets/c68d3b81-0cb4-4721-9421-879c1b2b6d04)
 
-## I/O Modules
+## Supported Backends
 
-The main goal of BBOT I/O is to make BBOT scan data easy to view and manage and over time.
+- [x] SQLite (default)
+- [x] Postgres
+- [x] REST Client
+
+## Deployment
+
+The main goal of BBOT Server is to make your scan data easy to view and manage and over time:
+
+- Monitor changes in attack surface (new hosts, new vulnerabilities)
 
 **I/O Modules** provide a uniform Python + REST API across many backends. They allow `bbot-server` to be deployed either as a lightweight standalone tool, or as a central hub for BBOT multiplayer ;)
 
-Most importantly, I/O modules will provide a solid foundation for new BBOT projects going forward:
+Most importantly, it will provide a solid foundation for new BBOT projects going forward:
 - Asset Inventory
 - Interactive CLI (DIY ASM for hackers)
 - BBOT Frontend (eventually?)
-
-## BBOT Server
-
-`bbot-server` is a tiny REST API built on top of BBOT I/O. It will evolve over time, and may eventually become its own project.
-
-## Backends
-
-Backends are modular and easy to add!
-
-- [x] SQLite (default)
-- [ ] MongoDB
-- [ ] REST Client
-- [x] Postgres
-- [ ] Neo4j
-
-### Other TODOs
-
-- [x] Basic tests
-- [ ] Github actions
-- [ ] Codecov
-- [ ] Full documentation
 
 ## Installation
 
@@ -55,10 +42,10 @@ poetry install
 # start bbot server
 bbot-server -p 8000
 
-# visit REST API at http://127.0.0.1:8000/docs
+# visit REST API at http://127.0.0.1:8000/
 
 # run bbot scan
-bbot -t blacklanternsecurity.com -om websocket -c modules.websocket.url=ws://localhost:8000/ws
+bbot -t blacklanternsecurity.com -om http -c modules.http.url=http://localhost:8000/events/
 
 # get subdomains
 curl http://localhost:8000/subdomains
@@ -69,29 +56,31 @@ curl http://localhost:8000/subdomains
 import asyncio
 
 from bbot import Scanner
-from bbot_io.modules import IO
+from bbot_io import BBOT_IO
 from bbot_io.models import Event
 
 
 async def main():
     # create SQLite database
-    io = IO("sqlite", database="./bbot.db")
-    # or MongoDB
-    io = IO("mongo", uri="mongodb://localhost:27017")
+    io = BBOT_IO("sqlite", database="./bbot.db")
+    # or Postgres
+    io = BBOT_IO("postgres", username="postgres", password="bbotislife", )
+
+    # setup
+    await io.setup()
 
     # fill database with BBOT data
     scan = Scanner("blacklanternsecurity.com")
     async for event in scan.async_start():
         pydantic_event = Event(**event.json())
-        await io.insert_event(pydantic_event)
+        await io.create_event(pydantic_event)
 
     # get subdomains
-    for subdomain in await io.get_subdomains():
-        print(subdomain)
+    subdomains = await io.get_subdomains()
+    print(subdomains)
 
     # get events
-    for event in await io.get_events():
-        print(event)
+    events = await io.get_events()
 
     # clear database
     await io.drop_database()
@@ -103,32 +92,16 @@ if __name__ == "__main__":
 
 ## Running Tests
 ```bash
-# first, start mongodb
-docker run --rm -it -p 27017:27017 mongo
+# first, start postgres
+docker run --rm -e POSTGRES_PASSWORD=bbotislife -p 5432:5432 postgres
 
 # run tests
 poetry run pytest
 ```
 
-## Thoughts on Libraries
+### TODO
 
-Choosing the right underlying libraries for this project is really important. It's also a difficult decision, especially because of the way this library needs to expose both a *python* API and and *web* API.
-
-The goal of this project is to a have a single interface to the BBOT database, with friendly functions like `get_subdomains()` and `delete_scan()`:
-
-```python
-io = BBOT_IO(backend="sqlite")
-io.get_subdomains()
-io.delete_scan(scan_id)
-```
-
-With matching REST API endpoints:
-
-```bash
-curl http://bbot.server/get_subdomains
-curl http://bbot.server/delete_scan?scan_id=scan_id
-```
-
-These matching endpoints will allow us to make an *HTTP client* that behaves exactly like the *python API*, so they can be used interchangeably.
-
-We need to support multiple backends, so we can scale hugely if needed. We also need the ability to deploy a lightweight, standalone version, for personal setups.
+- [x] Basic tests
+- [x] Github actions
+- [ ] Codecov
+- [ ] Full documentation

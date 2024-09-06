@@ -87,7 +87,8 @@ class Event(BBOTBaseModel, table=True):
     module: str = Field(index=True)
     module_sequence: str
     discovery_context: str = ""
-    discovery_path: List[List[str]] = Field(default=[], sa_type=JSON)
+    discovery_path: List[str] = Field(default=[], sa_type=JSON)
+    parent_chain: List[str] = Field(default=[], sa_type=JSON)
 
 
 class Scan(BBOTBaseModel, table=True):
