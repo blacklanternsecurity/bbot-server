@@ -36,10 +36,12 @@ from bbot_io.models import Event
 
 
 async def main():
-    # create SQLite database
+    # local SQLite database
     io = BBOT_IO("sqlite", database="./bbot.db")
     # or Postgres
-    io = BBOT_IO("postgres", username="postgres", password="bbotislife", )
+    io = BBOT_IO("postgres", host="localhost", username="postgres", password="bbotislife")
+    # or a BBOT server already running somewhere else
+    io = BBOT_IO("rest", url="http://bbot.server")
 
     # setup
     await io.setup()
