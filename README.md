@@ -4,41 +4,12 @@
 
 BBOT Server is a database for your BBOT scan data. Deploy in a single command!
 
-## Supported Backends
-
-- [x] SQLite (default)
-- [x] Postgres
-- [x] REST Client
-
-## Deployment
-
-The main goal of BBOT Server is to make your scan data easy to view and manage and over time:
-
-- Monitor changes in attack surface (new hosts, new vulnerabilities)
-
-**I/O Modules** provide a uniform Python + REST API across many backends. They allow `bbot-server` to be deployed either as a lightweight standalone tool, or as a central hub for BBOT multiplayer ;)
-
-Most importantly, it will provide a solid foundation for new BBOT projects going forward:
-- Asset Inventory
-- Interactive CLI (DIY ASM for hackers)
-- BBOT Frontend (eventually?)
-
-## Installation
-
 ```bash
-# pipx
+# install
 pipx install git+https://github.com/blacklanternsecurity/bbot-server
 
-# poetry
-git clone git@github.com:blacklanternsecurity/bbot-server.git && cd bbot-server
-poetry install
-```
-
-## Usage (CLI)
-
-```bash
 # start bbot server
-bbot-server -p 8000
+bbot-server -p 8080
 
 # visit REST API at http://127.0.0.1:8000/
 
@@ -48,6 +19,12 @@ bbot -t blacklanternsecurity.com -om http -c modules.http.url=http://localhost:8
 # get subdomains
 curl http://localhost:8000/subdomains
 ```
+
+## Supported Backends
+
+- [x] SQLite (default)
+- [x] Postgres
+- [x] REST Client
 
 ## Usage (Python)
 ```python
