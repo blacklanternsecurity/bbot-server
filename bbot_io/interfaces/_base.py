@@ -1,3 +1,6 @@
+import logging
+
+
 class BaseInterface:
     """
     Interface is the frontend of the BBOT IO API.
@@ -12,6 +15,8 @@ class BaseInterface:
     """
 
     def __init__(self, backend, **kwargs):
+        self.log = logging.getLogger(f"bbot.io.interfaces.{self.__class__.__name__.lower()}")
+
         from bbot_io.applets import BBOTApplet
 
         self.applet = BBOTApplet(backend, **kwargs)

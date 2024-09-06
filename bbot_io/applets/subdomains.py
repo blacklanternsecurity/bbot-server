@@ -4,8 +4,6 @@ from bbot_io.applets._base import BaseApplet, api_endpoint
 
 class Subdomains(BaseApplet):
 
-    nested = False
-
     @api_endpoint("/", methods=["GET"], summary="Get Subdomains")
     async def get_subdomains(self, in_scope_only: bool = True) -> list[str]:
         statement = select(distinct(self.model.host)).where(self.model.type == "DNS_NAME")
@@ -14,7 +12,7 @@ class Subdomains(BaseApplet):
         return await self.db.exec(statement)
 
     @api_endpoint("/summary", methods=["GET"], summary="Get Subdomains Summary")
-    async def get_subdomain_summary(self) -> list[str]:
+    async def get_subdomain_summary(self) -> dict:
         statement = (
             select(self.model.host, self.model.type, func.count(self.model.id).label("count"))
             .where(self.model.host.is_not(None))

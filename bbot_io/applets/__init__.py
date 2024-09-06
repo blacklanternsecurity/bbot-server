@@ -14,6 +14,8 @@ class BBOTApplet(BaseApplet):
 
     include_apps = ["Events", "Scans", "Utils", "Targets"]
 
+    nested = False
+
     def __init__(self, backend="sqlite", **kwargs):
         from bbot_io.backends import BBOTBackend
 
