@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 import logging
 from copy import copy
 from bbot_io.test.applets import applet_tests
@@ -9,6 +10,8 @@ log = logging.getLogger("bbot.test.modules")
 
 class IOTestBase:
     log = logging.getLogger("bbot.io")
+
+    needs_server = False
 
     from ._gen_scan_data import gen_scan_data, patch_scan
 
@@ -26,12 +29,33 @@ class IOTestBase:
 
     @pytest.mark.asyncio
     async def test_module_run(self, monkeypatch):
+        """
+        This is the main test function
+
+        It runs once for every backend, and tests every applet.
+        """
+
         self.fixtures = self.Fixtures(monkeypatch)
+
+        # start the BBOT web server if needed
+        if self.needs_server:
+            import multiprocessing
+            from bbot_io.server import run_server
+
+            kwargs = dict(self.kwargs)
+            kwargs["uvicorn_options"] = {"port": 7777}
+            # start bbot server in a separate process
+            proc = multiprocessing.Process(target=run_server, daemon=True, args=(self.backend,), kwargs=kwargs)
+            proc.start()
+
+            # allow some time for the server to start
+            await asyncio.sleep(3)
 
         self._scan1_events, self._scan2_events = await self.gen_scan_data()
 
         # test applets
         for applet_name, applet_test in applet_tests.items():
+
             # instantiate io module
             self.io = await self.setup()
             await self.io.setup()
@@ -66,4 +90,6 @@ class IOTestBase:
         assert targets == [], f"targets: {targets}"
 
     async def setup(self):
-        pass
+        from bbot_io import BBOT_IO
+
+        return BBOT_IO(self.backend, **self.kwargs)
