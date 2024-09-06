@@ -13,6 +13,5 @@ class sqlite(SQLBackend):
         self.database.parent.mkdir(parents=True, exist_ok=True)
         await super().setup()
 
-    @property
-    def connection_string(self):
+    def connection_string(self, mask_password=False):
         return f"sqlite:///{self.database}"
