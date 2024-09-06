@@ -41,7 +41,7 @@ async def main():
     # or Postgres
     io = BBOT_IO("postgres", host="localhost", username="postgres", password="bbotislife")
     # or a BBOT server already running somewhere else
-    io = BBOT_IO("rest", url="http://bbot.server")
+    io = BBOT_IO("http", url="http://bbot.server")
 
     # setup
     await io.setup()
