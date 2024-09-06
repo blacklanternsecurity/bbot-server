@@ -26,6 +26,14 @@ curl http://localhost:8000/subdomains
 - [x] Postgres
 - [x] REST Client
 
+## How it works
+
+BBOT server is 
+
+BBOT server is designed to make new features/endpoints very easy to add.
+
+
+
 ## Usage (Python)
 ```python
 import asyncio
