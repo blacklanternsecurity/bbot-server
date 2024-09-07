@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "bbot-io"
+name = "bbot-server"
 version = "0.1.0"
 description = ""
 authors = ["TheTechromancer"]

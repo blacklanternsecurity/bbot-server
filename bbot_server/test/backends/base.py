@@ -9,7 +9,7 @@ log = logging.getLogger("bbot.test.modules")
 
 
 class IOTestBase:
-    log = logging.getLogger("bbot.io")
+    log = logging.getLogger("bbot.server")
 
     needs_server = False
 

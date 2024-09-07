@@ -13,7 +13,7 @@ from pydantic import TypeAdapter
 from bbot_io.interfaces._base import BaseInterface
 
 
-log = logging.getLogger("bbot.io.http")
+log = logging.getLogger("bbot.server.http")
 
 
 class HTTPInterface(BaseInterface):

@@ -45,7 +45,7 @@ class BaseBackend:
     default_port = 0
 
     def __init__(self, *args, **kwargs):
-        self.log = logging.getLogger(f"bbot.io.backends.{self.__class__.__name__}")
+        self.log = logging.getLogger(f"bbot.server.backends.{self.__class__.__name__}")
         self.database = kwargs.pop("database", self.default_database)
         self.username = kwargs.pop("username", self.default_username)
         self.password = kwargs.pop("password", self.default_password)

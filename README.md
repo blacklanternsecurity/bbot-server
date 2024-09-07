@@ -1,8 +1,8 @@
 # BBOT Server
 
-[![Python Version](https://img.shields.io/badge/python-3.9+-FF8400)](https://www.python.org) [![License](https://img.shields.io/badge/license-GPLv3-FF8400.svg)](https://github.com/blacklanternsecurity/bbot/blob/dev/LICENSE) [![tests](https://github.com/blacklanternsecurity/bbot-io/actions/workflows/tests.yml/badge.svg)](https://github.com/blacklanternsecurity/bbot-io/actions/workflows/tests.yml) [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Discord](https://img.shields.io/discord/859164869970362439)](https://discord.com/invite/PZqkgxu5SA)
+[![Python Version](https://img.shields.io/badge/python-3.9+-FF8400)](https://www.python.org) [![License](https://img.shields.io/badge/license-GPLv3-FF8400.svg)](https://github.com/blacklanternsecurity/bbot/blob/dev/LICENSE) [![tests](https://github.com/blacklanternsecurity/bbot-server/actions/workflows/tests.yml/badge.svg)](https://github.com/blacklanternsecurity/bbot-server/actions/workflows/tests.yml) [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Discord](https://img.shields.io/discord/859164869970362439)](https://discord.com/invite/PZqkgxu5SA)
 
-BBOT Server is a database for your BBOT scan data. Deploy in a single command!
+BBOT Server is a database, REST API, and Python API for managing your [BBOT](https://github.com/blacklanternsecurity/bbot) scan data. Deploy in a single command!
 
 ```bash
 # install

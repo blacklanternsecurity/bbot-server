@@ -31,7 +31,7 @@ class BaseApplet:
     nested = True
 
     def __init__(self, backend, parent=None):
-        self.log = logging.getLogger(f"bbot.io.{self.name.lower()}")
+        self.log = logging.getLogger(f"bbot.server.{self.name.lower()}")
         self.backend = backend
         self.parent = parent
         self.child_applets = []

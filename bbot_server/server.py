@@ -28,7 +28,7 @@ def main():
         "-c",
         "--config",
         nargs="*",
-        help="Custom config options in key=value format: e.g. 'url=http://bbot.io/'",
+        help="Custom config options in key=value format: e.g. 'url=http://bbot.server/'",
         metavar="CONFIG",
         default=[],
     )
