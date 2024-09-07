@@ -36,25 +36,21 @@ BBOT server has several layers of abstraction which make it very versatile:
 
 ### 1. Interfaces (`bbot_io/interfaces/*.py`)
 
-To interact with BBOT server, we use the `BBOT_IO()` interface, which lets you pick a backend such as `sqlite`, `postgres`, or `http`.
+Interfaces let you interact transparently with the BBOT server via its python API, regardless of whether you're on the same system. This will useful in building future projects, such as an interactive command-line interface, because it allows multiple clients to connect at the same time (BBOT multiplayer!).
 
-However, `http` isn't really a backend, it's an interface. Interfaces completely abstract the server by letting you interact with it via Python, e.g. `io.get_subdomains()`, regardless of whether the server is on your local system, or somewhere else. The interface returns pydantic objects.
-
-Right now there are only two interfaces: `local` and `http`. In the future there might be other communication protocols like ZeroMQ, etc.
+Right now there are only two interfaces: `local` and `http`. In the future we might add more high-performance protocols like ZeroMQ.
 
 ### 2. Applets (`bbot_io/applets/*.py`)
 
 Applets are where the core business logic lives. They make it easy to add new functionality, while keeping BBOT server small and lightweight.
 
-Each applet (e.g. `Events`, `Scans`, or `Subdomains`) has a small collection of python functions (e.g. `get_subdomains()`), which double as HTTP endpoints.
+Each applet (e.g. `Events`, `Scans`, or `Subdomains`) has a small collection of python functions (e.g. `get_subdomains()`), which double as HTTP endpoints. Methods from all applets can be accessed directly from the `BBOT_IO` interface.
 
-Methods from all applets can be accessed directly from the `BBOT_IO` interface.
-
-Each applet typically has its own database model (i.e. its own SQL table), but also has access to all the others. For example, `io.delete_scan()` will remove a scan from the `scan` table, but also delete all its events from the `event` table. 
+Each applet typically has its own database model (i.e. its own SQL table), but can also access other applets if needed. For example, `io.delete_scan()` will remove a scan from the `scan` table, but also delete all its events from the `event` table. 
 
 ### 3. Backends (`bbot_io/backends/*.py`)
 
-Backends abstract the database. This enables you to spin up quickly with `sqlite`, or use `postgres` for a bigger dataset.
+Backends abstract the database. This enables you to spin up quickly with `sqlite`, or use `postgres` for bigger datasets.
 
 ## Usage (Python)
 ```python
