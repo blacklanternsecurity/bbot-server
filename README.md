@@ -9,7 +9,7 @@ BBOT Server is a database for your BBOT scan data. Deploy in a single command!
 pipx install git+https://github.com/blacklanternsecurity/bbot-server
 
 # start bbot server
-bbot-server -p 8080
+bbot-server -p 8000
 
 # visit REST API at http://127.0.0.1:8000/
 
