@@ -28,7 +28,7 @@ curl http://localhost:8000/subdomains
 
 ## How it works
 
-BBOT server has several layers of abstraction which make it extremely versatile:
+BBOT server has several layers of abstraction which make it very versatile:
 
 ### **User** --> **Interfaces** --> **Applets** --> **Backends**
 
@@ -38,17 +38,23 @@ BBOT server has several layers of abstraction which make it extremely versatile:
 
 To interact with BBOT server, we use the `BBOT_IO()` interface, which lets you pick a backend such as `sqlite`, `postgres`, or `http`.
 
-However, `http` isn't really a backend, it's an interface. Interfaces completely abstract the server by letting you interact with it via Python, e.g. `io.get_subdomains()`, regardless of whether the server is on your local system, or somewhere else.
+However, `http` isn't really a backend, it's an interface. Interfaces completely abstract the server by letting you interact with it via Python, e.g. `io.get_subdomains()`, regardless of whether the server is on your local system, or somewhere else. The interface returns pydantic objects.
 
-The interface returns pydantic objects.
+Right now there are only two interfaces: `local` and `http`. In the future there might be other communication protocols like ZeroMQ, etc.
 
 ### 2. Applets (`bbot_io/applets/*.py`)
 
-Applets are where each of the API functions (e.g. `get_subdomains()`) are defined, along with their HTTP API endpoints. It's also where any logic is defined.
+Applets are where the core business logic lives. They make it easy to add new functionality, while keeping BBOT server small and lightweight.
+
+Each applet (e.g. `Events`, `Scans`, or `Subdomains`) has a small collection of python functions (e.g. `get_subdomains()`), which double as HTTP endpoints.
+
+Methods from all applets can be accessed directly from the `BBOT_IO` interface.
+
+Each applet typically has its own database model (i.e. its own SQL table), but also has access to all the others. For example, `io.delete_scan()` will remove a scan from the `scan` table, but also delete all its events from the `event` table. 
 
 ### 3. Backends (`bbot_io/backends/*.py`)
 
-Backends are abstracted using SQLAlchemy. Current supported backends are `sqlite` and `postgres`.
+Backends abstract the database. This enables you to spin up quickly with `sqlite`, or use `postgres` for a bigger dataset.
 
 ## Usage (Python)
 ```python

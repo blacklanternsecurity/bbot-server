@@ -48,7 +48,7 @@ class IOTestBase:
             proc.start()
 
             # allow some time for the server to start
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
 
         self._scan1_events, self._scan2_events = await self.gen_scan_data()
 
