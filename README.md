@@ -34,13 +34,13 @@ BBOT server has several layers of abstraction which make it very versatile:
 
 ---
 
-### 1. Interfaces (`bbot_io/interfaces/*.py`)
+### 1. Interfaces (`bbot_server/interfaces/*.py`)
 
 Interfaces let you interact transparently with the BBOT server via its python API, regardless of whether you're on the same system. This will useful in building future projects, such as an interactive command-line interface, because it allows multiple clients to connect at the same time (BBOT multiplayer!).
 
 Right now there are only two interfaces: `local` and `http`. In the future we might add more high-performance protocols like ZeroMQ.
 
-### 2. Applets (`bbot_io/applets/*.py`)
+### 2. Applets (`bbot_server/applets/*.py`)
 
 Applets are where the core business logic lives. They make it easy to add new functionality, while keeping BBOT server small and lightweight.
 
@@ -48,7 +48,7 @@ Each applet (e.g. `Events`, `Scans`, or `Subdomains`) has a small collection of 
 
 Each applet typically has its own database model (i.e. its own SQL table), but can also access other applets if needed. For example, `io.delete_scan()` will remove a scan from the `scan` table, but also delete all its events from the `event` table. 
 
-### 3. Backends (`bbot_io/backends/*.py`)
+### 3. Backends (`bbot_server/backends/*.py`)
 
 Backends abstract the database. This enables you to spin up quickly with `sqlite`, or use `postgres` for bigger datasets.
 
@@ -57,8 +57,8 @@ Backends abstract the database. This enables you to spin up quickly with `sqlite
 import asyncio
 
 from bbot import Scanner
-from bbot_io import BBOT_IO
-from bbot_io.models import Event
+from bbot_server import BBOT_IO
+from bbot_server.models import Event
 
 
 async def main():

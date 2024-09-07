@@ -1,7 +1,7 @@
 # from pathlib import Path
 
 # from bbot import Scanner, Preset
-from bbot_io.models import Event
+from bbot_server.models import Event
 
 base_dns_mock = {
     "blacklanternsecurity.com": {

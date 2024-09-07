@@ -52,7 +52,7 @@ class BaseBackend:
         self.host = kwargs.pop("host", self.default_host)
         self.port = kwargs.pop("port", self.default_port)
 
-        from bbot_io import config
+        from bbot_server import config
 
         self.config = config
         self.tables = []

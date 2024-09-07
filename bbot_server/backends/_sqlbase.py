@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, select, delete, create_engine
 from sqlalchemy_utils.functions import database_exists, create_database
 
-from bbot_io.backends._base import BaseBackend, BaseTable
+from bbot_server.backends._base import BaseBackend, BaseTable
 
 
 class SQLTable(BaseTable):

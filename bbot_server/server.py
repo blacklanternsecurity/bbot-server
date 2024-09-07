@@ -9,13 +9,13 @@ def run_server(backend, **kwargs):
 
     import uvicorn
 
-    uvicorn.run("bbot_io.fastapi:app", **uvicorn_options)
+    uvicorn.run("bbot_server.fastapi:app", **uvicorn_options)
 
 
 def main():
     import argparse
     from omegaconf import OmegaConf
-    from bbot_io.backends import backend_choices
+    from bbot_server.backends import backend_choices
 
     parser = argparse.ArgumentParser(description="BBOT Server")
     parser.add_argument(

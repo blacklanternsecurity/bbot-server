@@ -1,5 +1,5 @@
-from bbot_io.models import Scan
-from bbot_io.applets._base import BaseApplet, api_endpoint
+from bbot_server.models import Scan
+from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
 class Scans(BaseApplet):

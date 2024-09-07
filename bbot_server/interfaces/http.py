@@ -10,7 +10,7 @@ from fastapi.encoders import jsonable_encoder
 # for converting raw JSON into pydantic objects
 from pydantic import TypeAdapter
 
-from bbot_io.interfaces._base import BaseInterface
+from bbot_server.interfaces._base import BaseInterface
 
 
 log = logging.getLogger("bbot.server.http")

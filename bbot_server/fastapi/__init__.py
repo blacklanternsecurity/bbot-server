@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.responses import RedirectResponse
 
-from bbot_io import BBOT_IO
+from bbot_server import BBOT_IO
 
 backend = os.getenv("BBOT_IO_BACKEND", "sqlite")
 kwargs = json.loads(os.getenv("BBOT_IO_CONFIG", "{}"))

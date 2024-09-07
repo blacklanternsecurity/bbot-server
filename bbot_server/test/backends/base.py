@@ -2,7 +2,7 @@ import pytest
 import asyncio
 import logging
 from copy import copy
-from bbot_io.test.applets import applet_tests
+from bbot_server.test.applets import applet_tests
 
 
 log = logging.getLogger("bbot.test.modules")
@@ -40,7 +40,7 @@ class IOTestBase:
         # start the BBOT web server if needed
         if self.needs_server:
             import multiprocessing
-            from bbot_io.server import run_server
+            from bbot_server.server import run_server
 
             kwargs = {"database": "/tmp/.bbotio_test/test.db", "uvicorn_options": {"port": 7777}}
             # start bbot server in a separate process
@@ -89,6 +89,6 @@ class IOTestBase:
         assert targets == [], f"targets: {targets}"
 
     async def setup(self):
-        from bbot_io import BBOT_IO
+        from bbot_server import BBOT_IO
 
         return BBOT_IO(self.backend, **self.kwargs)

@@ -10,6 +10,6 @@ for p in module_dir.iterdir():
 
 
 def BBOTBackend(backend_module, *args, **kwargs):
-    package = importlib.import_module(f".backends.{backend_module}", package="bbot_io")
+    package = importlib.import_module(f".backends.{backend_module}", package="bbot_server")
     module = getattr(package, backend_module)
     return module(*args, **kwargs)

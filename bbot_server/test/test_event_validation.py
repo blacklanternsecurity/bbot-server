@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from bbot_io.models import Event
+from bbot_server.models import Event
 
 
 def test_event_validation():

@@ -2,8 +2,8 @@ import json
 from fastapi import WebSocket
 from starlette.websockets import WebSocketDisconnect
 
-from bbot_io.models import Event, Scan, Target
-from bbot_io.applets._base import BaseApplet, api_endpoint
+from bbot_server.models import Event, Scan, Target
+from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
 class Events(BaseApplet):

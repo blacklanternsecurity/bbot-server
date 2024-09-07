@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from bbot_io.applets._base import BaseApplet
+from bbot_server.applets._base import BaseApplet
 
 applet_dir = Path(__file__).parent
 
@@ -17,7 +17,7 @@ class BBOTApplet(BaseApplet):
     nested = False
 
     def __init__(self, backend="sqlite", **kwargs):
-        from bbot_io.backends import BBOTBackend
+        from bbot_server.backends import BBOTBackend
 
         # instantiate our IO module in the root app
         self.backend = BBOTBackend(backend, **kwargs)

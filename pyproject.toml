@@ -15,7 +15,7 @@ sqlalchemy-utils = "^0.41.2"
 psycopg2 = "^2.9.9"
 
 [tool.poetry.scripts]
-bbot-server = 'bbot_io.server:main'
+bbot-server = 'bbot_server.server:main'
 
 [tool.black]
 line-length = 119

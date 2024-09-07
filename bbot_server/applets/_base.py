@@ -80,7 +80,7 @@ class BaseApplet:
         self.log.debug(f"Including {app_name}")
         app_name_lower = app_name.lower()
         # import the app
-        module = importlib.import_module(f"bbot_io.applets.{app_name_lower}")
+        module = importlib.import_module(f"bbot_server.applets.{app_name_lower}")
         # get its class
         app_class = getattr(module, app_name)
         # instantiate it
