@@ -36,7 +36,7 @@ BBOT server has several layers of abstraction which make it very versatile:
 
 ### 1. Interfaces (`bbot_server/interfaces/*.py`)
 
-Interfaces let you interact transparently with the BBOT server via its python API, regardless of whether you're on the same system. This will useful in building future projects, such as an interactive command-line interface, because it allows multiple clients to connect at the same time (BBOT multiplayer!).
+Interfaces let you interact transparently with the python API, regardless of whether you're on the same system as the server. This will useful for future projects, such as an interactive command-line interface, because it allows multiple clients to connect at the same time (BBOT multiplayer!).
 
 Right now there are only two interfaces: `local` and `http`. In the future we might add more high-performance protocols like ZeroMQ.
 
