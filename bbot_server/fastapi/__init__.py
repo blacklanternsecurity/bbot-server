@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="BBOT Server",
-    description="A central database for your BBOT scan data",
+    description="A feature-rich database + API for your BBOT scan data 🧡",
     lifespan=lifespan,
     debug=True,
     # docs_url=None

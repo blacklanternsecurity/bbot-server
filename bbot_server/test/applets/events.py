@@ -21,6 +21,10 @@ async def events_test(self):
         "www.blacklanternsecurity.com",
     ]
 
+    # retrieve a event by a single id
+    events = await self.io.get_event("DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc")
+    assert len(events) == 2
+
     # run a bbot scan
     for event in self.scan2_events:
         await self.io.create_event(event)
@@ -38,6 +42,10 @@ async def events_test(self):
         "blacklanternsecurity.com",
         "www.blacklanternsecurity.com",
     ]
+
+    # retrieve a event by a single id
+    events = await self.io.get_event("DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc")
+    assert len(events) == 4
 
     # make sure events match perfectly after being inserted and retrieved from the database
     output_events = await self.io.get_events()

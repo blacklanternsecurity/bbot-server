@@ -30,19 +30,19 @@ curl http://localhost:8000/subdomains
 
 BBOT server has several layers of abstraction which make it very versatile:
 
-### **User** --> **Interfaces** --> **Applets** --> **Backends**
+### **Interfaces** --> **Applets** --> **Backends**
 
 ---
 
 ### 1. Interfaces (`bbot_server/interfaces/*.py`)
 
-Interfaces let you interact transparently with the python API, regardless of whether you're on the same system as the server. This will useful for future projects, such as an interactive command-line interface, because it allows multiple clients to connect at the same time (BBOT multiplayer!).
+Interfaces let you interact with BBOT server transparently via its python API, regardless of whether the server is local or remote. This will useful for future projects, such as an interactive command-line interface, because it allows multiple clients to connect at the same time (BBOT multiplayer!).
 
 Right now there are only two interfaces: `local` and `http`. In the future we might add more high-performance protocols like ZeroMQ.
 
 ### 2. Applets (`bbot_server/applets/*.py`)
 
-Applets are where the core business logic lives. They make it easy to add new functionality, while keeping BBOT server small and lightweight.
+Applets are where the core business logic lives. They make it easy to add new functionality, while keeping the server small and lightweight.
 
 Each applet (e.g. `Events`, `Scans`, or `Subdomains`) has a small collection of python functions (e.g. `get_subdomains()`), which double as HTTP endpoints. Methods from all applets can be accessed directly from the `BBOT_IO` interface.
 

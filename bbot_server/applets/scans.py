@@ -4,11 +4,11 @@ from bbot_server.applets._base import BaseApplet, api_endpoint
 
 class Scans(BaseApplet):
 
-    model = Scan
+    data_model = Scan
 
     async def put_scan(self, scan: Scan):
         return await self.db.insert(scan)
 
     @api_endpoint("/", methods=["GET"], summary="Get Scans")
     async def get_scans(self) -> list[Scan]:
-        return await self.db.find()
+        return await self.db.find_many()
