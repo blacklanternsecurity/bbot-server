@@ -22,7 +22,7 @@ class BaseApplet:
     """
 
     # must define model
-    model = None
+    data_model = None
 
     # optionally you can include other applets
     include_apps = []
@@ -40,24 +40,11 @@ class BaseApplet:
         self.route_maps = {}
         self.route_maps = self.highest_parent.route_maps
 
-        # automatically add API routes for any methods marked with @api_endpoint decorator
-        for attr in dir(self):
-            function = getattr(self, attr, None)
-            endpoint = getattr(function, "_endpoint", None)
-            if callable(function) and endpoint is not None:
-                kwargs = dict(getattr(function, "_kwargs", {}))
-                endpoint_type = kwargs.pop("type", "http")
-                if endpoint_type == "http":
-                    kwargs["tags"] = [self.tag]
-                    self.router.add_api_route(endpoint, function, **kwargs)
-                elif endpoint_type == "websocket":
-                    self.router.add_api_websocket_route(endpoint, function, **kwargs)
+        self._add_custom_routes()
 
-                # keep mapping of function names -> HTTP endpoints
-                route = self.router.routes[-1]
-                full_path = f"{self.full_prefix()}{route.path}"
-                signature = inspect.signature(function)
-                self.route_maps[function.__name__] = (full_path, route, signature)
+        self.model = None
+        if self.data_model:
+            self.model = self.data_model
 
         for app in self.include_apps:
             self.include_app(app)
@@ -95,6 +82,30 @@ class BaseApplet:
     @property
     def name(self):
         return self.__class__.__name__
+
+    def _add_custom_routes(self):
+        # automatically add API routes for any methods marked with @api_endpoint decorator
+        # for every attribute on this class
+        for attr in dir(self):
+            # get its value
+            function = getattr(self, attr, None)
+            # see if the value has an "_endpoint" attribute
+            endpoint = getattr(function, "_endpoint", None)
+            # if it's a callable function and it has _endpoint, it's an @api_endpoint
+            if callable(function) and endpoint is not None:
+                kwargs = dict(getattr(function, "_kwargs", {}))
+                endpoint_type = kwargs.pop("type", "http")
+                if endpoint_type == "http":
+                    kwargs["tags"] = [self.tag]
+                    self.router.add_api_route(endpoint, function, **kwargs)
+                elif endpoint_type == "websocket":
+                    self.router.add_api_websocket_route(endpoint, function, **kwargs)
+
+                # keep mapping of function names -> HTTP endpoints
+                route = self.router.routes[-1]
+                full_path = f"{self.full_prefix()}{route.path}"
+                signature = inspect.signature(function)
+                self.route_maps[function.__name__] = (full_path, route, signature)
 
     @property
     def tag(self):

@@ -1,9 +1,10 @@
 import json
+import uuid as uuid_pkg
 from datetime import datetime
 from pydantic import ConfigDict
+from typing import List, Optional
 from sqlalchemy import Boolean, String
 from typing_extensions import Annotated
-from typing import List, Optional, Union
 from sqlalchemy.sql.schema import Column
 from sqlmodel import Field, SQLModel, JSON
 from pydantic.functional_validators import AfterValidator
@@ -24,13 +25,22 @@ NaiveUTC = Annotated[datetime, AfterValidator(naive_datetime_validator)]
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
+        # handle datetime
         if isinstance(obj, datetime):
             return obj.isoformat()
+        # handle uuid
+        elif isinstance(obj, uuid_pkg.UUID):
+            return str(obj)
         return super().default(obj)
 
 
 class BBOTBaseModel(SQLModel):
-    row_id: Union[int, None] = Field(default=None, primary_key=True, exclude=True)
+    uuid: uuid_pkg.UUID = Field(
+        default_factory=uuid_pkg.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
 
     model_config = ConfigDict(extra="ignore")
 

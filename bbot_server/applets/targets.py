@@ -4,11 +4,11 @@ from bbot_server.applets._base import BaseApplet, api_endpoint
 
 class Targets(BaseApplet):
 
-    model = Target
+    data_model = Target
 
     @api_endpoint("/", methods=["GET"], summary="Get Targets")
     async def get_targets(self) -> list[Target]:
-        return await self.db.find()
+        return await self.db.find_many()
 
     @api_endpoint("/", methods=["PUT"], summary="Create Target")
     async def create_target(self, target: Target):

@@ -97,7 +97,6 @@ async def gen_scan_data(self):
             discovery_context="Scan acoustic_david started at 2024-09-06 20:22:11.830475+00:00",
             discovery_path=[],
             parent_chain=[],
-            row_id=None,
             host=None,
             resolved_hosts=[],
             dns_children={},
@@ -128,7 +127,6 @@ async def gen_scan_data(self):
             discovery_context="Scan acoustic_david seeded with DNS_NAME: blacklanternsecurity.com",
             discovery_path=["Scan acoustic_david seeded with DNS_NAME: blacklanternsecurity.com"],
             parent_chain=["DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc"],
-            row_id=None,
         ),
         Event(
             id="ORG_STUB:85519fabe82bd286159b7bfcf5c72139a563135b",
@@ -152,7 +150,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
                 "ORG_STUB:85519fabe82bd286159b7bfcf5c72139a563135b",
             ],
-            row_id=None,
             host=None,
             resolved_hosts=[],
             dns_children={},
@@ -182,7 +179,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
                 "DNS_NAME_UNRESOLVED:e248658c5043561e7c86818feeb2fb91340cd10c",
             ],
-            row_id=None,
         ),
         Event(
             id="DNS_NAME:879e47564ff0ed7711b707d3dbecb706ad6af1a3",
@@ -209,7 +205,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
                 "DNS_NAME:879e47564ff0ed7711b707d3dbecb706ad6af1a3",
             ],
-            row_id=None,
         ),
         Event(
             id="DNS_NAME:053a2ca29921c3594f84019822d4bd4c22c2e7d8",
@@ -236,7 +231,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
                 "DNS_NAME:053a2ca29921c3594f84019822d4bd4c22c2e7d8",
             ],
-            row_id=None,
         ),
         Event(
             id="URL:c947b9b273438ea5818d2602ff5c6cb4a612af98",
@@ -265,7 +259,6 @@ async def gen_scan_data(self):
                 "OPEN_TCP_PORT:afe97c4f927da4b77c77d5c92c71d4fdc9f0d922",
                 "URL:c947b9b273438ea5818d2602ff5c6cb4a612af98",
             ],
-            row_id=None,
         ),
         Event(
             id="HTTP_RESPONSE:cb596051b963c1aa308cfaf4ee2f565dc3480498",
@@ -354,7 +347,6 @@ async def gen_scan_data(self):
                 "URL:c947b9b273438ea5818d2602ff5c6cb4a612af98",
                 "HTTP_RESPONSE:cb596051b963c1aa308cfaf4ee2f565dc3480498",
             ],
-            row_id=None,
         ),
         Event(
             id="DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
@@ -390,7 +382,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:879e47564ff0ed7711b707d3dbecb706ad6af1a3",
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
             ],
-            row_id=None,
         ),
         Event(
             id="URL_UNVERIFIED:c947b9b273438ea5818d2602ff5c6cb4a612af98",
@@ -423,7 +414,6 @@ async def gen_scan_data(self):
                 "HTTP_RESPONSE:cb596051b963c1aa308cfaf4ee2f565dc3480498",
                 "URL_UNVERIFIED:c947b9b273438ea5818d2602ff5c6cb4a612af98",
             ],
-            row_id=None,
         ),
         Event(
             id="OPEN_TCP_PORT:afe97c4f927da4b77c77d5c92c71d4fdc9f0d922",
@@ -450,7 +440,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
                 "OPEN_TCP_PORT:afe97c4f927da4b77c77d5c92c71d4fdc9f0d922",
             ],
-            row_id=None,
         ),
     ]
 
@@ -499,7 +488,6 @@ async def gen_scan_data(self):
             discovery_context="Scan vigorous_michelle started at 2024-09-06 20:22:13.423012+00:00",
             discovery_path=[],
             parent_chain=[],
-            row_id=None,
             host=None,
             resolved_hosts=[],
             dns_children={},
@@ -530,7 +518,6 @@ async def gen_scan_data(self):
             discovery_context="Scan vigorous_michelle seeded with DNS_NAME: blacklanternsecurity.com",
             discovery_path=["Scan vigorous_michelle seeded with DNS_NAME: blacklanternsecurity.com"],
             parent_chain=["DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc"],
-            row_id=None,
         ),
         Event(
             id="ORG_STUB:85519fabe82bd286159b7bfcf5c72139a563135b",
@@ -554,7 +541,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
                 "ORG_STUB:85519fabe82bd286159b7bfcf5c72139a563135b",
             ],
-            row_id=None,
             host=None,
             resolved_hosts=[],
             dns_children={},
@@ -584,7 +570,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
                 "DNS_NAME_UNRESOLVED:053a2ca29921c3594f84019822d4bd4c22c2e7d8",
             ],
-            row_id=None,
         ),
         Event(
             id="DNS_NAME:879e47564ff0ed7711b707d3dbecb706ad6af1a3",
@@ -611,7 +596,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
                 "DNS_NAME:879e47564ff0ed7711b707d3dbecb706ad6af1a3",
             ],
-            row_id=None,
         ),
         Event(
             id="DNS_NAME:e248658c5043561e7c86818feeb2fb91340cd10c",
@@ -638,7 +622,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
                 "DNS_NAME:e248658c5043561e7c86818feeb2fb91340cd10c",
             ],
-            row_id=None,
         ),
         Event(
             id="URL:c947b9b273438ea5818d2602ff5c6cb4a612af98",
@@ -667,7 +650,6 @@ async def gen_scan_data(self):
                 "OPEN_TCP_PORT:afe97c4f927da4b77c77d5c92c71d4fdc9f0d922",
                 "URL:c947b9b273438ea5818d2602ff5c6cb4a612af98",
             ],
-            row_id=None,
         ),
         Event(
             id="HTTP_RESPONSE:cb596051b963c1aa308cfaf4ee2f565dc3480498",
@@ -756,7 +738,6 @@ async def gen_scan_data(self):
                 "URL:c947b9b273438ea5818d2602ff5c6cb4a612af98",
                 "HTTP_RESPONSE:cb596051b963c1aa308cfaf4ee2f565dc3480498",
             ],
-            row_id=None,
         ),
         Event(
             id="DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
@@ -792,7 +773,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:879e47564ff0ed7711b707d3dbecb706ad6af1a3",
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
             ],
-            row_id=None,
         ),
         Event(
             id="OPEN_TCP_PORT:afe97c4f927da4b77c77d5c92c71d4fdc9f0d922",
@@ -819,7 +799,6 @@ async def gen_scan_data(self):
                 "DNS_NAME:1e57014aa7b0715bca68e4f597204fc4e1e851fc",
                 "OPEN_TCP_PORT:afe97c4f927da4b77c77d5c92c71d4fdc9f0d922",
             ],
-            row_id=None,
         ),
         Event(
             id="URL_UNVERIFIED:c947b9b273438ea5818d2602ff5c6cb4a612af98",
@@ -852,7 +831,6 @@ async def gen_scan_data(self):
                 "HTTP_RESPONSE:cb596051b963c1aa308cfaf4ee2f565dc3480498",
                 "URL_UNVERIFIED:c947b9b273438ea5818d2602ff5c6cb4a612af98",
             ],
-            row_id=None,
         ),
     ]
 

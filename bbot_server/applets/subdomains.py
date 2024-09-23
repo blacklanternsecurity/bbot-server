@@ -9,7 +9,7 @@ class Subdomains(BaseApplet):
         statement = select(distinct(self.model.host)).where(self.model.type == "DNS_NAME")
         if in_scope_only:
             statement = statement.where(self.model.scope_distance == 0)
-        return await self.db.exec(statement)
+        return await self.db.find_many(statement)
 
     @api_endpoint("/summary", methods=["GET"], summary="Get Subdomains Summary")
     async def get_subdomain_summary(self) -> dict:
@@ -18,7 +18,7 @@ class Subdomains(BaseApplet):
             .where(self.model.host.is_not(None))
             .group_by(self.model.host, self.model.type)
         )
-        results = await self.db.exec(statement)
+        results = await self.db.find_many(statement)
         result_dict = {}
         for host, _type, count in results:
             try:

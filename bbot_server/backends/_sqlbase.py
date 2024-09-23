@@ -14,16 +14,14 @@ class SQLTable(BaseTable):
 
     async def exec(self, statement):
         with Session(self.backend.engine) as session:
-            return session.exec(statement).all()
+            return session.exec(statement)
 
-    async def find(self):
+    async def find_many(self, statement=None):
         with Session(self.backend.engine) as session:
-            statement = select(self.model)
+            if statement is None:
+                statement = select(self.model)
             result = session.exec(statement)
             return result.all()
-
-    async def find_one(self):
-        pass
 
     async def insert(self, obj):
         with Session(self.backend.engine, expire_on_commit=False) as session:
@@ -52,7 +50,7 @@ class SQLTable(BaseTable):
 
     async def count(self):
         with Session(self.backend.engine) as session:
-            return session.exec(func.count(self.model.row_id)).scalar()
+            return session.exec(func.count(self.model.uuid)).scalar()
 
     def clear(self):
         with Session(self.backend.engine) as session:
