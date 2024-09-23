@@ -1,6 +1,8 @@
 import logging
+from bbot_server.utils.async_utils import async_to_sync_class
 
 
+@async_to_sync_class
 class BaseInterface:
     """
     Interface is the frontend of the BBOT IO API.
