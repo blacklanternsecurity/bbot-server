@@ -95,7 +95,7 @@ class IOTestBase:
                     if response.status_code == 200:
                         break
                 except httpx.HTTPError:
-                    sleep(.01)
+                    sleep(0.01)
 
     async def ensure_empty(self):
         # clear database
