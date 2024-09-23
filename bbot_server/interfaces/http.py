@@ -18,8 +18,8 @@ log = logging.getLogger("bbot.server.http")
 
 class HTTPInterface(BaseInterface):
 
-    def __init__(self, applet, url):
-        super().__init__(applet)
+    def __init__(self, applet, url, **kwargs):
+        super().__init__(applet, **kwargs)
         self.base_url = url.strip("/")
         self.client = httpx.AsyncClient()
 
@@ -101,6 +101,13 @@ class HTTPInterface(BaseInterface):
         try:
             full_path, route, signature = self.applet.route_maps[attr]
             url = f"{self.base_url}{full_path}"
-            return partial(self._request, url, route, signature)
+            coro = partial(self._request, url, route, signature)
+            if self._synchronous:
+
+                def wrapper(*args, **kwargs):
+                    return self._wrapper.run_coroutine(coro(*args, **kwargs))
+
+                return wrapper
+            return coro
         except KeyError:
             return getattr(self.applet, attr)
