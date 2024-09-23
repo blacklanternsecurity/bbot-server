@@ -93,6 +93,22 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+## Synchronous Mode
+
+BBOT IO is async by default, but can also operate in synchronous mode:
+
+```python
+# local SQLite database
+io = BBOT_IO("sqlite", database="./bbot.db", synchronous=True)
+
+# setup
+io.setup()
+
+# get subdomains
+subdomains = io.get_subdomains()
+print(subdomains)
+```
+
 ## Running Tests
 ```bash
 # first, start postgres
