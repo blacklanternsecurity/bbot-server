@@ -1,6 +1,6 @@
 from sqlalchemy import func, inspect
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, SQLModel, select, delete, create_engine
+from sqlmodel import Session, SQLModel, select, create_engine
 from sqlalchemy_utils.functions import database_exists, create_database
 
 from bbot_server.backends._base import BaseBackend, BaseTable
@@ -25,7 +25,7 @@ class SQLTable(BaseTable):
 
     async def insert(self, obj):
         with Session(self.backend.engine, expire_on_commit=False) as session:
-            session.add(obj)
+            session.add(obj.validated)
             session.commit()
 
     async def insert_if_not_exists(self, obj):
@@ -39,24 +39,23 @@ class SQLTable(BaseTable):
 
             try:
                 # Check if an object with the same primary key already exists
-                existing = session.execute(select(obj.__class__).filter_by(**filter_condition)).scalar_one_or_none()
+                existing = session.exec(select(obj.__class__).filter_by(**filter_condition)).one_or_none()
 
                 if existing is None:
-                    session.add(obj)
+                    session.add(obj.validated)
                     session.commit()
                 # If it exists, we do nothing (effectively a no-op)
             except IntegrityError:
                 session.rollback()
 
+    async def insert_or_update(self, obj):
+        with Session(self.backend.engine, expire_on_commit=False) as session:
+            session.merge(obj.validated)
+            session.commit()
+
     async def count(self):
         with Session(self.backend.engine) as session:
             return session.exec(func.count(self.model.uuid)).scalar()
-
-    def clear(self):
-        with Session(self.backend.engine) as session:
-            statement = delete(self.model)
-            session.exec(statement)
-            session.commit()
 
 
 class SQLBackend(BaseBackend):
@@ -86,5 +85,7 @@ class SQLBackend(BaseBackend):
         return connection_string
 
     async def drop_database(self):
-        for table in self.tables:
-            table.clear()
+        SQLModel.metadata.drop_all(self.engine)
+        self.engine.dispose()
+        self.engine = create_engine(self.connection_string())
+        SQLModel.metadata.create_all(self.engine)

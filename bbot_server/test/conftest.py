@@ -8,6 +8,11 @@ test_home = "/tmp/.bbotio_test"
 
 CORE.custom_config["home"] = test_home
 
+from bbot_server import config
+from pathlib import Path
+
+config.home = Path(test_home)
+
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_sessionfinish(session, exitstatus):

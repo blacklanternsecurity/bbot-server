@@ -124,5 +124,6 @@ poetry run pytest
 
 - [x] Basic tests
 - [x] Github actions
+- [ ] HTTP Authentication (API Key)
 - [ ] Codecov
 - [ ] Full documentation

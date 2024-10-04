@@ -5,14 +5,13 @@ async def events_test(self):
 
     # run a bbot scan
     for event in self.scan1_events:
-        events = await self.io.get_events()
         await self.io.create_event(event)
 
     # make sure the data is there
     scans = await self.io.get_scans()
     assert len(scans) == 1
     events = await self.io.get_events()
-    assert len(events) == 11
+    assert len(events) == 12
     subdomains = await self.io.get_subdomains()
     assert len(subdomains) == 3
     assert sorted(subdomains) == [
@@ -33,7 +32,7 @@ async def events_test(self):
     scans = await self.io.get_scans()
     assert len(scans) == 2
     events = await self.io.get_events()
-    assert len(events) == 22
+    assert len(events) == 24
     subdomains = await self.io.get_subdomains()
     assert len(subdomains) == 4
     assert sorted(subdomains) == [

@@ -1,4 +1,3 @@
-import importlib
 from pathlib import Path
 
 module_dir = Path(__file__).parent
@@ -10,6 +9,8 @@ for p in module_dir.iterdir():
 
 
 def BBOTBackend(backend_module, *args, **kwargs):
+    import importlib
+
     package = importlib.import_module(f".backends.{backend_module}", package="bbot_server")
     module = getattr(package, backend_module)
     return module(*args, **kwargs)
