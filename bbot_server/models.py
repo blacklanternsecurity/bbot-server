@@ -3,11 +3,11 @@ import uuid as uuid_pkg
 from datetime import datetime
 from pydantic import ConfigDict
 from typing import List, Optional
-from sqlalchemy import Boolean, String
 from typing_extensions import Annotated
 from sqlalchemy.sql.schema import Column
 from sqlmodel import Field, SQLModel, JSON
 from pydantic.functional_validators import AfterValidator
+from sqlalchemy import Boolean, String, DateTime as SQLADateTime
 
 
 def naive_datetime_validator(d: datetime):
@@ -51,7 +51,7 @@ class BBOTBaseModel(SQLModel):
     @property
     def validated(self):
         try:
-            if self._validated == None:
+            if self._validated is None:
                 self._validated = self.__class__.model_validate(self)
             return self._validated
         except AttributeError:
@@ -102,26 +102,29 @@ class Event(BBOTBaseModel, table=True):
 
 
 class Scan(BBOTBaseModel, table=True):
-    id: str
+    uuid: Optional[uuid_pkg.UUID] = Field(default_factory=uuid_pkg.uuid4, index=True, nullable=False)
+    id: str = Field(primary_key=True)
     name: str
+    status: str
+    started_at: NaiveUTC
+    finished_at: Optional[NaiveUTC] = Field(default=None, sa_column=Column(SQLADateTime, nullable=True))
+    duration_seconds: Optional[float] = Field(default=None)
+    duration: Optional[str] = Field(default=None)
     target: dict = Field(sa_type=JSON)
     preset: dict = Field(sa_type=JSON)
 
 
 class Target(BBOTBaseModel, table=True):
+    uuid: Optional[uuid_pkg.UUID] = Field(default_factory=uuid_pkg.uuid4, index=True, nullable=False)
     name: str = "Default Target"
     strict_scope: bool = False
     seeds: List = Field(default=[], sa_type=JSON)
     whitelist: List = Field(default=None, sa_type=JSON)
     blacklist: List = Field(default=[], sa_type=JSON)
-    hash: str = Field(sa_column=Column("hash", String, unique=True))
+    hash: str = Field(sa_column=Column("hash", String, unique=True, primary_key=True, index=True))
     scope_hash: str
     seed_hash: str
     whitelist_hash: str
     blacklist_hash: str
     # only one target can be the default
     is_default: bool = Field(sa_column=Column("is_default", Boolean, unique=True))
-
-
-class UserState(BBOTBaseModel, table=True):
-    current_target: str

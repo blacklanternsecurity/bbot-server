@@ -3,7 +3,7 @@ def BBOTInterface(backend="sqlite", **kwargs):
     if backend == "http":
         from bbot_server.interfaces.http import HTTPInterface
 
-        # we don't actually use sqlite here, this used only for metadata
+        # we don't actually use sqlite here, it's used only as a placeholder
         return HTTPInterface("sqlite", **kwargs)
 
     else:

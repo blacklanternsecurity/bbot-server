@@ -1,4 +1,4 @@
-from .base import IOTestBase
+from . import IOTestBase
 
 
 class TestHTTP(IOTestBase):

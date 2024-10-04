@@ -43,7 +43,7 @@ class Events(BaseApplet):
                 raise ValueError(f"Invalid target for SCAN event: {target_data}")
             target = Target(**target_data)
             await self.parent.create_target(target)
-        return await self.db.insert(event.validated)
+        return await self.db.insert(event)
 
     @api_endpoint("/ingest", type="websocket")
     async def websocket(self, websocket: WebSocket):
@@ -55,4 +55,4 @@ class Events(BaseApplet):
                 return
             j = json.loads(data)
             event = Event(**j)
-            await self.io.insert_event(event.validated)
+            await self.io.insert_event(event)

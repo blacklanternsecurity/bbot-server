@@ -7,7 +7,7 @@ class Scans(BaseApplet):
     data_model = Scan
 
     async def put_scan(self, scan: Scan):
-        return await self.db.insert(scan)
+        return await self.db.insert_or_update(scan)
 
     @api_endpoint("/", methods=["GET"], summary="Get Scans")
     async def get_scans(self) -> list[Scan]:

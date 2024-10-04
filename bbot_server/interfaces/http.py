@@ -23,9 +23,19 @@ class HTTPInterface(BaseInterface):
         self.base_url = url.strip("/")
         self.client = httpx.AsyncClient()
 
+    @property
+    def options(self):
+        options = dict(self.applet.backend.options)
+        options.update(
+            {
+                "url": "URL of BBOT server",
+            }
+        )
+        return options
+
     async def _request(self, _url, _route, _signature, *args, **kwargs):
         """
-        Builds and issues a web request to the bbot REST API
+        Builds and issues a web request to the bbot server REST API
 
         Uses the API route to figure out the format etc.
         """
@@ -76,7 +86,11 @@ class HTTPInterface(BaseInterface):
                 body = kwargs
 
         response = await self.client.request(url=_url, method=method, json=body)
-        response_json = response.json()
+        try:
+            response_json = response.json()
+        except Exception as e:
+            print(f"Error decoding response json for {response}: {e}: {getattr(response, 'text', '')}")
+            raise
 
         # if our function doesn't have a return type, return the raw JSON
         if _route.response_model is None:

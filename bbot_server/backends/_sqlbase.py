@@ -25,7 +25,7 @@ class SQLTable(BaseTable):
 
     async def insert(self, obj):
         with Session(self.backend.engine, expire_on_commit=False) as session:
-            session.add(obj)
+            session.add(obj.validated)
             session.commit()
 
     async def insert_if_not_exists(self, obj):
@@ -39,14 +39,19 @@ class SQLTable(BaseTable):
 
             try:
                 # Check if an object with the same primary key already exists
-                existing = session.execute(select(obj.__class__).filter_by(**filter_condition)).scalar_one_or_none()
+                existing = session.exec(select(obj.__class__).filter_by(**filter_condition)).one_or_none()
 
                 if existing is None:
-                    session.add(obj)
+                    session.add(obj.validated)
                     session.commit()
                 # If it exists, we do nothing (effectively a no-op)
             except IntegrityError:
                 session.rollback()
+
+    async def insert_or_update(self, obj):
+        with Session(self.backend.engine, expire_on_commit=False) as session:
+            session.merge(obj.validated)
+            session.commit()
 
     async def count(self):
         with Session(self.backend.engine) as session:
