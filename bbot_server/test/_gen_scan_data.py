@@ -1,5 +1,3 @@
-from bbot_server.models import Event
-
 base_dns_mock = {
     "blacklanternsecurity.com": {
         "A": ["127.0.0.1"],
@@ -63,14 +61,14 @@ async def gen_scan_data(self):
         scan1 = Scanner(preset=bbot_preset)
         self.patch_scan(scan1)
         await scan1.helpers.dns._mock_dns(dns_mock_1)
-        scan1_events = [Event(**e.json()) async for e in scan1.async_start()]
-    self.scan1_events = scan1_events
+        scan1_events = [e async for e in scan1.async_start()]
+    self._scan1_events = scan1_events
 
     if scan2_events is None:
         scan2 = Scanner(preset=bbot_preset)
         self.patch_scan(scan2)
         await scan2.helpers.dns._mock_dns(dns_mock_2)
-        scan2_events = [Event(**e.json()) async for e in scan2.async_start()]
-    self.scan2_events = scan2_events
+        scan2_events = [e async for e in scan2.async_start()]
+    self._scan2_events = scan2_events
 
-    return scan1_events, scan2_events
+    return self.scan1_events, self.scan2_events

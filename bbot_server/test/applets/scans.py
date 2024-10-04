@@ -18,7 +18,7 @@ async def scans_test(self):
     scan = scans[0]
     # it shouldn't be completed yet
     assert scan.status == "RUNNING"
-    assert isinstance(scan.started_at, datetime)
+    assert isinstance(scan.validated.started_at, datetime)
     assert scan.finished_at == None
 
     # there should also be one target
@@ -41,8 +41,8 @@ async def scans_test(self):
     scan = scans[0]
     # and it should be marked as completed
     assert scan.status == "FINISHED"
-    assert isinstance(scan.started_at, datetime)
-    assert isinstance(scan.finished_at, datetime)
+    assert isinstance(scan.validated.started_at, datetime)
+    assert isinstance(scan.validated.finished_at, datetime)
 
     # now we'll insert a second scan
     for event in self.scan2_events:

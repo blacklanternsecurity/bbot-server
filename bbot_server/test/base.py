@@ -2,10 +2,13 @@ import httpx
 import pytest
 import logging
 from time import sleep
+from bbot_server.models import Event
 from bbot_server.test.applets import applet_tests
 
 
 log = logging.getLogger("bbot.test.modules")
+# sqlalchemy debugging
+# logging.getLogger('sqlalchemy.engine').setLevel(logging.DEBUG)
 
 
 class IOTestBase:
@@ -35,15 +38,12 @@ class IOTestBase:
 
         await self.gen_scan_data()
 
+        # instantiate io module
+        self.io = await self.setup()
+        await self.io.setup()
+
         # test applets
         for applet_name, applet_test in applet_tests.items():
-            if applet_name != "scans":
-                continue
-
-            # instantiate io module
-            self.io = await self.setup()
-            await self.io.setup()
-
             log.info(f"Testing applet: {applet_name}")
             # test events
             await self.ensure_empty()
@@ -52,31 +52,28 @@ class IOTestBase:
         # clean up
         await self.ensure_empty()
 
-    # @pytest.mark.asyncio
-    # async def test_synchronous(self, monkeypatch):
-    #     ### TEST SYNCHRONOUS MODE
-    #     # note: this needs to happen after the other tests because it somehow prevents events from being inserted by causing the insertion to silently fail. It makes no sense and I have zero idea why 👍
-    #     self.fixtures = self.Fixtures(monkeypatch)
+    @pytest.mark.asyncio
+    async def test_synchronous(self, monkeypatch):
+        self.fixtures = self.Fixtures(monkeypatch)
 
-    #     # start the BBOT web server if needed
-    #     if self.needs_server:
-    #         self.start_server()
+        # start the BBOT web server if needed
+        if self.needs_server:
+            self.start_server()
 
-    #     await self.gen_scan_data()
+        await self.gen_scan_data()
 
-    #     self.io = await self.setup(synchronous=True)
-    #     self.io.setup()
-    #     self.io.drop_database()
+        self.io = await self.setup(synchronous=True)
+        self.io.setup()
+        self.io.drop_database()
 
-    #     for event in self.scan1_events:
-    #         self.io.create_event(event)
-    #     subdomains = self.io.get_subdomains()
-    #     print(f"SUBDOMAINS: {subdomains}")
-    #     assert set(subdomains) == {
-    #         "asdf.blacklanternsecurity.com",
-    #         "blacklanternsecurity.com",
-    #         "www.blacklanternsecurity.com",
-    #     }
+        for event in self.scan1_events:
+            self.io.create_event(event)
+        subdomains = self.io.get_subdomains()
+        assert set(subdomains) == {
+            "asdf.blacklanternsecurity.com",
+            "blacklanternsecurity.com",
+            "www.blacklanternsecurity.com",
+        }
 
     def start_server(self):
         if not getattr(self, "_server_started", False):
@@ -130,3 +127,11 @@ class IOTestBase:
         from bbot_server import BBOT_IO
 
         return BBOT_IO(self.backend, synchronous=synchronous, **self.kwargs)
+
+    @property
+    def scan1_events(self):
+        return [Event(**e.json()) for e in self._scan1_events]
+
+    @property
+    def scan2_events(self):
+        return [Event(**e.json()) for e in self._scan2_events]

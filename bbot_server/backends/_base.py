@@ -4,6 +4,7 @@ from functools import partial
 
 class BaseTable:
     def __init__(self, backend, table_name, data_model):
+        self.log = logging.getLogger(f"bbot.server.backends.{self.__class__.__name__}")
         self.backend = backend
         self.table_name = table_name
         self.model = data_model

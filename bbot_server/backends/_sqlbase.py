@@ -1,6 +1,6 @@
 from sqlalchemy import func, inspect
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, SQLModel, select, delete, create_engine
+from sqlmodel import Session, SQLModel, select, create_engine
 from sqlalchemy_utils.functions import database_exists, create_database
 
 from bbot_server.backends._base import BaseBackend, BaseTable
@@ -57,12 +57,6 @@ class SQLTable(BaseTable):
         with Session(self.backend.engine) as session:
             return session.exec(func.count(self.model.uuid)).scalar()
 
-    def clear(self):
-        with Session(self.backend.engine) as session:
-            statement = delete(self.model)
-            session.exec(statement)
-            session.commit()
-
 
 class SQLBackend(BaseBackend):
 
@@ -91,5 +85,7 @@ class SQLBackend(BaseBackend):
         return connection_string
 
     async def drop_database(self):
-        for table in self.tables:
-            table.clear()
+        SQLModel.metadata.drop_all(self.engine)
+        self.engine.dispose()
+        self.engine = create_engine(self.connection_string())
+        SQLModel.metadata.create_all(self.engine)
