@@ -30,13 +30,15 @@ class BaseApplet:
     # whether to nest this applet under its own path
     nested = True
 
+    # optionally override route prefix
+    _route_prefix = None
+
     def __init__(self, backend, parent=None):
         self.log = logging.getLogger(f"bbot.server.{self.name.lower()}")
         self.backend = backend
         self.parent = parent
         self.child_applets = []
-        route_prefix = f"/{self.name.lower()}" if self.nested else ""
-        self.router = APIRouter(prefix=route_prefix)
+        self.router = APIRouter(prefix=self.route_prefix)
         self.route_maps = {}
         self.route_maps = self.highest_parent.route_maps
 
@@ -48,6 +50,12 @@ class BaseApplet:
 
         for app in self.include_apps:
             self.include_app(app)
+
+    @property
+    def route_prefix(self):
+        if self._route_prefix is not None:
+            return self._route_prefix
+        return f"/{self.name.lower()}"
 
     async def setup(self):
         # backend first
@@ -74,8 +82,13 @@ class BaseApplet:
         applet = app_class(self.backend, parent=self)
         # set it as an attribute on self
         setattr(self, app_name_lower, applet)
+
+        if applet.nested or self.parent is None:
+            router = self.router
+        else:
+            router = self.parent.router
         # add it to our FastAPI router
-        self.router.include_router(applet.router)
+        router.include_router(applet.router)
         # add it to our list of child apps
         self.child_applets.append(applet)
 
@@ -97,6 +110,7 @@ class BaseApplet:
                 endpoint_type = kwargs.pop("type", "http")
                 if endpoint_type == "http":
                     kwargs["tags"] = [self.tag]
+                    self.log.info(f"{self.name}: Adding HTTP route {endpoint} for {self.tag} to {self.router.prefix}")
                     self.router.add_api_route(endpoint, function, **kwargs)
                 elif endpoint_type == "websocket":
                     self.router.add_api_websocket_route(endpoint, function, **kwargs)
@@ -121,7 +135,8 @@ class BaseApplet:
             prefix = self.router.prefix
         parent_prefix = ""
         if self.parent is not None:
-            parent_prefix = self.parent.full_prefix(include_self=True)
+            if self.nested:
+                parent_prefix = self.parent.full_prefix(include_self=True)
         return f"{parent_prefix}{prefix}"
 
     @property

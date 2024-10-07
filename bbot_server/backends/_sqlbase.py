@@ -16,6 +16,13 @@ class SQLTable(BaseTable):
         with Session(self.backend.engine) as session:
             return session.exec(statement)
 
+    async def find_one(self, statement=None):
+        with Session(self.backend.engine) as session:
+            if statement is None:
+                statement = select(self.model)
+            result = session.exec(statement)
+            return result.first()
+
     async def find_many(self, statement=None):
         with Session(self.backend.engine) as session:
             if statement is None:

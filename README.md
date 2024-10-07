@@ -26,6 +26,29 @@ curl http://localhost:8000/subdomains
 - [x] Postgres
 - [x] REST Client
 
+## Supported Queries
+
+### Subdomains:
+
+- [x] `GET /subdomains`: get list of subdomains
+    - Filter by:
+        - [ ] host
+        - [ ] scans
+- [x] `GET /subdomains/summary`: summarize findings, open ports, etc. by subdomain
+- [ ] `GET /subdomains/{subdomain}`: get details for a single subdomain
+
+### Events:
+
+- [x] `POST /events`: create new event
+- [x] `GET /events`: get list of events
+    - Filter by:
+        - [ ] type
+        - [ ] host
+            - [ ] will require reverse-indexed hosts
+        - [ ] scans (most recent 1,2,3, etc., or by UUID(s))
+- [x] `GET /events/id/{event_id}`: get event by id
+- [x] `GET /events/uuid/{event_uuid}`: get event by uuid
+
 ## How it works
 
 BBOT server has several layers of abstraction which make it very versatile:

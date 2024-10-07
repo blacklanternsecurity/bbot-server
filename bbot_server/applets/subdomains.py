@@ -4,6 +4,8 @@ from bbot_server.applets._base import BaseApplet, api_endpoint
 
 class Subdomains(BaseApplet):
 
+    nested = False
+
     @api_endpoint("/", methods=["GET"], summary="Get Subdomains")
     async def get_subdomains(self, in_scope_only: bool = True) -> list[str]:
         statement = select(distinct(self.model.host)).where(self.model.type == "DNS_NAME")

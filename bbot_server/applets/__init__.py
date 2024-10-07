@@ -16,6 +16,8 @@ class BBOTApplet(BaseApplet):
 
     nested = False
 
+    _route_prefix = ""
+
     def __init__(self, backend="sqlite", **kwargs):
         from bbot_server.backends import BBOTBackend
 
