@@ -11,6 +11,9 @@ class TestHTTP(IOTestBase):
 
     @pytest.mark.asyncio
     async def test_http_sanity_check(self, http_server, gen_scan_data):
+        """
+        Quick sanity check to make sure REST API is working as intended
+        """
         scan1_events, scan2_events = await gen_scan_data()
 
         # instantiate io module

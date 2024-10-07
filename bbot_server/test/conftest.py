@@ -40,12 +40,13 @@ def http_server():
     proc.start()
 
     # wait for server to come up
-    while 1:
+    for i in range(999999):
         try:
             response = httpx.get("http://127.0.0.1:7777/docs")
             if response.status_code == 200:
                 break
         except httpx.HTTPError:
+            assert i < 100, "Server failed to start within 10 seconds"
             sleep(0.1)
 
     yield

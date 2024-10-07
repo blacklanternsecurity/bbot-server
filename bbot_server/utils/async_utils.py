@@ -108,14 +108,14 @@ def async_to_sync_class(cls):
 
     class Wrapper(cls):
         def __init__(self, *args, synchronous=False, **kwargs):
-            super().__init__(*args, **kwargs)
             self._synchronous = synchronous
+            print(f"WRAPPING {cls.__name__} synchronous={synchronous}")
+            super().__init__(*args, **kwargs)
             if self._synchronous:
                 self._wrapper = AsyncToSyncWrapper()
                 self._wrapper.start()
 
-        def __getattr__(self, name):
-            attr = super().__getattr__(name)
+        def _wrap(self, attr):
             if callable(attr) and asyncio.iscoroutinefunction(attr) and self._synchronous:
 
                 def wrapper(*args, **kwargs):
@@ -124,8 +124,13 @@ def async_to_sync_class(cls):
                 return wrapper
             return attr
 
+        def __getattr__(self, name):
+            attr = super().__getattr__(name)
+            wrap = self.__getattribute__("_wrap")
+            return wrap(attr)
+
         def __del__(self):
-            if getattr(self, "_synchronous", False):
+            if self.__getattribute__("_synchronous"):
                 self._wrapper.stop()
 
     return Wrapper

@@ -1,5 +1,6 @@
 import pytest
 import logging
+import inspect
 from bbot_server.test.applets import applet_tests
 
 
@@ -48,7 +49,15 @@ class IOTestBase:
         scan1_events, scan2_events = await gen_scan_data()
 
         self.io = await self.setup(synchronous=True)
-        self.io.setup()
+
+        # import asyncio
+        # for i in range(100):
+        #     print(self.io.setup)
+        #     await asyncio.sleep(.1)
+
+        # Assert that the self.io.setup() call is synchronous
+        assert not inspect.iscoroutinefunction(self.io.setup), f"{self.io.setup} method should be synchronous"
+
         self.io.drop_database()
 
         for event in scan1_events:

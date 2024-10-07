@@ -116,12 +116,6 @@ class HTTPInterface(BaseInterface):
             full_path, route, signature = self.applet.route_maps[attr]
             url = f"{self.base_url}{full_path}"
             coro = partial(self._request, url, route, signature)
-            if self._synchronous:
-
-                def wrapper(*args, **kwargs):
-                    return self._wrapper.run_coroutine(coro(*args, **kwargs))
-
-                return wrapper
-            return coro
+            return self._wrap(coro)
         except KeyError:
-            return getattr(self.applet, attr)
+            return self._wrap(getattr(self.applet, attr))

@@ -73,6 +73,8 @@ class Event(BBOTBaseModel, table=True):
         super().__init__(*args, **kwargs)
         if isinstance(self.data, str):
             self.data = {self.type: self.data}
+        if self.host:
+            self.reverse_host = self.host[::-1]
 
     def get_data(self):
         # handle SIEM-friendly format
@@ -85,6 +87,8 @@ class Event(BBOTBaseModel, table=True):
     scope_description: str
     data: dict = Field(sa_type=JSON)
     host: Optional[str] = Field(default=None, index=True)
+    # store the host in reversed form for efficient lookups by domain
+    reverse_host: Optional[str] = Field(default="", exclude=True, index=True)
     resolved_hosts: List = Field(default=[], sa_type=JSON)
     dns_children: dict = Field(default={}, sa_type=JSON)
     web_spider_distance: int = 10
