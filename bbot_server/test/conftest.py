@@ -1,15 +1,16 @@
+import httpx
 import pytest
-
-# from pytest_httpserver import HTTPServer
+import multiprocessing
+from time import sleep
+from pathlib import Path
 
 from bbot.core import CORE
+from bbot_server import config
+from bbot_server.server import run_server
 
 test_home = "/tmp/.bbotio_test"
 
 CORE.custom_config["home"] = test_home
-
-from bbot_server import config
-from pathlib import Path
 
 config.home = Path(test_home)
 
@@ -22,32 +23,6 @@ def pytest_sessionfinish(session, exitstatus):
     shutil.rmtree(test_home, ignore_errors=True)
 
     yield
-
-
-# @pytest.fixture
-# def bbot_httpserver():
-#     server = HTTPServer(host="127.0.0.1", port=8888)
-#     server.start()
-
-#     server.expect_request("/").respond_with_data("OK")
-
-#     yield server
-
-#     server.clear()
-#     if server.is_running():
-#         server.stop()
-
-#     # this is to check if the client has made any request where no
-#     # `assert_request` was called on it from the test
-
-#     server.check_assertions()
-#     server.clear()
-
-
-import httpx
-from time import sleep
-import multiprocessing
-from bbot_server.server import run_server
 
 
 @pytest.fixture(scope="session")
@@ -71,10 +46,13 @@ def http_server():
             if response.status_code == 200:
                 break
         except httpx.HTTPError:
-            sleep(0.01)
+            sleep(0.1)
 
     yield
 
     # Teardown: stop the server process
     proc.terminate()
     proc.join()
+
+
+from bbot_server.test._gen_scan_data import gen_scan_data  # noqa

@@ -36,6 +36,8 @@ curl http://localhost:8000/subdomains
         - [ ] scans
 - [x] `GET /subdomains/summary`: summarize findings, open ports, etc. by subdomain
 - [ ] `GET /subdomains/{subdomain}`: get details for a single subdomain
+- [ ] Custom tagging functionality
+- [ ] Ignore / blacklist domains
 
 ### Events:
 

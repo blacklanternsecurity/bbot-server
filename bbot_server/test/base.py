@@ -85,4 +85,9 @@ class IOTestBase:
     async def setup(self, synchronous=False):
         from bbot_server import BBOT_IO
 
-        return BBOT_IO(self.backend, synchronous=synchronous, **self.kwargs)
+        self.io = BBOT_IO(self.backend, synchronous=synchronous, **self.kwargs)
+        if synchronous:
+            self.io.setup()
+        else:
+            await self.io.setup()
+        return self.io
