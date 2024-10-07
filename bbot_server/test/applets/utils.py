@@ -1,2 +1,2 @@
-async def utils_test(self):
+async def utils_test(self, gen_scan_data):
     pass

@@ -110,7 +110,6 @@ class BaseApplet:
                 endpoint_type = kwargs.pop("type", "http")
                 if endpoint_type == "http":
                     kwargs["tags"] = [self.tag]
-                    self.log.info(f"{self.name}: Adding HTTP route {endpoint} for {self.tag} to {self.router.prefix}")
                     self.router.add_api_route(endpoint, function, **kwargs)
                 elif endpoint_type == "websocket":
                     self.router.add_api_websocket_route(endpoint, function, **kwargs)

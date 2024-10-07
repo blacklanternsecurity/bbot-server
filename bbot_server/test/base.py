@@ -1,8 +1,5 @@
-import httpx
 import pytest
 import logging
-from time import sleep
-from bbot_server.models import Event
 from bbot_server.test.applets import applet_tests
 
 
@@ -16,14 +13,12 @@ class IOTestBase:
 
     needs_server = False
 
-    from ._gen_scan_data import gen_scan_data, patch_scan
-
     class Fixtures:
         def __init__(self, monkeypatch):
             self.monkeypatch = monkeypatch
 
     @pytest.mark.asyncio
-    async def test_applets(self, monkeypatch):
+    async def test_applets(self, monkeypatch, http_server, gen_scan_data):
         """
         This is the main test function
 
@@ -31,12 +26,6 @@ class IOTestBase:
         """
 
         self.fixtures = self.Fixtures(monkeypatch)
-
-        # start the BBOT web server if needed
-        if self.needs_server:
-            self.start_server()
-
-        await self.gen_scan_data()
 
         # instantiate io module
         self.io = await self.setup()
@@ -47,60 +36,30 @@ class IOTestBase:
             log.info(f"Testing applet: {applet_name}")
             # test events
             await self.ensure_empty()
-            await applet_test(self)
+            await applet_test(self, gen_scan_data)
 
         # clean up
         await self.ensure_empty()
 
     @pytest.mark.asyncio
-    async def test_synchronous(self, monkeypatch):
+    async def test_synchronous(self, monkeypatch, http_server, gen_scan_data):
         self.fixtures = self.Fixtures(monkeypatch)
 
-        # start the BBOT web server if needed
-        if self.needs_server:
-            self.start_server()
-
-        await self.gen_scan_data()
+        scan1_events, scan2_events = await gen_scan_data()
 
         self.io = await self.setup(synchronous=True)
         self.io.setup()
         self.io.drop_database()
 
-        for event in self.scan1_events:
+        for event in scan1_events:
             self.io.create_event(event)
+
         subdomains = self.io.get_subdomains()
         assert set(subdomains) == {
             "asdf.blacklanternsecurity.com",
             "blacklanternsecurity.com",
             "www.blacklanternsecurity.com",
         }
-
-    def start_server(self):
-        if not getattr(self, "_server_started", False):
-            self._server_started = True
-            import multiprocessing
-            from bbot_server.server import run_server
-
-            kwargs = {
-                "database": "/tmp/.bbotio_test/test.db",
-                "uvicorn_options": {
-                    "port": 7777,
-                    "log_level": "info",
-                    "access_log": True,
-                },
-            }
-            # start bbot server in a separate process
-            proc = multiprocessing.Process(target=run_server, daemon=True, args=("sqlite",), kwargs=kwargs)
-            proc.start()
-
-            # wait for server to come up
-            while 1:
-                try:
-                    response = httpx.get("http://127.0.0.1:7777/docs")
-                    if response.status_code == 200:
-                        break
-                except httpx.HTTPError:
-                    sleep(0.01)
 
     async def ensure_empty(self):
         # clear database
@@ -127,11 +86,3 @@ class IOTestBase:
         from bbot_server import BBOT_IO
 
         return BBOT_IO(self.backend, synchronous=synchronous, **self.kwargs)
-
-    @property
-    def scan1_events(self):
-        return [Event(**e.json()) for e in self._scan1_events]
-
-    @property
-    def scan2_events(self):
-        return [Event(**e.json()) for e in self._scan2_events]

@@ -42,3 +42,39 @@ def pytest_sessionfinish(session, exitstatus):
 
 #     server.check_assertions()
 #     server.clear()
+
+
+import httpx
+from time import sleep
+import multiprocessing
+from bbot_server.server import run_server
+
+
+@pytest.fixture(scope="session")
+def http_server():
+    kwargs = {
+        "database": "/tmp/.bbotio_test/test.db",
+        "uvicorn_options": {
+            "port": 7777,
+            "log_level": "info",
+            "access_log": True,
+        },
+    }
+    # start bbot server in a separate process
+    proc = multiprocessing.Process(target=run_server, daemon=True, args=("sqlite",), kwargs=kwargs)
+    proc.start()
+
+    # wait for server to come up
+    while 1:
+        try:
+            response = httpx.get("http://127.0.0.1:7777/docs")
+            if response.status_code == 200:
+                break
+        except httpx.HTTPError:
+            sleep(0.01)
+
+    yield
+
+    # Teardown: stop the server process
+    proc.terminate()
+    proc.join()

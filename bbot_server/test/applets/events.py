@@ -1,9 +1,11 @@
-async def events_test(self):
+async def events_test(self, gen_scan_data):
     """
     Basic CRUD tests for events, making sure we can insert and retrieve data properly
     """
+    scan1_events, scan2_events = await gen_scan_data()
+
     # run a bbot scan
-    for event in self.scan1_events:
+    for event in scan1_events:
         await self.io.create_event(event)
 
     # make sure the data is there
@@ -21,7 +23,7 @@ async def events_test(self):
         assert result.get_data() == "blacklanternsecurity.com"
 
     # run a second bbot scan
-    for event in self.scan2_events:
+    for event in scan2_events:
         await self.io.create_event(event)
 
     # make sure we have data from both scans
@@ -41,4 +43,4 @@ async def events_test(self):
 
     # make sure events match perfectly after being inserted and retrieved from the database
     output_events = await self.io.get_events()
-    assert set(self.scan1_events + self.scan2_events) == set(output_events)
+    assert set(scan1_events + scan2_events) == set(output_events)

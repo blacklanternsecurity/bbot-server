@@ -1,6 +1,8 @@
-async def subdomains_test(self):
+async def subdomains_test(self, gen_scan_data):
+    scan1_events, scan2_events = await gen_scan_data()
+
     # Insert test data
-    for event in self.scan1_events:
+    for event in scan1_events:
         await self.io.create_event(event)
 
     # Test get_subdomains() method
@@ -12,7 +14,7 @@ async def subdomains_test(self):
     }
 
     # insert scan2 events
-    for event in self.scan2_events:
+    for event in scan2_events:
         await self.io.create_event(event)
 
     # Test get_subdomains() after second scan
