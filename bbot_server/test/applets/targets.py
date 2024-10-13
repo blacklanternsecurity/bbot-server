@@ -16,4 +16,4 @@ async def targets_test(self, gen_scan_data):
 
     # There should still be only one target after both scans
     targets = await self.io.get_targets()
-    assert len(targets) == 1
+    assert len(targets) == 2

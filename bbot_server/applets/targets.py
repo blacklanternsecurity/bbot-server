@@ -4,6 +4,7 @@ from bbot_server.applets._base import BaseApplet, api_endpoint
 
 class Targets(BaseApplet):
 
+    description = "manage the current target - whitelists, blacklists, etc."
     data_model = Target
 
     @api_endpoint("/", methods=["GET"], summary="Get Targets")

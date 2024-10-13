@@ -13,7 +13,7 @@ fastapi = "^0.111.0"
 sqlmodel = "^0.0.19"
 sqlalchemy-utils = "^0.41.2"
 psycopg2 = "^2.9.9"
-bbot = {git = "https://github.com/blacklanternsecurity/bbot", rev = "misc-small-bugfixes"}
+bbot = {git = "https://github.com/blacklanternsecurity/bbot", rev = "shodan-pagination"}
 
 [tool.poetry.scripts]
 bbot-server = 'bbot_server.server:main'

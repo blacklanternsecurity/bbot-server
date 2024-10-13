@@ -21,6 +21,8 @@ class BaseApplet:
     User --> Interface --> Applets --> Backend
     """
 
+    description = ""
+
     # must define model
     data_model = None
 
@@ -127,6 +129,15 @@ class BaseApplet:
         if self.nested and self.parent.parent is not None:
             return f"{self.parent.name} -> {self.name}"
         return self.name
+
+    @property
+    def tags_metadata(self):
+        tags = []
+        if self.tag and self.description:
+            tags.append({"name": self.tag, "description": self.description})
+        for child_applet in self.child_applets:
+            tags.extend(child_applet.tags_metadata)
+        return tags
 
     def full_prefix(self, include_self=False):
         prefix = ""

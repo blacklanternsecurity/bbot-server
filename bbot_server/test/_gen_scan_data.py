@@ -1,76 +1,179 @@
 import pytest
-from pathlib import Path
+import logging
+from datetime import timedelta
+
+log = logging.getLogger("bbot_server.test.gen_scan_data")
+
 from bbot import Scanner, Preset
 from bbot_server.models import Event
+from bbot_server.test import helpers
 
-base_dns_mock = {
-    "blacklanternsecurity.com": {
-        "A": ["127.0.0.1"],
-        "TXT": ["www.blacklanternsecurity.com", "asdf.blacklanternsecurity.com", "api.blacklanternsecurity.com"],
-    },
+base_preset = Preset.from_dict(
+    {
+        # "debug": True,
+        "target": ["blacklanternsecurity.com"],
+        "modules": [
+            "httpx",
+        ],
+        "config": {
+            "home": "/tmp/.bbotio_test",
+            "omit_event_types": ["RAW_DNS_RECORD", "WEB_PARAMETER"],
+            "deps_behavior": "disable",
+        },
+    }
+)
+
+
+base_assets = {
+    "unresolvedtoresolved.blacklanternsecurity.com": {},
     "www.blacklanternsecurity.com": {
+        "A": ["127.0.0.1"],
+    },
+    "newhttpstatus.blacklanternsecurity.com": {
+        "A": ["127.0.0.1"],
+    },
+    "newdnsstatus.blacklanternsecurity.com": {
+        "A": ["127.0.0.1"],
+    },
+    "tagadded.blacklanternsecurity.com": {
+        "A": ["127.0.0.1"],
+    },
+    "tagremoved.blacklanternsecurity.com": {
+        "A": ["127.0.0.1"],
+    },
+    "technologyadded.blacklanternsecurity.com": {
+        "A": ["127.0.0.1"],
+    },
+    "technologyremoved.blacklanternsecurity.com": {
+        "A": ["127.0.0.1"],
+    },
+    "portopened.blacklanternsecurity.com": {
+        "A": ["127.0.0.1"],
+    },
+    "portclosed.blacklanternsecurity.com": {
+        "A": ["127.0.0.1"],
+    },
+    "vulnadded.blacklanternsecurity.com": {
         "A": ["127.0.0.1"],
     },
 }
 
+base_dns_mock = {
+    "blacklanternsecurity.com": {
+        "A": ["127.0.0.1"],
+        "TXT": list(base_assets),
+    },
+}
+base_dns_mock.update(base_assets)
+
 dns_mock_1 = dict(base_dns_mock)
 dns_mock_1.update(
     {
-        "asdf.blacklanternsecurity.com": {
+        "resolvedtounresolved.blacklanternsecurity.com": {
             "A": ["127.0.0.1"],
-        }
+        },
     }
 )
+dns_mock_1["www.blacklanternsecurity.com"] = {"TXT": ["resolvedtounresolved.blacklanternsecurity.com"]}
 
 dns_mock_2 = dict(base_dns_mock)
 dns_mock_2.update(
     {
-        "api.blacklanternsecurity.com": {
+        "newdnsstatus.blacklanternsecurity.com": {
+            "CNAME": ["unresolvedtoresolved.blacklanternsecurity.com"],
+        },
+        "unresolvedtoresolved.blacklanternsecurity.com": {
             "A": ["127.0.0.1"],
-        }
+        },
+        "newasset.blacklanternsecurity.com": {
+            "A": ["127.0.0.1"],
+        },
     }
 )
+dns_mock_2["www.blacklanternsecurity.com"] = {"TXT": ["newasset.blacklanternsecurity.com"]}
 
 
 scan1_events = None
 scan2_events = None
 
 
+def patch_httpx(scan, httpx_mock_data):
+    old_run_live = scan.helpers.run_live
+
+    async def new_run_live(*command, check=False, text=True, **kwargs):
+        if command and isinstance(command[0], list) and command[0][0] == "httpx":
+            _input = [l for l in kwargs["input"]]
+            for target, (port, body) in httpx_mock_data.items():
+                for l in _input:
+                    if target in l:
+                        for _target in [target, f"https://{target}/"]:
+                            yield helpers.make_httpx_response(target=_target, input=l, port=port, body=body)
+        else:
+            async for _ in old_run_live(*command, check=False, text=True, **kwargs):
+                yield _
+
+    scan.helpers.run_live = new_run_live
+
+
 @pytest.fixture
 def gen_scan_data(monkeypatch):
+    """
+    Generates BBOT scan data for testing.
+
+    These two scans are designed to test the progression of assets over time, as they are added, removed, and updated.
+
+    It creates data that lets us test the following scenarios:
+        - new asset detected
+        - changes to assets (in both directions):
+            - active <-> inactive (different HTTP status code)
+            - new open port <-> closed port
+            - resolved <-> unresolved
+            - new technology <-> technology removed
+            - tag added/removed
+            - manual overrides
+                - status
+                - risk rating
+                - vuln count
+            - new screenshot
+
+    """
+
+    def patch_scan1(scan):
+        patch_httpx(
+            scan,
+            {
+                "blacklanternsecurity.com:443": ("443", "http://portopened.blacklanternsecurity.com:8443"),
+                "portopened.blacklanternsecurity.com:8443": ("8443", ""),
+            },
+        )
+
+    def patch_scan2(scan):
+        patch_httpx(
+            scan,
+            {
+                "blacklanternsecurity.com:443": ("443", "http://portopened.blacklanternsecurity.com:8080"),
+                "portopened.blacklanternsecurity.com:8080": ("8080", ""),
+            },
+        )
 
     async def _gen_scan_data():
-
-        def patch_scan(scan):
-
-            old_run_live = scan.helpers.run_live
-
-            async def new_run_live(*command, check=False, text=True, **kwargs):
-                if command and isinstance(command[0], list) and command[0][0] == "httpx":
-                    _input = [l for l in kwargs["input"]]
-                    if "blacklanternsecurity.com:443" in _input:
-                        yield r"""{"timestamp":"2024-06-21T12:55:46.154206378-04:00","hash":{"body_md5":"6ff3d946fb246e51fef52e59080feca0","body_mmh3":"-159699765","body_sha256":"21c2d35e468a03e7b663d81a8f0317e56d090d3eeb356f4fadda5a5f9e30753f","body_simhash":"15672521343079506636","header_md5":"d812fb508413c41a7912dd50b143e6a4","header_mmh3":"-509086190","header_sha256":"f6e451ea71e71af21fb1de94c4d6ff73bc8656647431a98063f16218f967be2c","header_simhash":"9832066127707744238"},"port":"443","url":"https://blacklanternsecurity.com:443","input":"blacklanternsecurity.com:443","scheme":"https","webserver":"cloudflare","body":"96.65.132.137\n","content_type":"text/plain","method":"GET","host":"104.16.185.241","path":"/","header":{"access_control_allow_methods":"GET","access_control_allow_origin":"*","alt_svc":"h3=\":443\"; ma=86400","cf_ray":"897587313c7353b7-ATL","content_length":"14","content_type":"text/plain","date":"Fri, 21 Jun 2024 16:55:46 GMT","server":"cloudflare","set_cookie":"__cf_bm=PJp0Q02xhccvFmCx2e5eKUcq.TLWztkrvqEmwdIu9Cg-1718988946-1.0.1.1-qggK_.d8LqVpZknBI19PBvvhoaQRBTsv6KHCJubvp.lNQ14aakLf8Xu2lmWHGuKN2NjMDAh2Y8jctZuoo9T7Ig; path=/; expires=Fri, 21-Jun-24 17:25:46 GMT; domain=.blacklanternsecurity.com; HttpOnly; Secure; SameSite=None","vary":"Accept-Encoding"},"raw_header":"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 14\r\nAccess-Control-Allow-Methods: GET\r\nAccess-Control-Allow-Origin: *\r\nAlt-Svc: h3=\":443\"; ma=86400\r\nCf-Ray: 897587313c7353b7-ATL\r\nContent-Type: text/plain\r\nDate: Fri, 21 Jun 2024 16:55:46 GMT\r\nServer: cloudflare\r\nSet-Cookie: __cf_bm=PJp0Q02xhccvFmCx2e5eKUcq.TLWztkrvqEmwdIu9Cg-1718988946-1.0.1.1-qggK_.d8LqVpZknBI19PBvvhoaQRBTsv6KHCJubvp.lNQ14aakLf8Xu2lmWHGuKN2NjMDAh2Y8jctZuoo9T7Ig; path=/; expires=Fri, 21-Jun-24 17:25:46 GMT; domain=.blacklanternsecurity.com; HttpOnly; Secure; SameSite=None\r\nVary: Accept-Encoding\r\n\r\n","request":"GET / HTTP/1.1\r\nHost: blacklanternsecurity.com\r\nUser-Agent: Mozilla/5.0 (Linux; Android 10; Redmi Note 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.101 Mobile Safari/537.36\r\nAccept-Charset: utf-8\r\nAccept-Encoding: gzip\r\n\r\n","time":"221.605004ms","a":["104.16.185.241","104.16.184.241","2606:4700::6810:b9f1","2606:4700::6810:b8f1"],"words":1,"lines":2,"status_code":200,"content_length":14,"failed":false}"""
-                else:
-                    async for _ in old_run_live(*command, check=False, text=True, **kwargs):
-                        yield _
-
-            monkeypatch.setattr(scan.helpers, "run_live", new_run_live)
-
-        bbot_preset_file = Path(__file__).parent / "bbot_preset.yml"
-        bbot_preset = Preset.from_yaml_file(bbot_preset_file)
 
         global scan1_events
         global scan2_events
 
         if scan1_events is None:
-            scan1 = Scanner(preset=bbot_preset)
-            patch_scan(scan1)
+            scan1 = Scanner("1.2.3.4", preset=base_preset)
+            patch_scan1(scan1)
             await scan1.helpers.dns._mock_dns(dns_mock_1)
             scan1_events = [e async for e in scan1.async_start()]
 
+        # send scan1 events back in time by 1 year
+        for event in scan1_events:
+            event.timestamp -= timedelta(days=365)
+
         if scan2_events is None:
-            scan2 = Scanner(preset=bbot_preset)
-            patch_scan(scan2)
+            scan2 = Scanner("1.2.3.0/24", preset=base_preset)
+            patch_scan2(scan2)
             await scan2.helpers.dns._mock_dns(dns_mock_2)
             scan2_events = [e async for e in scan2.async_start()]
 

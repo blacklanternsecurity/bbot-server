@@ -20,9 +20,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="BBOT Server",
-    description="A feature-rich database + API for your BBOT scan data 🧡",
+    description="A tiny backend for your BBOT scan data 🧡",
     lifespan=lifespan,
     debug=True,
+    openapi_tags=io.tags_metadata,
     # docs_url=None
 )
 

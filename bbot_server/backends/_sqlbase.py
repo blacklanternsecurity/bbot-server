@@ -1,4 +1,4 @@
-from sqlalchemy import func, inspect
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, select, create_engine
 from sqlalchemy_utils.functions import database_exists, create_database
@@ -12,21 +12,17 @@ class SQLTable(BaseTable):
     def select(self):
         return select(self.model)
 
-    async def exec(self, statement):
-        with Session(self.backend.engine) as session:
-            return session.exec(statement)
-
     async def find_one(self, statement=None):
+        if statement is None:
+            statement = select(self.model)
         with Session(self.backend.engine) as session:
-            if statement is None:
-                statement = select(self.model)
             result = session.exec(statement)
             return result.first()
 
     async def find_many(self, statement=None):
+        if statement is None:
+            statement = select(self.model)
         with Session(self.backend.engine) as session:
-            if statement is None:
-                statement = select(self.model)
             result = session.exec(statement)
             return result.all()
 
@@ -37,16 +33,14 @@ class SQLTable(BaseTable):
 
     async def insert_if_not_exists(self, obj):
         with Session(self.backend.engine, expire_on_commit=False) as session:
-            # Get the primary key columns
-            mapper = inspect(obj.__class__)
-            pk_columns = mapper.primary_key
+            primary_key_names = self.model._pk_column_names()
 
             # Construct a filter condition for all primary key columns
-            filter_condition = {col.name: getattr(obj, col.name) for col in pk_columns}
+            filter_condition = {name: getattr(obj, name) for name in primary_key_names}
 
             try:
                 # Check if an object with the same primary key already exists
-                existing = session.exec(select(obj.__class__).filter_by(**filter_condition)).one_or_none()
+                existing = session.exec(select(self.model).filter_by(**filter_condition)).one_or_none()
 
                 if existing is None:
                     session.add(obj.validated)
@@ -62,7 +56,9 @@ class SQLTable(BaseTable):
 
     async def count(self):
         with Session(self.backend.engine) as session:
-            return session.exec(func.count(self.model.uuid)).scalar()
+            pk_name = self.model._pk_column_names()[0]
+            primary_key = getattr(self.model, pk_name)
+            return session.exec(func.count(primary_key)).scalar()
 
 
 class SQLBackend(BaseBackend):

@@ -12,7 +12,7 @@ for p in applet_dir.iterdir():
 
 class BBOTApplet(BaseApplet):
 
-    include_apps = ["Events", "Scans", "Utils", "Targets"]
+    include_apps = ["Events", "Assets", "Scans", "Utils", "Targets"]
 
     nested = False
 

@@ -54,5 +54,5 @@ async def scans_test(self, gen_scan_data):
     scans = await self.io.get_scans()
     assert len(scans) == 2
     for scan in scans:
-        s = await self.io.get_scan(scan.uuid)
+        s = await self.io.get_scan(scan.id)
         assert s == scan

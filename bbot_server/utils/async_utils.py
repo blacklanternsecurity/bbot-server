@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import inspect
 
 
 class AsyncToSyncWrapper:
@@ -109,14 +110,13 @@ def async_to_sync_class(cls):
     class Wrapper(cls):
         def __init__(self, *args, synchronous=False, **kwargs):
             self._synchronous = synchronous
-            print(f"WRAPPING {cls.__name__} synchronous={synchronous}")
             super().__init__(*args, **kwargs)
             if self._synchronous:
                 self._wrapper = AsyncToSyncWrapper()
                 self._wrapper.start()
 
         def _wrap(self, attr):
-            if callable(attr) and asyncio.iscoroutinefunction(attr) and self._synchronous:
+            if callable(attr) and inspect.iscoroutinefunction(attr) and self._synchronous:
 
                 def wrapper(*args, **kwargs):
                     return self._wrapper.run_coroutine(attr(*args, **kwargs))

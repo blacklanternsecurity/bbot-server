@@ -4,6 +4,8 @@
 
 BBOT Server is a convenient database and API for managing your [BBOT](https://github.com/blacklanternsecurity/bbot) scan data. Deploy in a single command!
 
+## Basic Usage
+
 ```bash
 # install
 pipx install git+https://github.com/blacklanternsecurity/bbot-server
@@ -20,6 +22,10 @@ bbot -t blacklanternsecurity.com -om http -c modules.http.url=http://localhost:8
 curl http://localhost:8000/subdomains
 ```
 
+## Deploying with Docker Compose
+
+TODO
+
 ## Supported Backends
 
 - [x] SQLite (default)
@@ -28,28 +34,58 @@ curl http://localhost:8000/subdomains
 
 ## Supported Queries
 
-### Subdomains:
+### Assets:
 
-- [x] `GET /subdomains`: get list of subdomains
+- [x] `GET /assets`: get list of assets
     - Filter by:
         - [ ] host
-        - [ ] scans
-- [x] `GET /subdomains/summary`: summarize findings, open ports, etc. by subdomain
-- [ ] `GET /subdomains/{subdomain}`: get details for a single subdomain
-- [ ] Custom tagging functionality
-- [ ] Ignore / blacklist domains
+- [ ] `GET /assets/new`: "Net new" assets (never seen before)
+    - These are assets that are new as of:
+        - the last `n` scans, OR
+        - a specific `first_seen` date
+- [ ] `GET /assets/unconfirmed`: assets that have not been manually confirmed
+- [ ] `GET /assets/ignored`: assets that are blacklisted
+    - This will pull from the current target, not the subdomains table
+- [x] `GET /assets/summary`: summarize findings, open ports, etc. by assets
+- [ ] `GET /assets/{assets}`: get details for a single subdomain
+    - First seen
+    - Last seen
+    - Web screenshots
+    - Open ports
+    - Technologies
+    - Comments (public + private)
+    - Temptation
+    - All associated events
+    - Overridable (will require separate db columns):
+        - Status (Active (HTTP 200), Redirect, NX, Timeout, Parked, Error)
+            - Status is automatically updated by events
+                - E.g. `DNS_NAME_UNRESOLVED` will set status to `NX`, URL with `status-302` will set status to `REDIRECT`, etc.
+        - Risk Rating
+        - Vuln count
+            - vulns can be bulk-ignored by host/description using `/events/ignore`
+            - Automated count + separate user-controlled count (they are added together)
+        - Tags
+    - Redirect location (hover over redirect gives you link to destination)
 
 ### Events:
 
-- [x] `POST /events`: create new event
-- [x] `GET /events`: get list of events
+- [x] `POST /events/`: create new event
+- [x] `GET /events/`: get list of events
     - Filter by:
         - [ ] type
         - [ ] host
-            - [ ] will require reverse-indexed hosts
-        - [ ] scans (most recent 1,2,3, etc., or by UUID(s))
+            - [x] will require reverse-indexed hosts
 - [x] `GET /events/id/{event_id}`: get event by id
 - [x] `GET /events/uuid/{event_uuid}`: get event by uuid
+- [ ] `POST /events/ignore`: ignore an event based on type
+    - This edits target's blacklist
+
+### Scans:
+
+- [x] `POST /scans/`: create new event
+- [ ] `GET /scans/`: get list of scans
+- [ ] `GET /scans/{scan_id}`: get details for a single scan
+    - Automatically populates the `last_contact` field with the `timestamp` of the latest event from that scan
 
 ## How it works
 

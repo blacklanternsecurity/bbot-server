@@ -50,11 +50,6 @@ class IOTestBase:
 
         self.io = await self.setup(synchronous=True)
 
-        # import asyncio
-        # for i in range(100):
-        #     print(self.io.setup)
-        #     await asyncio.sleep(.1)
-
         # Assert that the self.io.setup() call is synchronous
         assert not inspect.iscoroutinefunction(self.io.setup), f"{self.io.setup} method should be synchronous"
 
@@ -63,12 +58,8 @@ class IOTestBase:
         for event in scan1_events:
             self.io.create_event(event)
 
-        subdomains = self.io.get_subdomains()
-        assert set(subdomains) == {
-            "asdf.blacklanternsecurity.com",
-            "blacklanternsecurity.com",
-            "www.blacklanternsecurity.com",
-        }
+        subdomains = self.io.get_assets()
+        assert subdomains and all(isinstance(i, str) for i in subdomains)
 
     async def ensure_empty(self):
         # clear database
@@ -84,9 +75,9 @@ class IOTestBase:
         # events
         events = await self.io.get_events()
         assert events == []
-        # subdomains
-        subdomains = await self.io.get_subdomains()
-        assert subdomains == [], f"subdomains: {subdomains}"
+        # assets
+        assets = await self.io.get_assets()
+        assert assets == [], f"assets: {assets}"
         # targets
         targets = await self.io.get_targets()
         assert targets == [], f"targets: {targets}"

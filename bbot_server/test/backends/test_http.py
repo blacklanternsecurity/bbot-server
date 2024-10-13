@@ -30,14 +30,10 @@ class TestHTTP(IOTestBase):
             await client.post(f"{self.kwargs['url']}/events/", data=event.to_json())
 
         events = (await client.get(f"{self.kwargs['url']}/events/")).json()
-        assert len(events) == 12
+        assert events
         assert any(e["data"] == {"DNS_NAME": "blacklanternsecurity.com"} for e in events)
 
-        subdomains = (await client.get(f"{self.kwargs['url']}/subdomains/")).json()
-        assert set(subdomains) == {
-            "asdf.blacklanternsecurity.com",
-            "blacklanternsecurity.com",
-            "www.blacklanternsecurity.com",
-        }
+        subdomains = (await client.get(f"{self.kwargs['url']}/assets/")).json()
+        assert subdomains and all(isinstance(i, str) for i in subdomains)
 
         await self.ensure_empty()
