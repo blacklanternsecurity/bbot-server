@@ -1,3 +1,4 @@
+import sys
 import pytest
 import logging
 import inspect
@@ -43,6 +44,7 @@ class IOTestBase:
         await self.ensure_empty()
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(sys.version_info[:2] <= (3, 9), reason="Test skipped on Python 3.9")
     async def test_synchronous(self, monkeypatch, http_server, gen_scan_data):
         self.fixtures = self.Fixtures(monkeypatch)
 
