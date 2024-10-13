@@ -116,6 +116,7 @@ def async_to_sync_class(cls):
                 self._wrapper.start()
 
         def _wrap(self, attr):
+            print(f"ATTR: callable: {callable(attr)} coroutine: {inspect.iscoroutinefunction(attr)} synchronous: {self._synchronous}")
             if callable(attr) and inspect.iscoroutinefunction(attr) and self._synchronous:
 
                 def wrapper(*args, **kwargs):
