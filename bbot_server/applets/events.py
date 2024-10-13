@@ -1,5 +1,6 @@
 import json
 from uuid import UUID
+from typing import Optional
 from sqlmodel import select
 from fastapi import WebSocket, HTTPException
 from starlette.websockets import WebSocketDisconnect
@@ -60,7 +61,7 @@ class Events(BaseApplet):
         return await self.db.find_many(statement)
 
     @api_endpoint("/uuid/{event_uuid}", methods=["GET"], summary="Get event by UUID")
-    async def get_event_by_uuid(self, event_uuid: UUID) -> Event:
+    async def get_event_by_uuid(self, event_uuid: UUID) -> Optional[Event]:
         """
         Get a single event by its UUID.
         """

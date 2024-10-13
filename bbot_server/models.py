@@ -133,7 +133,9 @@ class AssetBase(BBOTBaseModel):
     host: str = Field(index=True, description="The hostname/IP address of the asset", primary_key=True)
     type: str = Field(
         description="The type of asset (DNS_NAME, IP_ADDRESS, or IP_RANGE)",
-        sa_column=Column(Enum("DNS_NAME", "IP_ADDRESS", "IP_RANGE"), nullable=False, index=True),
+        sa_column=Column(
+            Enum("DNS_NAME", "IP_ADDRESS", "IP_RANGE", name="asset_type_enum"), nullable=False, index=True
+        ),
     )
     first_seen: NaiveUTC = Field(index=True, description="The date and time when the asset was first observed")
     last_seen: NaiveUTC = Field(index=True, description="The most recent date and time when the asset was observed")
@@ -230,7 +232,8 @@ class ScanModel(ScanBase, table=True):
 
 
 class ScanOutput(ScanBase):
-    last_contact: Optional[NaiveUTC]
+    pass
+    # last_contact: Optional[NaiveUTC]
 
 
 ### TARGET ###

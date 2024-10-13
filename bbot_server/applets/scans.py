@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlmodel import select
 
 from bbot_server.models import ScanModel, ScanOutput
@@ -13,11 +14,11 @@ class Scans(BaseApplet):
         return await self.db.insert_or_update(scan)
 
     @api_endpoint("/{scan_id}", methods=["GET"], summary="Get scan")
-    async def get_scan(self, scan_uuid: str) -> ScanOutput:
+    async def get_scan(self, scan_id: str) -> Optional[ScanOutput]:
         """
         Get a scan by UUID.
         """
-        statement = select(self.model).where(self.model.id == scan_uuid)
+        statement = select(self.model).where(self.model.id == scan_id)
         return await self.db.find_one(statement)
 
     @api_endpoint("/", methods=["GET"], summary="Get scans")
