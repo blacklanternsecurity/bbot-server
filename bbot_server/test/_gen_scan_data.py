@@ -122,19 +122,11 @@ def gen_scan_data(monkeypatch):
 
     These two scans are designed to test the progression of assets over time, as they are added, removed, and updated.
 
-    It creates data that lets us test the following scenarios:
+    It creates data that tells a bunch of different stories about assets, such as:
         - new asset detected
-        - changes to assets (in both directions):
-            - active <-> inactive (different HTTP status code)
-            - new open port <-> closed port
-            - resolved <-> unresolved
-            - new technology <-> technology removed
-            - tag added/removed
-            - manual overrides
-                - status
-                - risk rating
-                - vuln count
-            - new screenshot
+        - asset has open ports that change over time
+        - asset has technologies that change over time
+        - asset becomes unresolved and is retired
 
     """
 
