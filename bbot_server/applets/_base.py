@@ -2,6 +2,12 @@ import inspect
 import logging
 import importlib
 from fastapi import APIRouter
+from pymongo import WriteConcern
+
+from bbot.models.pydantic import Event
+from bbot_server.config import BBOT_SERVER_CONFIG
+from bbot_server.utils.async_utils import NamedLock
+from bbot_server.asset_store.asset import Asset, AssetActivity
 
 
 def api_endpoint(endpoint, **kwargs):
@@ -15,61 +21,111 @@ def api_endpoint(endpoint, **kwargs):
 
 class BaseApplet:
     """
-    Applets are where the core business logic lives.
+    Applets are the building blocks of BBOT server.
 
-    User --> Interface --> Applets --> Backend
+    They each have a collection of methods which double as API endpoints.
+
+    Applets can be nested. They can have their own database tables.
+
+    They can also subscribe to and produce asset activities.
     """
 
     description = ""
 
-    data_model = None
+    # BBOT event types this applet watches
+    watched_events = []
 
     # optionally you can include other applets
     include_apps = []
 
-    # whether to nest this applet under its own path
+    # whether to nest this applet under its parent
     nested = True
 
     # optionally override route prefix
     _route_prefix = None
 
-    def __init__(self, backend, parent=None):
+    # the pydantic model this applet uses
+    _data_model = None
+
+    def __init__(self, parent=None):
         self.log = logging.getLogger(f"bbot.server.{self.name.lower()}")
-        self.backend = backend
+        self.config = BBOT_SERVER_CONFIG
         self.parent = parent
         self.child_applets = []
         self.router = APIRouter(prefix=self.route_prefix)
         self.route_maps = {}
-        self.route_maps = self.highest_parent.route_maps
+        self.route_maps = self.root.route_maps
+
+        # this is used when running read/write operations on an asset
+        self._asset_lock = NamedLock()
+
+        self.asset_store = None
+        self.event_store = None
 
         self._add_custom_routes()
 
         self.model = None
-        if self.data_model:
-            self.model = self.data_model
+        if self._data_model:
+            self.model = self._data_model
 
         for app in self.include_apps:
-            self.include_app(app)
+            try:
+                self.include_app(app)
+            except Exception as e:
+                print(f"Error including app {app}: {e}")
 
-    @property
-    def route_prefix(self):
-        if self._route_prefix is not None:
-            return self._route_prefix
-        return f"/{self.name.lower()}"
+        self._setup_finished = False
 
-    async def setup(self):
-        # backend first
-        await self.backend._setup()
-        self.db = await self.backend.make_table(self)
-        # inherit db, model from parent
+    async def _setup(self):
+        if self._setup_finished:
+            return
+
         if self.parent is not None:
-            if self.db is None:
-                self.db = self.parent.db
+            self.asset_store = self.parent.asset_store
+            self.event_store = self.parent.event_store
+
             if self.model is None:
                 self.model = self.parent.model
+
+        if self.model is not None:
+            self.table_name = getattr(self.model, "__tablename__", None)
+            if self.table_name is not None:
+                self.collection = self.asset_store.db[self.table_name]
+                # WriteConcern options:
+                #  w=1: Acknowledges the write operation only after it has been written to the primary. (the default)
+                #  j=True: Ensures the write operation is committed to the journal. (default is False)
+                # This helps prevent duplicates in asset activity.
+                self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
+
+        # setup self)
+        await self.setup()
         # then children
         for child_applet in self.child_applets:
-            await child_applet.setup()
+            await child_applet._setup()
+
+        self._setup_finished = True
+
+    async def setup(self):
+        pass
+
+    async def cleanup(self):
+        await self.cleanup()
+        for child_applet in self.child_applets:
+            await child_applet.cleanup()
+
+    async def _ingest_event(self, asset: Asset, event: Event):
+        async with self._asset_lock.lock(asset.host):
+            activities = await self.ingest_event(asset, event)
+            for child_applet in self.child_applets:
+                child_activities = await child_applet._ingest_event(asset, event)
+                activities.extend(child_activities)
+        return activities
+
+    async def ingest_event(self, asset: Asset, event: Event):
+        return []
+
+    async def emit_activity(self, activity: AssetActivity):
+        await self.root.message_queue.asset_publish(activity.model_dump())
 
     def include_app(self, app_name):
         self.log.debug(f"Including {app_name}")
@@ -79,7 +135,7 @@ class BaseApplet:
         # get its class
         app_class = getattr(module, app_name)
         # instantiate it
-        applet = app_class(self.backend, parent=self)
+        applet = app_class(parent=self)
         # set it as an attribute on self
         setattr(self, app_name_lower, applet)
 
@@ -95,6 +151,10 @@ class BaseApplet:
     @property
     def name(self):
         return self.__class__.__name__
+
+    @property
+    def name_friendly(self):
+        return self.name.replace("_", " ")
 
     def _add_custom_routes(self):
         # automatically add API routes for any methods marked with @api_endpoint decorator
@@ -125,8 +185,8 @@ class BaseApplet:
         if self.parent is None:
             return ""
         if self.nested and self.parent.parent is not None:
-            return f"{self.parent.name} -> {self.name}"
-        return self.name
+            return f"{self.parent.name} / {self.name_friendly}"
+        return self.name_friendly
 
     @property
     def tags_metadata(self):
@@ -148,11 +208,17 @@ class BaseApplet:
         return f"{parent_prefix}{prefix}"
 
     @property
-    def highest_parent(self):
+    def root(self):
         applet = self
         while getattr(applet, "parent", None) is not None:
             applet = applet.parent
         return applet
+
+    @property
+    def route_prefix(self):
+        if self._route_prefix is not None:
+            return self._route_prefix
+        return f"/{self.name.lower()}"
 
     def __getattribute__(self, attr):
         try:

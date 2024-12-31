@@ -2,9 +2,13 @@ import pytest_asyncio
 
 from bbot import Scanner
 from bbot.models.pydantic import Event
-
-
 from bbot.modules.base import BaseModule
+
+from bbot_server.config import BBOT_SERVER_CONFIG
+
+
+BBOT_SERVER_CONFIG["event_store"]["uri"] = "mongodb://localhost:27017/test_bbot_server_events"
+BBOT_SERVER_CONFIG["asset_store"]["uri"] = "mongodb://localhost:27017/test_bbot_server_assets"
 
 
 class DummyModule(BaseModule):
@@ -26,6 +30,21 @@ class DummyModule(BaseModule):
 
 
 BBOT_EVENTS = []
+
+
+@pytest_asyncio.fixture
+async def mongo_cleanup():
+    """
+    Clear the mongo database before and after each test
+    """
+    from motor.motor_asyncio import AsyncIOMotorClient
+
+    client = AsyncIOMotorClient(BBOT_SERVER_CONFIG["event_store"]["uri"])
+    await client.drop_database("test_bbot_server_events")
+    await client.drop_database("test_bbot_server_assets")
+    yield
+    await client.drop_database("test_bbot_server_events")
+    await client.drop_database("test_bbot_server_assets")
 
 
 @pytest_asyncio.fixture

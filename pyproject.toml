@@ -12,9 +12,15 @@ motor = "^3.4.0"
 fastapi = "^0.111.0"
 omegaconf = "^2.3.0"
 bbot = {git = "https://github.com/blacklanternsecurity/bbot", rev = "3.0"}
+nats-py = "^2.9.0"
+orjson = "^3.10.12"
+typer = "^0.15.1"
+rich = "^13.9.4"
+cachetools = "^5.5.0"
 
 [tool.poetry.scripts]
-bbot-server = 'bbot_server.server:main'
+bbot-server = 'bbot_server.cli:main'
+bbctl = 'bbot_server.cli:main'
 
 [tool.ruff]
 line-length = 119

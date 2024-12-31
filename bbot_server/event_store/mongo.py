@@ -7,7 +7,7 @@ class mongo(BaseEventStore):
     async def _setup(self):
         self.client = AsyncIOMotorClient(self.uri)
         self.db = self.client[self.db_name]
-        self.collection = self.db.events
+        self.collection = self.db[self.table_name]
 
     async def _insert_event(self, event):
         event_json = event.model_dump()
@@ -20,12 +20,12 @@ class mongo(BaseEventStore):
         query = {}
         if min_timestamp:
             query["timestamp"] = {"$gte": min_timestamp}
-        cursor = self.collection.find(query)
-
-        async for event in cursor:
-            yield event
+        return await self.collection.find(query).to_list(None)
 
     async def _clear(self, confirm):
         if not confirm == f"WIPE {self.db_name}":
             raise ValueError("Confirmation failed")
         await self.collection.delete_many({})
+
+    async def cleanup(self):
+        await self.client.close()

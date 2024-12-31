@@ -1,2 +1,10 @@
 event_store:
   uri: mongodb://localhost:27017/bbot_events
+  table_name: events
+
+asset_store:
+  uri: mongodb://localhost:27017/bbot_assets
+  table_name: assets
+
+message_queue:
+  uri: nats://localhost:4222

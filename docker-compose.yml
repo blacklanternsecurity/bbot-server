@@ -1,0 +1,18 @@
+services:
+  bbot-server:
+    build:
+      context: .
+    volumes:
+      - ./docker/config.yml:/root/.config/bbot_server/config.yml
+      - .:/app
+    ports:
+      - "8807:8807"
+    command: uvicorn bbot_server.api:server_app --host 0.0.0.0 --port 8807 --reload
+
+  mongodb:
+    image: mongo:latest
+
+  nats:
+    image: nats:latest
+    ports:
+      - "4222:4222"
