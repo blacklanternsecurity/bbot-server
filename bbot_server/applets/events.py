@@ -6,8 +6,8 @@ from bbot_server.asset_store.asset import Asset, AssetActivity
 class Events(BaseApplet):
     description = "events"
 
-    @api_endpoint("/insert", methods=["POST"], summary="ingest a BBOT event into the asset database")
-    async def insert_event(self, event: Event) -> list[AssetActivity]:
+    @api_endpoint("/ingest", methods=["POST"], summary="ingest a BBOT event into the asset database")
+    async def ingest_event(self, event: Event) -> list[AssetActivity]:
         """
         ingest a BBOT event into the asset database
 
@@ -25,7 +25,7 @@ class Events(BaseApplet):
         activities = []
 
         # we use a lock to prevent race conditions on the same asset
-        async with self.asset_lock.lock(event.host):
+        async with self._asset_lock.lock(event.host):
             # first try to get the asset based on the event's host
             asset = await self.root.assets.collection.find_one({"host": event.host})
             if asset is not None:

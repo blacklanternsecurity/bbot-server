@@ -7,7 +7,7 @@ from bbot_server.applets import APP_ROOT
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await APP_ROOT._setup()
+    await APP_ROOT.setup()
     yield
 
 

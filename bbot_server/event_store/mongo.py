@@ -4,6 +4,10 @@ from bbot_server.event_store._base import BaseEventStore
 
 
 class mongo(BaseEventStore):
+    """
+    docker run --rm -p 27017:27017 mongo
+    """
+
     async def _setup(self):
         self.client = AsyncIOMotorClient(self.uri)
         self.db = self.client[self.db_name]
@@ -28,4 +32,5 @@ class mongo(BaseEventStore):
         await self.collection.delete_many({})
 
     async def cleanup(self):
-        await self.client.close()
+        print("CLOSING MONGO CLIENT")
+        self.client.close()

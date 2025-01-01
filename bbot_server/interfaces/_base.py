@@ -19,9 +19,9 @@ class BaseInterface:
     def __init__(self, **kwargs):
         self.log = logging.getLogger(f"bbot.server.interfaces.{self.__class__.__name__.lower()}")
 
-        from bbot_server.applets import APP_ROOT
+        from bbot_server.applets import BBOTServerRootApplet
 
-        self.applet = APP_ROOT
+        self.applet = BBOTServerRootApplet()
 
     def __getattr__(self, attr):
         # by default we just pass everything through to the applet

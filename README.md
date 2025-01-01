@@ -75,6 +75,10 @@ Plan of attack:
             - [ ] Event ingestor
             - [ ] Event archiver
 
+TODO:
+- [ ] Color theme
+- [ ] Rich tables?
+
 Subcommands:
 - [x] `bbctl activity`
     - [ ] `bbctl activity tail`

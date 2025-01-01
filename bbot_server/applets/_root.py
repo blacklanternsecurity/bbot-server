@@ -15,6 +15,8 @@ class RootApplet(BaseApplet):
 
             self.asset_store = MongoAssetStore()
             await self.asset_store.setup()
+        else:
+            print(f"ASSET STORE ALREADY SET UP: {self.asset_store}")
 
         # set up event store
         from bbot_server.event_store import EventStore
@@ -28,9 +30,15 @@ class RootApplet(BaseApplet):
         self.message_queue = MessageQueue()
         await self.message_queue.setup()
 
+        await self._setup()
+
     @api_endpoint("/", methods=["GET"], summary="Get the root endpoint")
     async def get_root(self):
         return {"message": "Hello, World!"}
 
     async def cleanup(self):
+        for child_applet in self.child_applets:
+            await child_applet.cleanup()
+        await self.asset_store.cleanup()
+        await self.event_store.cleanup()
         await self.message_queue.cleanup()

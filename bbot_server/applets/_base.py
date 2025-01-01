@@ -61,6 +61,7 @@ class BaseApplet:
 
         self.asset_store = None
         self.event_store = None
+        self.message_queue = None
 
         self._add_custom_routes()
 
@@ -80,9 +81,11 @@ class BaseApplet:
         if self._setup_finished:
             return
 
+        # inherit database connections, message queue, etc.
         if self.parent is not None:
             self.asset_store = self.parent.asset_store
             self.event_store = self.parent.event_store
+            self.message_queue = self.parent.message_queue
 
             if self.model is None:
                 self.model = self.parent.model
@@ -97,9 +100,7 @@ class BaseApplet:
                 # This helps prevent duplicates in asset activity.
                 self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
 
-        # setup self)
-        await self.setup()
-        # then children
+        # set up children
         for child_applet in self.child_applets:
             await child_applet._setup()
 
@@ -108,17 +109,22 @@ class BaseApplet:
     async def setup(self):
         pass
 
-    async def cleanup(self):
+    async def _cleanup(self):
         await self.cleanup()
         for child_applet in self.child_applets:
             await child_applet.cleanup()
 
+    async def cleanup(self):
+        pass
+
     async def _ingest_event(self, asset: Asset, event: Event):
-        async with self._asset_lock.lock(asset.host):
-            activities = await self.ingest_event(asset, event)
-            for child_applet in self.child_applets:
-                child_activities = await child_applet._ingest_event(asset, event)
-                activities.extend(child_activities)
+        watched_events = self.watched_events
+        activities = []
+        if event.type in watched_events:
+            activities.extend(await self.ingest_event(asset, event))
+        for child_applet in self.child_applets:
+            child_activities = await child_applet._ingest_event(asset, event)
+            activities.extend(child_activities)
         return activities
 
     async def ingest_event(self, asset: Asset, event: Event):

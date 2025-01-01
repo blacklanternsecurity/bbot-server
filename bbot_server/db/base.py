@@ -1,3 +1,4 @@
+import logging
 from omegaconf import OmegaConf
 
 from bbot_server.config import BBOT_SERVER_CONFIG
@@ -7,6 +8,7 @@ class BaseDB:
     config_key = None
 
     def __init__(self, config=None):
+        self.log = logging.getLogger(__name__)
         self.global_config = BBOT_SERVER_CONFIG
         try:
             self.config = self.global_config[self.config_key]
@@ -18,6 +20,8 @@ class BaseDB:
             self.uri = self.config.uri
         except Exception as e:
             raise ValueError("Event store URI is missing") from e
+
+        self.log.info(f"Setting up {self.__class__.__name__} at {self.uri}")
 
         self._setup_finished = False
 
@@ -43,4 +47,13 @@ class BaseDB:
             self._setup_finished = True
 
     async def _setup(self):
+        """
+        Setup method to be overridden by subclasses
+        """
         raise NotImplementedError()
+
+    async def cleanup(self):
+        """
+        Cleanup method to be overridden by subclasses
+        """
+        pass

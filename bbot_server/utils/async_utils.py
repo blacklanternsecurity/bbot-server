@@ -1,3 +1,4 @@
+import uvloop
 import asyncio
 import inspect
 import threading
@@ -102,7 +103,7 @@ class AsyncToSyncWrapper:
         """
         if not self.loop:
             raise RuntimeError("Event loop is not running. Call start() first.")
-        future = asyncio.run_coroutine_threadsafe(coro, self.loop)
+        future = uvloop.run_coroutine_threadsafe(coro, self.loop)
         return future.result()
 
 

@@ -1,14 +1,73 @@
+import pytest
 import pytest_asyncio
 
 from bbot import Scanner
 from bbot.models.pydantic import Event
 from bbot.modules.base import BaseModule
 
-from bbot_server.config import BBOT_SERVER_CONFIG
+
+def get_bbot_server_config():
+    from bbot_server.config import BBOT_SERVER_CONFIG
+
+    BBOT_SERVER_CONFIG["event_store"]["uri"] = "mongodb://localhost:27017/test_bbot_server_events"
+    BBOT_SERVER_CONFIG["asset_store"]["uri"] = "mongodb://localhost:27017/test_bbot_server_assets"
+    return BBOT_SERVER_CONFIG
 
 
-BBOT_SERVER_CONFIG["event_store"]["uri"] = "mongodb://localhost:27017/test_bbot_server_events"
-BBOT_SERVER_CONFIG["asset_store"]["uri"] = "mongodb://localhost:27017/test_bbot_server_assets"
+BBOT_SERVER_CONFIG = get_bbot_server_config()
+
+
+def start_server():
+    print("STARTING SERVER")
+    import uvicorn
+
+    get_bbot_server_config()
+    from bbot_server.api import server_app
+
+    uvicorn.run(server_app, host="localhost", port=8807, log_level="info")
+
+
+@pytest.fixture()
+def bbot_server_http():
+    # import time
+    # import httpx
+    # import multiprocessing
+
+    # server_process = multiprocessing.Process(target=start_server)
+    # server_process.start()
+
+    # # Wait for the server to be ready
+    # while True:
+    #     try:
+    #         print("REQUESTING")
+    #         response = httpx.get("http://localhost:8807/v1/assets/")
+    #         print("RESPONSE", response, response.json())
+    #         if response.status_code == 200:
+    #             break
+    #     except httpx.RequestError:
+    #         print("waiting for server to come up")
+    #         time.sleep(0.1)
+
+    # yield
+    # print("TERMINATING SERVER")
+    # server_process.terminate()
+    # server_process.join()
+    yield
+
+
+# @pytest_asyncio.fixture(params=[
+#     {"interface": "python"},
+#     {"interface": "http", "url": "http://localhost:8807/v1"}
+# ])
+@pytest_asyncio.fixture
+async def bbot_server(request, mongo_cleanup, bbot_server_http):
+    from bbot_server import BBOTServer
+
+    # bbot_server = BBOTServer(**request.param)
+    bbot_server = BBOTServer()
+    await bbot_server.setup()
+    yield bbot_server
+    await bbot_server.cleanup()
 
 
 class DummyModule(BaseModule):

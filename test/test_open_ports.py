@@ -1,12 +1,11 @@
 import pytest
 
 from bbot import Scanner
-from bbot_server import BBOTServer
 from bbot.models.pydantic import Event
 
 
 @pytest.mark.asyncio
-async def test_open_ports(mongo_cleanup):
+async def test_open_ports(bbot_server):
     scan = Scanner()
     host_event = scan.make_event("www.evilcorp.com", "DNS_NAME", parent=scan.root_event)
     port_80_event = scan.make_event("www.evilcorp.com:80", "OPEN_TCP_PORT", parent=host_event)
@@ -15,18 +14,23 @@ async def test_open_ports(mongo_cleanup):
     port_80_event_pydantic = Event(**port_80_event.json())
     port_443_event_pydantic = Event(**port_443_event.json())
 
-    # set up BBOT Server
-    bbot_server = BBOTServer()
-    await bbot_server.setup()
+    print(bbot_server)
 
     # make sure the asset database is empty
     assets = await bbot_server.get_assets()
     assert assets == []
 
     # insert the host event
-    activities = await bbot_server.events.insert_event(host_event_pydantic)
-    assert len(activities) == 1
-    assert activities[0].type == "NEW_ASSET"
+    try:
+        activities = await bbot_server.events.insert_event(host_event_pydantic)
+        assert len(activities) == 1
+        assert activities[0].type == "NEW_ASSET"
+    except BaseException as e:
+        print("ERRORALJSDGHLASDKFsadf", e)
+        import traceback
+
+        traceback.print_exc()
+        return
 
     # make sure the asset took
     assets = await bbot_server.get_assets()

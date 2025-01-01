@@ -1,15 +1,22 @@
 import orjson
 import asyncio
+import logging
+import aio_pika
 from omegaconf import OmegaConf
-from nats.aio.client import Client as NATS
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 
 
 class MessageQueue:
+    """
+    # docker rabbitmq
+    docker run --rm -p 5672:5672 -p 5673:5673 rabbitmq:4
+    """
+
     config_key = "message_queue"
 
     def __init__(self, config=None):
+        self.log = logging.getLogger(__name__)
         self.global_config = BBOT_SERVER_CONFIG
         try:
             self.config = self.global_config[self.config_key]
@@ -21,35 +28,47 @@ class MessageQueue:
             self.uri = self.config.uri
         except Exception as e:
             raise ValueError("Message queue URI is missing") from e
-        self.nc = NATS()
+        self.connection = None
+        self.channel = None
 
     async def setup(self):
-        await self.nc.connect(self.uri)
+        self.log.info(f"Setting up message queue at {self.uri}")
+        while True:
+            try:
+                self.connection = await aio_pika.connect_robust(self.uri)
+                self.channel = await self.connection.channel()
+                break
+            except Exception as e:
+                self.log.error(f"Failed to connect to message queue at {self.uri}: {e}, retrying...")
+                await asyncio.sleep(1)
 
     async def event_subscribe(self, callback):
-        return await self.nc.subscribe("events", cb=callback)
+        queue = await self.channel.declare_queue("events")
+        await queue.consume(callback)
 
     async def event_publish(self, message):
         msg_bytes = orjson.dumps(message)
-        return await self.nc.publish("events", msg_bytes)
+        await self.channel.default_exchange.publish(aio_pika.Message(body=msg_bytes), routing_key="events")
 
     async def asset_subscribe(self, callback):
-        return await self.nc.subscribe("assets", cb=callback)
+        queue = await self.channel.declare_queue("assets")
+        await queue.consume(callback)
 
     async def asset_publish(self, message):
         msg_bytes = orjson.dumps(message)
-        return await self.nc.publish("assets", msg_bytes)
+        await self.channel.default_exchange.publish(aio_pika.Message(body=msg_bytes), routing_key="assets")
 
     async def asset_tail(self):
         q = asyncio.Queue()
 
         async def callback(msg):
-            q.put_nowait(msg)
+            await q.put(msg)
 
-        await self.nc.subscribe("assets", cb=callback)
+        queue = await self.channel.declare_queue("assets")
+        await queue.consume(callback)
         while True:
             message = await q.get()
-            yield orjson.loads(message.data)
+            yield orjson.loads(message.body)
 
     async def cleanup(self):
-        await self.nc.close()
+        await self.connection.close()

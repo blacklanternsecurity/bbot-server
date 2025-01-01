@@ -22,7 +22,7 @@ class BaseEventStore(BaseDB):
 
         async def event_callback(message):
             try:
-                message_json = orjson.loads(message.data)
+                message_json = orjson.loads(message.body)
                 await self.insert_event(Event(**message_json))
             except Exception as e:
                 print(f"Error inserting event: {e}")

@@ -17,7 +17,7 @@ log = logging.getLogger("bbot.server.http")
 
 
 class http(BaseInterface):
-    def __init__(self, url, **kwargs):
+    def __init__(self, url="http://localhost:8807/v1/", **kwargs):
         super().__init__(**kwargs)
         self.base_url = url.strip("/")
         self.client = httpx.AsyncClient()
@@ -96,7 +96,11 @@ class http(BaseInterface):
             return response_json
 
         # otherwise, convert into format matching the return type of the function
-        return TypeAdapter(_route.response_model).validate_python(response_json)
+        try:
+            return TypeAdapter(_route.response_model).validate_python(response_json)
+        except Exception as e:
+            print(f"Error validating response json for {response_json}: {e}")
+            raise
 
     def add_query_params(self, url, params):
         # Parse the URL into its components

@@ -10,4 +10,8 @@ for p in applet_dir.iterdir():
         APPLETS.append(p.stem)
 
 
-APP_ROOT = RootApplet()
+def BBOTServerRootApplet(*args, **kwargs):
+    return RootApplet(*args, **kwargs)
+
+
+APP_ROOT = BBOTServerRootApplet()
