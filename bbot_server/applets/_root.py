@@ -2,7 +2,7 @@ from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
 class RootApplet(BaseApplet):
-    include_apps = ["Assets", "Events"]
+    include_apps = ["Assets", "Events", "Targets"]
 
     nested = False
 

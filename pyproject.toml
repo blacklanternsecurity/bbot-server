@@ -17,6 +17,7 @@ typer = "^0.15.1"
 rich = "^13.9.4"
 cachetools = "^5.5.0"
 aio-pika = "^9.5.4"
+jsondiff = "^2.2.1"
 
 [tool.poetry.scripts]
 bbot-server = 'bbot_server.cli.server:bbot_server'

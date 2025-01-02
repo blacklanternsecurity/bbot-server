@@ -31,6 +31,17 @@ class MessageQueue:
         self.connection = None
         self.channel = None
 
+        self._max_queue_length = 100000
+        self._queue_kwargs = {
+            "durable": False,
+            "arguments": {
+                "x-max-length": self._max_queue_length,
+                "x-overflow": "drop-head",
+                "x-stream-offset": "last",
+                "x-stream-filter-size": 10,
+            },
+        }
+
     async def setup(self):
         self.log.info(f"Setting up message queue at {self.uri}")
         while True:
@@ -43,7 +54,7 @@ class MessageQueue:
                 await asyncio.sleep(1)
 
     async def event_subscribe(self, callback):
-        queue = await self.channel.declare_queue("events")
+        queue = await self.channel.declare_queue("events", **self._queue_kwargs)
         await queue.consume(callback)
 
     async def event_publish(self, message):
@@ -51,20 +62,25 @@ class MessageQueue:
         await self.channel.default_exchange.publish(aio_pika.Message(body=msg_bytes), routing_key="events")
 
     async def asset_subscribe(self, callback):
-        queue = await self.channel.declare_queue("assets")
+        queue = await self.channel.declare_queue("assets", **self._queue_kwargs)
         await queue.consume(callback)
 
     async def asset_publish(self, message):
         msg_bytes = orjson.dumps(message)
         await self.channel.default_exchange.publish(aio_pika.Message(body=msg_bytes), routing_key="assets")
 
-    async def asset_tail(self):
+    async def asset_tail(self, lines=10):
         q = asyncio.Queue()
 
         async def callback(msg):
             await q.put(msg)
 
-        queue = await self.channel.declare_queue("assets")
+        queue = await self.channel.declare_queue(
+            "assets",
+            durable=False,
+            arguments={'x-max-length': self._max_queue_length, "x-overflow": "drop-head"}
+        )
+        await self.channel.set_qos(prefetch_count=lines)
         await queue.consume(callback)
         while True:
             message = await q.get()

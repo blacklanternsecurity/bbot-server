@@ -16,15 +16,21 @@ class Emails(BaseApplet):
             description = f"New email: [{email}]"
             description_colored = f"New email: [[orange1]{email}[/orange1]]"
             current_emails.add(email)
-            email_activity = AssetActivity(
-                type="NEW_EMAIL", event=event, description=description, description_colored=description_colored
+            current_emails = sorted(current_emails)
+            email_activity = AssetActivity.create(
+                type="NEW_EMAIL",
+                asset=asset,
+                event=event,
+                fieldname="emails",
+                value=current_emails,
+                description=description,
+                description_colored=description_colored,
             )
             activities.append(email_activity)
-            asset.extra_fields["emails"] = sorted(current_emails)
         return activities
 
     def _get_emails(self, asset: Asset) -> set[str]:
-        return set(asset.extra_fields.get("emails", [])) or set()
+        return set(asset.fields.get("emails", [])) or set()
 
     @api_endpoint("/emails", methods=["GET"], summary="Get all the emails")
     async def get_emails(self) -> list[str]:

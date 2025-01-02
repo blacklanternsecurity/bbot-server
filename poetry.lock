@@ -872,6 +872,23 @@ MarkupSafe = ">=2.0"
 i18n = ["Babel (>=2.7)"]
 
 [[package]]
+name = "jsondiff"
+version = "2.2.1"
+description = "Diff JSON and JSON-like structures in Python"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "jsondiff-2.2.1-py3-none-any.whl", hash = "sha256:b1f0f7e2421881848b1d556d541ac01a91680cfcc14f51a9b62cdf4da0e56722"},
+    {file = "jsondiff-2.2.1.tar.gz", hash = "sha256:658d162c8a86ba86de26303cd86a7b37e1b2c1ec98b569a60e2ca6180545f7fe"},
+]
+
+[package.dependencies]
+pyyaml = "*"
+
+[package.extras]
+dev = ["build", "hypothesis", "pytest", "setuptools-scm"]
+
+[[package]]
 name = "lockfile"
 version = "0.12.2"
 description = "Platform-independent file locking module"
@@ -3312,4 +3329,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "6ffbe5ac38f6860aa8c669169ac4b7ac96d82f7f91893f7db8153bb22f19578c"
+content-hash = "9d25efd0da05537e9e1110c703d5ecd1ed813f7a633009f7ff01a5a7b08a4265"

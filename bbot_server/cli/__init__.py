@@ -1,23 +1,28 @@
 import typer
+import importlib
+from pathlib import Path
 from typing_extensions import Annotated
 
 
-bbctl = typer.Typer()
-
-# set default rich style
+# BBOT theme
 typer.rich_utils.STYLE_OPTION = "bold dark_orange"
+typer.rich_utils.STYLE_NEGATIVE_OPTION = "bold red"
+typer.rich_utils.STYLE_NEGATIVE_SWITCH = "bold red"
 typer.rich_utils.STYLE_SWITCH = "bold dark_orange"
 typer.rich_utils.STYLE_USAGE = "bright_white"
 typer.rich_utils.STYLE_METAVAR = "bold yellow"
 typer.rich_utils.STYLE_OPTION_ENVVAR = "dim yellow"
 
 
+bbctl = typer.Typer()
+
+
 # global options
 @bbctl.callback()
 def args(
     bbot_url: Annotated[str, typer.Option("--url", "-u", help="BBOT server URL")] = "http://localhost:8807",
-    silent: Annotated[bool, typer.Option("--silent", "-s", help="Silent mode")] = False,
-    color: Annotated[bool, typer.Option("--color", "-c", help="Color mode")] = True,
+    silent: Annotated[bool, typer.Option("--silent", "-s", help="Suppress all stderr output")] = False,
+    color: Annotated[bool, typer.Option(f"--color/--no-color", "-c/-nc", help="Enable or disable color in the terminal")] = True,
 ):
     from .utils import stderr, BBCTL_GLOBALS
 
@@ -34,16 +39,22 @@ def args(
         stderr.print(ascii_art, highlight=False)
 
 
-# server command
-from .server import server
-
-bbctl.add_typer(server, name="server")
-
-
-# activity command
-from .assets import assets
-
-bbctl.add_typer(assets, name="assets")
+# load all the cli modules
+cli_dir = Path(__file__).parent
+for p in cli_dir.iterdir():
+    # find every .py file in the cli directory
+    if p.is_file() and p.suffix.lower() == ".py" and not p.stem.startswith("_"):
+        # try importing it and look for typer.Typer objects
+        module_name = p.stem
+        full_namespace = f"bbot_server.cli.{module_name}"
+        spec = importlib.util.spec_from_file_location(full_namespace, p)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        for var_name in dir(module):
+            var_value = getattr(module, var_name)
+            # if a typer object is found, add it to bbctl
+            if isinstance(var_value, typer.Typer):
+                bbctl.add_typer(var_value, name=var_name)
 
 
 def main():

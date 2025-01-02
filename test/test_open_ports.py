@@ -36,7 +36,7 @@ async def test_open_ports(bbot_server):
     assets = await bbot_server.get_assets()
     assert len(assets) == 1
     assert assets[0].host == host_event_pydantic.host
-    assert not assets[0].extra_fields
+    assert not assets[0].fields
 
     # insert the port 80 event
     activities = await bbot_server.events.insert_event(port_80_event_pydantic)
@@ -47,7 +47,7 @@ async def test_open_ports(bbot_server):
     assets = await bbot_server.get_assets()
     assert len(assets) == 1
     assert assets[0].host == host_event_pydantic.host
-    assert assets[0].extra_fields["open_ports"] == [80]
+    assert assets[0].fields["open_ports"] == [80]
 
     # insert the port 443 event
     activities = await bbot_server.events.insert_event(port_443_event_pydantic)
@@ -58,4 +58,4 @@ async def test_open_ports(bbot_server):
     assets = await bbot_server.get_assets()
     assert len(assets) == 1
     assert assets[0].host == host_event_pydantic.host
-    assert assets[0].extra_fields["open_ports"] == [80, 443]
+    assert assets[0].fields["open_ports"] == [80, 443]

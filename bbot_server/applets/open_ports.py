@@ -16,15 +16,21 @@ class Open_Ports(BaseApplet):
                 description = f"New open port: [{event.netloc}]"
                 description_colored = f"New open port: [[orange1]{event.netloc}[/orange1]]"
                 open_ports.add(event.port)
-                open_port_activity = AssetActivity(
-                    type="PORT_OPENED", event=event, description=description, description_colored=description_colored
+                open_ports = sorted(open_ports)
+                open_port_activity = AssetActivity.create(
+                    type="PORT_OPENED",
+                    asset=asset,
+                    event=event,
+                    fieldname="open_ports",
+                    value=open_ports,
+                    description=description,
+                    description_colored=description_colored,
                 )
                 activities.append(open_port_activity)
-                asset.extra_fields["open_ports"] = sorted(open_ports)
         return activities
 
     def _get_open_ports(self, asset: Asset) -> set[int]:
-        return set(asset.extra_fields.get("open_ports", [])) or set()
+        return set(asset.fields.get("open_ports", [])) or set()
 
     @api_endpoint("/{host}/open_ports", methods=["GET"], summary="Get all the open ports for a host")
     async def get_open_ports(self, host: str) -> list[int]:

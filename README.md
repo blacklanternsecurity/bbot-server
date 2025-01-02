@@ -75,12 +75,11 @@ Plan of attack:
             - [ ] Event ingestor
             - [ ] Event archiver
 
-TODO:
-- [ ] Color theme
-- [ ] Rich tables?
 
 Subcommands:
-- [x] `bbctl activity`
-    - [ ] `bbctl activity tail`
-- [ ] `bbctl server start/stop`
-- [ ] `bbctl asset?`
+- [x] `bbctl asset`
+    - [x] `bbctl asset tail`
+    - [x] `bbctl asset list`
+- [x] `bbctl server start/stop`
+- [ ] `bbctl target list/add/edit/delete`
+    - textual ui copy/paste

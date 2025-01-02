@@ -16,15 +16,21 @@ class Technologies(BaseApplet):
             description = f"New technology: [{technology}]"
             description_colored = f"New technology: [[orange1]{technology}[/orange1]]"
             current_technologies.add(technology)
-            technology_activity = AssetActivity(
-                type="NEW_TECHNOLOGY", event=event, description=description, description_colored=description_colored
+            current_technologies = sorted(current_technologies)
+            technology_activity = AssetActivity.create(
+                type="NEW_TECHNOLOGY",
+                asset=asset,
+                event=event,
+                fieldname="technologies",
+                value=current_technologies,
+                description=description,
+                description_colored=description_colored,
             )
             activities.append(technology_activity)
-            asset.extra_fields["technologies"] = sorted(current_technologies)
         return activities
 
     def _get_technologies(self, asset: Asset) -> set[str]:
-        return set(asset.extra_fields.get("technologies", [])) or set()
+        return set(asset.fields.get("technologies", [])) or set()
 
     @api_endpoint("/{host}/technologies", methods=["GET"], summary="Get all the technologies for a host")
     async def get_technologies(self, host: str) -> list[str]:

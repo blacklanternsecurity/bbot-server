@@ -1,6 +1,32 @@
+import jsondiff
 from hashlib import sha1
+from copy import deepcopy
 from pydantic import BaseModel
 from typing import Annotated, Any
+
+from bbot.models.pydantic import Event
+
+
+class Asset(BaseModel):
+    __tablename__ = "assets"
+
+    host: Annotated[str, "indexed"]
+    fields: dict[str, Any] = {}
+
+    def update_field(self, fieldname, value):
+        """
+        Updates a field of the asset and returns a JSON diff of the changes.
+        """
+        json_before = deepcopy(self.fields)
+        self.fields[fieldname] = value
+        diff = jsondiff.diff(json_before, self.fields, marshal=True)
+        return diff, json_before.get(fieldname, None), self.fields[fieldname]
+
+    def __getattr__(self, name):
+        try:
+            return self.fields[name]
+        except KeyError:
+            raise AttributeError(f"'Asset' object has no attribute '{name}'")
 
 
 class AssetActivity(BaseModel):
@@ -11,6 +37,28 @@ class AssetActivity(BaseModel):
     timestamp: float
     description: str
     description_colored: str
+    fieldname: str = None
+    diff: dict[str, Any] = {}
+    before: Any = None
+    after: Any = None
+
+    @classmethod
+    def create(
+        cls, type: str, asset: Asset, event: Event, fieldname: str, value: Any, description: str, description_colored: str
+    ):
+        diff, before, after = asset.update_field(fieldname, value)
+        activity = cls(
+            type=type,
+            host=asset.host,
+            event=event,
+            fieldname=fieldname,
+            diff=diff,
+            before=before,
+            after=after,
+            description=description,
+            description_colored=description_colored,
+        )
+        return activity
 
     def __init__(self, *args, **kwargs):
         event = kwargs.get("event", None)
@@ -20,6 +68,8 @@ class AssetActivity(BaseModel):
             kwargs["timestamp"] = event.timestamp
             kwargs["event_uuid"] = event.uuid
         super().__init__(*args, **kwargs)
+        if self.type != "NEW_ASSET" and self.fieldname is None:
+            raise ValueError("fieldname is required whenever an existing asset is updated")
         self._id = None
         self._hash = None
 
@@ -37,16 +87,3 @@ class AssetActivity(BaseModel):
 
     def __eq__(self, other):
         return self.hash == other.hash
-
-
-class Asset(BaseModel):
-    __tablename__ = "assets"
-
-    host: Annotated[str, "indexed"]
-    extra_fields: dict[str, Any] = {}
-
-    def __getattr__(self, name):
-        try:
-            return self.extra_fields[name]
-        except KeyError:
-            raise AttributeError(f"'Asset' object has no attribute '{name}'")
