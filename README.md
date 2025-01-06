@@ -14,6 +14,7 @@ BBOT Server is a central command center for all your [BBOT](https://github.com/b
     - [ ] Instant alerting on new vulnerabilities, open ports, etc.
 - [x] **Collaboration**
     - [x] Multi-user CLI
+    - [ ] Multiple concurrent scans
 - [x] **Advanced Querying**
     - [x] REST API
     - [x] Python SDK

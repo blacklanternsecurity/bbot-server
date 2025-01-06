@@ -133,8 +133,6 @@ Button {
                     yield Label("", id="editor-label")
                     yield TextArea.code_editor("", id="code-editor")
                     with Horizontal(id="buttons"):
-                        with Horizontal(id="buttons-left"):
-                            yield Button("SELECT ALL (CTRL+A)", id="select-all")
                         with Horizontal(id="buttons-right"):
                             yield Label("Start Scan", classes="label")
                             yield Switch(value=False, id="start-scan", animate=False)
@@ -187,10 +185,7 @@ Button {
     def on_button_pressed(self, event: Button.Pressed) -> None:
         button = event.button
 
-        if button.id == "select-all":
-            self.select_all_text()
-            self.focus_editor()
-        elif button.id == "quit":
+        if button.id == "quit":
             self.exit()
         elif button.id == "save":
             self.save_text()

@@ -6,7 +6,7 @@ from bbot_server.asset_store.asset import Asset, AssetActivity
 class Events(BaseApplet):
     description = "events"
 
-    @api_endpoint("/ingest", methods=["POST"], summary="ingest a BBOT event into the asset database")
+    @api_endpoint("/", methods=["POST"], summary="ingest a BBOT event into the asset database")
     async def ingest_event(self, event: Event) -> list[AssetActivity]:
         """
         ingest a BBOT event into the asset database
