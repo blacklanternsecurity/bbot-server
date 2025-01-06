@@ -15,7 +15,10 @@ class Scan(BaseModel):
     def make_preset(self):
         from bbot import Preset
 
-        return Preset(*self.target, whitelist=self.whitelist, blacklist=self.blacklist, scan_name=self.name)
+        preset = Preset(**self.preset)
+        target_preset = Preset(*self.target, whitelist=self.whitelist, blacklist=self.blacklist, scan_name=self.name)
+        preset.merge(target_preset)
+        return preset
 
 
 class ScanRun(BaseModel):

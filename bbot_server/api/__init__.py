@@ -13,7 +13,7 @@ async def lifespan(app: FastAPI):
 
 app_kwargs = {
     "title": "BBOT Server",
-    "description": "A tiny backend for your BBOT scan data 🧡",
+    "description": "A central command center for all your nefarious BBOT activities 🧡",
     "debug": True,
 }
 
