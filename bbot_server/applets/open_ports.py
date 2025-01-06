@@ -14,7 +14,7 @@ class Open_Ports(BaseApplet):
             open_ports = self._get_open_ports(asset)
             if event.port not in open_ports:
                 description = f"New open port: [{event.netloc}]"
-                description_colored = f"New open port: [[orange1]{event.netloc}[/orange1]]"
+                description_colored = f"New open port: [[dark_orange]{event.netloc}[/dark_orange]]"
                 open_ports.add(event.port)
                 open_ports = sorted(open_ports)
                 open_port_activity = AssetActivity.create(

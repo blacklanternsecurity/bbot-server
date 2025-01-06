@@ -3,15 +3,7 @@ import importlib
 from pathlib import Path
 from typing_extensions import Annotated
 
-
-# BBOT theme
-typer.rich_utils.STYLE_OPTION = "bold dark_orange"
-typer.rich_utils.STYLE_NEGATIVE_OPTION = "bold red"
-typer.rich_utils.STYLE_NEGATIVE_SWITCH = "bold red"
-typer.rich_utils.STYLE_SWITCH = "bold dark_orange"
-typer.rich_utils.STYLE_USAGE = "bright_white"
-typer.rich_utils.STYLE_METAVAR = "bold yellow"
-typer.rich_utils.STYLE_OPTION_ENVVAR = "dim yellow"
+from bbot_server.cli import themes
 
 
 bbctl = typer.Typer()
@@ -22,7 +14,9 @@ bbctl = typer.Typer()
 def args(
     bbot_url: Annotated[str, typer.Option("--url", "-u", help="BBOT server URL")] = "http://localhost:8807",
     silent: Annotated[bool, typer.Option("--silent", "-s", help="Suppress all stderr output")] = False,
-    color: Annotated[bool, typer.Option(f"--color/--no-color", "-c/-nc", help="Enable or disable color in the terminal")] = True,
+    color: Annotated[
+        bool, typer.Option(f"--color/--no-color", "-c/-nc", help="Enable or disable color in the terminal")
+    ] = True,
 ):
     from .utils import stderr, BBCTL_GLOBALS
 
@@ -35,7 +29,8 @@ def args(
  [bold dark_orange]| |___) [/bold dark_orange]| |__) | |  | | | |
  [bold dark_orange]|  ___ <[/bold dark_orange]|  __ <| |  | | | |
  [bold dark_orange]| |___) [/bold dark_orange]| |__) | |__| | | |
- [bold dark_orange]|______/[/bold dark_orange]|_____/ \____/  |_|"""
+ [bold dark_orange]|______/[/bold dark_orange]|_____/ \____/  |_|
+"""
         stderr.print(ascii_art, highlight=False)
 
 
@@ -51,6 +46,8 @@ for p in cli_dir.iterdir():
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         for var_name in dir(module):
+            if var_name.startswith("_"):
+                continue
             var_value = getattr(module, var_name)
             # if a typer object is found, add it to bbctl
             if isinstance(var_value, typer.Typer):

@@ -18,6 +18,7 @@ rich = "^13.9.4"
 cachetools = "^5.5.0"
 aio-pika = "^9.5.4"
 jsondiff = "^2.2.1"
+textual = {extras = ["syntax"], version = "^1.0.0"}
 
 [tool.poetry.scripts]
 bbot-server = 'bbot_server.cli.server:bbot_server'
@@ -29,6 +30,8 @@ format.exclude = ["bbot/test/test_step_1/test_manager_*"]
 lint.ignore = ["E402", "E711", "E712", "E713", "E721", "E731", "E741", "F401", "F403", "F405", "F541", "F601"]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
 env = [
     "BBOT_TESTING = True",
 ]

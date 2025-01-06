@@ -21,16 +21,9 @@ async def test_open_ports(bbot_server):
     assert assets == []
 
     # insert the host event
-    try:
-        activities = await bbot_server.events.insert_event(host_event_pydantic)
-        assert len(activities) == 1
-        assert activities[0].type == "NEW_ASSET"
-    except BaseException as e:
-        print("ERRORALJSDGHLASDKFsadf", e)
-        import traceback
-
-        traceback.print_exc()
-        return
+    activities = await bbot_server.events.insert_event(host_event_pydantic)
+    assert len(activities) == 1
+    assert activities[0].type == "NEW_ASSET"
 
     # make sure the asset took
     assets = await bbot_server.get_assets()

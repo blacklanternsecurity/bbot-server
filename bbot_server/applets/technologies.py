@@ -14,7 +14,7 @@ class Technologies(BaseApplet):
         current_technologies = self._get_technologies(asset)
         if technology not in current_technologies:
             description = f"New technology: [{technology}]"
-            description_colored = f"New technology: [[orange1]{technology}[/orange1]]"
+            description_colored = f"New technology: [[dark_orange]{technology}[/dark_orange]]"
             current_technologies.add(technology)
             current_technologies = sorted(current_technologies)
             technology_activity = AssetActivity.create(

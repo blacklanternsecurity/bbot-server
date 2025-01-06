@@ -33,18 +33,27 @@ class AssetActivity(BaseModel):
     __tablename__ = "history"
 
     type: str
-    host: str
     timestamp: float
     description: str
     description_colored: str
-    fieldname: str = None
+    host: str | None = None
+    fieldname: str | None = None
+    module: str | None = None
+    event_uuid: str | None = None
     diff: dict[str, Any] = {}
-    before: Any = None
-    after: Any = None
+    before: Any | None = None
+    after: Any | None = None
 
     @classmethod
     def create(
-        cls, type: str, asset: Asset, event: Event, fieldname: str, value: Any, description: str, description_colored: str
+        cls,
+        type: str,
+        asset: Asset,
+        event: Event,
+        fieldname: str,
+        value: Any,
+        description: str,
+        description_colored: str,
     ):
         diff, before, after = asset.update_field(fieldname, value)
         activity = cls(
@@ -68,7 +77,7 @@ class AssetActivity(BaseModel):
             kwargs["timestamp"] = event.timestamp
             kwargs["event_uuid"] = event.uuid
         super().__init__(*args, **kwargs)
-        if self.type != "NEW_ASSET" and self.fieldname is None:
+        if self.host and self.type != "NEW_ASSET" and self.fieldname is None:
             raise ValueError("fieldname is required whenever an existing asset is updated")
         self._id = None
         self._hash = None

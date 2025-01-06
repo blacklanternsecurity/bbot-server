@@ -21,7 +21,9 @@ class DNS_Links(BaseApplet):
             # remove no longer existent DNS links
             for rdtype, record in removed_dns_records:
                 description = f"DNS link removed: {event.host} -({rdtype})-> [{record}]"
-                description_colored = f"DNS link removed: {event.host} -({rdtype})-> [[orange1]{record}[/orange1]]"
+                description_colored = (
+                    f"DNS link removed: {event.host} -({rdtype})-> [[dark_orange]{record}[/dark_orange]]"
+                )
                 records = old_dns_records.get(rdtype, [])
                 records.remove(record)
                 if not records:
@@ -42,7 +44,7 @@ class DNS_Links(BaseApplet):
             # add new DNS links
             for rdtype, record in added_dns_records:
                 description = f"New DNS link: {event.host} -({rdtype})-> [{record}]"
-                description_colored = f"New DNS link: {event.host} -({rdtype})-> [[orange1]{record}[/orange1]]"
+                description_colored = f"New DNS link: {event.host} -({rdtype})-> [[dark_orange]{record}[/dark_orange]]"
                 records = old_dns_records.get(rdtype, [])
                 records.append(record)
                 old_dns_records[rdtype] = sorted(records)

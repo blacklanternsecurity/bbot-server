@@ -18,31 +18,29 @@ class Events(BaseApplet):
         # publish event to the message queue
         await self.root.message_queue.event_publish(event.model_dump())
 
-        # skip if there's no host
-        if not event.host:
-            return []
-
         activities = []
 
         # we use a lock to prevent race conditions on the same asset
         async with self._asset_lock.lock(event.host):
-            # first try to get the asset based on the event's host
-            asset = await self.root.assets.collection.find_one({"host": event.host})
-            if asset is not None:
-                asset = Asset(**asset)
-            else:
-                # if it doesn't exist, create it
-                asset = Asset(host=event.host)
-                await self.root.assets.collection.insert_one(asset.model_dump())
-                new_asset_description = f"New asset [{event.host}] discovered"
-                new_asset_description_colored = f"New asset [[orange1]{event.host}[/orange1]] discovered"
-                new_asset_activity = AssetActivity(
-                    type="NEW_ASSET",
-                    event=event,
-                    description=new_asset_description,
-                    description_colored=new_asset_description_colored,
-                )
-                activities.append(new_asset_activity)
+            asset = None
+            if event.host:
+                # first try to get the asset based on the event's host
+                asset = await self.root.assets.collection.find_one({"host": event.host})
+                if asset is not None:
+                    asset = Asset(**asset)
+                else:
+                    # if it doesn't exist, create it
+                    asset = Asset(host=event.host)
+                    await self.root.assets.collection.insert_one(asset.model_dump())
+                    new_asset_description = f"New asset [{event.host}] discovered"
+                    new_asset_description_colored = f"New asset [[dark_orange]{event.host}[/dark_orange]] discovered"
+                    new_asset_activity = AssetActivity(
+                        type="NEW_ASSET",
+                        event=event,
+                        description=new_asset_description,
+                        description_colored=new_asset_description_colored,
+                    )
+                    activities.append(new_asset_activity)
 
             # let the other modules ingest the event
             new_activities = await self.root._ingest_event(asset, event)
@@ -53,7 +51,8 @@ class Events(BaseApplet):
                 await self.emit_activity(activity)
 
             # write the updated asset to the database
-            await self.root.assets.strict_collection.update_one({"host": event.host}, {"$set": asset.model_dump()})
+            if asset is not None:
+                await self.root.assets.strict_collection.update_one({"host": event.host}, {"$set": asset.model_dump()})
 
         return activities
 

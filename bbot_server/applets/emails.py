@@ -14,7 +14,7 @@ class Emails(BaseApplet):
         current_emails = self._get_emails(asset)
         if email not in current_emails:
             description = f"New email: [{email}]"
-            description_colored = f"New email: [[orange1]{email}[/orange1]]"
+            description_colored = f"New email: [[dark_orange]{email}[/dark_orange]]"
             current_emails.add(email)
             current_emails = sorted(current_emails)
             email_activity = AssetActivity.create(

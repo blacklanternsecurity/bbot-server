@@ -74,6 +74,9 @@ class BaseApplet:
                 self.include_app(app)
             except Exception as e:
                 print(f"Error including app {app}: {e}")
+                import traceback
+
+                traceback.print_exc()
 
         self._setup_finished = False
 
@@ -191,7 +194,7 @@ class BaseApplet:
         if self.parent is None:
             return ""
         if self.nested and self.parent.parent is not None:
-            return f"{self.parent.name} / {self.name_friendly}"
+            return f"{self.parent.name} -> {self.name_friendly}"
         return self.name_friendly
 
     @property

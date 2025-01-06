@@ -1,8 +1,8 @@
-from bbot_server.applets._base import BaseApplet, api_endpoint
+from bbot_server.applets._base import BaseApplet
 
 
 class RootApplet(BaseApplet):
-    include_apps = ["Assets", "Events", "Targets"]
+    include_apps = ["Assets", "Events", "Scans"]
 
     nested = False
 
@@ -31,10 +31,6 @@ class RootApplet(BaseApplet):
         await self.message_queue.setup()
 
         await self._setup()
-
-    @api_endpoint("/", methods=["GET"], summary="Get the root endpoint")
-    async def get_root(self):
-        return {"message": "Hello, World!"}
 
     async def cleanup(self):
         for child_applet in self.child_applets:

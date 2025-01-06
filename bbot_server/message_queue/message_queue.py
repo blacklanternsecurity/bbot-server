@@ -1,3 +1,4 @@
+import time
 import orjson
 import asyncio
 import logging
@@ -31,14 +32,12 @@ class MessageQueue:
         self.connection = None
         self.channel = None
 
-        self._max_queue_length = 100000
+        self._max_queue_length = 1000
         self._queue_kwargs = {
             "durable": False,
             "arguments": {
                 "x-max-length": self._max_queue_length,
                 "x-overflow": "drop-head",
-                "x-stream-offset": "last",
-                "x-stream-filter-size": 10,
             },
         }
 
@@ -55,7 +54,12 @@ class MessageQueue:
 
     async def event_subscribe(self, callback):
         queue = await self.channel.declare_queue("events", **self._queue_kwargs)
-        await queue.consume(callback)
+
+        async def wrapped_callback(message: aio_pika.IncomingMessage):
+            async with message.process():
+                await callback(message)
+
+        await queue.consume(wrapped_callback)
 
     async def event_publish(self, message):
         msg_bytes = orjson.dumps(message)
@@ -75,13 +79,22 @@ class MessageQueue:
         async def callback(msg):
             await q.put(msg)
 
-        queue = await self.channel.declare_queue(
-            "assets",
-            durable=False,
-            arguments={'x-max-length': self._max_queue_length, "x-overflow": "drop-head"}
-        )
-        await self.channel.set_qos(prefetch_count=lines)
+        queue = await self.channel.declare_queue("assets", **self._queue_kwargs)
         await queue.consume(callback)
+
+        # first, read everything from the queue
+        tail_lines = []
+        while True:
+            try:
+                message = await asyncio.wait_for(q.get(), timeout=0.1)
+                tail_lines.append(orjson.loads(message.body))
+            except (asyncio.QueueEmpty, asyncio.TimeoutError):
+                break
+        tail_lines = tail_lines[-lines:]
+        for line in tail_lines:
+            yield line
+
+        # then, consume new messages
         while True:
             message = await q.get()
             yield orjson.loads(message.body)
