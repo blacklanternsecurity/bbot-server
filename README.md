@@ -4,7 +4,7 @@
 
 <!-- ![bbot-server](https://github.com/user-attachments/assets/f97648ad-fc72-4fbf-8f85-3896b9f8f02c) -->
 
-BBOT Server is your central command center for your [BBOT](https://github.com/blacklanternsecurity/bbot) activities!
+BBOT Server is a central command center for all your [BBOT](https://github.com/blacklanternsecurity/bbot) activities!
 
 - [x] **Scan Management**
     - [ ] Kick off concurrent scans on remote servers

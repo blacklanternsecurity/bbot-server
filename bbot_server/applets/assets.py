@@ -3,7 +3,7 @@ from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
 class Assets(BaseApplet):
-    include_apps = ["Open_Ports", "DNS_Links"]
+    include_apps = ["Open_Ports", "DNS_Links", "Emails"]
 
     description = "hostnames and IP addresses discovered during scans"
     _data_model = Asset
