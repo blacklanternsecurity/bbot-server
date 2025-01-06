@@ -6,8 +6,6 @@
 
 BBOT Server is your central command center for all your nefarious [BBOT](https://github.com/blacklanternsecurity/bbot) activities!
 
-![scans](https://github.com/user-attachments/assets/7644809f-e111-49f8-b627-c0c77a65110a)
-
 - [x] **Scan Management**
     - [ ] Kick off concurrent scans on remote servers
     - [x] Monitor scan progress, statistics
@@ -48,6 +46,10 @@ bbctl scans runs
 ![scan-editor](https://github.com/user-attachments/assets/9c31d2ef-f4f0-4d65-bd45-263a8d16bd7f)
 
 *Scan editor (terminal UI)*
+
+![scans](https://github.com/user-attachments/assets/7644809f-e111-49f8-b627-c0c77a65110a)
+
+*Launch and monitor concurrent scans*
 
 ![monitor-assets](https://github.com/user-attachments/assets/ed7ac9f2-34e8-4770-a971-49fdf7f77bea)
 
