@@ -1,4 +1,3 @@
-import time
 import orjson
 import asyncio
 import logging
@@ -47,13 +46,20 @@ class MessageQueue:
             try:
                 self.connection = await aio_pika.connect_robust(self.uri)
                 self.channel = await self.connection.channel()
+
+                # Declare a single topic exchange for events and assets
+                self.exchange = await self.channel.declare_exchange("bbot_exchange", aio_pika.ExchangeType.TOPIC)
+
                 break
             except Exception as e:
                 self.log.error(f"Failed to connect to message queue at {self.uri}: {e}, retrying...")
                 await asyncio.sleep(1)
 
     async def event_subscribe(self, callback):
-        queue = await self.channel.declare_queue("events", **self._queue_kwargs)
+        queue = await self.channel.declare_queue("", **self._queue_kwargs)  # Use a server-named queue
+        await queue.bind(
+            self.exchange, routing_key="bbot.events"
+        )  # Bind the queue to the topic exchange with routing key
 
         async def wrapped_callback(message: aio_pika.IncomingMessage):
             async with message.process():
@@ -63,21 +69,43 @@ class MessageQueue:
 
     async def event_publish(self, message):
         msg_bytes = orjson.dumps(message)
-        await self.channel.default_exchange.publish(aio_pika.Message(body=msg_bytes), routing_key="events")
+        await self.exchange.publish(aio_pika.Message(body=msg_bytes), routing_key="bbot.events")
 
-    async def asset_subscribe(self, callback):
-        queue = await self.channel.declare_queue("assets", **self._queue_kwargs)
-        await queue.consume(callback)
-
-    async def asset_publish(self, message):
-        msg_bytes = orjson.dumps(message)
-        await self.channel.default_exchange.publish(aio_pika.Message(body=msg_bytes), routing_key="assets")
-
-    async def asset_tail(self, lines=10):
+    async def event_tail(self):
         q = asyncio.Queue()
 
         async def callback(msg):
             await q.put(msg)
+
+        await self.event_subscribe(callback)
+
+        # then, consume new messages
+        while True:
+            message = await q.get()
+            yield orjson.loads(message.body)
+
+    async def asset_subscribe(self, callback):
+        queue = await self.channel.declare_queue("", **self._queue_kwargs)  # Use a server-named queue
+        await queue.bind(
+            self.exchange, routing_key="bbot.assets"
+        )  # Bind the queue to the topic exchange with routing key
+
+        async def wrapped_callback(message: aio_pika.IncomingMessage):
+            async with message.process():
+                await callback(message)
+
+        await queue.consume(wrapped_callback)
+
+    async def asset_publish(self, message):
+        msg_bytes = orjson.dumps(message)
+        await self.exchange.publish(aio_pika.Message(body=msg_bytes), routing_key="bbot.assets")
+
+    async def asset_tail(self, lines=10):
+        q = asyncio.Queue()
+
+        async def callback(msg: aio_pika.IncomingMessage):
+            async with msg.process():
+                await q.put(msg)
 
         queue = await self.channel.declare_queue("assets", **self._queue_kwargs)
         await queue.consume(callback)

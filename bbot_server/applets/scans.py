@@ -4,7 +4,7 @@ from bbot_server.scans import Scan
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
-async def bbot_scan(preset, output_url="http://localhost:8807/v1/events/ingest"):
+async def bbot_scan(preset, output_url="http://localhost:8807/v1/events/"):
     from bbot import Preset
 
     main_preset = Preset.from_dict(preset)

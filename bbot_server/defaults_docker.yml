@@ -1,0 +1,10 @@
+event_store:
+  uri: mongodb://mongodb:27017/bbot_events
+  table_name: events
+
+asset_store:
+  uri: mongodb://mongodb:27017/bbot_assets
+  table_name: assets
+
+message_queue:
+  uri: amqp://rabbitmq:5672

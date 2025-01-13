@@ -45,6 +45,7 @@ Button {
     dock: bottom;
     height: 3;
     width: 100%;
+    align-horizontal: right;
 }
 
 .nav-tab {

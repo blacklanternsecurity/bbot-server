@@ -28,8 +28,11 @@ def ensure_docker_compose():
     # make sure docker compose is installed
     commands = [["docker-compose", "--version"], ["docker", "compose", "version"]]
     for command in commands:
-        if run(command, check=False):
-            return True
+        try:
+            if run(command, check=False):
+                return True
+        except FileNotFoundError:
+            continue
     raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
 
 
@@ -53,3 +56,11 @@ def start(
 def stop():
     ensure_docker_compose()
     run(["docker-compose", "down"], check=False)
+
+
+if __name__ == "__main__":
+    # for running inside docker compose
+    os.environ["BBOT_PORT"] = "8807"
+    os.environ["BBOT_HOST"] = "0.0.0.0"
+    os.environ["BBOT_AUTO_RELOAD"] = "True"
+    bbot_server()

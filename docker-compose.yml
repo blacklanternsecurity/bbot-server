@@ -4,6 +4,7 @@ services:
       context: .
     volumes:
       - ~/.config/bbot_server:/root/.config/bbot_server
+      - ./bbot_server/defaults_docker.yml:/app/bbot_server/defaults.yml
       - .:/app
     ports:
       - "8807:8807"
@@ -11,12 +12,9 @@ services:
       - BBOT_PORT
       - BBOT_HOST
       - BBOT_AUTO_RELOAD
-    command: bbot-server
 
   mongodb:
     image: mongo:latest
 
   rabbitmq:
-    image: rabbitmq:latest
-    ports:
-      - "5672:5672"
+    image: rabbitmq:4

@@ -1,17 +1,13 @@
-# Use an official Python runtime as a parent image
 FROM python:3.11
-
-# Copy the current directory contents into the container at /app
 COPY . /app
-
-# Set the working directory in the container
 WORKDIR /app
-
-# Install required packages
-RUN pip install .
-
-# Expose the port Uvicorn will run on
+# install bbot_server in editable mode
+RUN pip install -e .
+# remove the initial app dir to avoid confusion
+WORKDIR /
+RUN rm -rf /app
+# create new app dir (existing code will be mapped in)
+RUN mkdir /app
+WORKDIR /app
 EXPOSE 8807
-
-# Run the FastAPI app with Uvicorn
-CMD ["bbot-server", "--host", "0.0.0.0", "--port", "8807"]
+CMD ["python", "/app/bbot_server/cli/server.py"]
