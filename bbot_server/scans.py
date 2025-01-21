@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -30,6 +30,6 @@ class ScanRun(BaseModel):
     target: dict[str, Any]
     preset: dict[str, Any]
     started_at: datetime
-    finished_at: datetime | None = None
-    duration_seconds: float | None = None
-    duration: str | None = None
+    finished_at: Union[datetime, None] = None
+    duration_seconds: Union[float, None] = None
+    duration: Union[str, None] = None
