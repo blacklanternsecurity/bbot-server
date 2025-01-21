@@ -19,6 +19,7 @@ cachetools = "^5.5.0"
 aio-pika = "^9.5.4"
 jsondiff = "^2.2.1"
 textual = {extras = ["syntax"], version = "^1.0.0"}
+websockets = "^14.1"
 
 [tool.poetry.scripts]
 bbctl = 'bbot_server.cli:main'
@@ -31,7 +32,7 @@ lint.ignore = ["E402", "E711", "E712", "E713", "E721", "E731", "E741", "F401", "
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "session"
+asyncio_default_fixture_loop_scope = "function"
 env = [
     "BBOT_TESTING = True",
 ]

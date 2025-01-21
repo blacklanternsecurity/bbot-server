@@ -12,6 +12,3 @@ for p in applet_dir.iterdir():
 
 def BBOTServerRootApplet(*args, **kwargs):
     return RootApplet(*args, **kwargs)
-
-
-APP_ROOT = BBOTServerRootApplet()

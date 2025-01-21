@@ -1,7 +1,10 @@
 import httpx
+import orjson
 import logging
 from functools import partial
+from websockets import connect
 from contextlib import suppress
+from typing import AsyncGenerator
 from urllib.parse import urlparse, parse_qs, urlunparse, urlencode
 
 # for converting pydantic objects into raw JSON
@@ -32,42 +35,13 @@ class http(BaseInterface):
         )
         return options
 
-    async def _request(self, _url, _route, _signature, *args, **kwargs):
+    async def _request(self, _url, _route, *args, **kwargs):
         """
         Builds and issues a web request to the bbot server REST API
 
         Uses the API route to figure out the format etc.
         """
-        # HTTP route
-        method = sorted(_route.methods)[0]
-
-        # convert any args into kwargs
-        bound_args = _signature.bind(*args, **kwargs)
-        bound_args.apply_defaults()
-        kwargs = bound_args.arguments
-
-        # convert kwargs into raw JSON for web request
-        kwargs = jsonable_encoder(kwargs)
-
-        # path params
-        if _route.dependant.path_params:
-            path_params = {}
-            for param in _route.dependant.path_params:
-                with suppress(AttributeError):
-                    param = param.name
-                value = kwargs.pop(param)
-                path_params[param] = value
-            _url = _url.format(**path_params)
-
-        # query params
-        if _route.dependant.query_params:
-            query_params = {}
-            for param in _route.dependant.query_params:
-                with suppress(AttributeError):
-                    param = param.name
-                value = kwargs.pop(param)
-                query_params[param] = value
-            _url = self.add_query_params(_url, kwargs)
+        method, _url, kwargs = self.prepare_api_request(_url, _route, *args, **kwargs)
 
         # body
         body = None
@@ -102,7 +76,64 @@ class http(BaseInterface):
             print(f"Error validating response json for {response_json}: {e}")
             raise
 
+    async def _websocket_request(self, _url, _route, *args, **kwargs) -> AsyncGenerator:
+        """
+        Similar to _request(), but creates a websocket connection instead of an HTTP request
+
+        Returns an async generator that yields websocket messages
+        """
+        method, _url, kwargs = self.prepare_api_request(_url, _route, *args, **kwargs)
+
+        # replace scheme with ws
+        _url = _url.replace("http://", "ws://").replace("https://", "wss://")
+
+        async with connect(_url) as ws:
+            while True:
+                message = await ws.recv()
+                # message = TypeAdapter(_route.response_model).validate_python(message)
+                yield orjson.loads(message)
+
+    def prepare_api_request(self, _url, _route, *args, **kwargs):
+        # HTTP route
+        methods = getattr(_route.fastapi_route, "methods", []) or ["GET"]
+        method = sorted(methods)[0]
+
+        # convert any args into kwargs
+        bound_args = _route.function_signature.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+        kwargs = bound_args.arguments
+
+        # convert kwargs into raw JSON for web request
+        kwargs = jsonable_encoder(kwargs)
+
+        fastapi_route = _route.fastapi_route
+
+        # path params
+        if fastapi_route.dependant.path_params:
+            path_params = {}
+            for param in fastapi_route.dependant.path_params:
+                with suppress(AttributeError):
+                    param = param.name
+                value = kwargs.pop(param)
+                path_params[param] = value
+            _url = _url.format(**path_params)
+
+        # query params
+        if fastapi_route.dependant.query_params:
+            query_params = {}
+            for param in fastapi_route.dependant.query_params:
+                with suppress(AttributeError):
+                    param = param.name
+                value = kwargs.pop(param)
+                query_params[param] = value
+            _url = self.add_query_params(_url, query_params)
+
+        return method, _url, kwargs
+
     def add_query_params(self, url, params):
+        """
+        Given a URL and a dictionary of query parameters, add the parameters to the URL in the format of a query string and return the new URL
+        """
         # Parse the URL into its components
         scheme, netloc, path, params, query, fragment = urlparse(url)
         # Create a dictionary of existing query parameters
@@ -115,10 +146,28 @@ class http(BaseInterface):
         return urlunparse((scheme, netloc, path, params, new_query, fragment))
 
     def __getattr__(self, attr):
+        """
+        For every attribute, try to find a matching route in the route map and return a coroutine that will make the request
+
+        If the attribute isn't found in the route map, just return the attribute from the applet
+
+        _wrap is used here to allow the coroutine to be called synchronously
+        """
         try:
-            full_path, route, signature = self.applet.route_maps[attr]
-            url = f"{self.base_url}{full_path}"
-            coro = partial(self._request, url, route, signature)
+            route = self.applet.route_maps[attr]
+            url = f"{self.base_url}{route.path}"
+            if route.endpoint_type == "http":
+                coro = partial(self._request, url, route)
+            elif route.endpoint_type == "websocket":
+                coro = partial(self._websocket_request, url, route)
             return self._wrap(coro)
         except KeyError:
             return self._wrap(getattr(self.applet, attr))
+
+    def __dir__(self):
+        """
+        Makes sure that even with the __getattr__ override, the user can still see all the attributes of the applet
+
+        Useful for tab completion in IDEs
+        """
+        return sorted(set(self.applet.route_maps.keys()) | set(dir(self.applet)))

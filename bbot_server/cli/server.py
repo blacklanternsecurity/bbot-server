@@ -21,7 +21,7 @@ def bbot_server():
         auto_reload = bool(os.environ["BBOT_AUTO_RELOAD"])
     except Exception as e:
         raise typer.Exit(f"Error getting BBOT environment variables: {e}")
-    uvicorn.run("bbot_server.api:server_app", host=host, port=port, reload=auto_reload)
+    uvicorn.run("bbot_server.api:server_app", host=host, port=port, reload=auto_reload, log_level="debug")
 
 
 def ensure_docker_compose():

@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 from bbot.models.pydantic import Event
 from bbot_server.applets._base import BaseApplet, api_endpoint
 from bbot_server.asset_store.asset import Asset, AssetActivity
@@ -6,10 +8,10 @@ from bbot_server.asset_store.asset import Asset, AssetActivity
 class Events(BaseApplet):
     description = "events"
 
-    @api_endpoint("/", methods=["POST"], summary="ingest a BBOT event into the asset database")
-    async def ingest_event(self, event: Event) -> list[AssetActivity]:
+    @api_endpoint("/", methods=["POST"], summary="Insert a BBOT event into the asset database")
+    async def insert_event(self, event: Event) -> list[AssetActivity]:
         """
-        ingest a BBOT event into the asset database
+        Insert a BBOT event into the asset database
 
         This creates a list of activities that occurred as a result of the event (e.g. PORT_OPENED, CRITICAL_VULN, etc.).
 
@@ -64,3 +66,13 @@ class Events(BaseApplet):
     @api_endpoint("/{uuid}", methods=["GET"], summary="Get an event by its UUID")
     async def get_event(self, uuid: str) -> dict:
         print("GETTING EVENT", uuid)
+
+    @api_endpoint("/tail", type="websocket")
+    async def tail_events(self):
+        agen = self.message_queue.event_tail()
+        try:
+            async for event in agen:
+                yield event
+        finally:
+            with suppress(Exception):
+                await agen.aclose()

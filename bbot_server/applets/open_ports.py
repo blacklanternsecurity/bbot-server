@@ -7,6 +7,7 @@ class Open_Ports(BaseApplet):
     watched_events = ["OPEN_TCP_PORT"]
     description = "open ports discovered during scans"
     route_prefix = ""
+    fieldnames = ["open_ports"]
 
     async def ingest_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
         activities = []

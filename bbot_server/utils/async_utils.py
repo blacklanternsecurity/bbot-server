@@ -165,3 +165,15 @@ def async_to_sync_class(cls):
                 self._wrapper.stop()
 
     return Wrapper
+
+
+async def tail_queue(q):
+    while 1:
+        try:
+            yield await asyncio.wait_for(q.get(), timeout=0.1)
+        except asyncio.QueueEmpty:
+            await asyncio.sleep(0.1)
+        except asyncio.TimeoutError:
+            continue
+        except asyncio.CancelledError:
+            break

@@ -1,9 +1,18 @@
+import signal
+import asyncio  # noqa
+import logging
 import pytest
 import pytest_asyncio
+from contextlib import suppress
 
 from bbot import Scanner
 from bbot.models.pydantic import Event
 from bbot.modules.base import BaseModule
+
+from ._gen_scan_data import scan_data
+
+
+log = logging.getLogger(__name__)
 
 
 def get_bbot_server_config():
@@ -17,54 +26,83 @@ def get_bbot_server_config():
 BBOT_SERVER_CONFIG = get_bbot_server_config()
 
 
-def start_server():
-    print("STARTING SERVER")
+# def start_server():
+#     print("STARTING SERVER")
+#     import uvicorn
+
+#     get_bbot_server_config()
+#     from bbot_server.api import server_app
+
+#     uvicorn.run(server_app, host="localhost", port=8807, log_level="info")
+
+
+# @pytest.fixture()
+# def bbot_server_http():
+#     import time
+#     import httpx
+#     import multiprocessing
+
+#     server_process = multiprocessing.Process(target=start_server)
+#     server_process.start()
+
+#     # Wait for the server to be ready
+#     while True:
+#         try:
+#             print("REQUESTING")
+#             response = httpx.get("http://localhost:8807/v1/assets/")
+#             print("RESPONSE", response, response.json())
+#             if response.status_code == 200:
+#                 break
+#         except httpx.RequestError:
+#             print("waiting for server to come up")
+#             time.sleep(0.1)
+
+#     yield
+#     print("TERMINATING SERVER")
+#     server_process.terminate(signal.SIGKILL)
+#     server_process.join()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def bbot_server_http():
+    import httpx
     import uvicorn
+    from bbot_server.api import make_server_app
 
-    get_bbot_server_config()
-    from bbot_server.api import server_app
+    server_app = make_server_app()
 
-    uvicorn.run(server_app, host="localhost", port=8807, log_level="info")
+    server = uvicorn.Server(uvicorn.Config(server_app, host="127.0.0.1", port=8807, log_level="debug"))
+    api = asyncio.create_task(server.serve())
 
+    # Wait for the server to be ready asynchronously
+    async with httpx.AsyncClient() as client:
+        while True:
+            try:
+                response = await client.get("http://localhost:8807/v1/assets/")
+                if response.status_code == 200:
+                    break
+            except httpx.RequestError as e:
+                print(f"waiting for server to come up: {e}")
+                await asyncio.sleep(0.1)
 
-@pytest.fixture()
-def bbot_server_http():
-    # import time
-    # import httpx
-    # import multiprocessing
+    yield "http://127.0.0.1:8807"
 
-    # server_process = multiprocessing.Process(target=start_server)
-    # server_process.start()
-
-    # # Wait for the server to be ready
-    # while True:
-    #     try:
-    #         print("REQUESTING")
-    #         response = httpx.get("http://localhost:8807/v1/assets/")
-    #         print("RESPONSE", response, response.json())
-    #         if response.status_code == 200:
-    #             break
-    #     except httpx.RequestError:
-    #         print("waiting for server to come up")
-    #         time.sleep(0.1)
-
-    # yield
-    # print("TERMINATING SERVER")
-    # server_process.terminate()
-    # server_process.join()
-    yield
+    # server.should_exit = True
+    server.force_exit = True
+    await server.shutdown()
+    await asyncio.sleep(1)
+    api.cancel()
+    with suppress(asyncio.CancelledError):
+        await api
 
 
-# @pytest_asyncio.fixture(params=[
-#     {"interface": "python"},
-#     {"interface": "http", "url": "http://localhost:8807/v1"}
-# ])
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http", "url": "http://localhost:8807/v1"}])
+# @pytest_asyncio.fixture
 async def bbot_server(request, mongo_cleanup, bbot_server_http):
     from bbot_server import BBOTServer
 
-    # bbot_server = BBOTServer(**request.param)
-    bbot_server = BBOTServer()
+    bbot_server = BBOTServer(**request.param)
+    # bbot_server = BBOTServer()
     await bbot_server.setup()
     yield bbot_server
     await bbot_server.cleanup()

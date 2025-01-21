@@ -1,13 +1,20 @@
+import orjson
 import inspect
 import logging
 import importlib
-from fastapi import APIRouter
+from fastapi import WebSocket
+from contextlib import suppress
 from pymongo import WriteConcern
+from fastapi import APIRouter, HTTPException
+from fastapi.dependencies.utils import get_typed_return_annotation
 
 from bbot.models.pydantic import Event
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.utils.async_utils import NamedLock
 from bbot_server.asset_store.asset import Asset, AssetActivity
+
+
+log = logging.getLogger(__name__)
 
 
 def api_endpoint(endpoint, **kwargs):
@@ -17,6 +24,66 @@ def api_endpoint(endpoint, **kwargs):
         return fn
 
     return decorator
+
+
+class BaseServerRoute:
+    def __init__(self, function, tags=[]):
+        self.function = function
+        self.endpoint = getattr(function, "_endpoint", None)
+        self.function_signature = inspect.signature(function)
+        self.kwargs = dict(getattr(function, "_kwargs", {}))
+        self.endpoint_type = self.kwargs.pop("type", "http")
+        self.tags = tags
+
+    def add_to_applet(self, applet):
+        self.add_to_router(applet.router)
+        self.fastapi_route = applet.router.routes[-1]
+        self.path = self.fastapi_route.path
+        self.full_path = f"{applet.full_prefix()}{self.fastapi_route.path}"
+        function_name = self.function.__name__
+        applet.route_maps[function_name] = self
+        self.setup()
+
+
+class BBOTServerRoute(BaseServerRoute):
+    """
+    A route for HTTP endpoints
+    """
+
+    def __init__(self, function, tags=[]):
+        super().__init__(function, tags)
+        self.kwargs["tags"] = self.tags
+
+    def add_to_router(self, router):
+        router.add_api_route(self.endpoint, self.function, **self.kwargs)
+
+    def setup(self):
+        self.response_model = self.fastapi_route.response_model
+
+
+class WebSocketServerRoute(BaseServerRoute):
+    """
+    A route for WebSocket endpoints
+    """
+
+    async def websocket_wrapper(self, websocket: WebSocket):
+        try:
+            await websocket.accept()
+            agen = self.function()
+            async for message in agen:
+                message = orjson.dumps(message)
+                await websocket.send_bytes(message)
+        finally:
+            with suppress(Exception):
+                await agen.aclose()
+            with suppress(Exception):
+                await websocket.close()
+
+    def add_to_router(self, router):
+        router.add_api_websocket_route(self.endpoint, self.websocket_wrapper)
+
+    def setup(self):
+        self.response_model = get_typed_return_annotation(self.function)
 
 
 class BaseApplet:
@@ -34,6 +101,9 @@ class BaseApplet:
 
     # BBOT event types this applet watches
     watched_events = []
+
+    # Fields added to the asset
+    fieldnames = []
 
     # optionally you can include other applets
     include_apps = []
@@ -136,6 +206,9 @@ class BaseApplet:
     async def emit_activity(self, activity: AssetActivity):
         await self.root.message_queue.asset_publish(activity.model_dump())
 
+    def raise404(self, detail: str):
+        raise HTTPException(status_code=404, detail=detail)
+
     def include_app(self, app_name):
         self.log.debug(f"Including {app_name}")
         app_name_lower = app_name.lower()
@@ -165,6 +238,13 @@ class BaseApplet:
     def name_friendly(self):
         return self.name.replace("_", " ")
 
+    @property
+    def all_fieldnames(self):
+        fieldnames = self.fieldnames
+        for child_applet in self.child_applets:
+            fieldnames.extend(child_applet.all_fieldnames)
+        return fieldnames
+
     def _add_custom_routes(self):
         # automatically add API routes for any methods marked with @api_endpoint decorator
         # for every attribute on this class
@@ -178,16 +258,12 @@ class BaseApplet:
                 kwargs = dict(getattr(function, "_kwargs", {}))
                 endpoint_type = kwargs.pop("type", "http")
                 if endpoint_type == "http":
-                    kwargs["tags"] = [self.tag]
-                    self.router.add_api_route(endpoint, function, **kwargs)
+                    bbot_server_route = BBOTServerRoute(function, tags=[self.tag])
                 elif endpoint_type == "websocket":
-                    self.router.add_api_websocket_route(endpoint, function, **kwargs)
-
-                # keep mapping of function names -> HTTP endpoints
-                route = self.router.routes[-1]
-                full_path = f"{self.full_prefix()}{route.path}"
-                signature = inspect.signature(function)
-                self.route_maps[function.__name__] = (full_path, route, signature)
+                    bbot_server_route = WebSocketServerRoute(function, tags=[self.tag])
+                else:
+                    raise ValueError(f"Invalid endpoint type: {endpoint_type}")
+                bbot_server_route.add_to_applet(self)
 
     @property
     def tag(self):

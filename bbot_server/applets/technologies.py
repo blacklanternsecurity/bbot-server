@@ -7,6 +7,7 @@ class Technologies(BaseApplet):
     watched_events = ["TECHNOLOGY"]
     description = "technologies discovered during scans"
     route_prefix = ""
+    fieldnames = ["technologies"]
 
     async def ingest_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
         activities = []

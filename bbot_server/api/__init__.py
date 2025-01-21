@@ -2,14 +2,6 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from contextlib import asynccontextmanager
 
-from bbot_server.applets import APP_ROOT
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await APP_ROOT.setup()
-    yield
-
 
 app_kwargs = {
     "title": "BBOT Server",
@@ -18,27 +10,45 @@ app_kwargs = {
 }
 
 
-app = FastAPI(
-    lifespan=lifespan,
-    prefix="/v1",
-    **app_kwargs,
-)
-app.include_router(APP_ROOT.router)
+def make_app():
+    from bbot_server.applets import BBOTServerRootApplet
+
+    app_root = BBOTServerRootApplet()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        await app_root.setup()
+        yield
+
+    app = FastAPI(
+        lifespan=lifespan,
+        prefix="/v1",
+        **app_kwargs,
+    )
+    app.include_router(app_root.router)
+
+    @app.get("/", include_in_schema=False)
+    async def docs_redirect():
+        return RedirectResponse(url="docs")
+
+    return app, lifespan
 
 
-@app.get("/", include_in_schema=False)
-async def docs_redirect():
-    return RedirectResponse(url="docs")
+def make_server_app():
+    app, lifespan = make_app()
+
+    # includes the /v1 prefix
+    server_app = FastAPI(
+        lifespan=lifespan,
+        **app_kwargs,
+    )
+
+    @server_app.get("/", include_in_schema=False)
+    async def docs_redirect_2():
+        return RedirectResponse(url="/v1/docs")
+
+    server_app.mount("/v1", app)
+    return server_app
 
 
-# includes the /v1 prefix
-server_app = FastAPI(
-    lifespan=lifespan,
-    **app_kwargs,
-)
-server_app.mount("/v1", app)
-
-
-@server_app.get("/", include_in_schema=False)
-async def docs_redirect_2():
-    return RedirectResponse(url="/v1/docs")
+server_app = make_server_app()

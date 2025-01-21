@@ -5,7 +5,7 @@ from bbot.models.pydantic import Event
 
 
 @pytest.mark.asyncio
-async def test_open_ports(bbot_server):
+async def test_applet_open_ports(bbot_server):
     scan = Scanner()
     host_event = scan.make_event("www.evilcorp.com", "DNS_NAME", parent=scan.root_event)
     port_80_event = scan.make_event("www.evilcorp.com:80", "OPEN_TCP_PORT", parent=host_event)
@@ -13,8 +13,6 @@ async def test_open_ports(bbot_server):
     host_event_pydantic = Event(**host_event.json())
     port_80_event_pydantic = Event(**port_80_event.json())
     port_443_event_pydantic = Event(**port_443_event.json())
-
-    print(bbot_server)
 
     # make sure the asset database is empty
     assets = await bbot_server.get_assets()

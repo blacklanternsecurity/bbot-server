@@ -7,6 +7,7 @@ from bbot_server.asset_store.asset import Asset, AssetActivity
 class DNS_Links(BaseApplet):
     watched_events = ["DNS_NAME"]
     description = "DNS Links"
+    fieldnames = ["dns_records"]
 
     async def ingest_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
         activities = []

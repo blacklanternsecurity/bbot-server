@@ -32,5 +32,4 @@ class mongo(BaseEventStore):
         await self.collection.delete_many({})
 
     async def cleanup(self):
-        print("CLOSING MONGO CLIENT")
         self.client.close()
