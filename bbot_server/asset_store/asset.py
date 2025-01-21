@@ -2,7 +2,7 @@ import jsondiff
 from hashlib import sha1
 from copy import deepcopy
 from pydantic import BaseModel
-from typing import Annotated, Any
+from typing import Annotated, Any, Union
 
 from bbot.models.pydantic import Event
 
@@ -36,13 +36,13 @@ class AssetActivity(BaseModel):
     timestamp: float
     description: str
     description_colored: str
-    host: str | None = None
-    fieldname: str | None = None
-    module: str | None = None
-    event_uuid: str | None = None
+    host: Union[str, None] = None
+    fieldname: Union[str, None] = None
+    module: Union[str, None] = None
+    event_uuid: Union[str, None] = None
     diff: dict[str, Any] = {}
-    before: Any | None = None
-    after: Any | None = None
+    before: Union[Any, None] = None
+    after: Union[Any, None] = None
 
     @classmethod
     def create(
