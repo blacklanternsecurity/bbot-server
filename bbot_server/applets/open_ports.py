@@ -1,6 +1,6 @@
 from bbot.models.pydantic import Event
+from bbot_server.models.assets import Asset, AssetActivity
 from bbot_server.applets._base import BaseApplet, api_endpoint
-from bbot_server.asset_store.asset import Asset, AssetActivity
 
 
 class Open_Ports(BaseApplet):
@@ -35,4 +35,5 @@ class Open_Ports(BaseApplet):
 
     @api_endpoint("/{host}/open_ports", methods=["GET"], summary="Get all the open ports for a host")
     async def get_open_ports(self, host: str) -> list[int]:
-        print("GETTING OPEN PORTS", host)
+        open_ports = await self.collection.find_one({"host": host}, {"fields.open_ports": 1}) or {}
+        return open_ports.get("fields", {}).get("open_ports", [])

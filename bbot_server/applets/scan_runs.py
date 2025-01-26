@@ -1,5 +1,5 @@
-from bbot_server.scans import ScanRun
-from bbot_server.asset_store.asset import AssetActivity
+from bbot_server.models.scans import ScanRun
+from bbot_server.models.assets import AssetActivity
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 

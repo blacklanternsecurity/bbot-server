@@ -1,6 +1,6 @@
 from bbot.models.pydantic import Event
+from bbot_server.models.assets import Asset, AssetActivity
 from bbot_server.applets._base import BaseApplet, api_endpoint
-from bbot_server.asset_store.asset import Asset, AssetActivity
 
 
 class Emails(BaseApplet):
@@ -32,6 +32,10 @@ class Emails(BaseApplet):
     def _get_emails(self, asset: Asset) -> set[str]:
         return set(asset.fields.get("emails", [])) or set()
 
-    @api_endpoint("/emails", methods=["GET"], summary="Get all the emails")
-    async def get_emails(self) -> list[str]:
-        print("GETTING EMAILS")
+    @api_endpoint("/emails/{domain}", methods=["GET"], summary="Get emails by domain")
+    async def get_emails(self, domain: str) -> list[str]:
+        matching_assets = await self.root.assets.get_assets_by_host(domain)
+        emails = set()
+        for asset in matching_assets:
+            emails.update(asset.fields.get("emails", []))
+        return sorted(emails)

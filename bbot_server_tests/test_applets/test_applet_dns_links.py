@@ -1,2 +1,5 @@
-def test_applet_dns_links():
+from bbot_server_tests.test_applets.base import BaseAppletTest
+
+
+class TestAppletDNSLinks(BaseAppletTest):
     pass

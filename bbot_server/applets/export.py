@@ -1,6 +1,6 @@
 from fastapi.responses import StreamingResponse
 
-from bbot_server.scans import Scan
+from bbot_server.models.scans import Scan
 from bbot_server.utils.export import stream_csv
 from bbot_server.applets._base import BaseApplet, api_endpoint
 

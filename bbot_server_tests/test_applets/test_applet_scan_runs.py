@@ -1,2 +1,5 @@
-def test_applet_scan_runs():
+from bbot_server_tests.test_applets.base import BaseAppletTest
+
+
+class TestAppletScanRuns(BaseAppletTest):
     pass

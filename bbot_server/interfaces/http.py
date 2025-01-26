@@ -73,7 +73,7 @@ class http(BaseInterface):
         try:
             return TypeAdapter(_route.response_model).validate_python(response_json)
         except Exception as e:
-            print(f"Error validating response json for {response_json}: {e}")
+            print(f"Error validating response json for {method}->{_url}: response: {response_json}: {e}")
             raise
 
     async def _websocket_request(self, _url, _route, *args, **kwargs) -> AsyncGenerator:
@@ -155,7 +155,7 @@ class http(BaseInterface):
         """
         try:
             route = self.applet.route_maps[attr]
-            url = f"{self.base_url}{route.path}"
+            url = f"{self.base_url}{route.full_path}"
             if route.endpoint_type == "http":
                 coro = partial(self._request, url, route)
             elif route.endpoint_type == "websocket":

@@ -2,7 +2,7 @@ from bbot_server.applets._base import BaseApplet
 
 
 class RootApplet(BaseApplet):
-    include_apps = ["Assets", "Events", "Scans"]
+    include_apps = ["Assets", "Events", "Scans", "Agents"]
 
     nested = False
 

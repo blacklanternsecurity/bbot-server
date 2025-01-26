@@ -1,9 +1,10 @@
 from typing import Any, Union
-from pydantic import BaseModel
 from datetime import datetime
 
+from bbot_server.models import BaseBBOTServerModel
 
-class Scan(BaseModel):
+
+class Scan(BaseBBOTServerModel):
     __tablename__ = "scans"
 
     name: str
@@ -21,7 +22,7 @@ class Scan(BaseModel):
         return preset
 
 
-class ScanRun(BaseModel):
+class ScanRun(BaseBBOTServerModel):
     __tablename__ = "scan_runs"
 
     id: str

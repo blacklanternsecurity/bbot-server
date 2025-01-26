@@ -1,7 +1,7 @@
 from copy import deepcopy
 from bbot.models.pydantic import Event
 from bbot_server.applets._base import BaseApplet
-from bbot_server.asset_store.asset import Asset, AssetActivity
+from bbot_server.models.assets import Asset, AssetActivity
 
 
 class DNS_Links(BaseApplet):

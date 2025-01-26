@@ -15,12 +15,9 @@ docker_compose_file = docker_compose_dir / "docker-compose-dev.yml"
 def bbot_server():
     import uvicorn
 
-    try:
-        port = int(os.environ["BBOT_PORT"])
-        host = os.environ["BBOT_HOST"]
-        auto_reload = bool(os.environ["BBOT_AUTO_RELOAD"])
-    except Exception as e:
-        raise typer.Exit(f"Error getting BBOT environment variables: {e}")
+    port = int(os.environ.get("BBOT_PORT", 8807))
+    host = os.environ.get("BBOT_HOST", "127.0.0.1")
+    auto_reload = bool(os.environ.get("BBOT_AUTO_RELOAD", False))
     uvicorn.run("bbot_server.api:server_app", host=host, port=port, reload=auto_reload, log_level="debug")
 
 

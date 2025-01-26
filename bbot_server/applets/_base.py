@@ -11,7 +11,7 @@ from fastapi.dependencies.utils import get_typed_return_annotation
 from bbot.models.pydantic import Event
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.utils.async_utils import NamedLock
-from bbot_server.asset_store.asset import Asset, AssetActivity
+from bbot_server.models.assets import Asset, AssetActivity
 
 
 log = logging.getLogger(__name__)

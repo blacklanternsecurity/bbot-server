@@ -1,6 +1,4 @@
-from fastapi import HTTPException
-
-from bbot_server.scans import Scan
+from bbot_server.models.scans import Scan
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 

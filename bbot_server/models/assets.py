@@ -1,16 +1,17 @@
 import jsondiff
 from hashlib import sha1
 from copy import deepcopy
-from pydantic import BaseModel
-from typing import Annotated, Any, Union
+from typing import Annotated, Any, Union, Optional
 
 from bbot.models.pydantic import Event
+from bbot_server.models.base import BaseBBOTServerModel
 
 
-class Asset(BaseModel):
+class Asset(BaseBBOTServerModel):
     __tablename__ = "assets"
 
     host: Annotated[str, "indexed"]
+    reverse_host: Annotated[Optional[Union[str, None]], "indexed"] = None
     fields: dict[str, Any] = {}
 
     def update_field(self, fieldname, value):
@@ -29,14 +30,14 @@ class Asset(BaseModel):
             raise AttributeError(f"'Asset' object has no attribute '{name}'")
 
 
-class AssetActivity(BaseModel):
+class AssetActivity(BaseBBOTServerModel):
     __tablename__ = "history"
-
     type: str
     timestamp: float
     description: str
     description_colored: str
     host: Union[str, None] = None
+    reverse_host: Annotated[Optional[Union[str, None]], "indexed"] = None
     fieldname: Union[str, None] = None
     module: Union[str, None] = None
     event_uuid: Union[str, None] = None
@@ -77,8 +78,9 @@ class AssetActivity(BaseModel):
             kwargs["timestamp"] = event.timestamp
             kwargs["event_uuid"] = event.uuid
         super().__init__(*args, **kwargs)
-        if self.host and self.type != "NEW_ASSET" and self.fieldname is None:
-            raise ValueError("fieldname is required whenever an existing asset is updated")
+        if self.host:
+            if self.type != "NEW_ASSET" and self.fieldname is None:
+                raise ValueError("fieldname is required whenever an existing asset is updated")
         self._id = None
         self._hash = None
 

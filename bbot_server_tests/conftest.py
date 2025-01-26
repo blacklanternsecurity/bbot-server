@@ -9,8 +9,6 @@ from bbot import Scanner
 from bbot.models.pydantic import Event
 from bbot.modules.base import BaseModule
 
-from ._gen_scan_data import scan_data
-
 
 log = logging.getLogger(__name__)
 
@@ -108,24 +106,6 @@ async def bbot_server(request, mongo_cleanup, bbot_server_http):
     await bbot_server.cleanup()
 
 
-class DummyModule(BaseModule):
-    watched_events = ["OPEN_TCP_PORT"]
-
-    async def handle_event(self, event):
-        if str(event.host) == "www.evilcorp.com":
-            if event.type == "OPEN_TCP_PORT" and event.port == 443:
-                await self.emit_event(
-                    {
-                        "severity": "HIGH",
-                        "description": "That's a paddlin'",
-                        "host": event.host,
-                        "url": f"https://{event.host}",
-                    },
-                    "VULNERABILITY",
-                    parent=event,
-                )
-
-
 BBOT_EVENTS = []
 
 
@@ -144,19 +124,33 @@ async def mongo_cleanup():
     await client.drop_database("test_bbot_server_assets")
 
 
-@pytest_asyncio.fixture
-async def bbot_events():
-    global BBOT_EVENTS
-    if BBOT_EVENTS:
-        return BBOT_EVENTS
-
-    bbot_config = {
+class DummyScan:
+    targets = []
+    dns = {}
+    config = {
         "scope": {
             "report_distance": 100,
         }
     }
-    bbot_scan = Scanner("evilcorp.com", config=bbot_config)
-    mock_data = {
+
+    @classmethod
+    async def run(cls):
+        scan = Scanner(*cls.targets, config=cls.config)
+        await scan.helpers.dns._mock_dns(cls.dns)
+        for i, dummy_module in enumerate(cls.dummy_modules):
+            dummy_module = dummy_module(scan)
+            scan.modules[f"dummy_module_{i}"] = dummy_module
+        events = []
+        async for e in scan.async_start():
+            event = Event(**e.json())
+            events.append(event)
+        events.sort(key=lambda x: x.timestamp)
+        return events
+
+
+class DummyScan1(DummyScan):
+    targets = ["evilcorp.com"]
+    dns = {
         "evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
             "AAAA": ["1.2.3.4", "5.6.7.8"],
@@ -178,15 +172,92 @@ async def bbot_events():
             "A": ["1.2.3.4", "5.6.7.8"],
         },
     }
-    await bbot_scan.helpers.dns._mock_dns(mock_data)
-    dummy_module = DummyModule(bbot_scan)
-    bbot_scan.modules["dummy_module"] = dummy_module
 
-    bbot_events = []
-    async for e in bbot_scan.async_start():
-        pydantic_event = Event(**e.json())
-        bbot_events.append(pydantic_event)
+    class DummyModule(BaseModule):
+        watched_events = ["OPEN_TCP_PORT"]
 
-    bbot_events.sort(key=lambda x: x.timestamp)
-    BBOT_EVENTS = bbot_events
-    return bbot_events
+        async def handle_event(self, event):
+            if str(event.host) == "www.evilcorp.com":
+                if event.type == "OPEN_TCP_PORT" and event.port == 443:
+                    await self.emit_event(
+                        {
+                            "severity": "HIGH",
+                            "description": "That's a paddlin'",
+                            "host": event.host,
+                            "url": f"https://{event.host}",
+                        },
+                        "VULNERABILITY",
+                        parent=event,
+                    )
+
+    dummy_modules = [DummyModule]
+
+
+class DummyScan2(DummyScan):
+    targets = ["evilcorp.com"]
+    dns = {
+        "evilcorp.com": {
+            "A": ["1.2.3.4", "5.6.7.8"],
+            "AAAA": ["1.2.3.4", "5.6.7.8"],
+            "CNAME": ["www.evilcorp.com"],
+            "MX": ["10 mail2.evilcorp.com"],
+            "NS": ["ns1.evilcorp.com", "ns2.evilcorp.com"],
+            "SOA": ["ns1.evilcorp.com"],
+        },
+        "www.evilcorp.com": {
+            "A": ["1.2.3.4", "5.6.7.8"],
+        },
+        "mail2.evilcorp.com": {
+            "A": ["1.2.3.4", "5.6.7.8"],
+        },
+        "ns1.evilcorp.com": {
+            "A": ["1.2.3.4", "5.6.7.8"],
+        },
+        "ns2.evilcorp.com": {
+            "A": ["1.2.3.4", "5.6.7.8"],
+        },
+    }
+
+    class DummyModule(BaseModule):
+        watched_events = ["OPEN_TCP_PORT"]
+
+        async def handle_event(self, event):
+            if str(event.host) == "mail2.evilcorp.com":
+                if event.type == "OPEN_TCP_PORT" and event.port == 80:
+                    await self.emit_event(
+                        {
+                            "severity": "HIGH",
+                            "description": "That's a paddlin'",
+                            "host": event.host,
+                            "url": f"http://{event.host}",
+                        },
+                        "VULNERABILITY",
+                        parent=event,
+                    )
+
+    dummy_modules = [DummyModule]
+
+
+@pytest_asyncio.fixture
+async def bbot_events():
+    global BBOT_EVENTS
+    if not BBOT_EVENTS:
+        scan1_events = await DummyScan1.run()
+        scan2_events = await DummyScan2.run()
+        BBOT_EVENTS = scan1_events, scan2_events
+    return BBOT_EVENTS
+
+
+# class AppletTest:
+#     def __init__(self, **kwargs):
+#         for key, value in kwargs.items():
+#             setattr(self, key, value)
+
+
+# @pytest.fixture
+# def applet_test_instance(bbot_server, bbot_events):
+#     return AppletTest(
+#         bbot_server=bbot_server,
+#         scan1_events=bbot_events[0],
+#         scan2_events=bbot_events[1],
+#     )

@@ -1,2 +1,5 @@
-def test_applet_technologies():
+from bbot_server_tests.test_applets.base import BaseAppletTest
+
+
+class TestAppletTechnologies(BaseAppletTest):
     pass

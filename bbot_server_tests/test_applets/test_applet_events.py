@@ -2,38 +2,17 @@ from contextlib import suppress
 
 from ..conftest import *
 
+from bbot_server_tests.test_applets.base import BaseAppletTest
 
-@pytest.mark.asyncio
-async def test_applet_events(bbot_server, scan_data):
-    route = bbot_server.route_maps["tail_events"]
-    assert route.fastapi_route.path == "/events/tail"
-    assert route.endpoint_type == "websocket"
 
-    events = []
+class TestAppletEvents(BaseAppletTest):
+    async def setup(self):
+        route = self.bbot_server.route_maps["tail_events"]
+        assert route.fastapi_route.path == "/events/tail"
+        assert route.endpoint_type == "websocket"
 
-    async def tail_events():
-        agen = bbot_server.tail_events()
-        try:
-            async for event in agen:
-                events.append(event)
-        finally:
-            with suppress(Exception):
-                await agen.aclose()
+    async def after_scan_1(self):
+        assert len(self.event_messages) == 20
 
-    loop = asyncio.get_event_loop()
-    task = loop.create_task(tail_events())
-    await asyncio.sleep(1)
-
-    scan1_events, scan2_events = scan_data
-    for event in scan1_events:
-        await bbot_server.insert_event(event)
-    await asyncio.sleep(1)
-
-    # Cancel the task and wait for it to finish
-    task.cancel()
-    with suppress(asyncio.CancelledError):
-        await task
-
-    assert len(events) > 0
-
-    await bbot_server.cleanup()
+    async def after_scan_2(self):
+        assert len(self.event_messages) == 41
