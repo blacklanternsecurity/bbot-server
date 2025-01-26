@@ -160,16 +160,3 @@ class MessageQueue:
         # if self.connection and not self.connection.is_closed:
         await self.connection.close()
         self.log.info("Connection closed successfully.")
-
-        all_tasks = asyncio.all_tasks()
-
-        for task in all_tasks:
-            # Get the coroutine object
-            coro = task.get_coro()
-
-            # Get the qualified name (includes module path)
-            qualified_name = coro.cr_code.co_qualname
-            if "Channel._" in qualified_name or "Connection._" in qualified_name:
-                task.cancel()
-                with suppress(BaseException):
-                    await task
