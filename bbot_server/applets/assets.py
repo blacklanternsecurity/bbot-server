@@ -5,7 +5,7 @@ from bbot_server.applets._base import BaseApplet, api_endpoint
 
 class Assets(BaseApplet):
     description = "hostnames and IP addresses discovered during scans"
-    include_apps = ["Findings", "Open_Ports", "DNS_Links", "Emails", "Export"]
+    include_apps = ["Findings", "Open_Ports", "DNS_Links", "Emails", "Web_Screenshots", "Export"]
     fieldnames = ["host"]
 
     _data_model = Asset
@@ -56,14 +56,14 @@ class Assets(BaseApplet):
         assets = [Asset(**asset) for asset in assets]
         return assets
 
-    @api_endpoint("/list/{host}", methods=["GET"], summary="List assets by host (including subdomains)")
+    @api_endpoint("/{host}/list", methods=["GET"], summary="List assets by host (including subdomains)")
     async def get_assets_by_host(self, host: str) -> list[Asset]:
         cursor = self.collection.find({"reverse_host": {"$regex": f"^{host[::-1]}."}})
         assets = await cursor.to_list(length=None)
         assets = [Asset(**asset) for asset in assets]
         return assets
 
-    @api_endpoint("/detail/{host}", methods=["GET"], summary="Get a single asset by its host")
+    @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: str) -> Asset:
         asset = await self.collection.find_one({"host": host})
         if not asset:
