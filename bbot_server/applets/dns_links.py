@@ -1,18 +1,23 @@
 from copy import deepcopy
+from typing import Optional
+from pydantic import BaseModel, Field
+
 from bbot.models.pydantic import Event
-from bbot_server.applets._base import BaseApplet
 from bbot_server.models.assets import Asset, AssetActivity
+from bbot_server.applets._base import BaseApplet
 
 
 class DNS_Links(BaseApplet):
     watched_events = ["DNS_NAME"]
     description = "DNS Links"
-    fieldnames = ["dns_records"]
+
+    class AssetFields(BaseModel):
+        dns_records: dict[str, list[str]] = Field(default_factory=dict)
 
     async def ingest_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
         activities = []
         if event.type == "DNS_NAME":
-            old_dns_records = asset.fields.get("dns_records", {}) or {}
+            old_dns_records = asset.dns_records or {}
             old_dns_records_flattened = self._flatten_dns_records(old_dns_records)
             new_dns_records = getattr(event, "dns_children", {}) or {}
             new_dns_records_flattened = self._flatten_dns_records(new_dns_records)

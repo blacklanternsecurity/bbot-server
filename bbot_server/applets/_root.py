@@ -1,4 +1,5 @@
 from bbot_server.applets._base import BaseApplet
+from bbot_server.utils.misc import combine_pydantic_models
 
 
 class RootApplet(BaseApplet):
@@ -15,8 +16,6 @@ class RootApplet(BaseApplet):
 
             self.asset_store = MongoAssetStore()
             await self.asset_store.setup()
-        else:
-            print(f"ASSET STORE ALREADY SET UP: {self.asset_store}")
 
         # set up event store
         from bbot_server.event_store import EventStore
@@ -31,6 +30,19 @@ class RootApplet(BaseApplet):
         await self.message_queue.setup()
 
         await self._setup()
+
+        from bbot_server.models.assets import Asset
+
+        # the combined model containing all the custom asset fields defined by applets
+        combined_model = combine_pydantic_models(self.all_asset_models, model_name="AssetModel")
+        # ensure every field has a type validator and default factory
+        for field, field_info in combined_model.model_fields.items():
+            if field_info.annotation is None:
+                raise ValueError(f"Field '{field}' has no type annotation")
+            if field_info.default_factory is None:
+                raise ValueError(f"Field '{field}' has no default factory")
+
+        Asset._field_validator = combined_model
 
     async def cleanup(self):
         for child_applet in self.child_applets:

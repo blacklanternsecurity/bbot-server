@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from contextlib import asynccontextmanager
 
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+
 
 app_kwargs = {
     "title": "BBOT Server",
@@ -31,6 +33,24 @@ def make_app():
     async def docs_redirect():
         return RedirectResponse(url="docs")
 
+    # favicon overrides - not working
+
+    # @app.get("/docs", include_in_schema=False)
+    # async def custom_swagger_ui_html():
+    #     return get_swagger_ui_html(
+    #         openapi_url=app.openapi_url,
+    #         title=app.title + " - Swagger UI",
+    #         swagger_favicon_url="https://www.blacklanternsecurity.com/bbot/Stable/bbot.png"
+    #     )
+
+    # @app.get("/redoc", include_in_schema=False)
+    # async def custom_redoc_html():
+    #     return get_redoc_html(
+    #         openapi_url=app.openapi_url,
+    #         title=app.title + " - ReDoc",
+    #         redoc_favicon_url="https://www.blacklanternsecurity.com/bbot/Stable/bbot.png"
+    #     )
+
     return app, lifespan
 
 
@@ -44,7 +64,7 @@ def make_server_app():
     )
 
     @server_app.get("/", include_in_schema=False)
-    async def docs_redirect_2():
+    async def docs_redirect():
         return RedirectResponse(url="/v1/docs")
 
     server_app.mount("/v1", app)

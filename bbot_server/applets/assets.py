@@ -23,7 +23,7 @@ class Assets(BaseApplet):
                     asset = Asset(**asset)
                 else:
                     # if it doesn't exist, create it
-                    asset = Asset(host=event.host)
+                    asset = Asset(host=event.host, fields={})
                     await self.collection.insert_one(asset.model_dump())
                     new_asset_description = f"New asset [{event.host}] discovered"
                     new_asset_description_colored = f"New asset [[dark_orange]{event.host}[/dark_orange]] discovered"

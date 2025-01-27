@@ -39,14 +39,12 @@ class Findings(BaseApplet):
 
     @api_endpoint("/{host}/findings", methods=["GET"], summary="Get all the findings for a host")
     async def get_findings(self, host: str) -> list[str]:
-        asset = await self.root.assets.get(host)
-        fields = getattr(asset, "fields", {})
-        findings = fields.get("findings", [])
+        asset = await self.root.assets.get_asset(host)
+        findings = asset.findings or []
         return findings
 
     @api_endpoint("/{host}/vulnerabilities", methods=["GET"], summary="Get all the vulnerabilities for a host")
     async def get_vulnerabilities(self, host: str) -> list[str]:
         asset = await self.root.assets.get(host)
-        fields = getattr(asset, "fields", {})
-        vulns = fields.get("vulnerabilities", [])
+        vulns = asset.vulns or []
         return vulns

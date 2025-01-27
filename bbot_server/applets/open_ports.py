@@ -1,6 +1,6 @@
 from bbot.models.pydantic import Event
 from bbot_server.models.assets import Asset, AssetActivity
-from bbot_server.applets._base import BaseApplet, api_endpoint
+from bbot_server.applets._base import BaseApplet, api_endpoint, BaseModel, Field
 
 
 class Open_Ports(BaseApplet):
@@ -8,6 +8,9 @@ class Open_Ports(BaseApplet):
     description = "open ports discovered during scans"
     route_prefix = ""
     fieldnames = ["open_ports"]
+
+    class AssetFields(BaseModel):
+        open_ports: list[int] = Field(default_factory=list)
 
     async def ingest_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
         activities = []

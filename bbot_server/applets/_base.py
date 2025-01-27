@@ -1,89 +1,17 @@
-import orjson
-import inspect
 import logging
 import importlib
-from fastapi import WebSocket
-from contextlib import suppress
 from pymongo import WriteConcern
+from pydantic import BaseModel, Field  # noqa
 from fastapi import APIRouter, HTTPException
-from fastapi.dependencies.utils import get_typed_return_annotation
 
 from bbot.models.pydantic import Event
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.utils.async_utils import NamedLock
 from bbot_server.models.assets import Asset, AssetActivity
+from bbot_server.applets._routing import BBOTServerRoute, WebSocketServerRoute, api_endpoint  # noqa
 
 
 log = logging.getLogger(__name__)
-
-
-def api_endpoint(endpoint, **kwargs):
-    def decorator(fn):
-        fn._kwargs = kwargs
-        fn._endpoint = endpoint
-        return fn
-
-    return decorator
-
-
-class BaseServerRoute:
-    def __init__(self, function, tags=[]):
-        self.function = function
-        self.endpoint = getattr(function, "_endpoint", None)
-        self.function_signature = inspect.signature(function)
-        self.kwargs = dict(getattr(function, "_kwargs", {}))
-        self.endpoint_type = self.kwargs.pop("type", "http")
-        self.tags = tags
-
-    def add_to_applet(self, applet):
-        self.add_to_router(applet.router)
-        self.fastapi_route = applet.router.routes[-1]
-        self.path = self.fastapi_route.path
-        self.full_path = f"{applet.full_prefix()}{self.fastapi_route.path}"
-        function_name = self.function.__name__
-        applet.route_maps[function_name] = self
-        self.setup()
-
-
-class BBOTServerRoute(BaseServerRoute):
-    """
-    A route for HTTP endpoints
-    """
-
-    def __init__(self, function, tags=[]):
-        super().__init__(function, tags)
-        self.kwargs["tags"] = self.tags
-
-    def add_to_router(self, router):
-        router.add_api_route(self.endpoint, self.function, **self.kwargs)
-
-    def setup(self):
-        self.response_model = self.fastapi_route.response_model
-
-
-class WebSocketServerRoute(BaseServerRoute):
-    """
-    A route for WebSocket endpoints
-    """
-
-    async def websocket_wrapper(self, websocket: WebSocket):
-        try:
-            await websocket.accept()
-            agen = self.function()
-            async for message in agen:
-                message = orjson.dumps(message)
-                await websocket.send_bytes(message)
-        finally:
-            with suppress(Exception):
-                await agen.aclose()
-            with suppress(Exception):
-                await websocket.close()
-
-    def add_to_router(self, router):
-        router.add_api_websocket_route(self.endpoint, self.websocket_wrapper)
-
-    def setup(self):
-        self.response_model = get_typed_return_annotation(self.function)
 
 
 class BaseApplet:
@@ -102,8 +30,9 @@ class BaseApplet:
     # BBOT event types this applet watches
     watched_events = []
 
-    # Fields added to the asset
-    fieldnames = []
+    # Custom fields to add to the asset
+    class AssetFields(BaseModel):
+        pass
 
     # optionally you can include other applets
     include_apps = []
@@ -239,6 +168,12 @@ class BaseApplet:
         return self.name.replace("_", " ")
 
     @property
+    def all_asset_models(self):
+        asset_models = [self.AssetFields]
+        for child_applet in self.child_applets:
+            asset_models.extend(child_applet.all_asset_models)
+
+    @property
     def all_fieldnames(self):
         fieldnames = self.fieldnames
         for child_applet in self.child_applets:
@@ -316,4 +251,4 @@ class BaseApplet:
                     return getattr(child_applet, attr)
                 except AttributeError:
                     continue
-        raise AttributeError(f'Applet has no attribute "{attr}"')
+        raise AttributeError(f'{self.__class__.__name__} has no attribute "{attr}"')
