@@ -1,12 +1,15 @@
 from bbot.models.pydantic import Event
 from bbot_server.models.assets import Asset, AssetActivity
-from bbot_server.applets._base import BaseApplet, api_endpoint
+from bbot_server.applets._base import BaseApplet, api_endpoint, BaseModel, Field
 
 
 class Emails(BaseApplet):
     watched_events = ["EMAIL_ADDRESS"]
     description = "emails discovered during scans"
     route_prefix = ""
+
+    class AssetFields(BaseModel):
+        emails: list[str] = Field(default_factory=list)
 
     async def ingest_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
         activities = []

@@ -172,6 +172,7 @@ class BaseApplet:
         asset_models = [self.AssetFields]
         for child_applet in self.child_applets:
             asset_models.extend(child_applet.all_asset_models)
+        return asset_models
 
     @property
     def all_fieldnames(self):
