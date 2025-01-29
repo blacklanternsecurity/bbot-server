@@ -21,10 +21,10 @@ jobs:
         image: mongo
         ports:
           - 27017:27017
-      rabbitmq:
-        image: rabbitmq:4
+      nats:
+        image: nats
         ports:
-          - 5672:5672
+          - 4222:4222
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
