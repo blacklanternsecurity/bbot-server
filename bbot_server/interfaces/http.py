@@ -90,8 +90,9 @@ class http(BaseInterface):
         async with connect(_url) as ws:
             while True:
                 message = await ws.recv()
-                # message = TypeAdapter(_route.response_model).validate_python(message)
-                yield orjson.loads(message)
+                decoded_json = orjson.loads(message)
+                model_obj = _route.response_model(**decoded_json)
+                yield model_obj
 
     def prepare_api_request(self, _url, _route, *args, **kwargs):
         # HTTP route

@@ -27,7 +27,7 @@ class BaseEventStore(BaseDB):
             except Exception as e:
                 print(f"Error inserting event: {e}")
 
-        await message_queue.event_subscribe(event_callback)
+        await message_queue.subscribe(event_callback, "bbot.events")
         await super().setup()
 
     async def get_events(self):

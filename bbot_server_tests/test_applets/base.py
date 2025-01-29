@@ -5,6 +5,8 @@ from ..conftest import *
 
 
 class BaseAppletTest:
+    log = logging.getLogger("bbot_server.test")
+
     async def setup(self):
         """
         This test is executed before any scans have been run.
@@ -46,7 +48,11 @@ class BaseAppletTest:
 
         try:
             with self.handle_errors("setting up tasks to tail events and assets"):
-                self.setup_activities()
+                self.event_messages = []
+                self.asset_messages = []
+                self.event_tail_task, self.asset_tail_task = self.setup_activities(
+                    self.event_messages, self.asset_messages
+                )
 
             with self.handle_errors("running pre-scan tests"):
                 await self.setup()
@@ -83,27 +89,27 @@ class BaseAppletTest:
                 with suppress(BaseException):
                     await task
 
-    def setup_activities(self):
+    def setup_activities(self, event_messages, asset_messages):
         """
         Tail event and asset activities and store them for the convenience of the applet tests
         """
-        self.event_messages = []
-        self.asset_messages = []
 
         async def tail_events():
             agen = self.bbot_server.tail_events()
             async for event in agen:
-                self.event_messages.append(event)
+                event_messages.append(event)
             await agen.aclose()
 
         async def tail_assets():
             agen = self.bbot_server.tail_assets()
             async for asset in agen:
-                self.asset_messages.append(asset)
+                asset_messages.append(asset)
             await agen.aclose()
 
-        self.event_tail_task = asyncio.create_task(tail_events())
-        self.asset_tail_task = asyncio.create_task(tail_assets())
+        event_tail_task = asyncio.create_task(tail_events())
+        asset_tail_task = asyncio.create_task(tail_assets())
+
+        return event_tail_task, asset_tail_task
 
     @contextmanager
     def handle_errors(self, test_description):

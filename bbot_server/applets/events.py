@@ -18,7 +18,7 @@ class Events(BaseApplet):
         The activities are raised to subscribers and also returned to the caller.
         """
         # publish event to the message queue
-        await self.root.message_queue.event_publish(event.model_dump())
+        await self.root.message_queue.event_publish(event)
         # ingest it into the asset database
         activities = await self.root.assets.process_new_event(event)
         return activities
@@ -32,12 +32,12 @@ class Events(BaseApplet):
     async def get_event(self, uuid: str) -> dict:
         print("GETTING EVENT", uuid)
 
-    @api_endpoint("/tail", type="websocket")
+    @api_endpoint("/tail", type="websocket", response_model=Event)
     async def tail_events(self):
         agen = self.message_queue.event_tail()
         try:
             async for event in agen:
                 yield event
         finally:
-            with suppress(Exception):
+            with suppress(BaseException):
                 await agen.aclose()

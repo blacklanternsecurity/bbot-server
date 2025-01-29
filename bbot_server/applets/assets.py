@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 from bbot.models.pydantic import Event
 from bbot_server.models.assets import Asset, AssetActivity
 from bbot_server.applets._base import BaseApplet, api_endpoint
@@ -74,3 +76,13 @@ class Assets(BaseApplet):
     async def get_asset_fieldnames(self) -> list[str]:
         fieldnames = self.all_fieldnames
         return fieldnames
+
+    @api_endpoint("/tail", type="websocket", response_model=AssetActivity)
+    async def tail_assets(self):
+        agen = self.message_queue.asset_tail()
+        try:
+            async for activity in agen:
+                yield activity
+        finally:
+            with suppress(BaseException):
+                await agen.aclose()

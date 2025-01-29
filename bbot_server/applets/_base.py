@@ -34,7 +34,7 @@ class BaseApplet:
     class AssetFields(BaseModel):
         pass
 
-    # optionally you can include other applets
+    # optionally you can include other appletsP
     include_apps = []
 
     # whether to nest this applet under its parent
@@ -133,7 +133,7 @@ class BaseApplet:
         return []
 
     async def emit_activity(self, activity: AssetActivity):
-        await self.root.message_queue.asset_publish(activity.model_dump())
+        await self.root.message_queue.asset_publish(activity)
 
     def raise404(self, detail: str):
         raise HTTPException(status_code=404, detail=detail)
@@ -196,7 +196,9 @@ class BaseApplet:
                 if endpoint_type == "http":
                     bbot_server_route = BBOTServerRoute(function, tags=[self.tag])
                 elif endpoint_type == "websocket":
-                    bbot_server_route = WebSocketServerRoute(function, tags=[self.tag])
+                    if not "response_model" in kwargs:
+                        raise ValueError("Must specify a pydantic model used for deserializing websocket messages")
+                    bbot_server_route = WebSocketServerRoute(function, tags=[self.tag], **kwargs)
                 else:
                     raise ValueError(f"Invalid endpoint type: {endpoint_type}")
                 bbot_server_route.add_to_applet(self)

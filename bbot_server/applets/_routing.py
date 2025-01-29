@@ -1,6 +1,7 @@
 import orjson
 import inspect
 from fastapi import WebSocket
+from pydantic import BaseModel
 from contextlib import suppress
 from fastapi.dependencies.utils import get_typed_return_annotation
 
@@ -32,6 +33,9 @@ class BaseServerRoute:
         applet.route_maps[function_name] = self
         self.setup()
 
+    def setup(self):
+        pass
+
 
 class BBOTServerRoute(BaseServerRoute):
     """
@@ -54,12 +58,20 @@ class WebSocketServerRoute(BaseServerRoute):
     A route for WebSocket endpoints
     """
 
+    def __init__(self, function, tags=[], response_model=None):
+        super().__init__(function, tags)
+        self.response_model = response_model
+
     async def websocket_wrapper(self, websocket: WebSocket):
         try:
             await websocket.accept()
             agen = self.function()
             async for message in agen:
-                message = orjson.dumps(message)
+                # handle both python and pydantic objects
+                if isinstance(message, BaseModel):
+                    message = message.model_dump_json().encode()
+                else:
+                    message = orjson.dumps(message)
                 await websocket.send_bytes(message)
         finally:
             with suppress(Exception):
@@ -69,6 +81,3 @@ class WebSocketServerRoute(BaseServerRoute):
 
     def add_to_router(self, router):
         router.add_api_websocket_route(self.endpoint, self.websocket_wrapper)
-
-    def setup(self):
-        self.response_model = get_typed_return_annotation(self.function)
