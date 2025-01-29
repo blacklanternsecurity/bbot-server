@@ -75,13 +75,14 @@ async def bbot_server_http():
 
     # Wait for the server to be ready asynchronously
     async with httpx.AsyncClient() as client:
+        url = "http://localhost:8807/v1/assets/"
         while True:
             try:
-                response = await client.get("http://localhost:8807/v1/assets/")
+                response = await client.get(url)
                 if response.status_code == 200:
                     break
             except httpx.RequestError as e:
-                logger.critical(f"waiting for server to come up: {e}")
+                logger.critical(f"waiting for server to come up at {url}: {e}")
                 await asyncio.sleep(0.2)
 
     yield "http://127.0.0.1:8807"
