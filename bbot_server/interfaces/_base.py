@@ -21,7 +21,7 @@ class BaseInterface:
 
         from bbot_server.applets import BBOTServerRootApplet
 
-        self.applet = BBOTServerRootApplet()
+        self.applet = BBOTServerRootApplet(**kwargs)
 
     def __getattr__(self, attr):
         # by default we just pass everything through to the applet

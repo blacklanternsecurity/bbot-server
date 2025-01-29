@@ -7,6 +7,8 @@ from ..conftest import *
 class BaseAppletTest:
     log = logging.getLogger("bbot_server.test")
 
+    config_overrides = {}
+
     async def setup(self):
         """
         This test is executed before any scans have been run.
@@ -36,6 +38,20 @@ class BaseAppletTest:
         This test is executed after all the tests are finished.
         """
         pass
+
+    @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http", "url": "http://localhost:8807/v1"}])
+    # @pytest_asyncio.fixture
+    async def bbot_server(self, request, mongo_cleanup, bbot_server_http):
+        from bbot_server import BBOTServer
+
+        config_overrides = dict(self.config_overrides)
+        kwargs = dict(request.param)
+        kwargs.update({"config": config_overrides})
+
+        bbot_server = BBOTServer(**kwargs)
+        await bbot_server.setup()
+        yield bbot_server
+        await bbot_server.cleanup()
 
     async def test_applet_run(self, bbot_server, bbot_events):
         """

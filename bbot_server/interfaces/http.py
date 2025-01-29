@@ -20,8 +20,11 @@ log = logging.getLogger("bbot.server.http")
 
 
 class http(BaseInterface):
-    def __init__(self, url="http://localhost:8807/v1/", **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        if not "url" in self.config:
+            raise ValueError("When using the HTTP interface, url is required in the config")
+        url = self.config["url"]
         self.base_url = url.strip("/")
         self.client = httpx.AsyncClient()
 

@@ -3,7 +3,13 @@ from contextlib import suppress
 from bbot_server_tests.test_applets.base import BaseAppletTest
 
 
-class TestMessageQueues(BaseAppletTest):
+class TestMessageQueuesNATS(BaseAppletTest):
+    config_overrides = {
+        "message_queue": {
+            "uri": "nats://localhost:4222",
+        }
+    }
+
     async def setup(self):
         self.message_queue_assets = []
         self.message_queue_events = []
@@ -43,3 +49,11 @@ class TestMessageQueues(BaseAppletTest):
                 task.cancel()
                 with suppress(BaseException):
                     await task
+
+
+class TestMessageQueuesRabbitMQ(TestMessageQueuesNATS):
+    config_overrides = {
+        "message_queue": {
+            "uri": "amqp://localhost:5672",
+        }
+    }

@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field  # noqa
 from fastapi import APIRouter, HTTPException
 
 from bbot.models.pydantic import Event
-from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.utils.async_utils import NamedLock
 from bbot_server.models.assets import Asset, AssetActivity
 from bbot_server.applets._routing import BBOTServerRoute, WebSocketServerRoute, api_endpoint  # noqa
@@ -48,7 +47,7 @@ class BaseApplet:
 
     def __init__(self, parent=None):
         self.log = logging.getLogger(f"bbot.server.{self.name.lower()}")
-        self.config = BBOT_SERVER_CONFIG
+
         self.parent = parent
         self.child_applets = []
         self.router = APIRouter(prefix=self.route_prefix)

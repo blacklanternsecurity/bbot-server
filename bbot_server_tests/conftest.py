@@ -69,7 +69,7 @@ async def bbot_server_http():
 
     server_app = make_server_app()
 
-    server = uvicorn.Server(uvicorn.Config(server_app, host="127.0.0.1", port=8807, log_level="warning"))
+    server = uvicorn.Server(uvicorn.Config(server_app, host="127.0.0.1", port=8807, log_level="debug"))
     api = asyncio.create_task(server.serve())
 
     # Wait for the server to be ready asynchronously
@@ -92,18 +92,6 @@ async def bbot_server_http():
     api.cancel()
     with suppress(BaseException):
         await api
-
-
-@pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http", "url": "http://localhost:8807/v1"}])
-# @pytest_asyncio.fixture
-async def bbot_server(request, mongo_cleanup, bbot_server_http):
-    from bbot_server import BBOTServer
-
-    bbot_server = BBOTServer(**request.param)
-    # bbot_server = BBOTServer()
-    await bbot_server.setup()
-    yield bbot_server
-    await bbot_server.cleanup()
 
 
 BBOT_EVENTS = []

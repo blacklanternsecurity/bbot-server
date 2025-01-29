@@ -1,4 +1,7 @@
+from omegaconf import OmegaConf
+
 from bbot_server.applets._base import BaseApplet
+from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.utils.misc import combine_pydantic_models
 
 
@@ -8,6 +11,14 @@ class RootApplet(BaseApplet):
     nested = False
 
     _route_prefix = ""
+
+    def __init__(self, **kwargs):
+        config = kwargs.pop("config", {})
+        if config:
+            self.config = OmegaConf.merge(BBOT_SERVER_CONFIG, config)
+        else:
+            self.config = BBOT_SERVER_CONFIG
+        super().__init__(**kwargs)
 
     async def setup(self):
         # set up asset store
