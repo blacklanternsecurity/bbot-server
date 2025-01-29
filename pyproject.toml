@@ -20,6 +20,7 @@ aio-pika = "^9.5.4"
 jsondiff = "^2.2.1"
 textual = {extras = ["syntax"], version = "^1.0.0"}
 websockets = "^14.1"
+nats-py = "^2.9.0"
 
 [tool.poetry.scripts]
 bbctl = 'bbot_server.cli:main'

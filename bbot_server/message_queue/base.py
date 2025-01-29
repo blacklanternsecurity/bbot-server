@@ -1,4 +1,7 @@
+import asyncio
 import logging
+import traceback
+
 from pydantic import BaseModel
 
 from bbot.models.pydantic import Event
@@ -41,15 +44,30 @@ class BaseMessageQueue:
         async for activity in self.tail(AssetActivity, "bbot.assets"):
             yield activity
 
+    async def tail(self, model: BaseModel, subject: str):
+        q = asyncio.Queue()
+
+        async def callback(msg):
+            await q.put(msg)
+
+        await self.subscribe(callback, subject)
+
+        while 1:
+            try:
+                message = await asyncio.wait_for(q.get(), timeout=0.1)
+                yield model(**message)
+            except asyncio.TimeoutError:
+                continue
+            except (asyncio.CancelledError, RuntimeError):
+                break
+            except BaseException as e:
+                self.log.error(f"Error in tail: {e}")
+                self.log.error(traceback.format_exc())
+                break
+
     async def publish(self, message: BaseModel, subject: str):
         """
         Publish a message to the given subject.
-        """
-        raise NotImplementedError()
-
-    async def tail(self, model: BaseModel, subject: str):
-        """
-        Tail new messages as they come in
         """
         raise NotImplementedError()
 

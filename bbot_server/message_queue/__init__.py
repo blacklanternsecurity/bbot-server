@@ -25,8 +25,9 @@ def MessageQueue(config=None):
         from .rabbitmq import RabbitMessageQueue
 
         return RabbitMessageQueue(uri, mq_config)
-    # elif scheme == "nats":
-    #     from .nats import NATSMessageQueue
-    #     return NATSMessageQueue(uri, config)
+    elif scheme == "nats":
+        from .nats import NATSMessageQueue
+
+        return NATSMessageQueue(uri, config)
     else:
         raise ValueError(f"Unsupported message queue scheme: {scheme}")

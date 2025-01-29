@@ -98,13 +98,15 @@ class BaseAppletTest:
             agen = self.bbot_server.tail_events()
             async for event in agen:
                 event_messages.append(event)
-            await agen.aclose()
+            with suppress(BaseException):
+                await agen.aclose()
 
         async def tail_assets():
             agen = self.bbot_server.tail_assets()
             async for asset in agen:
                 asset_messages.append(asset)
-            await agen.aclose()
+            with suppress(BaseException):
+                await agen.aclose()
 
         event_tail_task = asyncio.create_task(tail_events())
         asset_tail_task = asyncio.create_task(tail_assets())

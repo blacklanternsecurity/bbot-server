@@ -21,6 +21,7 @@ def make_app():
     async def lifespan(app: FastAPI):
         await app_root.setup()
         yield
+        await app_root.cleanup()
 
     app = FastAPI(
         lifespan=lifespan,

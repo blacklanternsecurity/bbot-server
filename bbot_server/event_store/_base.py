@@ -1,5 +1,5 @@
 import orjson
-
+import traceback
 from bbot.models.pydantic import Event
 from bbot_server.db.base import BaseDB
 from bbot_server.message_queue import MessageQueue
@@ -20,12 +20,12 @@ class BaseEventStore(BaseDB):
         message_queue = MessageQueue()
         await message_queue.setup()
 
-        async def event_callback(message):
+        async def event_callback(message_json):
             try:
-                message_json = orjson.loads(message.body)
                 await self.insert_event(Event(**message_json))
             except Exception as e:
-                print(f"Error inserting event: {e}")
+                self.log.error(f"Error inserting event into event store: {e}")
+                self.log.error(traceback.format_exc())
 
         await message_queue.subscribe(event_callback, "bbot.events")
         await super().setup()

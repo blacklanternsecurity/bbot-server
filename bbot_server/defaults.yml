@@ -7,4 +7,4 @@ asset_store:
   table_name: assets
 
 message_queue:
-  uri: amqp://localhost:5672
+  uri: nats://localhost:4222

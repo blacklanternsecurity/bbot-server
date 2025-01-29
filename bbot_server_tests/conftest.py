@@ -69,7 +69,7 @@ async def bbot_server_http():
 
     server_app = make_server_app()
 
-    server = uvicorn.Server(uvicorn.Config(server_app, host="127.0.0.1", port=8807, log_level="debug"))
+    server = uvicorn.Server(uvicorn.Config(server_app, host="127.0.0.1", port=8807, log_level="warning"))
     api = asyncio.create_task(server.serve())
 
     # Wait for the server to be ready asynchronously
@@ -90,7 +90,7 @@ async def bbot_server_http():
     await server.shutdown()
     await asyncio.sleep(1)
     api.cancel()
-    with suppress(asyncio.CancelledError):
+    with suppress(BaseException):
         await api
 
 

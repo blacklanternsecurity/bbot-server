@@ -46,27 +46,11 @@ class RabbitMessageQueue(BaseMessageQueue):
         msg_bytes = message.model_dump_json().encode()
         await self.exchange.publish(aio_pika.Message(body=msg_bytes), routing_key=subject)
 
-    async def tail(self, model: BaseModel, subject: str):
-        q = asyncio.Queue()
-
-        async def callback(msg):
-            await q.put(msg)
-
-        await self.subscribe(callback, subject)
-
-        while 1:
-            try:
-                message = await asyncio.wait_for(q.get(), timeout=0.1)
-                yield model(**orjson.loads(message.body))
-            except asyncio.TimeoutError:
-                continue
-            except asyncio.CancelledError:
-                break
-
     async def subscribe(self, callback, subject: str):
         async def wrapped_callback(message: aio_pika.IncomingMessage):
             async with message.process():
-                await callback(message)
+                message_json = orjson.loads(message.body)
+                await callback(message_json)
 
         queue = await self.channel.declare_queue("", **self._queue_kwargs)  # Use a server-named queue
         await queue.bind(self.exchange, routing_key=subject)  # Bind the queue to the topic exchange with routing key
