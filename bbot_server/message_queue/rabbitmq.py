@@ -29,7 +29,7 @@ class RabbitMessageQueue(BaseMessageQueue):
         self._active_queues = []
 
         self.log.info(f"Setting up message queue at {self.uri}")
-        while True:
+        while 1:
             try:
                 self.connection = await aio_pika.connect_robust(self.uri)
                 self.channel = await self.connection.channel()

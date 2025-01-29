@@ -65,6 +65,7 @@ BBOT_SERVER_CONFIG = get_bbot_server_config()
 async def bbot_server_http():
     import httpx
     import uvicorn
+    from uvicorn.server import logger
     from bbot_server.api import make_server_app
 
     server_app = make_server_app()
@@ -80,8 +81,8 @@ async def bbot_server_http():
                 if response.status_code == 200:
                     break
             except httpx.RequestError as e:
-                print(f"waiting for server to come up: {e}")
-                await asyncio.sleep(0.1)
+                logger.critical(f"waiting for server to come up: {e}")
+                await asyncio.sleep(0.2)
 
     yield "http://127.0.0.1:8807"
 

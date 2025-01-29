@@ -39,7 +39,7 @@ class BaseAppletTest:
         """
         pass
 
-    @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http", "url": "http://localhost:8807/v1"}])
+    @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
     # @pytest_asyncio.fixture
     async def bbot_server(self, request, mongo_cleanup, bbot_server_http):
         from bbot_server import BBOTServer

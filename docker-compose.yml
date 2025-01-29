@@ -18,5 +18,5 @@ services:
     volumes:
       - ./mongodb:/data/db
 
-  rabbitmq:
-    image: rabbitmq:4
+  nats:
+    image: nats

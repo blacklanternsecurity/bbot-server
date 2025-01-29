@@ -7,4 +7,4 @@ asset_store:
   table_name: assets
 
 message_queue:
-  uri: amqp://rabbitmq:5672
+  uri: nats://nats:4222

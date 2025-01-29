@@ -91,7 +91,7 @@ class http(BaseInterface):
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
 
         async with connect(_url) as ws:
-            while True:
+            while 1:
                 message = await ws.recv()
                 decoded_json = orjson.loads(message)
                 model_obj = _route.response_model(**decoded_json)
