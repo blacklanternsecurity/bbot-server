@@ -1,4 +1,5 @@
 import pytest
+from omegaconf import OmegaConf
 from contextlib import contextmanager
 
 from ..conftest import *
@@ -43,10 +44,13 @@ class BaseAppletTest:
     # @pytest_asyncio.fixture
     async def bbot_server(self, request, mongo_cleanup, bbot_server_http):
         from bbot_server import BBOTServer
+        from bbot_server.config import BBOT_SERVER_CONFIG
 
-        config_overrides = dict(self.config_overrides)
-        kwargs = dict(request.param)
-        kwargs.update({"config": config_overrides})
+        config = OmegaConf.merge(BBOT_SERVER_CONFIG, self.config_overrides)
+
+        # kwargs = dict(request.param)
+        kwargs = {}
+        kwargs.update({"config": config})
 
         bbot_server = BBOTServer(**kwargs)
         await bbot_server.setup()

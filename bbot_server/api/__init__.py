@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from contextlib import asynccontextmanager
 
-from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+# from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 
 
 app_kwargs = {
@@ -70,6 +70,3 @@ def make_server_app():
 
     server_app.mount("/v1", app)
     return server_app
-
-
-server_app = make_server_app()

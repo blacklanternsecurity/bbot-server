@@ -25,19 +25,19 @@ class RootApplet(BaseApplet):
         if self.asset_store is None:
             from bbot_server.asset_store import MongoAssetStore
 
-            self.asset_store = MongoAssetStore()
+            self.asset_store = MongoAssetStore(self.config)
             await self.asset_store.setup()
 
         # set up event store
         from bbot_server.event_store import EventStore
 
-        self.event_store = EventStore()
+        self.event_store = EventStore(self.config)
         await self.event_store.setup()
 
         # set up NATS client
         from bbot_server.message_queue import MessageQueue
 
-        self.message_queue = MessageQueue()
+        self.message_queue = MessageQueue(self.config)
         await self.message_queue.setup()
 
         await self._setup()

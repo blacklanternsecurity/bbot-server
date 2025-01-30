@@ -10,12 +10,15 @@ class TestMessageQueuesNATS(BaseAppletTest):
         }
     }
 
+    expected_message_queue_uri = "nats://localhost:4222"
+
     async def setup(self):
         self.message_queue_assets = []
         self.message_queue_events = []
         self.message_queue_event_task, self.message_queue_asset_task = self.setup_activities(
             self.message_queue_events, self.message_queue_assets
         )
+        assert self.bbot_server.message_queue.uri == self.expected_message_queue_uri
 
     async def after_scan_1(self):
         # here, we verify that both our queue tasks received the exact same messages
@@ -57,3 +60,5 @@ class TestMessageQueuesRabbitMQ(TestMessageQueuesNATS):
             "uri": "amqp://localhost:5672",
         }
     }
+
+    expected_message_queue_uri = "amqp://localhost:5672"

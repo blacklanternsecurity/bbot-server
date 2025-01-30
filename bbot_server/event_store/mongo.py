@@ -17,6 +17,9 @@ class mongo(BaseEventStore):
         event_json = event.model_dump()
         await self.collection.insert_one(event_json)
 
+    async def _archive_event(self, uuid):
+        await self.collection.update_one({"_id": uuid}, {"$set": {"archived": True}})
+
     async def _get_events(self, min_timestamp=None):
         """
         Get all events from the database, or if min_timestamp is provided, get the newest events up to that timestamp
@@ -33,3 +36,4 @@ class mongo(BaseEventStore):
 
     async def cleanup(self):
         self.client.close()
+        await super().cleanup()

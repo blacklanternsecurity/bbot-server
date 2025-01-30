@@ -56,18 +56,16 @@ def tail(
 ):
     # TODO: replace this with bbot_server.tail_assets()
     async def _tail():
-        from bbot_server.message_queue.message_queue import MessageQueue
-
-        message_queue = MessageQueue()
-        await message_queue.setup()
-        async for event in message_queue.event_tail():
+        bbot_server = BBOTServer()
+        await bbot_server.setup()
+        async for event in bbot_server.tail_events():
             if json:
-                print(orjson.dumps(event).decode())
+                print(event.model_dump_json())
             else:
-                timestamp = event["timestamp"]
+                timestamp = event.timestamp
                 timestamp = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%b %d %Y %H:%M:%S")
-                event_type = event["type"]
-                data = event.get("data", event.get("data_json", ""))
+                event_type = event.type
+                data = event.data
                 if isinstance(data, dict):
                     data = orjson.dumps(data)
                 stdout.print(f"[[bright_black]{timestamp}[/bright_black]] - [bold]{event_type}[/bold] - {data}")

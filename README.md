@@ -34,9 +34,11 @@ bbctl scans start demonic_jimmy
 
 # monitor new asset activity
 bbctl assets tail
+bbctl assets list
 
 # monitor new event activity
 bbctl events tail
+bbctl events list
 
 # list scan status
 bbctl scans runs

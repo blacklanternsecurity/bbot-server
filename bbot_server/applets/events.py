@@ -34,10 +34,9 @@ class Events(BaseApplet):
 
     @api_endpoint("/tail", type="websocket", response_model=Event)
     async def tail_events(self):
-        agen = self.message_queue.event_tail()
-        try:
-            async for event in agen:
-                yield event
-        finally:
-            with suppress(BaseException):
-                await agen.aclose()
+        async for event in self.message_queue.event_tail():
+            yield event
+
+    @api_endpoint("/{uuid}/archive", methods=["GET"], summary="Archive an event")
+    async def archive_event(self, uuid: str):
+        await self.event_store.archive_event(uuid)

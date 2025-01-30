@@ -47,7 +47,6 @@ class BaseApplet:
 
     def __init__(self, parent=None):
         self.log = logging.getLogger(f"bbot.server.{self.name.lower()}")
-
         self.parent = parent
         self.child_applets = []
         self.router = APIRouter(prefix=self.route_prefix)
@@ -82,8 +81,9 @@ class BaseApplet:
         if self._setup_finished:
             return
 
-        # inherit database connections, message queue, etc.
+        # inherit config, db, message queue, etc.
         if self.parent is not None:
+            self.config = self.parent.config
             self.asset_store = self.parent.asset_store
             self.event_store = self.parent.event_store
             self.message_queue = self.parent.message_queue

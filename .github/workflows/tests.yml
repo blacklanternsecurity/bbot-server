@@ -25,6 +25,10 @@ jobs:
         image: nats
         ports:
           - 4222:4222
+      rabbitmq:
+        image: rabbitmq
+        ports:
+          - 5672:5672
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python

@@ -12,13 +12,23 @@ from bbot_server.cli.utils import stdout
 assets = typer.Typer()
 
 
-@assets.command(help="List assets")
-def list():
+@assets.command(
+    help="List assets",
+)
+def list(
+    json: Annotated[bool, typer.Option("--json", "-j", help="Output asset list as raw JSON")] = False,
+    lines: Annotated[int, typer.Option("--lines", "-n", help="Number of previous asset activities to show")] = 10,
+):
     async def get_assets():
         bbot_server = BBOTServer()
         await bbot_server.setup()
 
         asset_list = await bbot_server.get_assets()
+
+        if json:
+            for asset in asset_list:
+                print(asset.model_dump_json())
+            return
 
         table = Table()
         table.add_column("Asset", style="bold dark_orange")
@@ -38,16 +48,15 @@ def tail(
 ):
     # TODO: replace this with bbot_server.tail_assets()
     async def _tail():
-        from bbot_server.message_queue.message_queue import MessageQueue
+        bbot_server = BBOTServer()
+        await bbot_server.setup()
 
-        message_queue = MessageQueue()
-        await message_queue.setup()
-        async for asset_activity in message_queue.asset_tail(lines=lines):
+        async for asset_activity in bbot_server.tail_assets():
             if json:
-                print(orjson.dumps(asset_activity).decode())
+                print(asset_activity.model_dump_json())
             else:
-                timestamp = asset_activity["timestamp"]
-                description = asset_activity["description_colored"]
+                timestamp = asset_activity.timestamp
+                description = asset_activity.description_colored
                 timestamp = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%b %d %Y %H:%M:%S")
                 stdout.print(
                     f"[[bright_black]{timestamp}[/bright_black]] - [bold]{description}[/bold]", highlight=False

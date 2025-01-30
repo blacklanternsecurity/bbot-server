@@ -1,22 +1,23 @@
+import logging
 from omegaconf import OmegaConf
 from urllib.parse import urlparse
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 
 
-def MessageQueue(config=None):
+log = logging.getLogger(__name__)
+
+
+def MessageQueue(config):
     # make sure the necessary variables are in the config
-    global_config = BBOT_SERVER_CONFIG
     try:
-        mq_config = global_config["message_queue"] or OmegaConf.create()
-        if config is not None:
-            mq_config = OmegaConf.merge(mq_config, config)
+        mq_config = config["message_queue"]
     except Exception as e:
-        raise ValueError("Message queue configuration is missing") from e
+        raise ValueError(f"Message queue configuration is missing from config: {config}") from e
     try:
         uri = mq_config.uri
     except Exception as e:
-        raise ValueError("Message queue URI is missing") from e
+        raise ValueError(f"Message queue URI is missing from config: {config}") from e
 
     # depending on the URI scheme, return either a RabbitMQ or NATS message queue
     parsed_uri = urlparse(uri)
