@@ -3,6 +3,7 @@ import asyncio
 import aio_pika
 from pydantic import BaseModel
 from contextlib import suppress
+from taskiq_aio_pika import AioPikaBroker
 
 from .base import BaseMessageQueue
 from bbot.models.pydantic import Event
@@ -41,6 +42,9 @@ class RabbitMessageQueue(BaseMessageQueue):
             except Exception as e:
                 self.log.error(f"Failed to connect to message queue at {self.uri}: {e}, retrying...")
                 await asyncio.sleep(1)
+
+    async def make_taskiq_broker(self):
+        return AioPikaBroker(url=self.uri)
 
     async def publish(self, message: BaseModel, subject: str):
         msg_bytes = message.model_dump_json().encode()

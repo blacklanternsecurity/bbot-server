@@ -5,8 +5,9 @@ from bbot_server.models.assets import AssetActivity
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
-class Events(BaseApplet):
-    description = "events"
+class EventsApplet(BaseApplet):
+    name = "Events"
+    description = "query raw BBOT scan events"
 
     @api_endpoint("/", methods=["POST"], summary="Insert a BBOT event into the asset database")
     async def insert_event(self, event: Event) -> list[AssetActivity]:
@@ -18,10 +19,8 @@ class Events(BaseApplet):
         The activities are raised to subscribers and also returned to the caller.
         """
         # publish event to the message queue
+        # it will be picked up by the watchdog and ingested
         await self.root.message_queue.event_publish(event)
-        # ingest it into the asset database
-        activities = await self.root.assets.process_new_event(event)
-        return activities
 
     @api_endpoint("/", methods=["GET"], summary="Get all events")
     async def get_events(self) -> list[Event]:

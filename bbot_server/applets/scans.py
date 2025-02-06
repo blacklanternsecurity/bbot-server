@@ -1,3 +1,6 @@
+from bbot_server.applets.scan_runs import ScanRunsApplet
+from bbot_server.applets.yara_rules import YaraRulesApplet
+
 from bbot_server.models.scans import Scan
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
@@ -30,9 +33,10 @@ async def bbot_scan(preset, output_url="http://localhost:8807/v1/events/"):
     await scan.async_start_without_generator()
 
 
-class Scans(BaseApplet):
+class ScansApplet(BaseApplet):
+    name = "Scans"
     description = "scans"
-    include_apps = ["Scan_Runs"]
+    include_apps = [ScanRunsApplet, YaraRulesApplet]
     _data_model = Scan
 
     @api_endpoint("/", methods=["GET"], summary="List scans")

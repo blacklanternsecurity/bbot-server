@@ -26,6 +26,7 @@ def make_app():
     app = FastAPI(
         lifespan=lifespan,
         prefix="/v1",
+        openapi_tags=app_root.tags_metadata,
         **app_kwargs,
     )
     app.include_router(app_root.router)

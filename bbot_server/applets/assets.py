@@ -1,62 +1,41 @@
 from contextlib import suppress
 
+# applets imports
+from bbot_server.applets.findings import FindingsApplet
+from bbot_server.applets.open_ports import OpenPortsApplet
+from bbot_server.applets.dns_links import DNSLinksApplet
+from bbot_server.applets.emails import EmailsApplet
+from bbot_server.applets.web_screenshots import WebScreenshotsApplet
+from bbot_server.applets.export import ExportApplet
+
+# watchdog
+# from bbot_server.watchdogs.assets import AssetsWatchdog
+
+# pydantic
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import Asset, AssetActivity
+from bbot_server.models.assets import AssetActivity, BaseAssetFacet
+
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
-class Assets(BaseApplet):
+class Asset(BaseAssetFacet):
+    __tablename__ = "assets"
+
+
+class AssetsApplet(BaseApplet):
+    name = "Assets"
     description = "hostnames and IP addresses discovered during scans"
-    include_apps = ["Findings", "Open_Ports", "DNS_Links", "Emails", "Web_Screenshots", "Export"]
-    fieldnames = ["host"]
-
-    _data_model = Asset
-
-    async def process_new_event(self, event: Event) -> list[AssetActivity]:
-        activities = []
-
-        # we use a lock to prevent race conditions on the same asset
-        async with self._asset_lock.lock(event.host):
-            asset = None
-            if event.host:
-                # first try to get the asset based on the event's host
-                asset = await self.collection.find_one({"host": event.host})
-                if asset is not None:
-                    asset = Asset(**asset)
-                else:
-                    # if it doesn't exist, create it
-                    asset = Asset(host=event.host, fields={})
-                    await self.collection.insert_one(asset.model_dump())
-                    new_asset_description = f"New asset [{event.host}] discovered"
-                    new_asset_description_colored = f"New asset [[dark_orange]{event.host}[/dark_orange]] discovered"
-                    new_asset_activity = AssetActivity(
-                        type="NEW_ASSET",
-                        event=event,
-                        description=new_asset_description,
-                        description_colored=new_asset_description_colored,
-                    )
-                    activities.append(new_asset_activity)
-
-            # let the other modules ingest the event
-            new_activities = await self.root._ingest_event(asset, event)
-            activities.extend(new_activities)
-
-            # publish activities to the message queue
-            for activity in activities:
-                await self.emit_activity(activity)
-
-            # write the updated asset to the database
-            if asset is not None:
-                await self.root.assets.strict_collection.update_one({"host": event.host}, {"$set": asset.model_dump()})
-
-        return activities
+    include_apps = [FindingsApplet, OpenPortsApplet, DNSLinksApplet, EmailsApplet, WebScreenshotsApplet, ExportApplet]
+    # watchdogs = [AssetsWatchdog]
+    model = Asset
 
     @api_endpoint("/", methods=["GET"], summary="Get assets")
     async def get_assets(self) -> list[Asset]:
-        cursor = self.collection.find()
-        assets = await cursor.to_list(length=None)
-        assets = [Asset(**asset) for asset in assets]
-        return assets
+        # cursor = self.collection.find()
+        # assets = await cursor.to_list(length=None)
+        # assets = [Asset(**asset) for asset in assets]
+        # return assets
+        return []
 
     @api_endpoint("/{host}/list", methods=["GET"], summary="List assets by host (including subdomains)")
     async def get_assets_by_host(self, host: str) -> list[Asset]:
@@ -86,3 +65,6 @@ class Assets(BaseApplet):
         finally:
             with suppress(BaseException):
                 await agen.aclose()
+
+    async def update_asset(self, asset: Asset):
+        await self.strict_collection.update_one({"host": asset.host}, {"$set": asset.model_dump()})

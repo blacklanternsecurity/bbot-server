@@ -6,15 +6,6 @@ from pydantic import BaseModel
 from contextlib import suppress
 
 
-def api_endpoint(endpoint, **kwargs):
-    def decorator(fn):
-        fn._kwargs = kwargs
-        fn._endpoint = endpoint
-        return fn
-
-    return decorator
-
-
 class BaseServerRoute:
     def __init__(self, function, tags=[]):
         self.log = logging.getLogger(f"bbot.server.routing.{self.__class__.__name__.lower()}")

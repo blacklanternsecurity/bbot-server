@@ -1804,6 +1804,17 @@ files = [
 ]
 
 [[package]]
+name = "pycron"
+version = "3.1.2"
+description = "Simple cron-like parser, which determines if current datetime matches conditions."
+optional = false
+python-versions = "<4.0,>=3.9"
+files = [
+    {file = "pycron-3.1.2-py3-none-any.whl", hash = "sha256:30e4a01889dfb471e80cc76a5c0ab87e675146a7f6d2d66a2e4bdb4e2975ef3d"},
+    {file = "pycron-3.1.2.tar.gz", hash = "sha256:114c71bc61002b850a416e33e72a8c6de75b9f5c4228e86d7babd8a7ea232d94"},
+]
+
+[[package]]
 name = "pycryptodome"
 version = "3.21.0"
 description = "Cryptographic library for Python"
@@ -2208,6 +2219,17 @@ python-versions = ">=3.8"
 files = [
     {file = "python_multipart-0.0.20-py3-none-any.whl", hash = "sha256:8a62d3a8335e06589fe01f2a3e178cdcc632f3fbe0d492ad9ee0ec35aab1f104"},
     {file = "python_multipart-0.0.20.tar.gz", hash = "sha256:8dd0cab45b8e23064ae09147625994d090fa46f5b0d1e13af944c331a7fa9d13"},
+]
+
+[[package]]
+name = "pytz"
+version = "2025.1"
+description = "World timezone definitions, modern and historical"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pytz-2025.1-py2.py3-none-any.whl", hash = "sha256:89dd22dca55b46eac6eda23b2d72721bf1bdfef212645d81513ef5d03038de57"},
+    {file = "pytz-2025.1.tar.gz", hash = "sha256:c2db42be2a2518b28e65f9207c4d05e6ff547d1efa4086469ef855e4ab70178e"},
 ]
 
 [[package]]
@@ -2793,6 +2815,80 @@ files = [
 
 [package.extras]
 widechars = ["wcwidth"]
+
+[[package]]
+name = "taskiq"
+version = "0.11.10"
+description = "Distributed task queue with full async support"
+optional = false
+python-versions = "<4.0.0,>=3.8.1"
+files = [
+    {file = "taskiq-0.11.10-py3-none-any.whl", hash = "sha256:2b656c34231bf6947a6020098c94f93d6c45d15688d9e6bb8b3fbf54088e7717"},
+    {file = "taskiq-0.11.10.tar.gz", hash = "sha256:d3ce40ccf399b38aa656614ecab6e5bbcc222b61fee654927822fc97ef4418a6"},
+]
+
+[package.dependencies]
+anyio = ">=3"
+importlib-metadata = "*"
+packaging = ">=19"
+pycron = ">=3.0.0,<4.0.0"
+pydantic = ">=1.0,<=3.0"
+pytz = "*"
+taskiq_dependencies = ">=1.3.1,<2"
+typing-extensions = ">=3.10.0.0"
+
+[package.extras]
+cbor = ["cbor2 (>=5,<6)"]
+metrics = ["prometheus_client (>=0,<1)"]
+msgpack = ["msgpack (>=1.0.7,<2.0.0)"]
+orjson = ["orjson (>=3,<4)"]
+reload = ["gitignore-parser (>=0,<1)", "watchdog (>=4,<5)"]
+uv = ["uvloop (>=0.16.0,<1)"]
+zmq = ["pyzmq (>=26,<27)"]
+
+[[package]]
+name = "taskiq-aio-pika"
+version = "0.4.1"
+description = "RabbitMQ broker for taskiq"
+optional = false
+python-versions = "<4.0.0,>=3.8.1"
+files = [
+    {file = "taskiq_aio_pika-0.4.1-py3-none-any.whl", hash = "sha256:ddd9ef3315f651313581a984ea1c8df83489320d5eff3261dca729b56989ea33"},
+    {file = "taskiq_aio_pika-0.4.1.tar.gz", hash = "sha256:97b8eaba1a205c605c89d3a08aa3a43746b41d0485fa997b8316f0e219b85f7a"},
+]
+
+[package.dependencies]
+aio-pika = ">=9.0,<10.0"
+taskiq = ">=0.6.0,<1"
+
+[[package]]
+name = "taskiq-dependencies"
+version = "1.5.6"
+description = "FastAPI like dependency injection implementation"
+optional = false
+python-versions = "<4.0,>=3.9"
+files = [
+    {file = "taskiq_dependencies-1.5.6-py3-none-any.whl", hash = "sha256:fba4dbaac47dfc8817fd2efeb13cefe41f45790b4871ba65fcdfd3c74f7121dc"},
+    {file = "taskiq_dependencies-1.5.6.tar.gz", hash = "sha256:5756690fd9f1f9efac34aac5959f173724e898a852de790238f97090467c4e3c"},
+]
+
+[package.dependencies]
+typing-extensions = {version = ">=4.6.3", markers = "python_version < \"3.10\""}
+
+[[package]]
+name = "taskiq-nats"
+version = "0.5.1"
+description = "NATS integration for taskiq"
+optional = false
+python-versions = "<4.0.0,>=3.8.1"
+files = [
+    {file = "taskiq_nats-0.5.1-py3-none-any.whl", hash = "sha256:87edcc082efe98435f59b344439b03436d4ef52eef52a6e34fd3e5bfe113e168"},
+    {file = "taskiq_nats-0.5.1.tar.gz", hash = "sha256:fe305fef7c959613bda893a0ffe92e0696194de9df1181c9b6e3a573bf5ac339"},
+]
+
+[package.dependencies]
+nats-py = ">=2.2.0,<3.0.0"
+taskiq = ">=0.8,<1"
 
 [[package]]
 name = "textual"
@@ -3797,4 +3893,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "388428c458092a36c0c9c873b1595c5d36fbe880bb5a538097ff8d8ee17b1654"
+content-hash = "16f41ba1d5d6cbb5f52101e117413f6f86caa703cc7aee71e29c71d3fb817cb8"

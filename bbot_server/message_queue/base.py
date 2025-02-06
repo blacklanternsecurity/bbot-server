@@ -65,6 +65,12 @@ class BaseMessageQueue:
                 self.log.error(traceback.format_exc())
                 break
 
+    async def make_taskiq_broker(self):
+        """
+        Make a taskiq broker for this message queue.
+        """
+        raise NotImplementedError()
+
     async def publish(self, message: BaseModel, subject: str):
         """
         Publish a message to the given subject.

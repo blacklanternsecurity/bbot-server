@@ -12,11 +12,8 @@ class BaseEventStore(BaseDB):
             raise ValueError("Event must be an instance of Event")
         await self._insert_event(event)
 
-    async def archive_event(self, uuid):
-        await self._archive_event(uuid)
-
-    async def get_events(self):
-        return [Event(**event) for event in await self._get_events()]
+    async def get_events(self, min_timestamp=None, archived=None, host: str = None):
+        return [Event(**event) for event in await self._get_events(min_timestamp, archived, host)]
 
     async def clear(self, confirm):
         await self._clear(confirm)
@@ -24,7 +21,7 @@ class BaseEventStore(BaseDB):
     async def _insert_event(self, event):
         raise NotImplementedError()
 
-    async def _archive_event(self, uuid):
+    async def _archive_events(self, uuid):
         raise NotImplementedError()
 
     async def _get_events(self):

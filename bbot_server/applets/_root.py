@@ -1,12 +1,18 @@
 from omegaconf import OmegaConf
 
+# applets imports
+from bbot_server.applets.scans import ScansApplet
+from bbot_server.applets.assets import AssetsApplet
+from bbot_server.applets.events import EventsApplet
+from bbot_server.applets.agents import AgentsApplet
+
 from bbot_server.applets._base import BaseApplet
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.utils.misc import combine_pydantic_models
 
 
 class RootApplet(BaseApplet):
-    include_apps = ["Assets", "Events", "Scans", "Agents"]
+    include_apps = [AssetsApplet, EventsApplet, ScansApplet, AgentsApplet]
 
     nested = False
 
@@ -19,8 +25,11 @@ class RootApplet(BaseApplet):
         else:
             self.config = BBOT_SERVER_CONFIG
         super().__init__(**kwargs)
+        self._setup_finished = False
 
     async def setup(self):
+        if self._setup_finished:
+            return
         # set up asset store
         if self.asset_store is None:
             from bbot_server.asset_store import MongoAssetStore
@@ -34,7 +43,7 @@ class RootApplet(BaseApplet):
         self.event_store = EventStore(self.config)
         await self.event_store.setup()
 
-        # set up NATS client
+        # set up message queue
         from bbot_server.message_queue import MessageQueue
 
         self.message_queue = MessageQueue(self.config)
@@ -44,16 +53,17 @@ class RootApplet(BaseApplet):
 
         from bbot_server.models.assets import Asset
 
-        # the combined model containing all the custom asset fields defined by applets
-        combined_model = combine_pydantic_models(self.all_asset_models, model_name="AssetModel")
-        # ensure every field has a type validator and default factory
-        for field, field_info in combined_model.model_fields.items():
-            if field_info.annotation is None:
-                raise ValueError(f"Field '{field}' has no type annotation")
-            if field_info.default_factory is None:
-                raise ValueError(f"Field '{field}' has no default factory")
+        # # the combined model containing all the custom asset fields defined by applets
+        # combined_model = combine_pydantic_models(self.all_asset_models, model_name="AssetModel")
+        # # ensure every field has a type validator and default factory
+        # for field, field_info in combined_model.model_fields.items():
+        #     if field_info.annotation is None:
+        #         raise ValueError(f"Field '{field}' has no type annotation")
+        #     if field_info.default_factory is None:
+        #         raise ValueError(f"Field '{field}' has no default factory")
 
-        Asset._field_validator = combined_model
+        # Asset._field_validator = combined_model
+        self._setup_finished = True
 
     async def cleanup(self):
         for child_applet in self.child_applets:

@@ -45,6 +45,7 @@ class BaseAppletTest:
     async def bbot_server(self, request, mongo_cleanup, bbot_server_http):
         from bbot_server import BBOTServer
         from bbot_server.config import BBOT_SERVER_CONFIG
+        from bbot_server.watchdog.worker import WatchdogWorker
 
         config = OmegaConf.merge(BBOT_SERVER_CONFIG, self.config_overrides)
 
@@ -53,9 +54,12 @@ class BaseAppletTest:
         kwargs.update({"config": config})
 
         bbot_server = BBOTServer(**kwargs)
-        await bbot_server.setup()
+        watchdog = WatchdogWorker(bbot_server)
+        await watchdog.start()
+
         yield bbot_server
-        await bbot_server.cleanup()
+
+        await watchdog.stop()
 
     async def test_applet_run(self, bbot_server, bbot_events):
         """

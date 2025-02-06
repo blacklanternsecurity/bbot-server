@@ -3,7 +3,7 @@ import importlib
 from pathlib import Path
 
 from bbot_server.applets import APPLETS
-from bbot_server_tests.test_applets.base import BaseAppletTest
+from tests.test_applets.base import BaseAppletTest
 
 
 applet_tests_dir = Path(__file__).parent / "test_applets"
@@ -21,8 +21,8 @@ def test_applet_tests():
 
     # make sure each test file has a test class
     for applet_name, applet_file in zip(applet_names, applet_test_files):
-        import_path = f"bbot_server_tests.test_applets.test_applet_{applet_name}"
-        applet_test_variables = importlib.import_module(import_path, "bbot_server_tests")
+        import_path = f"tests.test_applets.test_applet_{applet_name}"
+        applet_test_variables = importlib.import_module(import_path, "tests")
         applet_pass = False
         for var_name, var_value in applet_test_variables.__dict__.items():
             if BaseAppletTest in getattr(var_value, "__bases__", []):

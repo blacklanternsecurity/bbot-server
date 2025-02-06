@@ -4,6 +4,8 @@ url: http://localhost:8807/v1
 event_store:
   uri: mongodb://localhost:27017/bbot_events
   table_name: events
+  # archive events older than this many days
+  archive_after: 90
 
 asset_store:
   uri: mongodb://localhost:27017/bbot_assets

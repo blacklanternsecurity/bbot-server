@@ -3,7 +3,7 @@ from bbot_server.models.assets import Asset, AssetActivity
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
-class Web_Screenshots(BaseApplet):
+class WebScreenshotsApplet(BaseApplet):
     watched_events = ["WEBSCREENSHOT"]
     description = "web screenshots taken during scans"
     route_prefix = ""

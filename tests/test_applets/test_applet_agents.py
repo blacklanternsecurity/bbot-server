@@ -1,0 +1,5 @@
+from tests.test_applets.base import BaseAppletTest
+
+
+class TestAppletAgents(BaseAppletTest):
+    pass

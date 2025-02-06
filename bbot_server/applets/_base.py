@@ -1,16 +1,46 @@
+import re
 import logging
-import importlib
+from typing import Annotated  # noqa
 from pymongo import WriteConcern
+from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
 from fastapi import APIRouter, HTTPException
 
 from bbot.models.pydantic import Event
-from bbot_server.utils.async_utils import NamedLock
-from bbot_server.models.assets import Asset, AssetActivity
-from bbot_server.applets._routing import BBOTServerRoute, WebSocketServerRoute, api_endpoint  # noqa
+from bbot_server.models.assets import AssetActivity
+from bbot_server.applets._routing import BBOTServerRoute, WebSocketServerRoute  # noqa
+
+
+word_regex = re.compile(r"\W+")
 
 
 log = logging.getLogger(__name__)
+
+
+def api_endpoint(endpoint, **kwargs):
+    """
+    Decorate your applet method with this to add it to FastAPI
+    """
+
+    def decorator(fn):
+        fn._kwargs = kwargs
+        fn._endpoint = endpoint
+        return fn
+
+    return decorator
+
+
+def watchdog_task(**kwargs):
+    """
+    Decorate your applet method with this to make it a watchdog task
+    """
+
+    def decorator(fn):
+        fn._kwargs = kwargs
+        fn._watchdog_task = True
+        return fn
+
+    return decorator
 
 
 class BaseApplet:
@@ -24,17 +54,23 @@ class BaseApplet:
     They can also subscribe to and produce asset activities.
     """
 
+    # friendly human name of the applet
+    name = "Base Applet"
+
+    # friendly human description of the applet
     description = ""
 
     # BBOT event types this applet watches
     watched_events = []
 
-    # Custom fields to add to the asset
-    class AssetFields(BaseModel):
-        pass
+    # the pydantic model this applet uses
+    model = None
 
     # optionally you can include other appletsP
     include_apps = []
+
+    # optionally include watchdogs
+    include_watchdogs = []
 
     # whether to nest this applet under its parent
     nested = True
@@ -42,29 +78,27 @@ class BaseApplet:
     # optionally override route prefix
     _route_prefix = None
 
-    # the pydantic model this applet uses
-    _data_model = None
+    # _asset_lock is used to prevent multiple simultaneous writes on the same asset
+    # it's intentionally defined at the class level so it's shared between all the watchdogs
+    _asset_lock = None
 
     def __init__(self, parent=None):
+        self.child_applets = []
         self.log = logging.getLogger(f"bbot.server.{self.name.lower()}")
         self.parent = parent
-        self.child_applets = []
         self.router = APIRouter(prefix=self.route_prefix)
         self.route_maps = {}
         self.route_maps = self.root.route_maps
-
-        # this is used when running read/write operations on an asset
-        self._asset_lock = NamedLock()
 
         self.asset_store = None
         self.event_store = None
         self.message_queue = None
 
-        self._add_custom_routes()
+        # mongo stuff
+        self.collection = None
+        self.strict_collection = None
 
-        self.model = None
-        if self._data_model:
-            self.model = self._data_model
+        self._add_custom_routes()
 
         for app in self.include_apps:
             try:
@@ -77,6 +111,16 @@ class BaseApplet:
 
         self._setup_finished = False
 
+    async def refresh(self, host, events):
+        """
+        After an archive completes, we fetch all the current (non-archived) events for a single host, that match the applet's watched_events
+
+        This function then combines the events and compares them to the current state of the asset, making updates if necessary.
+
+        This is designed to identify outdated open ports, technologies, etc., and remove them from the asset.
+        """
+        pass
+
     async def _setup(self):
         if self._setup_finished:
             return
@@ -87,6 +131,8 @@ class BaseApplet:
             self.asset_store = self.parent.asset_store
             self.event_store = self.parent.event_store
             self.message_queue = self.parent.message_queue
+            self.collection = self.parent.collection
+            self.strict_collection = self.parent.strict_collection
 
             if self.model is None:
                 self.model = self.parent.model
@@ -118,17 +164,7 @@ class BaseApplet:
     async def cleanup(self):
         pass
 
-    async def _ingest_event(self, asset: Asset, event: Event):
-        watched_events = self.watched_events
-        activities = []
-        if event.type in watched_events:
-            activities.extend(await self.ingest_event(asset, event))
-        for child_applet in self.child_applets:
-            child_activities = await child_applet._ingest_event(asset, event)
-            activities.extend(child_activities)
-        return activities
-
-    async def ingest_event(self, asset: Asset, event: Event):
+    async def ingest_event(self, event: Event):
         return []
 
     async def emit_activity(self, activity: AssetActivity):
@@ -137,17 +173,12 @@ class BaseApplet:
     def raise404(self, detail: str):
         raise HTTPException(status_code=404, detail=detail)
 
-    def include_app(self, app_name):
-        self.log.debug(f"Including {app_name}")
-        app_name_lower = app_name.lower()
-        # import the app
-        module = importlib.import_module(f"bbot_server.applets.{app_name_lower}")
-        # get its class
-        app_class = getattr(module, app_name)
+    def include_app(self, app_class):
+        self.log.debug(f"{self.__class__.__name__} including {app_class.__name__}")
         # instantiate it
         applet = app_class(parent=self)
         # set it as an attribute on self
-        setattr(self, app_name_lower, applet)
+        setattr(self, applet.name_lowercase, applet)
 
         if applet.nested or self.parent is None:
             router = self.router
@@ -158,26 +189,37 @@ class BaseApplet:
         # add it to our list of child apps
         self.child_applets.append(applet)
 
-    @property
-    def name(self):
-        return self.__class__.__name__
+    @cached_property
+    def name_lowercase(self):
+        # Replace non-alphanumeric characters with an underscore
+        return word_regex.sub("_", self.name.lower())
 
     @property
-    def name_friendly(self):
-        return self.name.replace("_", " ")
+    def all_child_applets(self):
+        applets = [self]
+        for applet in self.child_applets:
+            applets.extend(applet.all_child_applets)
+        return applets
+
+    @property
+    def all_watchdogs(self):
+        watchdogs = dict(self.watchdogs)
+        for applet in self.all_child_applets:
+            watchdogs.update(applet.watchdogs)
+        return watchdogs
 
     @property
     def all_asset_models(self):
         asset_models = [self.AssetFields]
-        for child_applet in self.child_applets:
-            asset_models.extend(child_applet.all_asset_models)
+        for child_applet in self.all_child_applets:
+            asset_models.append(child_applet.AssetFields)
         return asset_models
 
     @property
     def all_fieldnames(self):
         fieldnames = self.fieldnames
-        for child_applet in self.child_applets:
-            fieldnames.extend(child_applet.all_fieldnames)
+        for child_applet in self.all_child_applets:
+            fieldnames.extend(child_applet.fieldnames)
         return fieldnames
 
     def _add_custom_routes(self):
@@ -207,8 +249,8 @@ class BaseApplet:
         if self.parent is None:
             return ""
         if self.nested and self.parent.parent is not None:
-            return f"{self.parent.name} -> {self.name_friendly}"
-        return self.name_friendly
+            return f"{self.parent.name} -> {self.name}"
+        return self.name
 
     @property
     def tags_metadata(self):
@@ -229,7 +271,7 @@ class BaseApplet:
                 parent_prefix = self.parent.full_prefix(include_self=True)
         return f"{parent_prefix}{prefix}"
 
-    @property
+    @cached_property
     def root(self):
         applet = self
         while getattr(applet, "parent", None) is not None:
@@ -242,13 +284,27 @@ class BaseApplet:
             return self._route_prefix
         return f"/{self.name.lower()}"
 
+    @property
+    def asset_lock(self):
+        if self.__class__._asset_lock is None:
+            from bbot_server.utils.async_utils import NamedLock
+
+            self.__class__._asset_lock = NamedLock()
+        return self.__class__._asset_lock
+
     def __getattribute__(self, attr):
+        """
+        Allow access to attributes on any of this applet's children, recursively
+
+        This saves you from having to do things like: `bbot_server.assets.scans.runs.get_scan_runs()`.
+        Instead, you can just do: `bbot_server.get_scan_runs()`.
+        """
         try:
             # first try self
             return super().__getattribute__(attr)
         except AttributeError:
             # then try all the child applets
-            for child_applet in self.child_applets:
+            for child_applet in super().__getattribute__("child_applets"):
                 try:
                     return getattr(child_applet, attr)
                 except AttributeError:

@@ -82,7 +82,7 @@ async def bbot_server_http():
                 if response.status_code == 200:
                     break
             except httpx.RequestError as e:
-                logger.error(f"Error connecting to bbot-server: {e}")
+                logger.debug(f"Error connecting to bbot-server: {e}")
                 await asyncio.sleep(0.2)
 
     yield "http://127.0.0.1:8807"

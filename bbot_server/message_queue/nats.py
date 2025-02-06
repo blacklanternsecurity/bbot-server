@@ -3,8 +3,7 @@ import orjson
 import asyncio
 from pydantic import BaseModel
 from contextlib import suppress
-
-from nats.aio.errors import ErrConnectionClosed, ErrTimeout, ErrNoServers
+from taskiq_nats import NatsBroker
 
 from .base import BaseMessageQueue
 
@@ -25,6 +24,9 @@ class NATSMessageQueue(BaseMessageQueue):
             except Exception as e:
                 self.log.error(f"Failed to connect to message queue at {self.uri}: {e}, retrying...")
                 await asyncio.sleep(1)
+
+    async def make_taskiq_broker(self):
+        return NatsBroker(self.uri)
 
     async def publish(self, message: BaseModel, subject: str):
         msg_bytes = message.model_dump_json().encode()

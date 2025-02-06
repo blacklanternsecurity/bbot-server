@@ -1,6 +1,6 @@
 from contextlib import suppress
 
-from bbot_server_tests.test_applets.base import BaseAppletTest
+from tests.test_applets.base import BaseAppletTest
 
 
 class TestMessageQueuesNATS(BaseAppletTest):
