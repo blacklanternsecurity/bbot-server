@@ -78,30 +78,39 @@ class BaseAppletTest:
                     self.event_messages, self.asset_messages
                 )
 
+            # before any scans start
             with self.handle_errors("running pre-scan tests"):
                 await self.setup()
 
+            # insert events from the first scan
             with self.handle_errors("inserting data from first scan"):
                 for event in self.scan1_events:
                     await self.bbot_server.insert_event(event)
-            await asyncio.sleep(0.5)
 
+            # give a little time for the events to be processed
+            with self.handle_errors("modifying timestamps of first scan events"):
+                await asyncio.sleep(0.5)
+
+            # run the first test after scan #1 has been ingested
             with self.handle_errors("running tests after first scan"):
                 await self.after_scan_1()
 
+            # insert events from the second scan
             with self.handle_errors("inserting data from second scan"):
                 for event in self.scan2_events:
                     await self.bbot_server.insert_event(event)
             await asyncio.sleep(0.5)
 
+            # run test after scan #2 has been ingested
             with self.handle_errors("running tests after second scan"):
                 await self.after_scan_2()
 
-            # with self.handle_errors("archiving first scan"):
-            #     scan_id = applet_test.scan1_events[0].data["id"]
-            #     await self.bbot_server.archive_scan(scan_id)
-            # await asyncio.sleep(.5)
+            # archive old events (from the first scan)
+            with self.handle_errors("running archive task"):
+                await self.bbot_server.archive_old_events()
+            await asyncio.sleep(1)
 
+            # final test - after archiving
             with self.handle_errors("running tests after archiving first scan"):
                 await self.after_archive()
 

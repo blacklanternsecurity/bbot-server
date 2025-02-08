@@ -16,3 +16,10 @@ class TestAppletOpenPorts(BaseAppletTest):
         # second scan should have two
         assert await self.bbot_server.get_open_ports("www.evilcorp.com") == [443]
         assert await self.bbot_server.get_open_ports("mail2.evilcorp.com") == [80]
+
+    async def after_archive(self):
+        for event in await self.bbot_server.get_events():
+            self.log.critical(event)
+        # after archiving, the first open port should be gone
+        assert await self.bbot_server.get_open_ports("www.evilcorp.com") == []
+        assert await self.bbot_server.get_open_ports("mail2.evilcorp.com") == [80]

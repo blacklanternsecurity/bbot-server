@@ -1,9 +1,9 @@
-import signal
 import asyncio  # noqa
 import logging
-import pytest
+import pytest  # noqa
 import pytest_asyncio
 from contextlib import suppress
+from datetime import datetime, timedelta, UTC
 
 from bbot import Scanner
 from bbot.models.pydantic import Event
@@ -233,7 +233,13 @@ async def bbot_events():
     global BBOT_EVENTS
     if not BBOT_EVENTS:
         scan1_events = await DummyScan1.run()
+        # scan1 events are 91 days old
+        for event in scan1_events:
+            event.timestamp = (datetime.now(UTC) - timedelta(days=91)).timestamp()
         scan2_events = await DummyScan2.run()
+        # scan2 events are 89 days old
+        for event in scan2_events:
+            event.timestamp = (datetime.now(UTC) - timedelta(days=89)).timestamp()
         BBOT_EVENTS = scan1_events, scan2_events
     return BBOT_EVENTS
 

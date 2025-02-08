@@ -1,11 +1,10 @@
 from pymongo import WriteConcern
-from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from bbot_server.event_store._base import BaseEventStore
 
 
-class mongo(BaseEventStore):
+class MongoEventStore(BaseEventStore):
     """
     docker run --rm -p 27017:27017 mongo
     """
@@ -16,12 +15,10 @@ class mongo(BaseEventStore):
         self.collection = self.db[self.table_name]
         self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
 
-    async def archive_events(self):
-        archive_after = self.config.get("event_store", {}).get("archive_after", 90)
-        min_timestamp = datetime.now(datetime.UTC) - timedelta(days=archive_after)
-        # we use strict_collection to ensure all the writes complete before we return
+    async def _archive_events(self, older_than):
+        # we use strict_collection to make sure all the writes complete before we return
         await self.strict_collection.update_many(
-            {"timestamp": {"$lt": min_timestamp}, "archived": {"$ne": True}},
+            {"timestamp": {"$lt": older_than}, "archived": {"$ne": True}},
             {"$set": {"archived": True}},
         )
 
@@ -29,20 +26,19 @@ class mongo(BaseEventStore):
         event_json = event.model_dump()
         await self.collection.insert_one(event_json)
 
-    async def _get_events(self, min_timestamp=None, archived=None, host: str = None):
+    async def _get_events(self, min_timestamp: float, host: str, archived: bool):
         """
         Get all events from the database, or if min_timestamp is provided, get the newest events up to that timestamp
         """
         query = {}
         if min_timestamp is not None:
             query["timestamp"] = {"$gte": min_timestamp}
-        if archived is False:
-            query["archived"] = {"$eq": False}
-        elif archived is True:
-            query["archived"] = {"$eq": True}
+        if archived is not None:
+            query["archived"] = {"$eq": archived}
         if host is not None:
             query["host"] = host
-        return await self.collection.find(query).to_list(None)
+        async for event in self.collection.find(query):
+            yield event
 
     async def _clear(self, confirm):
         if not confirm == f"WIPE {self.db_name}":

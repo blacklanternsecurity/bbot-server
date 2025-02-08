@@ -1,14 +1,14 @@
 from omegaconf import OmegaConf
 
-# applets imports
-from bbot_server.applets.scans import ScansApplet
-from bbot_server.applets.assets import AssetsApplet
-from bbot_server.applets.events import EventsApplet
-from bbot_server.applets.agents import AgentsApplet
-
 from bbot_server.applets._base import BaseApplet
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.utils.misc import combine_pydantic_models
+
+# assets imports
+from bbot_server.applets.assets import AssetsApplet
+from bbot_server.applets.events import EventsApplet
+from bbot_server.applets.scans import ScansApplet
+from bbot_server.applets.agents import AgentsApplet
 
 
 class RootApplet(BaseApplet):
@@ -25,11 +25,8 @@ class RootApplet(BaseApplet):
         else:
             self.config = BBOT_SERVER_CONFIG
         super().__init__(**kwargs)
-        self._setup_finished = False
 
     async def setup(self):
-        if self._setup_finished:
-            return
         # set up asset store
         if self.asset_store is None:
             from bbot_server.asset_store import MongoAssetStore
@@ -43,7 +40,7 @@ class RootApplet(BaseApplet):
         self.event_store = EventStore(self.config)
         await self.event_store.setup()
 
-        # set up message queue
+        # set up NATS client
         from bbot_server.message_queue import MessageQueue
 
         self.message_queue = MessageQueue(self.config)
@@ -51,7 +48,7 @@ class RootApplet(BaseApplet):
 
         await self._setup()
 
-        from bbot_server.models.assets import Asset
+        # from bbot_server.models.assets import Asset
 
         # # the combined model containing all the custom asset fields defined by applets
         # combined_model = combine_pydantic_models(self.all_asset_models, model_name="AssetModel")
@@ -63,7 +60,6 @@ class RootApplet(BaseApplet):
         #         raise ValueError(f"Field '{field}' has no default factory")
 
         # Asset._field_validator = combined_model
-        self._setup_finished = True
 
     async def cleanup(self):
         for child_applet in self.child_applets:

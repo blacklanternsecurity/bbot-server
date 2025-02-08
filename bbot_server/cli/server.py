@@ -1,5 +1,6 @@
 import os
 import typer
+import asyncio
 from pathlib import Path
 from subprocess import run
 from typing import Annotated
@@ -30,7 +31,10 @@ def start(
     listen: Annotated[str, typer.Option("--listen", "-l", help="Listen address")] = "127.0.0.1",
     auto_reload: Annotated[bool, typer.Option("--auto-reload", "-r", help="Auto reload after code changes")] = False,
     http_only: Annotated[
-        bool, typer.Option("--http-only", "-h", help="Start the HTTP server directly, without docker compose")
+        bool, typer.Option("--api-only", "-h", help="Start the HTTP server directly, without docker compose")
+    ] = False,
+    watchdog_only: Annotated[
+        bool, typer.Option("--watchdog-only", "-w", help="Start the watchdog only, without docker compose")
     ] = False,
 ):
     auto_reload = auto_reload or bool(os.environ.get("BBOT_AUTO_RELOAD", False))
@@ -39,10 +43,30 @@ def start(
         import uvicorn
 
         uvicorn.run("bbot_server.api.app:server_app", host=listen, port=port, reload=auto_reload)
-    # elif watchdog_only:
-    #     from bbot_server.watchdog import Watchdog
+    elif watchdog_only:
+        print("Starting watchdog")
 
-    #     Watchdog().start()
+        async def run_watchdog():
+            try:
+                from bbot_server import BBOTServer
+                from bbot_server.watchdog.worker import WatchdogWorker
+
+                bbot_server = BBOTServer()
+                watchdog = WatchdogWorker(bbot_server)
+                await watchdog.start()
+                print("Watchdog successfully started")
+
+                # sleep for infinity
+                event = asyncio.Event()
+                await event.wait()
+
+            except KeyboardInterrupt:
+                await watchdog.stop()
+
+        import uvloop
+
+        uvloop.run(run_watchdog())
+
     else:
         ensure_docker_compose()
         # docker compose command with env vars

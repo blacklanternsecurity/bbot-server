@@ -1,19 +1,32 @@
-import traceback
+from datetime import datetime, timedelta, UTC
+
 from bbot.models.pydantic import Event
 from bbot_server.db.base import BaseDB
-from bbot_server.message_queue import MessageQueue
 
 
 class BaseEventStore(BaseDB):
     config_key = "event_store"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.event_store_config = self.config.get("event_store", {})
+        self.archive_after_days = self.event_store_config.get("archive_after", 90)
+        self.archive_after_timestamp = (datetime.now(UTC) - timedelta(days=self.archive_after_days)).timestamp()
+        self.archive_cron = self.event_store_config.get("archive_cron", "0 0 * * *")
 
     async def insert_event(self, event):
         if not isinstance(event, Event):
             raise ValueError("Event must be an instance of Event")
         await self._insert_event(event)
 
-    async def get_events(self, min_timestamp=None, archived=None, host: str = None):
-        return [Event(**event) for event in await self._get_events(min_timestamp, archived, host)]
+    async def get_events(self, min_timestamp=None, host: str = None, archived=False):
+        async for event in self._get_events(min_timestamp, host, archived):
+            yield Event(**event)
+
+    async def archive_events(self, older_than=None):
+        if older_than is None:
+            older_than = self.archive_after_timestamp
+        return await self._archive_events(older_than)
 
     async def clear(self, confirm):
         await self._clear(confirm)

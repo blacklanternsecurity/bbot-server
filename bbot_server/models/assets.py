@@ -167,6 +167,7 @@ class BaseAssetFacet(BaseBBOTServerModel):
 
     Unless __tablename__ is set, it's stored in the default asset table.
     """
+
     host: Annotated[str, "indexed"]
     type: Annotated[str, "indexed"]
     reverse_host: Annotated[Optional[Union[str, None]], "indexed"] = None

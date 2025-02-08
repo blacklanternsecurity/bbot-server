@@ -172,7 +172,7 @@ yara-python = "^4.5.1"
 type = "git"
 url = "https://github.com/blacklanternsecurity/bbot"
 reference = "3.0"
-resolved_reference = "62324d0f54802ed9cacf5c62d1294d514127b8ef"
+resolved_reference = "d0520ea27b46e63994a0ad0bbd070bfbaf12e40c"
 
 [[package]]
 name = "beautifulsoup4"

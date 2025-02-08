@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 
 from bbot.models.pydantic import Event
 from bbot_server.models.assets import AssetActivity
-from bbot_server.applets._routing import BBOTServerRoute, WebSocketServerRoute  # noqa
+from bbot_server.applets._routing import BBOTServerRoute, WebSocketServerRoute, StreamingServerRoute
 
 
 word_regex = re.compile(r"\W+")
@@ -111,7 +111,7 @@ class BaseApplet:
 
         self._setup_finished = False
 
-    async def refresh(self, host, events):
+    async def refresh(self, events):
         """
         After an archive completes, we fetch all the current (non-archived) events for a single host, that match the applet's watched_events
 
@@ -189,6 +189,20 @@ class BaseApplet:
         # add it to our list of child apps
         self.child_applets.append(applet)
 
+    async def _get_obj(self, host: str):
+        """
+        Shorthand for getting an object (matching the applet's model) from the asset store
+        """
+        return await self.collection.find_one({"host": host, "type": self.model.__name__}) or {}
+
+    async def _put_obj(self, obj):
+        """
+        Shorthand for writing an object into the applet's asset store
+        """
+        await self.collection.update_one(
+            {"host": obj.host, "type": self.model.__name__}, {"$set": obj.model_dump()}, upsert=True
+        )
+
     @cached_property
     def name_lowercase(self):
         # Replace non-alphanumeric characters with an underscore
@@ -232,7 +246,7 @@ class BaseApplet:
             endpoint = getattr(function, "_endpoint", None)
             # if it's a callable function and it has _endpoint, it's an @api_endpoint
             if callable(function) and endpoint is not None:
-                kwargs = dict(getattr(function, "_kwargs", {}))
+                kwargs = getattr(function, "_kwargs", {})
                 endpoint_type = kwargs.pop("type", "http")
                 if endpoint_type == "http":
                     bbot_server_route = BBOTServerRoute(function, tags=[self.tag])
@@ -240,6 +254,8 @@ class BaseApplet:
                     if not "response_model" in kwargs:
                         raise ValueError("Must specify a pydantic model used for deserializing websocket messages")
                     bbot_server_route = WebSocketServerRoute(function, tags=[self.tag], **kwargs)
+                elif endpoint_type == "stream":
+                    bbot_server_route = StreamingServerRoute(function, tags=[self.tag])
                 else:
                     raise ValueError(f"Invalid endpoint type: {endpoint_type}")
                 bbot_server_route.add_to_applet(self)

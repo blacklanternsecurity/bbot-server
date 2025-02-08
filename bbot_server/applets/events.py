@@ -1,16 +1,23 @@
-from contextlib import suppress
+import json
+from fastapi.responses import StreamingResponse
+from fastapi.encoders import jsonable_encoder
 
 from bbot.models.pydantic import Event
 from bbot_server.models.assets import AssetActivity
-from bbot_server.applets._base import BaseApplet, api_endpoint
+from bbot_server.applets._base import BaseApplet, api_endpoint, watchdog_task
 
 
 class EventsApplet(BaseApplet):
     name = "Events"
     description = "query raw BBOT scan events"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # set up cron job for archiving events
+        # self.archive_cron = self.event_store.event_store_config.archive_cron
+
     @api_endpoint("/", methods=["POST"], summary="Insert a BBOT event into the asset database")
-    async def insert_event(self, event: Event) -> list[AssetActivity]:
+    async def insert_event(self, event: Event):
         """
         Insert a BBOT event into the asset database
 
@@ -22,10 +29,12 @@ class EventsApplet(BaseApplet):
         # it will be picked up by the watchdog and ingested
         await self.root.message_queue.event_publish(event)
 
-    @api_endpoint("/", methods=["GET"], summary="Get all events")
-    async def get_events(self) -> list[Event]:
-        events = await self.event_store.get_events()
-        return events
+    # @api_endpoint("/", methods=["GET"], summary="Get all events")
+    # async def get_events(self, archived: bool = None):
+    #     async for event in self.event_store.get_events(archived=archived):
+    #         yield event.model_dump()
+    #     # events = await self.event_store.get_events(archived=archived)
+    #     # return events
 
     @api_endpoint("/{uuid}", methods=["GET"], summary="Get an event by its UUID")
     async def get_event(self, uuid: str) -> dict:
@@ -39,3 +48,17 @@ class EventsApplet(BaseApplet):
     @api_endpoint("/{uuid}/archive", methods=["GET"], summary="Archive an event")
     async def archive_event(self, uuid: str):
         await self.event_store.archive_event(uuid)
+
+    @api_endpoint("/archive", methods=["GET"], summary="Archive old events")
+    async def archive_old_events(self, older_than=None):
+        await self.event_store.archive_events(older_than=older_than)
+        # pass
+
+    @watchdog_task()
+    async def archive_events_task(self):
+        await self.event_store.archive_events()
+
+    @api_endpoint("/", methods=["GET"], type="stream", summary="Stream all events")
+    async def get_events(self, archived: bool = None):
+        async for event in self.event_store.get_events(archived=archived):
+            yield event
