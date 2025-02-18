@@ -3,8 +3,8 @@ import jsondiff
 from hashlib import sha1
 from copy import deepcopy
 from contextlib import suppress
-from datetime import datetime, UTC
 from functools import cached_property
+from datetime import datetime, timezone
 from typing import Annotated, Any, Union, Optional
 from pydantic import Field, ValidationError, TypeAdapter
 
@@ -138,7 +138,7 @@ class AssetActivity(BaseBBOTServerModel):
         if not "description" in kwargs:
             raise ValueError("description is required")
         if not "timestamp" in kwargs:
-            kwargs["timestamp"] = datetime.now(UTC).timestamp()
+            kwargs["timestamp"] = datetime.now(timezone.utc).timestamp()
         description = kwargs["description"]
         # we save the description in two forms - colored and uncolored
         kwargs["description_colored"] = description

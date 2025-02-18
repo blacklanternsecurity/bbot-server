@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 
 from bbot.models.pydantic import Event
 from bbot_server.db.base import BaseDB
@@ -11,7 +11,9 @@ class BaseEventStore(BaseDB):
         super().__init__(*args, **kwargs)
         self.event_store_config = self.config.get("event_store", {})
         self.archive_after_days = self.event_store_config.get("archive_after", 90)
-        self.archive_after_timestamp = (datetime.now(UTC) - timedelta(days=self.archive_after_days)).timestamp()
+        self.archive_after_timestamp = (
+            datetime.now(timezone.utc) - timedelta(days=self.archive_after_days)
+        ).timestamp()
         self.archive_cron = self.event_store_config.get("archive_cron", "0 0 * * *")
 
     async def insert_event(self, event):
