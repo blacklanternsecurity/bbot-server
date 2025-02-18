@@ -79,7 +79,9 @@ class AssetsApplet(BaseApplet):
     async def refresh_assets(self):
         for host in await self.get_hosts():
             for child_applet in self.all_child_applets:
-                await child_applet.refresh(host)
+                activities = await child_applet.refresh(host)
+                for activity in activities:
+                    await self.emit_activity(activity)
 
     @api_endpoint("/hosts", methods=["GET"], summary="List all hosts")
     async def get_hosts(self) -> list[str]:

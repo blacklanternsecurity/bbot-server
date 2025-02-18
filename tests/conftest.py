@@ -143,22 +143,19 @@ class DummyScan1(DummyScan):
     dns = {
         "evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
-            "AAAA": ["1.2.3.4", "5.6.7.8"],
-            "CNAME": ["www.evilcorp.com"],
-            "MX": ["10 mail.evilcorp.com"],
-            "NS": ["ns1.evilcorp.com", "ns2.evilcorp.com"],
-            "SOA": ["ns1.evilcorp.com"],
+            "TXT": [
+                "openport80a.evilcorp.com",
+                "openport80b.evilcorp.com",
+                "openport443.evilcorp.com",
+            ],
         },
-        "www.evilcorp.com": {
+        "openport80a.evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
         },
-        "mail.evilcorp.com": {
+        "openport80b.evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
         },
-        "ns1.evilcorp.com": {
-            "A": ["1.2.3.4", "5.6.7.8"],
-        },
-        "ns2.evilcorp.com": {
+        "openport443.evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
         },
     }
@@ -167,8 +164,8 @@ class DummyScan1(DummyScan):
         watched_events = ["OPEN_TCP_PORT"]
 
         async def handle_event(self, event):
-            if str(event.host) == "www.evilcorp.com":
-                if event.type == "OPEN_TCP_PORT" and event.port == 443:
+            if str(event.host) in ("openport80a.evilcorp.com", "openport80b.evilcorp.com"):
+                if event.type == "OPEN_TCP_PORT" and event.port == 80:
                     await self.emit_event(
                         {
                             "severity": "HIGH",
@@ -188,22 +185,19 @@ class DummyScan2(DummyScan):
     dns = {
         "evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
-            "AAAA": ["1.2.3.4", "5.6.7.8"],
-            "CNAME": ["www.evilcorp.com"],
-            "MX": ["10 mail2.evilcorp.com"],
-            "NS": ["ns1.evilcorp.com", "ns2.evilcorp.com"],
-            "SOA": ["ns1.evilcorp.com"],
+            "TXT": [
+                "openport80a.evilcorp.com",
+                "openport80b.evilcorp.com",
+                "openport443.evilcorp.com",
+            ],
         },
-        "www.evilcorp.com": {
+        "openport80a.evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
         },
-        "mail2.evilcorp.com": {
+        "openport80b.evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
         },
-        "ns1.evilcorp.com": {
-            "A": ["1.2.3.4", "5.6.7.8"],
-        },
-        "ns2.evilcorp.com": {
+        "openport443.evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
         },
     }
@@ -212,18 +206,22 @@ class DummyScan2(DummyScan):
         watched_events = ["OPEN_TCP_PORT"]
 
         async def handle_event(self, event):
-            if str(event.host) == "mail2.evilcorp.com":
-                if event.type == "OPEN_TCP_PORT" and event.port == 80:
-                    await self.emit_event(
-                        {
-                            "severity": "HIGH",
-                            "description": "That's a paddlin'",
-                            "host": event.host,
-                            "url": f"http://{event.host}",
-                        },
-                        "VULNERABILITY",
-                        parent=event,
-                    )
+            if event.type == "OPEN_TCP_PORT" and (
+                str(event.host) == "openport80b.evilcorp.com"
+                and event.port == 80
+                or str(event.host) == "openport443.evilcorp.com"
+                and event.port == 443
+            ):
+                await self.emit_event(
+                    {
+                        "severity": "HIGH",
+                        "description": "That's a paddlin'",
+                        "host": event.host,
+                        "url": f"http://{event.host}",
+                    },
+                    "VULNERABILITY",
+                    parent=event,
+                )
 
     dummy_modules = [DummyModule]
 

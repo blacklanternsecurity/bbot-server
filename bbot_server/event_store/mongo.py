@@ -17,10 +17,11 @@ class MongoEventStore(BaseEventStore):
 
     async def _archive_events(self, older_than):
         # we use strict_collection to make sure all the writes complete before we return
-        await self.strict_collection.update_many(
+        result = await self.strict_collection.update_many(
             {"timestamp": {"$lt": older_than}, "archived": {"$ne": True}},
             {"$set": {"archived": True}},
         )
+        self.log.info(f"Archived {result.modified_count} events")
 
     async def _insert_event(self, event):
         event_json = event.model_dump()

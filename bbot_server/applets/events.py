@@ -62,6 +62,6 @@ class EventsApplet(BaseApplet):
         await self.event_store.archive_events()
 
     @api_endpoint("/", methods=["GET"], type="stream", summary="Stream all events")
-    async def get_events(self, archived: bool = None):
-        async for event in self.event_store.get_events(archived=archived):
+    async def get_events(self, type: str = None, archived: bool = False):
+        async for event in self.event_store.get_events(type=type, archived=archived):
             yield event

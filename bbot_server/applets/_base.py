@@ -119,7 +119,7 @@ class BaseApplet:
 
         This mainly for identifying outdated open ports, technologies, etc., and removing them from the asset.
         """
-        pass
+        return []
 
     async def _setup(self):
         if self._setup_finished:

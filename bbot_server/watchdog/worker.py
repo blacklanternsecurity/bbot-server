@@ -5,13 +5,9 @@ from contextlib import suppress
 
 from bbot.models.pydantic import Event
 
-# from redis.asyncio import ConnectionPool
-from taskiq_nats import NatsBroker
-from taskiq import TaskiqScheduler
-from taskiq.api import run_receiver_task, run_scheduler_task
+from taskiq.api import run_receiver_task
 from taskiq.schedule_sources import LabelScheduleSource
-
-from taskiq import Context, TaskiqDepends, TaskiqEvents, TaskiqState
+from taskiq import TaskiqScheduler, TaskiqEvents, TaskiqState
 
 
 class WatchdogWorker:
