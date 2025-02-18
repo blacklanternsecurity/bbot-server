@@ -29,13 +29,20 @@ class AssetsApplet(BaseApplet):
     # watchdogs = [AssetsWatchdog]
     model = Asset
 
-    @api_endpoint("/", methods=["GET"], summary="Get assets")
-    async def get_assets(self) -> list[Asset]:
-        # cursor = self.collection.find()
-        # assets = await cursor.to_list(length=None)
-        # assets = [Asset(**asset) for asset in assets]
-        # return assets
-        return []
+    @api_endpoint("/", methods=["GET"], type="stream", summary="Stream all assets")
+    async def get_assets(self):
+        # pipeline = [
+        #     {
+        #         "$group": {
+        #             "_id": "$host",  # Group by the 'category' field
+        #             "documents": {"$push": "$$ROOT"}  # Push the entire document into an array
+        #         }
+        #     }
+        # ]
+        # async for result in self.collection.aggregate(pipeline):
+        #     yield result
+        for result in [{"test": "test"}]:
+            yield result
 
     @api_endpoint("/{host}/list", methods=["GET"], summary="List assets by host (including subdomains)")
     async def get_assets_by_host(self, host: str) -> list[Asset]:
@@ -68,3 +75,15 @@ class AssetsApplet(BaseApplet):
 
     async def update_asset(self, asset: Asset):
         await self.strict_collection.update_one({"host": asset.host}, {"$set": asset.model_dump()})
+
+    async def refresh_assets(self):
+        for host in await self.get_hosts():
+            for child_applet in self.all_child_applets:
+                await child_applet.refresh(host)
+
+    @api_endpoint("/hosts", methods=["GET"], summary="List all hosts")
+    async def get_hosts(self) -> list[str]:
+        cursor = self.collection.find({"archived": False, "ignored": False})
+        hosts = await cursor.distinct("host")
+        hosts.sort()
+        return hosts

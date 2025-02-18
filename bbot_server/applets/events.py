@@ -51,9 +51,12 @@ class EventsApplet(BaseApplet):
 
     @api_endpoint("/archive", methods=["GET"], summary="Archive old events")
     async def archive_old_events(self, older_than=None):
+        # first, archive old events
         await self.event_store.archive_events(older_than=older_than)
-        # pass
+        # then, refresh all assets
+        await self.root.assets.refresh_assets()
 
+    # TODO: offload archive task to watchdog
     @watchdog_task()
     async def archive_events_task(self):
         await self.event_store.archive_events()

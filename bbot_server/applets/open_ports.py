@@ -60,7 +60,9 @@ class OpenPortsApplet(BaseApplet):
     @api_endpoint("/{host}/open_ports", methods=["GET"], summary="Get all the open ports for a host")
     async def get_open_ports(self, host: str) -> list[int]:
         open_ports_obj = await self._get_obj(host)
-        return open_ports_obj.get("open_ports", [])
+        if open_ports_obj is None:
+            return []
+        return open_ports_obj.open_ports
 
     async def ingest_event(self, event):
         open_ports = await self.get_open_ports(event.host)
@@ -70,13 +72,13 @@ class OpenPortsApplet(BaseApplet):
             await self._put_obj(current_facet)
         return activities
 
+    # TODO: actually call this
     async def refresh(self, host):
         """
         Refresh open ports by host (typically run after an archive)
         """
-        events = await self.event_store.get_events(host, "OPEN_TCP_PORT")
         ports = set()
-        for e in events:
+        async for e in self.event_store.get_events(host=host, type="OPEN_TCP_PORT"):
             port = getattr(e, "port", None)
             if port is not None:
                 ports.add(port)

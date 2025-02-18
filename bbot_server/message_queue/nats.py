@@ -1,6 +1,7 @@
 import nats
 import orjson
 import asyncio
+import functools
 from pydantic import BaseModel
 from contextlib import suppress
 from taskiq_nats import NatsBroker
@@ -33,10 +34,12 @@ class NATSMessageQueue(BaseMessageQueue):
         await self.nc.publish(subject, msg_bytes)
 
     async def subscribe(self, callback, subject: str):
+        @functools.wraps(callback)
         async def wrapped_callback(msg):
             message_json = orjson.loads(msg.data)
             await callback(message_json)
 
+        wrapped_callback
         subscription = await self.nc.subscribe(subject, cb=wrapped_callback)
         self._active_subscriptions.append(subscription)
 

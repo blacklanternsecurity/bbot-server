@@ -104,20 +104,20 @@ class BaseApplet:
             try:
                 self.include_app(app)
             except Exception as e:
-                print(f"Error including app {app}: {e}")
+                self.log.error(f"Error including app {app}: {e}")
                 import traceback
 
                 traceback.print_exc()
 
         self._setup_finished = False
 
-    async def refresh(self, events):
+    async def refresh(self, host: str):
         """
-        After an archive completes, we fetch all the current (non-archived) events for a single host, that match the applet's watched_events
+        After an archive completes, we iterate through each host, and pass it into this function
 
-        This function then combines the events and compares them to the current state of the asset, making updates if necessary.
+        This function then collects the relevant events and compares them to the current state of the asset, making updates if necessary.
 
-        This is designed to identify outdated open ports, technologies, etc., and remove them from the asset.
+        This mainly for identifying outdated open ports, technologies, etc., and removing them from the asset.
         """
         pass
 
@@ -193,7 +193,10 @@ class BaseApplet:
         """
         Shorthand for getting an object (matching the applet's model) from the asset store
         """
-        return await self.collection.find_one({"host": host, "type": self.model.__name__}) or {}
+        obj = await self.collection.find_one({"$and": [{"host": host}, {"type": self.model.__name__}]})
+        if not obj:
+            return
+        return self.model(**obj)
 
     async def _put_obj(self, obj):
         """
@@ -246,7 +249,7 @@ class BaseApplet:
             endpoint = getattr(function, "_endpoint", None)
             # if it's a callable function and it has _endpoint, it's an @api_endpoint
             if callable(function) and endpoint is not None:
-                kwargs = getattr(function, "_kwargs", {})
+                kwargs = dict(getattr(function, "_kwargs", {}))
                 endpoint_type = kwargs.pop("type", "http")
                 if endpoint_type == "http":
                     bbot_server_route = BBOTServerRoute(function, tags=[self.tag])

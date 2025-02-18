@@ -171,6 +171,8 @@ class BaseAssetFacet(BaseBBOTServerModel):
     host: Annotated[str, "indexed"]
     type: Annotated[str, "indexed"]
     reverse_host: Annotated[Optional[Union[str, None]], "indexed"] = None
+    ignored: bool = False
+    archived: bool = False
 
     def __init__(self, *args, **kwargs):
         if not getattr(self, "__tablename__", None):

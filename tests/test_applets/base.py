@@ -67,6 +67,8 @@ class BaseAppletTest:
         """
         self.log = logging.getLogger(f"bbot_server.test.{self.__class__.__name__.lower()}")
         self.bbot_server = bbot_server
+        await self.bbot_server.setup()
+
         self.scan1_events = bbot_events[0]
         self.scan2_events = bbot_events[1]
 
@@ -81,15 +83,13 @@ class BaseAppletTest:
             # before any scans start
             with self.handle_errors("running pre-scan tests"):
                 await self.setup()
+            await asyncio.sleep(0.5)
 
             # insert events from the first scan
             with self.handle_errors("inserting data from first scan"):
                 for event in self.scan1_events:
                     await self.bbot_server.insert_event(event)
-
-            # give a little time for the events to be processed
-            with self.handle_errors("modifying timestamps of first scan events"):
-                await asyncio.sleep(0.5)
+            await asyncio.sleep(0.5)
 
             # run the first test after scan #1 has been ingested
             with self.handle_errors("running tests after first scan"):
@@ -148,6 +148,7 @@ class BaseAppletTest:
 
     @contextmanager
     def handle_errors(self, test_description):
+        # self.log.info(test_description)
         try:
             yield
         except BaseException as e:

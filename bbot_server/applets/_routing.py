@@ -7,6 +7,9 @@ from contextlib import suppress
 from fastapi.responses import StreamingResponse
 
 
+log = logging.getLogger("bbot_server.applets.routing")
+
+
 def smart_encode(obj):
     # handle both python and pydantic objects, as well as strings
     if isinstance(obj, BaseModel):
@@ -26,6 +29,7 @@ class BaseServerRoute:
         self.endpoint = getattr(function, "_endpoint", None)
         self.function_signature = inspect.signature(function)
         self.kwargs = dict(getattr(function, "_kwargs", {}))
+        self.kwargs.pop("type", "")
         self.tags = tags
 
     def add_to_applet(self, applet):

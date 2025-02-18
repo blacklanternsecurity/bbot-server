@@ -54,7 +54,7 @@ class BaseMessageQueue:
 
         while 1:
             try:
-                message = await asyncio.wait_for(q.get(), timeout=0.1)
+                message = await asyncio.wait_for(q.get(), timeout=30)
                 yield model(**message)
             except asyncio.TimeoutError:
                 continue

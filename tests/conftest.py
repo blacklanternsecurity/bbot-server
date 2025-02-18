@@ -73,7 +73,7 @@ async def bbot_server_http():
     server = uvicorn.Server(uvicorn.Config(server_app, host="127.0.0.1", port=8807, log_level="debug"))
     api = asyncio.create_task(server.serve())
 
-    # Wait for the server to be ready asynchronously
+    # Wait for the server to be ready
     async with httpx.AsyncClient() as client:
         url = "http://localhost:8807/v1/assets/"
         while True:
@@ -83,7 +83,7 @@ async def bbot_server_http():
                     break
             except httpx.RequestError as e:
                 logger.debug(f"Error connecting to bbot-server: {e}")
-                await asyncio.sleep(0.2)
+            await asyncio.sleep(1)
 
     yield "http://127.0.0.1:8807"
 
