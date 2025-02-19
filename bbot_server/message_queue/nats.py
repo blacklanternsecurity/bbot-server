@@ -39,7 +39,6 @@ class NATSMessageQueue(BaseMessageQueue):
             message_json = orjson.loads(msg.data)
             await callback(message_json)
 
-        wrapped_callback
         subscription = await self.nc.subscribe(subject, cb=wrapped_callback)
         self._active_subscriptions.append(subscription)
 

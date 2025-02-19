@@ -1,9 +1,5 @@
-import json
-from fastapi.responses import StreamingResponse
-from fastapi.encoders import jsonable_encoder
-
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import AssetActivity
+from datetime import datetime, timezone, timedelta
 from bbot_server.applets._base import BaseApplet, api_endpoint, watchdog_task
 
 
@@ -57,9 +53,10 @@ class EventsApplet(BaseApplet):
         await self.root.assets.refresh_assets()
 
     # TODO: offload archive task to watchdog
-    @watchdog_task()
+    @watchdog_task(config_crontab="event_store.archive_cron")
     async def archive_events_task(self):
-        await self.event_store.archive_events()
+        archive_after = (datetime.now(timezone.utc) - timedelta(days=self.event_store.archive_after_days)).timestamp()
+        await self.event_store.archive_events(older_than=archive_after)
 
     @api_endpoint("/", methods=["GET"], type="stream", response_model=Event, summary="Stream all events")
     async def get_events(self, type: str = None, archived: bool = False, active: bool = True):

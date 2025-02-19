@@ -61,41 +61,6 @@ BBOT_SERVER_CONFIG = get_bbot_server_config()
 #     server_process.join()
 
 
-@pytest_asyncio.fixture(scope="function")
-async def bbot_server_http():
-    import httpx
-    import uvicorn
-    from uvicorn.server import logger
-    from bbot_server.api import make_server_app
-
-    server_app = make_server_app()
-
-    server = uvicorn.Server(uvicorn.Config(server_app, host="127.0.0.1", port=8807, log_level="debug"))
-    api = asyncio.create_task(server.serve())
-
-    # Wait for the server to be ready
-    async with httpx.AsyncClient() as client:
-        url = "http://localhost:8807/v1/assets/"
-        while True:
-            try:
-                response = await client.get(url)
-                if response.status_code == 200:
-                    break
-            except httpx.RequestError as e:
-                logger.debug(f"Error connecting to bbot-server: {e}")
-            await asyncio.sleep(1)
-
-    yield "http://127.0.0.1:8807"
-
-    # server.should_exit = True
-    server.force_exit = True
-    await server.shutdown()
-    await asyncio.sleep(1)
-    api.cancel()
-    with suppress(BaseException):
-        await api
-
-
 BBOT_EVENTS = []
 
 

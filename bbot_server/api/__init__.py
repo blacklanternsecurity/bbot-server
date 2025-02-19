@@ -12,10 +12,10 @@ app_kwargs = {
 }
 
 
-def make_app():
+def make_app(config=None):
     from bbot_server.applets import BBOTServerRootApplet
 
-    app_root = BBOTServerRootApplet()
+    app_root = BBOTServerRootApplet(config=config)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -56,8 +56,8 @@ def make_app():
     return app, lifespan
 
 
-def make_server_app():
-    app, lifespan = make_app()
+def make_server_app(config=None):
+    app, lifespan = make_app(config=config)
 
     # includes the /v1 prefix
     server_app = FastAPI(

@@ -50,11 +50,16 @@ class BaseMessageQueue:
         async def callback(msg):
             await q.put(msg)
 
-        await self.subscribe(callback, subject)
+        try:
+            await self.subscribe(callback, subject)
+        except Exception as e:
+            self.log.critical(f"Error subscribing to {subject}: {e}")
+            self.log.critical(traceback.format_exc())
+            raise e
 
         while 1:
             try:
-                message = await asyncio.wait_for(q.get(), timeout=30)
+                message = await asyncio.wait_for(q.get(), timeout=0.1)
                 yield model(**message)
             except asyncio.TimeoutError:
                 continue

@@ -1,6 +1,7 @@
 import orjson
 import asyncio
 import aio_pika
+import functools
 from pydantic import BaseModel
 from contextlib import suppress
 from taskiq_aio_pika import AioPikaBroker
@@ -51,10 +52,10 @@ class RabbitMessageQueue(BaseMessageQueue):
         await self.exchange.publish(aio_pika.Message(body=msg_bytes), routing_key=subject)
 
     async def subscribe(self, callback, subject: str):
+        @functools.wraps(callback)
         async def wrapped_callback(message: aio_pika.IncomingMessage):
-            async with message.process():
-                message_json = orjson.loads(message.body)
-                await callback(message_json)
+            message_json = orjson.loads(message.body)
+            await callback(message_json)
 
         queue = await self.channel.declare_queue("", **self._queue_kwargs)  # Use a server-named queue
         await queue.bind(self.exchange, routing_key=subject)  # Bind the queue to the topic exchange with routing key
