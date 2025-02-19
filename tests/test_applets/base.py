@@ -49,8 +49,8 @@ class BaseAppletTest:
 
         config = OmegaConf.merge(BBOT_SERVER_CONFIG, self.config_overrides)
 
-        # kwargs = dict(request.param)
-        kwargs = {}
+        kwargs = dict(request.param)
+        # kwargs = {}
         kwargs.update({"config": config})
 
         bbot_server = BBOTServer(**kwargs)

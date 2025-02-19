@@ -38,28 +38,14 @@ class http(BaseInterface):
         )
         return options
 
-    async def _request(self, _url, _route, *args, **kwargs):
+    async def _http_request(self, _url, _route, *args, **kwargs):
         """
         Builds and issues a web request to the bbot server REST API
 
         Uses the API route to figure out the format etc.
         """
-        method, _url, kwargs = self.prepare_api_request(_url, _route, *args, **kwargs)
-
-        # body
-        body = None
-
-        # if we're doing a GET and there's leftover args, something is wrong
-        if method == "GET":
-            if kwargs:
-                raise ValueError(f"Unknown arguments: {','.join(kwargs)}")
-        else:
-            # if we only have one kwarg left, it's the whole body
-            if len(kwargs) == 1:
-                body = kwargs.popitem()[-1]
-            # otherwise, we make it a dictionary
-            else:
-                body = kwargs
+        method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
+        body = self._prepare_http_body(method, kwargs)
 
         response = await self.client.request(url=_url, method=method, json=body)
         try:
@@ -79,13 +65,26 @@ class http(BaseInterface):
             print(f"Error validating response json for {method}->{_url}: response: {response_json}: {e}")
             raise
 
+    async def _http_stream(self, _url, _route, *args, **kwargs):
+        """
+        Similar to _request(), but instead of returning a single object, returns an async generator that yields objects
+        """
+        method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
+        body = self._prepare_http_body(method, kwargs)
+
+        async with self.client.stream(method=method, url=_url, json=body) as response:
+            async for chunk in response.aiter_bytes():
+                decoded_json = orjson.loads(chunk)
+                model_obj = _route.response_model(**decoded_json)
+                yield model_obj
+
     async def _websocket_request(self, _url, _route, *args, **kwargs) -> AsyncGenerator:
         """
-        Similar to _request(), but creates a websocket connection instead of an HTTP request
+        Creates a websocket connection instead of an HTTP request
 
         Returns an async generator that yields websocket messages
         """
-        method, _url, kwargs = self.prepare_api_request(_url, _route, *args, **kwargs)
+        method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
 
         # replace scheme with ws
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
@@ -97,7 +96,30 @@ class http(BaseInterface):
                 model_obj = _route.response_model(**decoded_json)
                 yield model_obj
 
-    def prepare_api_request(self, _url, _route, *args, **kwargs):
+    def _prepare_http_body(self, method, kwargs):
+        # body
+        body = None
+
+        # if we're doing a GET and there's leftover args, something is wrong
+        if method == "GET":
+            if kwargs:
+                raise ValueError(f"Unknown arguments: {','.join(kwargs)}")
+        else:
+            # if we only have one kwarg left, it's the whole body
+            if len(kwargs) == 1:
+                body = kwargs.popitem()[-1]
+            # otherwise, we make it a dictionary
+            else:
+                body = kwargs
+
+        return body
+
+    def _prepare_api_request(self, _url, _route, *args, **kwargs):
+        """
+        Determine the method, path, and query params for the request
+
+        Used to construct HTTP requests, streams, and websocket connections
+        """
         # HTTP route
         methods = getattr(_route.fastapi_route, "methods", []) or ["GET"]
         method = sorted(methods)[0]
@@ -134,7 +156,7 @@ class http(BaseInterface):
 
         return method, _url, kwargs
 
-    def add_query_params(self, url, params):
+    def add_query_params(self, url, new_params):
         """
         Given a URL and a dictionary of query parameters, add the parameters to the URL in the format of a query string and return the new URL
         """
@@ -143,7 +165,9 @@ class http(BaseInterface):
         # Create a dictionary of existing query parameters
         query_dict = parse_qs(query)
         # Update with new parameters
-        query_dict.update(params)
+        for k, v in new_params.items():
+            if v is not None:
+                query_dict[k] = v
         # Encode the updated query string
         new_query = urlencode(query_dict, doseq=True)
         # Reconstruct the URL with new query string
@@ -161,9 +185,13 @@ class http(BaseInterface):
             route = self.applet.route_maps[attr]
             url = f"{self.base_url}{route.full_path}"
             if route.endpoint_type == "http":
-                coro = partial(self._request, url, route)
+                coro = partial(self._http_request, url, route)
+            elif route.endpoint_type == "stream":
+                coro = partial(self._http_stream, url, route)
             elif route.endpoint_type == "websocket":
                 coro = partial(self._websocket_request, url, route)
+            else:
+                raise ValueError(f"Unknown endpoint type: {route.endpoint_type}")
             return self._wrap(coro)
         except KeyError:
             return self._wrap(getattr(self.applet, attr))

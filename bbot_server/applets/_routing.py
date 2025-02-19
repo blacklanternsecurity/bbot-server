@@ -15,6 +15,8 @@ def smart_encode(obj):
     if isinstance(obj, BaseModel):
         return obj.model_dump_json().encode()
     elif isinstance(obj, str):
+        return obj.encode()
+    elif isinstance(obj, bytes):
         return obj
     else:
         return orjson.dumps(obj)
@@ -70,7 +72,7 @@ class WebSocketServerRoute(BaseServerRoute):
 
     endpoint_type = "websocket"
 
-    def __init__(self, function, tags=[], response_model=None):
+    def __init__(self, function, response_model, tags=[]):
         super().__init__(function, tags)
         self.response_model = response_model
 
@@ -98,9 +100,13 @@ class StreamingServerRoute(BBOTServerRoute):
 
     endpoint_type = "stream"
 
+    def __init__(self, function, response_model, tags=[]):
+        super().__init__(function, tags)
+        self.response_model = response_model
+
     def add_to_router(self, router):
         """
-        Here, we convert a basic python async generator into a StreamingResponse
+        Here we convert a python async generator into a StreamingResponse
         """
 
         # Get the function signature

@@ -29,7 +29,7 @@ class AssetsApplet(BaseApplet):
     # watchdogs = [AssetsWatchdog]
     model = Asset
 
-    @api_endpoint("/", methods=["GET"], type="stream", summary="Stream all assets")
+    @api_endpoint("/", methods=["GET"], type="stream", response_model=Asset, summary="Stream all assets")
     async def get_assets(self):
         # pipeline = [
         #     {
@@ -77,6 +77,11 @@ class AssetsApplet(BaseApplet):
         await self.strict_collection.update_one({"host": asset.host}, {"$set": asset.model_dump()})
 
     async def refresh_assets(self):
+        """
+        Allow each child applet to refresh assets based on the current state of the event store.
+
+        Typically run after an archival.
+        """
         for host in await self.get_hosts():
             for child_applet in self.all_child_applets:
                 activities = await child_applet.refresh(host)

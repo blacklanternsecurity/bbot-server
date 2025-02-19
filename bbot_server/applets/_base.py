@@ -251,14 +251,21 @@ class BaseApplet:
             if callable(function) and endpoint is not None:
                 kwargs = dict(getattr(function, "_kwargs", {}))
                 endpoint_type = kwargs.pop("type", "http")
+                response_model = kwargs.pop("response_model", None)
                 if endpoint_type == "http":
                     bbot_server_route = BBOTServerRoute(function, tags=[self.tag])
-                elif endpoint_type == "websocket":
-                    if not "response_model" in kwargs:
-                        raise ValueError("Must specify a pydantic model used for deserializing websocket messages")
-                    bbot_server_route = WebSocketServerRoute(function, tags=[self.tag], **kwargs)
                 elif endpoint_type == "stream":
-                    bbot_server_route = StreamingServerRoute(function, tags=[self.tag])
+                    if response_model is None:
+                        raise ValueError(
+                            f"{self.name}.{function.__name__} {endpoint}: Must specify a pydantic model used for deserializing HTTP streams"
+                        )
+                    bbot_server_route = StreamingServerRoute(function, tags=[self.tag], response_model=response_model)
+                elif endpoint_type == "websocket":
+                    if response_model is None:
+                        raise ValueError(
+                            f"{self.name}.{function.__name__} {endpoint}: Must specify a pydantic model used for deserializing websocket messages"
+                        )
+                    bbot_server_route = WebSocketServerRoute(function, tags=[self.tag], response_model=response_model)
                 else:
                     raise ValueError(f"Invalid endpoint type: {endpoint_type}")
                 bbot_server_route.add_to_applet(self)
