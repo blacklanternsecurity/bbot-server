@@ -167,7 +167,7 @@ class http(BaseInterface):
         # Update with new parameters
         for k, v in new_params.items():
             if v is not None:
-                query_dict[k] = v
+                query_dict[k] = [v]
         # Encode the updated query string
         new_query = urlencode(query_dict, doseq=True)
         # Reconstruct the URL with new query string

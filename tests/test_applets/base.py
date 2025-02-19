@@ -152,4 +152,4 @@ class BaseAppletTest:
         try:
             yield
         except BaseException as e:
-            raise pytest.fail(f"{self.__class__.__name__} failed while {test_description}: {e}")
+            raise Exception(f"{self.__class__.__name__} failed while {test_description}: {e}")

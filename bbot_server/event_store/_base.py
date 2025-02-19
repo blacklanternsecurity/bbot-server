@@ -21,8 +21,8 @@ class BaseEventStore(BaseDB):
             raise ValueError("Event must be an instance of Event")
         await self._insert_event(event)
 
-    async def get_events(self, host: str = None, type=None, min_timestamp=None, archived=False):
-        async for event in self._get_events(host=host, type=type, min_timestamp=min_timestamp, archived=archived):
+    async def get_events(self, host: str = None, type=None, min_timestamp=None, archived=False, active=True):
+        async for event in self._get_events(host=host, type=type, min_timestamp=min_timestamp, archived=archived, active=active):
             yield Event(**event)
 
     async def archive_events(self, older_than=None):

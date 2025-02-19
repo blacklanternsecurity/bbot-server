@@ -11,29 +11,29 @@ class TestArchival(BaseAppletTest):
         assert events == [], "events are not empty during setup"
 
     async def after_scan_1(self):
-        archived_events = [e async for e in self.bbot_server.get_events(archived=True)]
+        archived_events = [e async for e in self.bbot_server.get_events(archived=True, active=False)]
         assert archived_events == [], "there are archived events after only the first scan"
 
-        active_events = [e async for e in self.bbot_server.get_events(archived=False)]
+        active_events = [e async for e in self.bbot_server.get_events(archived=False, active=True)]
         assert active_events, "there aren't any active events after the first scan"
         assert all(e.archived is False for e in active_events), "there are archived events after the first scan"
 
-        all_events = [e async for e in self.bbot_server.get_events(archived=None)]
+        all_events = [e async for e in self.bbot_server.get_events(archived=True, active=True)]
         assert all_events, "there aren't any events after the first scan"
         assert len(all_events) == len(active_events), "some of the events appear to be archived after the first scan"
 
     async def after_scan_2(self):
-        archived_events = [e async for e in self.bbot_server.get_events(archived=True)]
+        archived_events = [e async for e in self.bbot_server.get_events(archived=True, active=False)]
         assert archived_events == [], "there are archived events after the second scan"
 
-        active_events = [e async for e in self.bbot_server.get_events(archived=False)]
+        active_events = [e async for e in self.bbot_server.get_events(archived=False, active=True)]
         assert active_events, "there aren't any active events after the second scan"
         assert all(e.archived is False for e in active_events), "there are archived events after the second scan"
 
     async def after_archive(self):
-        archived_events = [e async for e in self.bbot_server.get_events(archived=True)]
-        active_events = [e async for e in self.bbot_server.get_events(archived=False)]
-        all_events = [e async for e in self.bbot_server.get_events(archived=None)]
+        archived_events = [e async for e in self.bbot_server.get_events(archived=True, active=False)]
+        active_events = [e async for e in self.bbot_server.get_events(archived=False, active=True)]
+        all_events = [e async for e in self.bbot_server.get_events(archived=True, active=True)]
 
         assert archived_events, "there aren't any archived events after the archival process"
         assert active_events, "there aren't any active events after the archival process"

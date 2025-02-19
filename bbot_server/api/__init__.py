@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
 from contextlib import asynccontextmanager
+from fastapi.responses import RedirectResponse
 
 # from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 
