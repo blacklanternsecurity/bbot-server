@@ -1,12 +1,11 @@
 import re
+import inspect
 import logging
 from typing import Annotated  # noqa
 from pymongo import WriteConcern
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
 from fastapi import APIRouter, HTTPException
-from taskiq.schedule_sources import LabelScheduleSource
-from taskiq import TaskiqScheduler, TaskiqEvents, TaskiqState
 
 from bbot.models.pydantic import Event
 from bbot_server.models.assets import AssetActivity
@@ -128,7 +127,7 @@ class BaseApplet:
         if self._setup_finished:
             return
 
-        # inherit config, db, message queue, etc.
+        # inherit config, db, message queue, etc. from parent applet
         if self.parent is not None:
             self.config = self.parent.config
             self.asset_store = self.parent.asset_store
@@ -155,32 +154,27 @@ class BaseApplet:
         if self.task_broker is None:
             # taskiq broker
             self.task_broker = await self.message_queue.make_taskiq_broker()
-
-            # attach bbot_server to the taskiq broker state
-            async def startup(state: TaskiqState) -> None:
-                state.bbot_server = self
-
-            self.task_broker.add_event_handler(TaskiqEvents.WORKER_STARTUP, startup)
-            # taskiq scheduler
-            self.taskiq_scheduler = TaskiqScheduler(self.task_broker, [LabelScheduleSource(self.task_broker)])
             await self.task_broker.startup()
 
-        # watchdog tasks
-        for attr in dir(self):
-            value = getattr(self, attr, None)
-            if value is None or not callable(value):
-                continue
-            _watchdog_task = getattr(value, "_watchdog_task", None)
-            if _watchdog_task is None:
-                continue
-            task = self.task_broker.register_task(value)
-            setattr(self, attr, task)
+        # register watchdog tasks
+        await self.register_watchdog_tasks(self.task_broker)
 
         # set up children
         for child_applet in self.child_applets:
             await child_applet._setup()
 
         self._setup_finished = True
+
+    async def register_watchdog_tasks(self, broker):
+        # register watchdog tasks
+        for child_applet in self.all_child_applets:
+            methods = {name: member for name, member in inspect.getmembers(child_applet) if callable(member)}
+            for method_name, method in methods.items():
+                _watchdog_task = getattr(method, "_watchdog_task", None)
+                if _watchdog_task is None:
+                    continue
+                task = broker.register_task(method)
+                setattr(child_applet, method_name, task)
 
     async def setup(self):
         pass
@@ -246,24 +240,6 @@ class BaseApplet:
         for applet in self.child_applets:
             applets.extend(applet.all_child_applets)
         return applets
-
-    @property
-    def watchdog_tasks(self):
-        tasks = {}
-        for attr, value in self.__dict__.items():
-            if getattr(value, "_watchdog_task", False):
-                tasks[attr] = value
-        return tasks
-
-    @property
-    def all_watchdog_tasks(self):
-        watchdog_tasks = dict(self.watchdog_tasks)
-        for applet in self.all_child_applets:
-            for attr, value in applet.watchdog_tasks.items():
-                if attr in watchdog_tasks:
-                    raise ValueError(f"Duplicate watchdog task name: {attr}")
-                watchdog_tasks[attr] = value
-        return watchdog_tasks
 
     @property
     def all_asset_models(self):

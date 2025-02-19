@@ -2,6 +2,8 @@ import asyncio
 import logging
 import traceback
 from contextlib import suppress
+from taskiq.schedule_sources import LabelScheduleSource
+from taskiq import TaskiqScheduler, TaskiqEvents, TaskiqState
 
 from bbot.models.pydantic import Event
 
@@ -20,11 +22,24 @@ class WatchdogWorker:
         self.log = logging.getLogger(__name__)
         # bbot server
         self.bbot_server = bbot_server
-        self.broker = self.bbot_server.task_broker
+        self.broker = None
 
     async def start(self) -> None:
         await self.bbot_server.setup()
+
+        self.broker = await self.bbot_server.message_queue.make_taskiq_broker()
         self.broker.is_worker_process = True
+
+        # attach bbot_server to the taskiq broker state
+        async def startup(state: TaskiqState) -> None:
+            state.bbot_server = self.bbot_server
+
+        self.broker.add_event_handler(TaskiqEvents.WORKER_STARTUP, startup)
+        # taskiq scheduler
+        self.taskiq_scheduler = TaskiqScheduler(self.broker, [LabelScheduleSource(self.broker)])
+
+        await self.broker.startup()
+        await self.bbot_server.register_watchdog_tasks(self.broker)
 
         # taskiq worker
         self.taskiq_worker = asyncio.create_task(run_receiver_task(self.broker))
