@@ -5,6 +5,8 @@ from pymongo import WriteConcern
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
 from fastapi import APIRouter, HTTPException
+from taskiq.schedule_sources import LabelScheduleSource
+from taskiq import TaskiqScheduler, TaskiqEvents, TaskiqState
 
 from bbot.models.pydantic import Event
 from bbot_server.models.assets import AssetActivity
@@ -93,6 +95,7 @@ class BaseApplet:
         self.asset_store = None
         self.event_store = None
         self.message_queue = None
+        self.task_broker = None
 
         # mongo stuff
         self.collection = None
@@ -133,6 +136,7 @@ class BaseApplet:
             self.message_queue = self.parent.message_queue
             self.collection = self.parent.collection
             self.strict_collection = self.parent.strict_collection
+            self.task_broker = self.parent.task_broker
 
             if self.model is None:
                 self.model = self.parent.model
@@ -146,6 +150,31 @@ class BaseApplet:
                 #  j=True: Ensures the write operation is committed to the journal. (default is False)
                 # This helps prevent duplicates in asset activity.
                 self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
+
+        # taskiq broker
+        if self.task_broker is None:
+            # taskiq broker
+            self.task_broker = await self.message_queue.make_taskiq_broker()
+
+            # attach bbot_server to the taskiq broker state
+            async def startup(state: TaskiqState) -> None:
+                state.bbot_server = self
+
+            self.task_broker.add_event_handler(TaskiqEvents.WORKER_STARTUP, startup)
+            # taskiq scheduler
+            self.taskiq_scheduler = TaskiqScheduler(self.task_broker, [LabelScheduleSource(self.task_broker)])
+            await self.task_broker.startup()
+
+        # watchdog tasks
+        for attr in dir(self):
+            value = getattr(self, attr, None)
+            if value is None or not callable(value):
+                continue
+            _watchdog_task = getattr(value, "_watchdog_task", None)
+            if _watchdog_task is None:
+                continue
+            task = self.task_broker.register_task(value)
+            setattr(self, attr, task)
 
         # set up children
         for child_applet in self.child_applets:
@@ -219,11 +248,22 @@ class BaseApplet:
         return applets
 
     @property
-    def all_watchdogs(self):
-        watchdogs = dict(self.watchdogs)
+    def watchdog_tasks(self):
+        tasks = {}
+        for attr, value in self.__dict__.items():
+            if getattr(value, "_watchdog_task", False):
+                tasks[attr] = value
+        return tasks
+
+    @property
+    def all_watchdog_tasks(self):
+        watchdog_tasks = dict(self.watchdog_tasks)
         for applet in self.all_child_applets:
-            watchdogs.update(applet.watchdogs)
-        return watchdogs
+            for attr, value in applet.watchdog_tasks.items():
+                if attr in watchdog_tasks:
+                    raise ValueError(f"Duplicate watchdog task name: {attr}")
+                watchdog_tasks[attr] = value
+        return watchdog_tasks
 
     @property
     def all_asset_models(self):
@@ -245,10 +285,12 @@ class BaseApplet:
         for attr in dir(self):
             # get its value
             function = getattr(self, attr, None)
+            if not callable(function):
+                continue
             # see if the value has an "_endpoint" attribute
             endpoint = getattr(function, "_endpoint", None)
             # if it's a callable function and it has _endpoint, it's an @api_endpoint
-            if callable(function) and endpoint is not None:
+            if endpoint is not None:
                 kwargs = dict(getattr(function, "_kwargs", {}))
                 endpoint_type = kwargs.pop("type", "http")
                 response_model = kwargs.pop("response_model", None)

@@ -18,8 +18,8 @@ class OpenPorts(BaseAssetFacet):
         """
         new_open_ports = set(self.open_ports)
         old_open_ports = set(old.open_ports)
-        old_dict = old.model_dump()
-        new_dict = self.model_dump()
+        old_self = old.model_dump()
+        new_self = self.model_dump()
         opened_ports = new_open_ports - old_open_ports
         closed_ports = old_open_ports - new_open_ports
         activities = []
@@ -30,8 +30,8 @@ class OpenPorts(BaseAssetFacet):
                     type="PORT_OPENED",
                     host=self.host,
                     event=event,
-                    before=old_dict,
-                    after=new_dict,
+                    before=old_self,
+                    after=new_self,
                     description=f"New open port: [[dark_orange]{netloc}[/dark_orange]]",
                 )
             )
@@ -42,8 +42,8 @@ class OpenPorts(BaseAssetFacet):
                     type="PORT_CLOSED",
                     host=self.host,
                     event=event,
-                    before=old_dict,
-                    after=new_dict,
+                    before=old_self,
+                    after=new_self,
                     description=f"Closed port: [[dark_orange]{netloc}[/dark_orange]]",
                 )
             )

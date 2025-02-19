@@ -90,7 +90,8 @@ class BaseAppletTest:
         kwargs.update({"config": bbot_server_config})
 
         bbot_server = BBOTServer(**kwargs)
-        print(bbot_server.config)
+        await bbot_server.setup()
+
         watchdog = WatchdogWorker(bbot_server)
         await watchdog.start()
 

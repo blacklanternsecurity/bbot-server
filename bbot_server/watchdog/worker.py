@@ -6,8 +6,6 @@ from contextlib import suppress
 from bbot.models.pydantic import Event
 
 from taskiq.api import run_receiver_task
-from taskiq.schedule_sources import LabelScheduleSource
-from taskiq import TaskiqScheduler, TaskiqEvents, TaskiqState
 
 
 class WatchdogWorker:
@@ -22,28 +20,11 @@ class WatchdogWorker:
         self.log = logging.getLogger(__name__)
         # bbot server
         self.bbot_server = bbot_server
-
-        # # register tasks
-        # for watchdog_task in self.bbot_server.all_watchdog_tasks:
-        #     self.broker.register_task(watchdog_task)
+        self.broker = self.bbot_server.task_broker
 
     async def start(self) -> None:
         await self.bbot_server.setup()
-
-        # taskiq broker
-        self.broker = await self.bbot_server.message_queue.make_taskiq_broker()
         self.broker.is_worker_process = True
-
-        # attach bbot_server to the taskiq broker state
-        async def startup(state: TaskiqState) -> None:
-            state.bbot_server = self.bbot_server
-
-        self.broker.add_event_handler(TaskiqEvents.WORKER_STARTUP, startup)
-
-        # taskiq scheduler
-        self.taskiq_scheduler = TaskiqScheduler(self.broker, [LabelScheduleSource(self.broker)])
-
-        await self.broker.startup()
 
         # taskiq worker
         self.taskiq_worker = asyncio.create_task(run_receiver_task(self.broker))

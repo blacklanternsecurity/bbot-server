@@ -13,6 +13,8 @@ async def test_watchdog(bbot_events):
     from bbot_server.watchdog.worker import WatchdogWorker
 
     bbot_server = BBOTServer()
+    await bbot_server.setup()
+
     watchdog = WatchdogWorker(bbot_server)
     await watchdog.start()
 
