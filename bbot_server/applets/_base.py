@@ -140,6 +140,7 @@ class BaseApplet:
             if self.model is None:
                 self.model = self.parent.model
 
+        # database tables
         if self.model is not None:
             self.table_name = getattr(self.model, "__tablename__", None)
             if self.table_name is not None:
@@ -149,6 +150,15 @@ class BaseApplet:
                 #  j=True: Ensures the write operation is committed to the journal. (default is False)
                 # This helps prevent duplicates in asset activity.
                 self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
+
+        # create database indexes
+        if self.model is not None:
+            for fieldname, field in self.model.model_fields.items():
+                if "indexed" in field.metadata:
+                    # create mongodb index
+                    await self.collection.create_index([(fieldname, 1)])
+                elif "indexed_text" in field.metadata:
+                    await self.collection.create_index([(fieldname, "text")])
 
         # taskiq broker
         if self.task_broker is None:

@@ -49,7 +49,6 @@ class EventsApplet(BaseApplet):
     async def archive_old_events(self, older_than=None):
         await self.archive_events_task.kiq()
 
-    # TODO: offload archive task to watchdog
     @watchdog_task(config_crontab="event_store.archive_cron")
     async def archive_events_task(self):
         archive_after = (datetime.now(timezone.utc) - timedelta(days=self.event_store.archive_after_days)).timestamp()
