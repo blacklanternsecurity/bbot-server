@@ -2,6 +2,7 @@ import re
 import inspect
 import logging
 from typing import Annotated  # noqa
+from omegaconf import OmegaConf
 from pymongo import WriteConcern
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
@@ -183,7 +184,20 @@ class BaseApplet:
                 _watchdog_task = getattr(method, "_watchdog_task", None)
                 if _watchdog_task is None:
                     continue
-                task = broker.register_task(method)
+                kwargs = getattr(method, "_kwargs", {})
+                # crontab handling
+                cron_default = kwargs.pop("cron", None)
+                cron_config_key = kwargs.pop("cron_config_key", None)
+                if cron_config_key is not None:
+                    if cron_default is None:
+                        raise ValueError(
+                            f"{self.name}.{method_name}: When specifying a crontab config value, you must also give a default crontab value (kwarg: 'cron')"
+                        )
+                    cron = OmegaConf.select(self.config, cron_config_key, default=cron_default)
+                    kwargs["schedule"] = [{"cron": cron}]
+                elif cron_default is not None:
+                    kwargs["schedule"] = [{"cron": cron_default}]
+                task = broker.register_task(method, **kwargs)
                 setattr(child_applet, method_name, task)
 
     async def setup(self):

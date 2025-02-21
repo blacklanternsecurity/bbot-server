@@ -7,7 +7,7 @@ from taskiq import TaskiqScheduler, TaskiqEvents, TaskiqState
 
 from bbot.models.pydantic import Event
 
-from taskiq.api import run_receiver_task
+from taskiq.api import run_receiver_task, run_scheduler_task
 
 
 class WatchdogWorker:
@@ -27,7 +27,7 @@ class WatchdogWorker:
     async def start(self) -> None:
         await self.bbot_server.setup()
 
-        self.broker = await self.bbot_server.message_queue.make_taskiq_broker()
+        self.broker = self.bbot_server.task_broker
         self.broker.is_worker_process = True
 
         # attach bbot_server to the taskiq broker state
@@ -41,8 +41,9 @@ class WatchdogWorker:
         await self.broker.startup()
         await self.bbot_server.register_watchdog_tasks(self.broker)
 
-        # taskiq worker
-        self.taskiq_worker = asyncio.create_task(run_receiver_task(self.broker))
+        # taskiq worker tasks
+        self.taskiq_worker_task = asyncio.create_task(run_receiver_task(self.broker))
+        self.taskiq_scheduler_task = asyncio.create_task(run_scheduler_task(self.taskiq_scheduler))
 
         # start the event queue listener
         await self.bbot_server.message_queue.subscribe(self._event_listener, "bbot.events")
@@ -68,8 +69,10 @@ class WatchdogWorker:
             await self.bbot_server.emit_activity(activity)
 
     async def stop(self) -> None:
-        self.taskiq_worker.cancel()
+        self.taskiq_worker_task.cancel()
+        self.taskiq_scheduler_task.cancel()
         with suppress(asyncio.CancelledError):
-            await self.taskiq_worker
+            await self.taskiq_worker_task
+            await self.taskiq_scheduler_task
         await self.broker.shutdown()
         await self.bbot_server.cleanup()
