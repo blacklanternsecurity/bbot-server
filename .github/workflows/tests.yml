@@ -25,8 +25,6 @@ jobs:
         image: nats
         ports:
           - 4222:4222
-        options: >-
-          --command "nats-server -js"
       rabbitmq:
         image: rabbitmq
         ports:
