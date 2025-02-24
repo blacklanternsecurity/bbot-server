@@ -30,7 +30,7 @@ jobs:
       - name: Setup NATS with JetStream
         run: |
           curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@latest | sh
-          nats-server --jetstream &
+          ./nats-server --jetstream &
           sleep 2
       - name: Set up Python
         uses: actions/setup-python@v4
