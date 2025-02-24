@@ -1,5 +1,5 @@
-from bbot_server.interfaces._base import BaseInterface
+from bbot_server.interfaces.base import BaseInterface
 
 
 class python(BaseInterface):
-    pass
+    interface_type = "python"

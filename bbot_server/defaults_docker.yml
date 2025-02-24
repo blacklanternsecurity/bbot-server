@@ -1,3 +1,5 @@
+url: http://localhost:8807/v1/
+
 event_store:
   uri: mongodb://mongodb:27017/bbot_events
   table_name: events

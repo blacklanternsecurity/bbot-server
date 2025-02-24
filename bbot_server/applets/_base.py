@@ -1,17 +1,17 @@
 import re
+import asyncio
 import inspect
 import logging
-from typing import Annotated  # noqa
 from omegaconf import OmegaConf
 from pymongo import WriteConcern
+from typing import Annotated, Any  # noqa
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
 from fastapi import APIRouter, HTTPException
 
 from bbot.models.pydantic import Event
 from bbot_server.models.assets import AssetActivity
-from bbot_server.applets._routing import BBOTServerRoute, WebSocketServerRoute, StreamingServerRoute
-
+from bbot_server.applets._routing import HTTPRoute, HTTPStreamRoute, WebsocketRoute, WebsocketStreamRoute
 
 word_regex = re.compile(r"\W+")
 
@@ -156,8 +156,9 @@ class BaseApplet:
         if self.model is not None:
             for fieldname, field in self.model.model_fields.items():
                 if "indexed" in field.metadata:
+                    unique = "unique" in field.metadata
                     # create mongodb index
-                    await self.collection.create_index([(fieldname, 1)])
+                    await self.collection.create_index([(fieldname, 1)], unique=unique)
                 elif "indexed_text" in field.metadata:
                     await self.collection.create_index([(fieldname, "text")])
 
@@ -169,6 +170,9 @@ class BaseApplet:
 
         # register watchdog tasks
         await self.register_watchdog_tasks(self.task_broker)
+
+        if self.name != "Root Applet":
+            await self.setup()
 
         # set up children
         for child_applet in self.child_applets:
@@ -214,7 +218,11 @@ class BaseApplet:
     async def ingest_event(self, event: Event):
         return []
 
-    async def emit_activity(self, activity: AssetActivity):
+    async def emit_activity(self, *args, **kwargs):
+        activity = AssetActivity(*args, **kwargs)
+        await self._emit_activity(activity)
+
+    async def _emit_activity(self, activity: AssetActivity):
         await self.root.message_queue.asset_publish(activity)
 
     def raise404(self, detail: str):
@@ -295,19 +303,21 @@ class BaseApplet:
                 endpoint_type = kwargs.pop("type", "http")
                 response_model = kwargs.pop("response_model", None)
                 if endpoint_type == "http":
-                    bbot_server_route = BBOTServerRoute(function, tags=[self.tag])
-                elif endpoint_type == "stream":
+                    bbot_server_route = HTTPRoute(function, tags=[self.tag])
+                elif endpoint_type == "http_stream":
                     if response_model is None:
                         raise ValueError(
                             f"{self.name}.{function.__name__} {endpoint}: Must specify a pydantic model used for deserializing HTTP streams"
                         )
-                    bbot_server_route = StreamingServerRoute(function, tags=[self.tag], response_model=response_model)
+                    bbot_server_route = HTTPStreamRoute(function, tags=[self.tag], response_model=response_model)
                 elif endpoint_type == "websocket":
+                    bbot_server_route = WebsocketRoute(function, tags=[self.tag])
+                elif endpoint_type == "websocket_stream":
                     if response_model is None:
                         raise ValueError(
                             f"{self.name}.{function.__name__} {endpoint}: Must specify a pydantic model used for deserializing websocket messages"
                         )
-                    bbot_server_route = WebSocketServerRoute(function, tags=[self.tag], response_model=response_model)
+                    bbot_server_route = WebsocketStreamRoute(function, tags=[self.tag], response_model=response_model)
                 else:
                     raise ValueError(f"Invalid endpoint type: {endpoint_type}")
                 bbot_server_route.add_to_applet(self)
@@ -378,3 +388,13 @@ class BaseApplet:
                 except AttributeError:
                     continue
         raise AttributeError(f'{self.__class__.__name__} has no attribute "{attr}"')
+
+    ### ASYNC UTILS FOR CONVENIENCE ###
+
+    CancelledError = asyncio.CancelledError
+
+    async def sleep(self, *args, **kwargs):
+        await asyncio.sleep(*args, **kwargs)
+
+    def create_task(self, *args, **kwargs):
+        return asyncio.create_task(*args, **kwargs)

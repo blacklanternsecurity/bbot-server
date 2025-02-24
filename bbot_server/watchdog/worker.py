@@ -10,7 +10,7 @@ from bbot.models.pydantic import Event
 from taskiq.api import run_receiver_task, run_scheduler_task
 
 
-class WatchdogWorker:
+class BBOTWatchdog:
     """
     Contains:
         - taskiq worker
@@ -46,7 +46,9 @@ class WatchdogWorker:
         self.taskiq_scheduler_task = asyncio.create_task(run_scheduler_task(self.taskiq_scheduler))
 
         # start the event queue listener
-        await self.bbot_server.message_queue.subscribe(self._event_listener, "bbot.events")
+        self.event_listener = await self.bbot_server.message_queue.subscribe(
+            self._event_listener, "bbot.events", durable="events_watchdog"
+        )
 
     async def _event_listener(self, message: dict) -> None:
         """
@@ -66,9 +68,10 @@ class WatchdogWorker:
                     self.log.error(traceback.format_exc())
         # publish applet activities to the message queue
         for activity in activities:
-            await self.bbot_server.emit_activity(activity)
+            await self.bbot_server._emit_activity(activity)
 
     async def stop(self) -> None:
+        await self.bbot_server.message_queue.unsubscribe(self.event_listener)
         self.taskiq_worker_task.cancel()
         self.taskiq_scheduler_task.cancel()
         with suppress(asyncio.CancelledError):

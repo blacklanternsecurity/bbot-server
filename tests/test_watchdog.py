@@ -10,12 +10,12 @@ from bbot.models.pydantic import Event
 @pytest.mark.asyncio
 async def test_watchdog(bbot_events):
     from bbot_server import BBOTServer
-    from bbot_server.watchdog.worker import WatchdogWorker
+    from bbot_server.watchdog import BBOTWatchdog
 
     bbot_server = BBOTServer()
     await bbot_server.setup()
 
-    watchdog = WatchdogWorker(bbot_server)
+    watchdog = BBOTWatchdog(bbot_server)
     await watchdog.start()
 
     # allow some time for the startup to complete

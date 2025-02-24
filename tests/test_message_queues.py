@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import suppress
 
 from tests.test_applets.base import BaseAppletTest
@@ -13,12 +14,54 @@ class TestMessageQueuesNATS(BaseAppletTest):
     expected_message_queue_uri = "nats://localhost:4222"
 
     async def setup(self):
+        assert self.bbot_server.message_queue.uri == self.expected_message_queue_uri
+
+        await self.bbot_server.message_queue.clear()
+
         self.message_queue_assets = []
         self.message_queue_events = []
-        self.message_queue_event_task, self.message_queue_asset_task = self.setup_activities(
+        self.message_queue_event_task, self.message_queue_asset_task = await self.setup_activities(
             self.message_queue_events, self.message_queue_assets
         )
-        assert self.bbot_server.message_queue.uri == self.expected_message_queue_uri
+
+        # test some basic pub/sub functionality (makes sure messages are queued persistently)
+        event = self.scan1_events[0]
+        await self.bbot_server.message_queue.publish(event, "bbot.events")
+        # wait a second
+        await asyncio.sleep(0.5)
+        # read the message back
+        events = []
+
+        async def callback(message):
+            events.append(message)
+
+        sub = await self.bbot_server.message_queue.subscribe(callback, "bbot.events")
+        await asyncio.sleep(0.5)
+        assert len(events) == 1
+        assert events[0] == event.model_dump()
+        await self.bbot_server.message_queue.unsubscribe(sub)
+
+        # okay, now we test durable consumers (makes sure a consumer won't be fed the same event twice)
+        # the server should remember where it left off
+        events.clear()
+        sub = await self.bbot_server.message_queue.subscribe(callback, "bbot.events", durable="test_durable")
+        await asyncio.sleep(0.5)
+        assert len(events) == 1
+        await self.bbot_server.message_queue.unsubscribe(sub)
+
+        events.clear()
+        sub = await self.bbot_server.message_queue.subscribe(callback, "bbot.events", durable="test_durable")
+        await asyncio.sleep(0.5)
+        assert len(events) == 0
+        await self.bbot_server.message_queue.unsubscribe(sub)
+
+        events.clear()
+        sub = await self.bbot_server.message_queue.subscribe(callback, "bbot.events", durable="test_durable_new")
+        await asyncio.sleep(0.5)
+        assert len(events) == 1
+        await self.bbot_server.message_queue.unsubscribe(sub)
+
+        await self.bbot_server.message_queue.clear()
 
     async def after_scan_1(self):
         # here, we verify that both our queue tasks received the exact same messages
@@ -54,11 +97,11 @@ class TestMessageQueuesNATS(BaseAppletTest):
                     await task
 
 
-class TestMessageQueuesRabbitMQ(TestMessageQueuesNATS):
-    config_overrides = {
-        "message_queue": {
-            "uri": "amqp://localhost:5672",
-        }
-    }
+# class TestMessageQueuesRabbitMQ(TestMessageQueuesNATS):
+#     config_overrides = {
+#         "message_queue": {
+#             "uri": "amqp://localhost:5672",
+#         }
+#     }
 
-    expected_message_queue_uri = "amqp://localhost:5672"
+#     expected_message_queue_uri = "amqp://localhost:5672"

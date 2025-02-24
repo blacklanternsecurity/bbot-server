@@ -20,6 +20,8 @@ log = logging.getLogger("bbot.server.http")
 
 
 class http(BaseInterface):
+    interface_type = "http"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if not "url" in self.config:
@@ -186,9 +188,9 @@ class http(BaseInterface):
             url = f"{self.base_url}{route.full_path}"
             if route.endpoint_type == "http":
                 coro = partial(self._http_request, url, route)
-            elif route.endpoint_type == "stream":
+            elif route.endpoint_type == "http_stream":
                 coro = partial(self._http_stream, url, route)
-            elif route.endpoint_type == "websocket":
+            elif route.endpoint_type == "websocket_stream":
                 coro = partial(self._websocket_request, url, route)
             else:
                 raise ValueError(f"Unknown endpoint type: {route.endpoint_type}")

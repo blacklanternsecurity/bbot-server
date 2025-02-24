@@ -28,7 +28,7 @@ class RabbitMessageQueue(BaseMessageQueue):
                 "x-overflow": "drop-head",
             },
         }
-        self._active_queues = []
+        self._active_subs = {}
 
         self.log.info(f"Setting up message queue at {self.uri}")
         while 1:
@@ -61,16 +61,20 @@ class RabbitMessageQueue(BaseMessageQueue):
         await queue.bind(self.exchange, routing_key=subject)  # Bind the queue to the topic exchange with routing key
 
         consumer_tag = await queue.consume(wrapped_callback)
-        self._active_queues.append((queue, consumer_tag))
+        self._active_subs[consumer_tag] = queue
+        return consumer_tag
+
+    async def unsubscribe(self, consumer_tag):
+        await self._active_subs[consumer_tag].cancel(consumer_tag)
 
     async def cleanup(self):
         # delete all active queues
-        for queue, consumer_tag in self._active_queues:
+        for consumer_tag, queue in self._active_subs.items():
             await queue.cancel(consumer_tag)
-        queues = set([queue for queue, _ in self._active_queues])
+        queues = set([queue for queue in self._active_subs.values()])
         for queue in queues:
             await queue.delete()
-        self._active_queues = []
+        self._active_subs = {}
 
         # close the channel and connection
         with suppress(BaseException):

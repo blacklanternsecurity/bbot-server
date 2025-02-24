@@ -11,16 +11,27 @@ from .base import BaseMessageQueue
 
 class NATSMessageQueue(BaseMessageQueue):
     """
-    docker run --rm -p 4222:4222 nats
+    docker run --rm -p 4222:4222 nats -js
     """
 
     async def setup(self):
         self._active_subscriptions = []
 
+        base_stream_config = {
+            "name": "bbot",
+            "subjects": ["bbot.*"],
+            "storage": "memory",
+            "retention": "limits",
+            "max_msgs": 10000,
+            "discard": "old",
+        }
+
         self.log.info(f"Setting up message queue at {self.uri}")
         while 1:
             try:
                 self.nc = await nats.connect(self.uri)
+                self.js = self.nc.jetstream()
+                await self.js.add_stream(config=nats.js.api.StreamConfig(**base_stream_config))
                 break
             except Exception as e:
                 self.log.error(f"Failed to connect to message queue at {self.uri}: {e}, retrying...")
@@ -29,18 +40,42 @@ class NATSMessageQueue(BaseMessageQueue):
     async def make_taskiq_broker(self):
         return NatsBroker(self.uri)
 
+    async def get(self, subject: str, durable: str = None):
+        sub = await self.js.pull_subscribe(subject, durable=durable)
+        message = await sub.fetch(1)[0]
+        if durable:
+            await message.ack()
+        return orjson.loads(message.data)
+
     async def publish(self, message: BaseModel, subject: str):
         msg_bytes = message.model_dump_json().encode()
-        await self.nc.publish(subject, msg_bytes)
+        await self.js.publish(subject, msg_bytes)
 
-    async def subscribe(self, callback, subject: str):
+    async def subscribe(self, callback, subject: str, durable: str = None):
         @functools.wraps(callback)
         async def wrapped_callback(msg):
             message_json = orjson.loads(msg.data)
             await callback(message_json)
 
-        subscription = await self.nc.subscribe(subject, cb=wrapped_callback)
+        kwargs = {}
+        if durable is not None:
+            kwargs["durable"] = durable
+            kwargs["config"] = nats.js.api.ConsumerConfig(ack_policy="explicit")
+
+        try:
+            subscription = await self.js.subscribe(subject, cb=wrapped_callback, **kwargs)
+        except Exception as e:
+            self.log.error(f"Failed to subscribe to {subject}: {e}")
+            raise
+
         self._active_subscriptions.append(subscription)
+        return subscription
+
+    async def unsubscribe(self, subscription):
+        await subscription.unsubscribe()
+
+    async def clear(self):
+        await self.js.purge_stream("bbot")
 
     async def cleanup(self):
         for sub in self._active_subscriptions:

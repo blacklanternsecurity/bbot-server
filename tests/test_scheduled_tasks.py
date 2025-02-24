@@ -15,17 +15,14 @@ class ScheduledTaskApplet(BaseApplet):
 
     @watchdog_task(cron="* * * * *")
     async def cron_task(self):
-        self.log.critical("cron_task ran")
         self.cron_task_ran = True
 
     @watchdog_task(cron="* * * * *", cron_config_key="test.cron_task_2")
     async def cron_task_2(self):
-        self.log.critical("cron_task_2 ran")
         self.cron_task_2_ran = True
 
     @watchdog_task(cron="* * * * *", cron_config_key="test.cron_task_3")
     async def cron_task_3(self):
-        self.log.critical("cron_task_3 ran")
         self.cron_task_3_ran = True
 
 

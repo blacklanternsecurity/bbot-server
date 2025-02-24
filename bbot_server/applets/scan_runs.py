@@ -1,14 +1,30 @@
-from bbot_server.models.scans import ScanRun
-from bbot_server.models.assets import AssetActivity
+from datetime import datetime
+from typing import Any, Union
+
+from bbot_server.models.base import BaseBBOTServerModel
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
+class ScanRun(BaseBBOTServerModel):
+    __tablename__ = "scan_runs"
+
+    id: str
+    name: str
+    status: str
+    target: dict[str, Any]
+    preset: dict[str, Any]
+    started_at: datetime
+    finished_at: Union[datetime, None] = None
+    duration_seconds: Union[float, None] = None
+    duration: Union[str, None] = None
+
+
 class ScanRunsApplet(BaseApplet):
-    name = "Scan Runs"
+    name = "Runs"
     watched_events = ["SCAN"]
     description = "individual scan runs"
     _route_prefix = "/runs"
-    _data_model = ScanRun
+    model = ScanRun
 
     # async def ingest_event(self, asset, event) -> list[AssetActivity]:
     #     scan_run = ScanRun(**event.data_json)

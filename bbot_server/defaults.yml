@@ -1,5 +1,5 @@
 # url of BBOT server
-url: http://localhost:8807/v1
+url: http://localhost:8807/v1/
 
 event_store:
   uri: mongodb://localhost:27017/bbot_events

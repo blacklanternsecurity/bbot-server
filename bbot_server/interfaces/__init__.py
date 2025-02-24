@@ -1,8 +1,8 @@
 def BBOTServer(interface="python", **kwargs):
     if interface == "python":
-        from .base import BaseInterface
+        from .python import python
 
-        return BaseInterface(**kwargs)
+        return python(**kwargs)
     elif interface == "http":
         from .http import http
 

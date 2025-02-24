@@ -36,7 +36,7 @@ class EventsApplet(BaseApplet):
     async def get_event(self, uuid: str) -> dict:
         print("GETTING EVENT", uuid)
 
-    @api_endpoint("/tail", type="websocket", response_model=Event)
+    @api_endpoint("/tail", type="websocket_stream", response_model=Event)
     async def tail_events(self):
         async for event in self.message_queue.event_tail():
             yield event
@@ -62,7 +62,7 @@ class EventsApplet(BaseApplet):
         # refresh asset database
         await self.root.assets.refresh_assets()
 
-    @api_endpoint("/", methods=["GET"], type="stream", response_model=Event, summary="Stream all events")
+    @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Event, summary="Stream all events")
     async def get_events(self, type: str = None, archived: bool = False, active: bool = True):
         async for event in self.event_store.get_events(type=type, archived=archived, active=active):
             yield event

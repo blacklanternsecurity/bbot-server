@@ -2,63 +2,120 @@ import asyncio  # noqa
 import logging
 import pytest  # noqa
 import pytest_asyncio
+from omegaconf import OmegaConf
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
+
+from bbot_server.config import BBOT_SERVER_CONFIG
 
 from bbot import Scanner
 from bbot.models.pydantic import Event
 from bbot.modules.base import BaseModule
 
-
 log = logging.getLogger(__name__)
 
 
-def get_bbot_server_config():
-    from bbot_server.config import BBOT_SERVER_CONFIG
-
-    BBOT_SERVER_CONFIG["event_store"]["uri"] = "mongodb://localhost:27017/test_bbot_server_events"
-    BBOT_SERVER_CONFIG["asset_store"]["uri"] = "mongodb://localhost:27017/test_bbot_server_assets"
-    return BBOT_SERVER_CONFIG
-
-
-BBOT_SERVER_CONFIG = get_bbot_server_config()
-
-
-# def start_server():
-#     print("STARTING SERVER")
-#     import uvicorn
-
-#     get_bbot_server_config()
-#     from bbot_server.api import server_app
-
-#     uvicorn.run(server_app, host="localhost", port=8807, log_level="info")
+@pytest.fixture
+def bbot_server_config():
+    config_overrides = {
+        "event_store": {
+            "uri": "mongodb://localhost:27017/test_bbot_server_events",
+        },
+        "asset_store": {
+            "uri": "mongodb://localhost:27017/test_bbot_server_assets",
+        },
+    }
+    return OmegaConf.merge(BBOT_SERVER_CONFIG, config_overrides)
 
 
-# @pytest.fixture()
-# def bbot_server_http():
-#     import time
-#     import httpx
-#     import multiprocessing
+@pytest_asyncio.fixture(scope="function")
+async def bbot_server_http(bbot_server_config):
+    import httpx
+    import uvicorn
+    from uvicorn.server import logger
+    from bbot_server.api import make_server_app
 
-#     server_process = multiprocessing.Process(target=start_server)
-#     server_process.start()
+    server = None
+    api = None
 
-#     # Wait for the server to be ready
-#     while True:
-#         try:
-#             print("REQUESTING")
-#             response = httpx.get("http://localhost:8807/v1/assets/")
-#             print("RESPONSE", response, response.json())
-#             if response.status_code == 200:
-#                 break
-#         except httpx.RequestError:
-#             print("waiting for server to come up")
-#             time.sleep(0.1)
+    async def _make_bbot_server_http(config_overrides=None):
+        nonlocal server, api, bbot_server_config
 
-#     yield
-#     print("TERMINATING SERVER")
-#     server_process.terminate(signal.SIGKILL)
-#     server_process.join()
+        if config_overrides is not None:
+            bbot_server_config = OmegaConf.merge(bbot_server_config, config_overrides)
+
+        server_app = make_server_app(config=bbot_server_config)
+
+        server = uvicorn.Server(uvicorn.Config(server_app, host="127.0.0.1", port=8807, log_level="debug"))
+        api = asyncio.create_task(server.serve())
+
+        # Wait for the server to be ready
+        async with httpx.AsyncClient() as client:
+            url = "http://localhost:8807/v1/assets/"
+            while True:
+                try:
+                    response = await client.get(url)
+                    if response.status_code == 200:
+                        break
+                except httpx.RequestError as e:
+                    logger.debug(f"Error connecting to bbot-server: {e}")
+                await asyncio.sleep(0.2)
+
+    yield _make_bbot_server_http
+
+    # server.should_exit = True
+    server.force_exit = True
+    await server.shutdown()
+    await asyncio.sleep(0.5)
+    api.cancel()
+    with suppress(BaseException):
+        await api
+
+
+@pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
+# @pytest_asyncio.fixture
+async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_http):
+    from bbot_server import BBOTServer
+    from bbot_server.agent import BBOTAgent
+    from bbot_server.watchdog import BBOTWatchdog
+
+    watchdog = None
+    agent = None
+    bbot_server = None
+
+    async def _make_bbot_server(config_overrides=None):
+        nonlocal watchdog, agent, bbot_server, bbot_server_config
+
+        if config_overrides is not None:
+            bbot_server_config = OmegaConf.merge(bbot_server_config, config_overrides)
+
+        kwargs = dict(request.param)
+        # kwargs = {}
+        kwargs.update({"config": bbot_server_config})
+
+        # main bbot server
+        bbot_server = BBOTServer(**kwargs)
+        await bbot_server.setup()
+
+        # http server
+        await bbot_server_http(config_overrides=config_overrides)
+
+        # watchdog
+        watchdog = BBOTWatchdog(bbot_server)
+        await watchdog.start()
+
+        # agent
+        agent = await bbot_server.create_agent(name="test_agent", description="test agent")
+        agent = BBOTAgent(name=agent.name, id=agent.id)
+        await agent.start()
+
+        return bbot_server
+
+    yield _make_bbot_server
+
+    await watchdog.stop()
+    await agent.stop()
+    await bbot_server.cleanup()
 
 
 BBOT_EVENTS = []
@@ -90,7 +147,7 @@ class DummyScan:
 
     @classmethod
     async def run(cls):
-        scan = Scanner(*cls.targets, config=cls.config)
+        scan = Scanner(scan_name=cls.name, *cls.targets, config=cls.config)
         await scan.helpers.dns._mock_dns(cls.dns)
         for i, dummy_module in enumerate(cls.dummy_modules):
             dummy_module = dummy_module(scan)
@@ -104,6 +161,7 @@ class DummyScan:
 
 
 class DummyScan1(DummyScan):
+    name = "scan1"
     targets = ["evilcorp.com"]
     dns = {
         "evilcorp.com": {
@@ -146,6 +204,7 @@ class DummyScan1(DummyScan):
 
 
 class DummyScan2(DummyScan):
+    name = "scan2"
     targets = ["evilcorp.com"]
     dns = {
         "evilcorp.com": {
@@ -205,18 +264,3 @@ async def bbot_events():
             event.timestamp = (datetime.now(timezone.utc) - timedelta(days=89)).timestamp()
         BBOT_EVENTS = scan1_events, scan2_events
     return BBOT_EVENTS
-
-
-# class AppletTest:
-#     def __init__(self, **kwargs):
-#         for key, value in kwargs.items():
-#             setattr(self, key, value)
-
-
-# @pytest.fixture
-# def applet_test_instance(bbot_server, bbot_events):
-#     return AppletTest(
-#         bbot_server=bbot_server,
-#         scan1_events=bbot_events[0],
-#         scan2_events=bbot_events[1],
-#     )

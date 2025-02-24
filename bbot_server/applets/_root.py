@@ -12,7 +12,9 @@ from bbot_server.applets.agents import AgentsApplet
 
 
 class RootApplet(BaseApplet):
-    include_apps = [AssetsApplet, EventsApplet, ScansApplet, AgentsApplet]
+    include_apps = [AssetsApplet, EventsApplet, ScansApplet]
+
+    name = "Root Applet"
 
     nested = False
 

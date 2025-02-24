@@ -49,12 +49,12 @@ def start(
         async def run_watchdog():
             try:
                 from bbot_server import BBOTServer
-                from bbot_server.watchdog.worker import WatchdogWorker
+                from bbot_server.watchdog import BBOTWatchdog
 
                 bbot_server = BBOTServer()
                 await bbot_server.setup()
 
-                watchdog = WatchdogWorker(bbot_server)
+                watchdog = BBOTWatchdog(bbot_server)
                 await watchdog.start()
                 print("Watchdog successfully started")
 

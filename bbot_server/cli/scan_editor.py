@@ -223,7 +223,7 @@ Button {
 
         print(scan.preset.to_dict(include_target=True))
 
-        from bbot_server.models.scans import Scan
+        from bbot_server.applets.scans import Scan
 
         scan = Scan(
             name=self.scan_name,

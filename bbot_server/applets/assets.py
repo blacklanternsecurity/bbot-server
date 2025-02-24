@@ -29,7 +29,7 @@ class AssetsApplet(BaseApplet):
     # watchdogs = [AssetsWatchdog]
     model = Asset
 
-    @api_endpoint("/", methods=["GET"], type="stream", response_model=Asset, summary="Stream all assets")
+    @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
     async def get_assets(self):
         # pipeline = [
         #     {
@@ -63,7 +63,7 @@ class AssetsApplet(BaseApplet):
         fieldnames = self.all_fieldnames
         return fieldnames
 
-    @api_endpoint("/tail", type="websocket", response_model=AssetActivity)
+    @api_endpoint("/tail", type="websocket_stream", response_model=AssetActivity)
     async def tail_assets(self):
         agen = self.message_queue.asset_tail()
         try:
@@ -86,7 +86,7 @@ class AssetsApplet(BaseApplet):
             for child_applet in self.all_child_applets:
                 activities = await child_applet.refresh(host)
                 for activity in activities:
-                    await self.emit_activity(activity)
+                    await self._emit_activity(activity)
 
     @api_endpoint("/hosts", methods=["GET"], summary="List all hosts")
     async def get_hosts(self) -> list[str]:

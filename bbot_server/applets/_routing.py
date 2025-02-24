@@ -47,7 +47,7 @@ class BaseServerRoute:
         pass
 
 
-class BBOTServerRoute(BaseServerRoute):
+class HTTPRoute(BaseServerRoute):
     """
     A route for HTTP endpoints
     """
@@ -65,40 +65,12 @@ class BBOTServerRoute(BaseServerRoute):
         self.response_model = self.fastapi_route.response_model
 
 
-class WebSocketServerRoute(BaseServerRoute):
-    """
-    A route for WebSocket endpoints
-    """
-
-    endpoint_type = "websocket"
-
-    def __init__(self, function, response_model, tags=[]):
-        super().__init__(function, tags)
-        self.response_model = response_model
-
-    async def websocket_wrapper(self, websocket: WebSocket):
-        try:
-            await websocket.accept()
-            agen = self.function()
-            async for message in agen:
-                message = smart_encode(message)
-                await websocket.send_bytes(message)
-        finally:
-            with suppress(BaseException):
-                await websocket.close()
-            with suppress(BaseException):
-                await agen.aclose()
-
-    def add_to_router(self, router):
-        router.add_api_websocket_route(self.endpoint, self.websocket_wrapper)
-
-
-class StreamingServerRoute(BBOTServerRoute):
+class HTTPStreamRoute(BaseServerRoute):
     """
     A route for streaming HTTP endpoints
     """
 
-    endpoint_type = "stream"
+    endpoint_type = "http_stream"
 
     def __init__(self, function, response_model, tags=[]):
         super().__init__(function, tags)
@@ -127,3 +99,42 @@ class StreamingServerRoute(BBOTServerRoute):
         wrapper.__signature__ = sig
 
         router.add_api_route(self.endpoint, wrapper, **self.kwargs)
+
+
+class WebsocketRoute(BaseServerRoute):
+    """
+    A typical websocket route for persistent two-way communication.
+    """
+
+    endpoint_type = "websocket"
+
+    def add_to_router(self, router):
+        router.add_api_websocket_route(self.endpoint, self.function, **self.kwargs)
+
+
+class WebsocketStreamRoute(BaseServerRoute):
+    """
+    A simplified websocket route for one-way streaming from the server to the client, similar to `tail`.
+    """
+
+    endpoint_type = "websocket_stream"
+
+    def __init__(self, function, response_model, tags=[]):
+        super().__init__(function, tags)
+        self.response_model = response_model
+
+    async def websocket_wrapper(self, websocket: WebSocket):
+        try:
+            await websocket.accept()
+            agen = self.function()
+            async for message in agen:
+                message = smart_encode(message)
+                await websocket.send_bytes(message)
+        finally:
+            with suppress(BaseException):
+                await websocket.close()
+            with suppress(BaseException):
+                await agen.aclose()
+
+    def add_to_router(self, router):
+        router.add_api_websocket_route(self.endpoint, self.websocket_wrapper)

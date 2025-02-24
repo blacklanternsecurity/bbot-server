@@ -51,7 +51,7 @@ class BaseMessageQueue:
             await q.put(msg)
 
         try:
-            await self.subscribe(callback, subject)
+            subscription = await self.subscribe(callback, subject)
         except Exception as e:
             self.log.critical(f"Error subscribing to {subject}: {e}")
             self.log.critical(traceback.format_exc())
@@ -69,6 +69,8 @@ class BaseMessageQueue:
                 self.log.error(f"Error in tail: {e}")
                 self.log.error(traceback.format_exc())
                 break
+
+        await self.unsubscribe(subscription)
 
     async def make_taskiq_broker(self):
         """
