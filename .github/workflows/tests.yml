@@ -21,16 +21,28 @@ jobs:
         image: mongo
         ports:
           - 27017:27017
-      nats:
-        image: nats
-        ports:
-          - 4222:4222
       rabbitmq:
         image: rabbitmq
         ports:
           - 5672:5672
     steps:
       - uses: actions/checkout@v4
+      - name: Setup NATS with JetStream
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nats-server nats
+          # Start NATS with JetStream enabled in the background
+          nats-server --jetstream > nats.log 2>&1 &
+          # Wait for NATS to be ready with timeout
+          timeout=10
+          until nats stream list || [ $timeout -eq 0 ]; do
+            sleep .1
+            ((timeout--))
+          done
+          if [ $timeout -eq 0 ]; then
+            cat nats.log
+            exit 1
+          fi
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
