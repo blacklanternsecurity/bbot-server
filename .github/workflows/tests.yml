@@ -30,7 +30,7 @@ jobs:
       - name: Setup NATS with JetStream
         run: |
           sudo apt-get update
-          sudo apt-get install -y nats-server nats
+          sudo apt-get install -y nats-server
           # Start NATS with JetStream enabled in the background
           nats-server --jetstream > nats.log 2>&1 &
           # Wait for NATS to be ready with timeout
