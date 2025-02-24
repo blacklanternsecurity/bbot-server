@@ -26,7 +26,9 @@ jobs:
         ports:
           - 4222:4222
         options: >-
-          --entrypoint nats-server -js --
+          --entrypoint nats-server
+        args: >-
+          -js
       rabbitmq:
         image: rabbitmq
         ports:
