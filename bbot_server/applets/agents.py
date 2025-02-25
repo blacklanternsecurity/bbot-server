@@ -1,7 +1,7 @@
 import uuid
-from pydantic import Field
 from typing import Annotated
 from contextlib import suppress
+from pydantic import Field, UUID4
 from datetime import datetime, timezone
 from fastapi import WebSocket, WebSocketDisconnect
 from bbot_server.models.base import BaseBBOTServerModel
@@ -10,7 +10,7 @@ from bbot_server.applets._base import BaseApplet, api_endpoint
 
 class Agent(BaseBBOTServerModel):
     __tablename__ = "agents"
-    id: Annotated[str, "indexed", "unique"]
+    id: Annotated[UUID4, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
     name: Annotated[str, "indexed", "unique"]
     description: str
     connected: Annotated[bool, "indexed"] = False
@@ -32,7 +32,7 @@ class AgentsApplet(BaseApplet):
         self.connected_agents = {}
         self.update_agents_last_seen_task = self.create_task(self._update_agents_last_seen())
 
-    def make_agent(self, agent: Agent):
+    def _make_agent(self, agent: Agent):
         agent = Agent(**agent)
         if agent.id in self.connected_agents:
             agent.connected = True
@@ -44,13 +44,13 @@ class AgentsApplet(BaseApplet):
         db_results = await self.collection.find().to_list(length=None)
         agents = []
         for agent in db_results:
-            agent = self.make_agent(agent)
+            agent = self._make_agent(agent)
             agents.append(agent)
         return agents
 
     @api_endpoint("/", methods=["POST"], summary="Create an agent")
-    async def create_agent(self, name: str, description: str) -> Agent:
-        agent = Agent(name=name, description=description, id=str(uuid.uuid4()))
+    async def create_agent(self, name: str, description: str = "") -> Agent:
+        agent = Agent(name=name, description=description)
         await self.collection.insert_one(agent.model_dump())
         return agent
 
@@ -60,13 +60,13 @@ class AgentsApplet(BaseApplet):
             raise ValueError("Either id or name must be provided")
         query = {}
         if id is not None:
-            query["id"] = id
+            query["id"] = str(id)
         if name is not None:
             query["name"] = name
         agent = await self.collection.find_one(query)
         if agent is None:
             return None
-        return self.make_agent(agent)
+        return self._make_agent(agent)
 
     @api_endpoint("/online", methods=["GET"], summary="Get all online agents")
     async def get_online_agents(self, status: str = None) -> list[Agent]:
@@ -105,7 +105,7 @@ class AgentsApplet(BaseApplet):
             self.connected_agents[agent.id] = websocket
             self.log.info(f"Agent {agent.name} connected: {self.connected_agents}")
             now = datetime.now(timezone.utc).timestamp()
-            await self.collection.update_one({"id": agent.id}, {"$set": {"last_seen": now}})
+            await self.collection.update_one({"id": str(agent.id)}, {"$set": {"last_seen": now}})
             await self.emit_activity(
                 type="AGENT_CONNECTED",
                 description=f"Agent [dark_orange]{agent.name}[/dark_orange] connected",
@@ -122,7 +122,7 @@ class AgentsApplet(BaseApplet):
                 await websocket.send_text(response)
         except WebSocketDisconnect:
             self.log.warning(f"Agent {agent.name} disconnected")
-            await self.collection.update_one({"id": agent.id}, {"$set": {"status": "OFFLINE"}})
+            await self.collection.update_one({"id": str(agent.id)}, {"$set": {"status": "OFFLINE"}})
             # self.connected_agents.pop(agent.id, None)
             await self.emit_activity(
                 type="AGENT_DISCONNECTED",
@@ -132,7 +132,7 @@ class AgentsApplet(BaseApplet):
     async def _update_agents_last_seen(self):
         while True:
             online_agents = await self.get_online_agents()
-            online_agents = [agent.id for agent in online_agents]
+            online_agents = [str(agent.id) for agent in online_agents]
             now = datetime.now(timezone.utc).timestamp()
             await self.collection.update_many({"id": {"$in": online_agents}}, {"$set": {"last_seen": now}})
             await self.sleep(5)

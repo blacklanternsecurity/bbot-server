@@ -12,6 +12,8 @@ class BaseAppletTest:
 
     config_overrides = {}
 
+    needs_agent = False
+
     async def setup(self):
         """
         This test is executed before any scans have been run.
@@ -47,7 +49,7 @@ class BaseAppletTest:
         The main test function that runs each of the individual applet tests.
         """
         self.log = logging.getLogger(f"bbot_server.test.{self.__class__.__name__.lower()}")
-        self.bbot_server = await bbot_server(config_overrides=self.config_overrides)
+        self.bbot_server = await bbot_server(config_overrides=self.config_overrides, needs_agent=self.needs_agent)
 
         await self.bbot_server.message_queue.clear()
 

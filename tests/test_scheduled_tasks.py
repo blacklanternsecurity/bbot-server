@@ -39,9 +39,6 @@ class TestScheduledTasks(BaseAppletTest):
 
         all_tasks = self.bbot_server.task_broker.get_all_tasks()
 
-        for task_name, task in all_tasks.items():
-            self.log.critical(f"{task_name}: {task.labels}")
-
         assert "tests.test_scheduled_tasks:cron_task" in all_tasks, "cron_task is not registered"
         assert "tests.test_scheduled_tasks:cron_task_2" in all_tasks, "cron_task_2 is not registered"
         assert "tests.test_scheduled_tasks:cron_task_3" in all_tasks, "cron_task_3 is not registered"

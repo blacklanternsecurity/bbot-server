@@ -74,6 +74,7 @@ class HTTPStreamRoute(BaseServerRoute):
 
     def __init__(self, function, response_model, tags=[]):
         super().__init__(function, tags)
+        self.kwargs["tags"] = self.tags
         self.response_model = response_model
 
     def add_to_router(self, router):

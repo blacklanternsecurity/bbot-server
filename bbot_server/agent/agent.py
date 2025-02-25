@@ -57,7 +57,7 @@ class BBOTAgent:
                 self.log.warning("Connection closed, attempting to reconnect...")
                 await asyncio.sleep(1)  # Wait before retrying
             except Exception as e:
-                self.log.error(f"Unexpected error: {e}")
+                self.log.error(f"Unexpected error when connecting to {self.websocket_url}: {e}")
                 await asyncio.sleep(1)  # Wait before retrying
 
     @command

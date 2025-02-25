@@ -46,20 +46,20 @@ async def bbot_server_http(bbot_server_config):
 
         server_app = make_server_app(config=bbot_server_config)
 
-        server = uvicorn.Server(uvicorn.Config(server_app, host="127.0.0.1", port=8807, log_level="debug"))
+        server = uvicorn.Server(uvicorn.Config(server_app, host="127.0.0.1", port=8807, log_level="info"))
         api = asyncio.create_task(server.serve())
 
         # Wait for the server to be ready
-        async with httpx.AsyncClient() as client:
-            url = "http://localhost:8807/v1/assets/"
-            while True:
-                try:
+        url = "http://127.0.0.1:8807/v1/assets/"
+        while True:
+            try:
+                async with httpx.AsyncClient() as client:
                     response = await client.get(url)
                     if response.status_code == 200:
                         break
-                except httpx.RequestError as e:
-                    logger.debug(f"Error connecting to bbot-server: {e}")
-                await asyncio.sleep(0.2)
+            except httpx.RequestError as e:
+                logger.debug(f"Error connecting to bbot-server at {url}: {e}")
+            await asyncio.sleep(0.2)
 
     yield _make_bbot_server_http
 
@@ -83,7 +83,7 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_ht
     agent = None
     bbot_server = None
 
-    async def _make_bbot_server(config_overrides=None):
+    async def _make_bbot_server(config_overrides=None, needs_agent=False):
         nonlocal watchdog, agent, bbot_server, bbot_server_config
 
         if config_overrides is not None:
@@ -105,17 +105,21 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_ht
         await watchdog.start()
 
         # agent
-        agent = await bbot_server.create_agent(name="test_agent", description="test agent")
-        agent = BBOTAgent(name=agent.name, id=agent.id)
-        await agent.start()
+        if needs_agent:
+            agent = await bbot_server.create_agent(name="test_agent", description="test agent")
+            agent = BBOTAgent(name=agent.name, id=agent.id)
+            await agent.start()
 
         return bbot_server
 
     yield _make_bbot_server
 
-    await watchdog.stop()
-    await agent.stop()
-    await bbot_server.cleanup()
+    with suppress(Exception):
+        await watchdog.stop()
+    with suppress(Exception):
+        await agent.stop()
+    with suppress(Exception):
+        await bbot_server.cleanup()
 
 
 BBOT_EVENTS = []

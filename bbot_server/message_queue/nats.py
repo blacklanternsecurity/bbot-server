@@ -47,9 +47,18 @@ class NATSMessageQueue(BaseMessageQueue):
             await message.ack()
         return orjson.loads(message.data)
 
-    async def publish(self, message: BaseModel, subject: str):
-        msg_bytes = message.model_dump_json().encode()
-        await self.js.publish(subject, msg_bytes)
+    async def publish(self, message, subject: str):
+        """
+        Publish a message to the message queue.
+
+        Message can be either raw bytes, a Pydantic model, or a dictionary.
+        """
+        if not isinstance(message, bytes):
+            if isinstance(message, BaseModel):
+                message = message.model_dump_json().encode()
+            else:
+                message = orjson.dumps(message)
+        await self.js.publish(subject, message)
 
     async def subscribe(self, callback, subject: str, durable: str = None):
         @functools.wraps(callback)

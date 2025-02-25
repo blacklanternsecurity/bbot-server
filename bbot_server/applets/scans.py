@@ -1,10 +1,12 @@
 import uuid
-import asyncio
-from contextlib import suppress
+from pydantic import UUID4, Field
 from typing import Annotated, Any
+
+from bbot import Preset
 from bbot_server.models.base import BaseBBOTServerModel
 
 from bbot_server.applets.agents import AgentsApplet
+from bbot_server.applets.targets import TargetsApplet, Target
 from bbot_server.applets.scan_runs import ScanRunsApplet
 from bbot_server.applets.yara_rules import YaraRulesApplet
 
@@ -15,15 +17,11 @@ class Scan(BaseBBOTServerModel):
     __tablename__ = "scans"
 
     name: Annotated[str, "indexed", "unique"]
-    id: Annotated[str, "indexed", "unique"] = ""
-    target: list[str] = []
-    whitelist: list[str] = []
-    blacklist: list[str] = []
+    id: Annotated[UUID4, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
+    target: Annotated[UUID4, "indexed"]
     preset: dict[str, Any] = {}
 
     def make_preset(self):
-        from bbot import Preset
-
         preset = Preset(**self.preset)
         target_preset = Preset(*self.target, whitelist=self.whitelist, blacklist=self.blacklist, scan_name=self.name)
         preset.merge(target_preset)
@@ -33,71 +31,58 @@ class Scan(BaseBBOTServerModel):
 class ScansApplet(BaseApplet):
     name = "Scans"
     description = "scans"
-    include_apps = [AgentsApplet, ScanRunsApplet, YaraRulesApplet]
+    include_apps = [TargetsApplet, AgentsApplet, ScanRunsApplet, YaraRulesApplet]
     model = Scan
 
-    async def setup(self):
-        self.scan_watch_task = asyncio.create_task(self.watch_scan_queue())
+    @api_endpoint("/", methods=["GET"], summary="Get a single scan by its name")
+    async def get_scan(self, name: str = "", id: UUID4 = None) -> Scan:
+        if (not name) and (not id):
+            raise self.BBOTValueError("Either name or id must be provided")
+        query = {}
+        if name:
+            query["name"] = name
+        elif id is not None:
+            query["id"] = str(id)
+        scan = await self.collection.find_one(query)
+        if scan is None:
+            return
+        return Scan(**scan)
 
-    async def watch_scan_queue(self):
-        while True:
-            ready_agents = await self.get_online_agents(status="READY")
-            if not ready_agents:
-                self.log.debug(f"No ready agents found")
-                await asyncio.sleep(1)
-                continue
-            selected_agent = ready_agents[0]
-            self.log.info(f"Selected agent {selected_agent.name} for scan")
-            # read just one scan from the nats queue
-            scan_preset = await self.message_queue.get("bbot.queued_scans", "scan_queue_watcher")
-            await self.agents.send_message(selected_agent.id, "start_scan", kwargs={"preset": scan_preset})
-            await self.emit_activity(
-                type="SCAN_DISPATCHED",
-                description=f"Scan [[dark_orange]{scan_preset.scan_name}[/dark_orange]] sent to agent [[dark_orange]{selected_agent.name}[/dark_orange]]",
-            )
+    @api_endpoint("/create", methods=["POST"], summary="Create a new scan")
+    async def create_scan(self, name: str, target: UUID4, preset: dict[str, Any] = {}) -> Scan:
+        if await self.get_target(id=target) is None:
+            raise self.BBOTNotFoundError("Target not found")
+        scan = Scan(name=name, target=target, preset=preset)
+        await self.collection.insert_one(scan.model_dump())
+        return scan
 
-    @api_endpoint("/", methods=["GET"], summary="List scans")
+    @api_endpoint("/{id}", methods=["PATCH"], summary="Update a scan by its id")
+    async def update_scan(self, id: UUID4, scan: Scan) -> Scan:
+        scan.id = id
+        await self.collection.update_one({"id": str(id)}, {"$set": scan.model_dump()})
+        return scan
+
+    @api_endpoint("/{id}", methods=["DELETE"], summary="Delete a scan by its id")
+    async def delete_scan(self, id: UUID4) -> None:
+        await self.collection.delete_one({"id": str(id)})
+
+    @api_endpoint("/list", methods=["GET"], summary="List scans")
     async def get_scans(self) -> list[Scan]:
         cursor = self.collection.find()
         scans = await cursor.to_list(length=None)
         scans = [Scan(**scan) for scan in scans]
         return scans
 
-    @api_endpoint("/{name}", methods=["GET"], summary="Get a single scan by its name")
-    async def get_scan(self, name: str) -> Scan:
-        scan = await self.collection.find_one({"name": name})
+    @api_endpoint("/start/{id}", methods=["POST"], summary="Start a scan")
+    async def start_scan(self, id: str) -> None:
+        scan = await self.get_scan(id=id)
         if scan is None:
-            return
-        return Scan(**scan)
-
-    @api_endpoint("/create", methods=["POST"], summary="Create a new scan")
-    async def create_scan(self, scan: Scan) -> Scan:
-        scan.id = str(uuid.uuid4())
-        await self.collection.insert_one(scan.model_dump())
-        return scan
-
-    @api_endpoint("/edit/{name}", methods=["POST"], summary="Update a scan")
-    async def edit_scan(self, name: str, scan: Scan) -> Scan:
-        await self.collection.update_one({"name": name}, {"$set": scan.model_dump()})
-        return scan
-
-    @api_endpoint("/{name}", methods=["DELETE"], summary="Delete a scan based on its name")
-    async def delete_scan(self, name: str) -> None:
-        await self.collection.delete_one({"name": name})
-
-    @api_endpoint("/{name}/start", methods=["POST"], summary="Start a scan")
-    async def start_scan(self, name: str) -> None:
-        scan = await self.get_scan(name)
-        if scan is None:
-            return
-        preset = scan.make_preset()
-        await self.message_queue.publish(preset, "bbot.queued_scans")
+            raise self.BBOTNotFoundError("Scan not found")
+        target = await self.get_target(id=scan.target)
+        preset = Preset(*target.target, whitelist=target.whitelist, blacklist=target.blacklist, **scan.preset)
+        preset_dict = preset.bake().to_dict(include_target=True)
+        await self.message_queue.publish(preset_dict, "bbot.queued_scans")
         await self.emit_activity(
             type="SCAN_QUEUED",
-            description=f"Scan [[dark_orange]{name}[/dark_orange]] queued",
+            description=f"Scan [[dark_orange]{scan.name}[/dark_orange]] queued",
         )
-
-    async def cleanup(self):
-        self.scan_watch_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await self.scan_watch_task

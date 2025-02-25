@@ -398,3 +398,7 @@ class BaseApplet:
 
     def create_task(self, *args, **kwargs):
         return asyncio.create_task(*args, **kwargs)
+
+    ### BBOT IMPORTS FOR CONVENIENCE ###
+
+    from bbot_server.errors import BBOTServerError, BBOTValueError, BBOTNotFoundError

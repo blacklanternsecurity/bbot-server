@@ -12,3 +12,6 @@ class BaseBBOTServerModel(BBOTBaseModel):
                 if keyword in field.metadata:
                     indexed_fields[fieldname] = keyword
         return indexed_fields
+
+    def model_dump(self, *args, mode="json", **kwargs):
+        return super().model_dump(*args, mode=mode, **kwargs)

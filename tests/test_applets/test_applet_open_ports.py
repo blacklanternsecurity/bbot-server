@@ -11,7 +11,7 @@ class TestAppletOpenPorts(BaseAppletTest):
         open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 0
 
-        assert [a.type for a in self.asset_messages] == ["AGENT_CONNECTED"]
+        assert [a.type for a in self.asset_messages] == []
 
     async def after_scan_1(self):
         # first scan should have only one open port
@@ -22,8 +22,8 @@ class TestAppletOpenPorts(BaseAppletTest):
         open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 2
 
-        assert len(self.asset_messages) == 3
-        assert [a.type for a in self.asset_messages] == ["AGENT_CONNECTED", "PORT_OPENED", "PORT_OPENED"]
+        assert len(self.asset_messages) == 2
+        assert [a.type for a in self.asset_messages] == ["PORT_OPENED", "PORT_OPENED"]
 
     async def after_scan_2(self):
         # second scan should have two
@@ -34,9 +34,8 @@ class TestAppletOpenPorts(BaseAppletTest):
         open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 4
 
-        assert len(self.asset_messages) == 4
+        assert len(self.asset_messages) == 3
         assert [a.type for a in self.asset_messages] == [
-            "AGENT_CONNECTED",
             "PORT_OPENED",
             "PORT_OPENED",
             "PORT_OPENED",
@@ -51,9 +50,8 @@ class TestAppletOpenPorts(BaseAppletTest):
         open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 2
 
-        assert len(self.asset_messages) == 5
+        assert len(self.asset_messages) == 4
         assert [a.type for a in self.asset_messages] == [
-            "AGENT_CONNECTED",
             "PORT_OPENED",
             "PORT_OPENED",
             "PORT_OPENED",

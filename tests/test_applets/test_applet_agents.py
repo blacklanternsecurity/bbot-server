@@ -6,6 +6,8 @@ from tests.test_applets.base import BaseAppletTest
 
 
 class TestAppletAgents(BaseAppletTest):
+    needs_agent = True
+
     async def setup(self):
         agents = await self.bbot_server.get_agents()
         assert len(agents) == 1

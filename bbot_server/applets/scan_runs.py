@@ -1,5 +1,7 @@
+import asyncio
 from datetime import datetime
 from typing import Any, Union
+from contextlib import suppress
 
 from bbot_server.models.base import BaseBBOTServerModel
 from bbot_server.applets._base import BaseApplet, api_endpoint
@@ -25,6 +27,26 @@ class ScanRunsApplet(BaseApplet):
     description = "individual scan runs"
     _route_prefix = "/runs"
     model = ScanRun
+
+    async def setup(self):
+        self.scan_watch_task = asyncio.create_task(self.watch_scan_queue())
+
+    async def watch_scan_queue(self):
+        while True:
+            ready_agents = await self.get_online_agents(status="READY")
+            if not ready_agents:
+                self.log.debug(f"No ready agents found")
+                await asyncio.sleep(1)
+                continue
+            selected_agent = ready_agents[0]
+            self.log.info(f"Selected agent {selected_agent.name} for scan")
+            # read just one scan from the nats queue
+            scan_preset = await self.message_queue.get("bbot.queued_scans", "scan_queue_watcher")
+            await self.agents.send_message(selected_agent.id, "start_scan", kwargs={"preset": scan_preset})
+            await self.emit_activity(
+                type="SCAN_DISPATCHED",
+                description=f"Scan [[dark_orange]{scan_preset.scan_name}[/dark_orange]] sent to agent [[dark_orange]{selected_agent.name}[/dark_orange]]",
+            )
 
     # async def ingest_event(self, asset, event) -> list[AssetActivity]:
     #     scan_run = ScanRun(**event.data_json)
@@ -58,3 +80,8 @@ class ScanRunsApplet(BaseApplet):
             scan_runs.append(ScanRun(**run))
 
         return scan_runs
+
+    async def cleanup(self):
+        self.scan_watch_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await self.scan_watch_task
