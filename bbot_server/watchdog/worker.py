@@ -22,12 +22,9 @@ class BBOTWatchdog:
         self.log = logging.getLogger(__name__)
         # bbot server
         self.bbot_server = bbot_server
-        self.broker = None
 
     async def start(self) -> None:
-        await self.bbot_server.setup()
-
-        self.broker = self.bbot_server.task_broker
+        self.broker = await self.bbot_server.message_queue.make_taskiq_broker()
         self.broker.is_worker_process = True
 
         # attach bbot_server to the taskiq broker state
@@ -38,14 +35,15 @@ class BBOTWatchdog:
         # taskiq scheduler
         self.taskiq_scheduler = TaskiqScheduler(self.broker, [LabelScheduleSource(self.broker)])
 
-        await self.bbot_server.register_watchdog_tasks(self.broker)
-        for i in range(60):
-            try:
-                await self.broker.startup()
-                break
-            except Exception as e:
-                self.log.warning(f"Error starting broker: {e}")
-                await asyncio.sleep(1)
+        await self.broker.startup()
+        # await self.bbot_server.register_watchdog_tasks(self.broker)
+        # for i in range(60):
+        #     try:
+        #         await self.broker.startup()
+        #         break
+        #     except Exception as e:
+        #         self.log.warning(f"Error starting broker: {e}")
+        #         await asyncio.sleep(1)
 
         # taskiq worker tasks
         self.taskiq_worker_task = asyncio.create_task(run_receiver_task(self.broker))
