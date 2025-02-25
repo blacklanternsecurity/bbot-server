@@ -6,7 +6,7 @@ from bbot import Preset
 from bbot_server.models.base import BaseBBOTServerModel
 
 from bbot_server.applets.agents import AgentsApplet
-from bbot_server.applets.targets import TargetsApplet, Target
+from bbot_server.applets.targets import TargetsApplet
 from bbot_server.applets.scan_runs import ScanRunsApplet
 from bbot_server.applets.yara_rules import YaraRulesApplet
 

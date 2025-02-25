@@ -39,6 +39,13 @@ class BBOTWatchdog:
         self.taskiq_scheduler = TaskiqScheduler(self.broker, [LabelScheduleSource(self.broker)])
 
         await self.bbot_server.register_watchdog_tasks(self.broker)
+        for i in range(60):
+            try:
+                await self.broker.startup()
+                break
+            except Exception as e:
+                self.log.warning(f"Error starting broker: {e}")
+                await asyncio.sleep(1)
 
         # taskiq worker tasks
         self.taskiq_worker_task = asyncio.create_task(run_receiver_task(self.broker))
