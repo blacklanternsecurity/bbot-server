@@ -38,7 +38,6 @@ class BBOTWatchdog:
         # taskiq scheduler
         self.taskiq_scheduler = TaskiqScheduler(self.broker, [LabelScheduleSource(self.broker)])
 
-        await self.broker.startup()
         await self.bbot_server.register_watchdog_tasks(self.broker)
 
         # taskiq worker tasks
