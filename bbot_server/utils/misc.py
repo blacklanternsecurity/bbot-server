@@ -1,5 +1,18 @@
+import orjson
 from typing import Optional
 from pydantic import BaseModel, create_model, Field
+
+
+def smart_encode(obj):
+    # handle both python and pydantic objects, as well as strings
+    if isinstance(obj, BaseModel):
+        return obj.model_dump_json().encode()
+    elif isinstance(obj, str):
+        return obj.encode()
+    elif isinstance(obj, bytes):
+        return obj
+    else:
+        return orjson.dumps(obj)
 
 
 def combine_pydantic_models(models, model_name, make_optional=False):

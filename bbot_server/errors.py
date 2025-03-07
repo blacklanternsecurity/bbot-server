@@ -2,9 +2,13 @@ class BBOTServerError(Exception):
     pass
 
 
-class BBOTValueError(BBOTServerError):
+class BBOTServerForbiddenError(BBOTServerError):
     pass
 
 
-class BBOTNotFoundError(BBOTServerError):
+class BBOTServerValueError(BBOTServerError):
+    pass
+
+
+class BBOTServerNotFoundError(BBOTServerError):
     pass

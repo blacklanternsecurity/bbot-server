@@ -22,26 +22,26 @@ class BaseMessageQueue:
         """
         Publish a BBOT scan event to the message queue.
         """
-        await self.publish(event, "bbot.events")
+        await self.publish(event, "events")
 
     async def event_tail(self):
         """
         Tail new events as they come in
         """
-        async for event in self.tail(Event, "bbot.events"):
+        async for event in self.tail(Event, "events"):
             yield event
 
     async def asset_publish(self, activity: AssetActivity):
         """
         Publish an asset to the message queue.
         """
-        await self.publish(activity, "bbot.assets")
+        await self.publish(activity, "assets")
 
     async def asset_tail(self):
         """
         Tail new assets as they come in
         """
-        async for activity in self.tail(AssetActivity, "bbot.assets"):
+        async for activity in self.tail(AssetActivity, "assets"):
             yield activity
 
     async def tail(self, model: BaseModel, subject: str):

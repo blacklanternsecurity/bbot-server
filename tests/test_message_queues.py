@@ -1,7 +1,23 @@
+import pytest
 import asyncio
 from contextlib import suppress
 
 from tests.test_applets.base import BaseAppletTest
+
+
+@pytest.mark.asyncio
+async def test_fifo_queue_nats(bbot_server):
+    bbot_server = await bbot_server()
+
+    # first, we test the basic put/get functionality
+    await bbot_server.message_queue.put({"test1": "test1"}, "test")
+    await bbot_server.message_queue.put({"test2": "test2"}, "test")
+    message1 = await bbot_server.message_queue.get("test", timeout=0.1)
+    assert message1 == {"test1": "test1"}
+    message2 = await bbot_server.message_queue.get("test", timeout=0.1)
+    assert message2 == {"test2": "test2"}
+    with pytest.raises(TimeoutError):
+        await bbot_server.message_queue.get("test", timeout=0.1)
 
 
 class TestMessageQueuesNATS(BaseAppletTest):
@@ -26,7 +42,7 @@ class TestMessageQueuesNATS(BaseAppletTest):
 
         # test some basic pub/sub functionality (makes sure messages are queued persistently)
         event = self.scan1_events[0]
-        await self.bbot_server.message_queue.publish(event, "bbot.events")
+        await self.bbot_server.message_queue.publish(event, "events")
         # wait a second
         await asyncio.sleep(0.5)
         # read the message back
@@ -35,7 +51,7 @@ class TestMessageQueuesNATS(BaseAppletTest):
         async def callback(message):
             events.append(message)
 
-        sub = await self.bbot_server.message_queue.subscribe(callback, "bbot.events")
+        sub = await self.bbot_server.message_queue.subscribe(callback, "events")
         await asyncio.sleep(0.5)
         assert len(events) == 1
         assert events[0] == event.model_dump()
@@ -44,19 +60,19 @@ class TestMessageQueuesNATS(BaseAppletTest):
         # okay, now we test durable consumers (makes sure a consumer won't be fed the same event twice)
         # the server should remember where it left off
         events.clear()
-        sub = await self.bbot_server.message_queue.subscribe(callback, "bbot.events", durable="test_durable")
+        sub = await self.bbot_server.message_queue.subscribe(callback, "events", durable="test_durable")
         await asyncio.sleep(0.5)
         assert len(events) == 1
         await self.bbot_server.message_queue.unsubscribe(sub)
 
         events.clear()
-        sub = await self.bbot_server.message_queue.subscribe(callback, "bbot.events", durable="test_durable")
+        sub = await self.bbot_server.message_queue.subscribe(callback, "events", durable="test_durable")
         await asyncio.sleep(0.5)
         assert len(events) == 0
         await self.bbot_server.message_queue.unsubscribe(sub)
 
         events.clear()
-        sub = await self.bbot_server.message_queue.subscribe(callback, "bbot.events", durable="test_durable_new")
+        sub = await self.bbot_server.message_queue.subscribe(callback, "events", durable="test_durable_new")
         await asyncio.sleep(0.5)
         assert len(events) == 1
         await self.bbot_server.message_queue.unsubscribe(sub)

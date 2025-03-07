@@ -1,1 +1,1 @@
-from .agent import BBOTAgent
+from .agent import BBOTAgent, VALID_AGENT_COMMANDS

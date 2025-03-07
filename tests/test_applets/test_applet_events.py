@@ -1,6 +1,51 @@
+import websockets
+
 from ..conftest import *
 
 from tests.test_applets.base import BaseAppletTest
+
+
+@pytest.mark.asyncio
+async def test_events_websocket_ingest(bbot_server, bbot_events):
+    scan1_events, scan2_events = bbot_events
+
+    bbot_server = await bbot_server()
+
+    events = [e async for e in bbot_server.get_events()]
+    assert events == []
+
+    # insert events via websocket
+    async def event_generator():
+        for event in scan1_events:
+            yield event
+
+    agen = event_generator()
+    await bbot_server.consume_event_stream(agen)
+    await asyncio.sleep(0.5)
+
+    # pull them out and compare them to the original events
+    events = [e async for e in bbot_server.get_events()]
+    events.sort(key=lambda x: x.timestamp)
+    assert events == scan1_events
+
+
+@pytest.mark.asyncio
+async def test_events_http_ingest(bbot_server, bbot_events):
+    scan1_events, scan2_events = bbot_events
+
+    bbot_server = await bbot_server()
+
+    events = [e async for e in bbot_server.get_events()]
+    assert events == []
+
+    # insert events via http
+    for event in scan1_events:
+        await bbot_server.insert_event(event)
+    await asyncio.sleep(0.5)
+
+    events = [e async for e in bbot_server.get_events()]
+    events.sort(key=lambda x: x.timestamp)
+    assert events == scan1_events
 
 
 class TestAppletEvents(BaseAppletTest):

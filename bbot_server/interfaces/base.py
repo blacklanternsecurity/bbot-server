@@ -26,7 +26,3 @@ class BaseInterface:
     def __getattr__(self, attr):
         # by default we just pass everything through to the applet
         return getattr(self.applet, attr)
-
-    @property
-    def options(self):
-        return self.applet.backend.options

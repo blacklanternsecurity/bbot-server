@@ -14,10 +14,11 @@ TEXTUAL_THEME = Theme(
 )
 
 # typer theme
-typer.rich_utils.STYLE_OPTION = "bold dark_orange"
+typer.rich_utils.STYLE_OPTION = "bold orange1"
 typer.rich_utils.STYLE_NEGATIVE_OPTION = "bold red"
 typer.rich_utils.STYLE_NEGATIVE_SWITCH = "bold red"
 typer.rich_utils.STYLE_SWITCH = "bold dark_orange"
 typer.rich_utils.STYLE_USAGE = "bright_white"
-typer.rich_utils.STYLE_METAVAR = "bold yellow"
-typer.rich_utils.STYLE_OPTION_ENVVAR = "dim yellow"
+typer.rich_utils.STYLE_METAVAR = "bold orange1"
+typer.rich_utils.STYLE_OPTION_ENVVAR = "dim orange1"
+typer.rich_utils.STYLE_COMMANDS_TABLE_FIRST_COLUMN = "bold dark_orange"

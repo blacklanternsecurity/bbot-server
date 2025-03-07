@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, ORJSONResponse
 
 # from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 
@@ -16,6 +16,7 @@ def make_app(config=None):
     from bbot_server.applets import BBOTServerRootApplet
 
     app_root = BBOTServerRootApplet(config=config)
+    app_root._is_main_server = True
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -27,6 +28,7 @@ def make_app(config=None):
         lifespan=lifespan,
         prefix="/v1",
         openapi_tags=app_root.tags_metadata,
+        default_response_class=ORJSONResponse,
         **app_kwargs,
     )
     app.include_router(app_root.router)

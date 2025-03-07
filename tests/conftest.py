@@ -24,12 +24,15 @@ def bbot_server_config():
         "asset_store": {
             "uri": "mongodb://localhost:27017/test_bbot_server_assets",
         },
+        "user_store": {
+            "uri": "mongodb://localhost:27017/test_bbot_server_userdata",
+        },
     }
     return OmegaConf.merge(BBOT_SERVER_CONFIG, config_overrides)
 
 
 @pytest_asyncio.fixture(scope="function")
-async def bbot_server_http(bbot_server_config):
+async def bbot_server_http(bbot_server_config, mongo_cleanup):
     import httpx
     import uvicorn
     from uvicorn.server import logger
@@ -64,12 +67,14 @@ async def bbot_server_http(bbot_server_config):
     yield _make_bbot_server_http
 
     # server.should_exit = True
-    server.force_exit = True
-    await server.shutdown()
-    await asyncio.sleep(0.5)
-    api.cancel()
-    with suppress(BaseException):
-        await api
+    if server is not None:
+        server.force_exit = True
+        await server.shutdown()
+        await asyncio.sleep(0.5)
+    if api is not None:
+        api.cancel()
+        with suppress(BaseException):
+            await api
 
 
 @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
@@ -97,6 +102,9 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_ht
         bbot_server = BBOTServer(**kwargs)
         await bbot_server.setup()
 
+        # clear the message queue
+        await bbot_server.message_queue.clear()
+
         # http server
         await bbot_server_http(config_overrides=config_overrides)
 
@@ -106,9 +114,13 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_ht
 
         # agent
         if needs_agent:
+            print("CREATING AGENT")
             agent = await bbot_server.create_agent(name="test_agent", description="test agent")
             agent = BBOTAgent(name=agent.name, id=agent.id)
+            print("STARTING AGENT")
             await agent.start()
+        else:
+            print("NO AGENT")
 
         return bbot_server
 
@@ -135,9 +147,11 @@ async def mongo_cleanup():
     client = AsyncIOMotorClient(BBOT_SERVER_CONFIG["event_store"]["uri"])
     await client.drop_database("test_bbot_server_events")
     await client.drop_database("test_bbot_server_assets")
+    await client.drop_database("test_bbot_server_userdata")
     yield
     await client.drop_database("test_bbot_server_events")
     await client.drop_database("test_bbot_server_assets")
+    await client.drop_database("test_bbot_server_userdata")
 
 
 class DummyScan:

@@ -2,8 +2,6 @@ import asyncio
 
 
 async def test_applet_scans(bbot_server):
-    from bbot_server.applets.scans import Scan
-
     bbot_server = await bbot_server(needs_agent=True)
 
     scans = await bbot_server.get_scans()
@@ -16,7 +14,7 @@ async def test_applet_scans(bbot_server):
         target=["localhost"],
     )
 
-    # create a scan
+    # then create a scan
     scan1 = await bbot_server.create_scan(
         name="scan1",
         target=target.id,
@@ -25,9 +23,10 @@ async def test_applet_scans(bbot_server):
 
     scans = await bbot_server.get_scans()
     assert len(scans) == 1
-    assert scans[0].name == "scan1"
-    assert scans[0].target == target.id
-    assert scans[0].preset == {"config": {"web": {"user_agent": "BBOT User Agent"}}}
+    scan = scans[0]
+    assert scan.name == "scan1"
+    assert scan.target_id == target.id
+    assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent"}}}
 
     scan2 = await bbot_server.create_scan(
         name="scan2",
@@ -37,15 +36,17 @@ async def test_applet_scans(bbot_server):
 
     scans = await bbot_server.get_scans()
     assert len(scans) == 2
-    assert scans[1].name == "scan2"
-    assert scans[1].target == target.id
-    assert scans[1].preset == {"config": {"web": {"user_agent": "BBOT User Agent 2"}}}
+    scan = scans[1]
+    assert scan.name == "scan2"
+    assert scan.target_id == target.id
+    assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent 2"}}}
 
     # delete scan1
     await bbot_server.delete_scan(scan1.id)
     scans = await bbot_server.get_scans()
     assert len(scans) == 1
-    assert scans[0].name == "scan2"
+    scan = scans[0]
+    assert scan.name == "scan2"
 
     # edit scan2
     target2 = await bbot_server.create_target(
@@ -54,18 +55,20 @@ async def test_applet_scans(bbot_server):
         target=["127.0.0.1"],
     )
     scan2.name = "scan2_edited"
-    scan2.target = target2.id
+    scan2.target_id = target2.id
     scan2.preset = {"config": {"web": {"user_agent": "BBOT User Agent 3"}}}
     await bbot_server.update_scan(scan2.id, scan2)
     scans = await bbot_server.get_scans()
     assert len(scans) == 1
-    assert scans[0].id == scan2.id
-    assert scans[0].name == "scan2_edited"
-    assert scans[0].target == target2.id
-    assert scans[0].preset == {"config": {"web": {"user_agent": "BBOT User Agent 3"}}}
+    scan = scans[0]
+    assert scan.id == scan2.id
+    assert scan.name == "scan2_edited"
+    assert scan.target_id == target2.id
+    assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent 3"}}}
 
     # make sure an agent is running
     assert len(await bbot_server.get_agents()) == 1
+    print(f"AGENTS: {await bbot_server.get_agents()}")
 
     # tail asset activities
     activities = []
@@ -79,8 +82,11 @@ async def test_applet_scans(bbot_server):
     # start scan2
     await bbot_server.start_scan(scan2.id)
 
-    # wait for scan to finish
-    await asyncio.sleep(1)
-
-    # check if scan2 finished
-    print(activities)
+    for _ in range(100):
+        activity_types = [a.type for a in activities]
+        if activity_types == ["SCAN_QUEUED", "SCAN_SENT", "SCAN_STARTED", "SCAN_FINISHED"]:
+            break
+        await asyncio.sleep(0.1)
+    else:
+        print(f"ACTIVITIES: {activity_types}")
+        assert False, f"Scan didn't finish properly. Activities: {activities}"

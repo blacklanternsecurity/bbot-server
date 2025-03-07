@@ -44,20 +44,6 @@ files = [
 ]
 
 [[package]]
-name = "ansible"
-version = "8.7.0"
-description = "Radically simple IT automation"
-optional = false
-python-versions = ">=3.9"
-files = [
-    {file = "ansible-8.7.0-py3-none-any.whl", hash = "sha256:fa7d3bc2dfdb0ab031df645814ff86b15cb5ec041bfbee4041f795abfa5646ca"},
-    {file = "ansible-8.7.0.tar.gz", hash = "sha256:3a5ca5152e4547d590e40b542d76b18dbbe2b36da4edd00a13a7c51a374ff737"},
-]
-
-[package.dependencies]
-ansible-core = ">=2.15.7,<2.16.0"
-
-[[package]]
 name = "ansible-core"
 version = "2.15.13"
 description = "Radically simple IT automation"
@@ -136,7 +122,7 @@ files = []
 develop = false
 
 [package.dependencies]
-ansible = ">=7.3,<9.0"
+ansible-core = "^2.15.13"
 ansible-runner = "^2.3.2"
 beautifulsoup4 = "^4.12.2"
 cachetools = "^5.3.2"
@@ -150,7 +136,7 @@ lxml = ">=4.9.2,<6.0.0"
 mmh3 = ">=4.1,<6.0"
 omegaconf = "^2.3.0"
 orjson = "^3.10.12"
-psutil = ">=5.9.4,<7.0.0"
+psutil = ">=5.9.4,<8.0.0"
 puremagic = "^1.28"
 pycryptodome = "^3.17"
 pydantic = "^2.9.2"
@@ -163,7 +149,7 @@ socksio = "^1.0.0"
 tabulate = "0.8.10"
 tldextract = "^5.1.1"
 unidecode = "^1.3.8"
-websockets = ">=11.0.2,<15.0.0"
+websockets = ">=11.0.2,<16.0.0"
 wordninja = "^2.0.0"
 xmltojson = "^2.0.2"
 yara-python = "^4.5.1"
@@ -172,7 +158,7 @@ yara-python = "^4.5.1"
 type = "git"
 url = "https://github.com/blacklanternsecurity/bbot"
 reference = "3.0"
-resolved_reference = "d0520ea27b46e63994a0ad0bbd070bfbaf12e40c"
+resolved_reference = "3ac44a04b2c7f0165d73e548177718febeade8aa"
 
 [[package]]
 name = "beautifulsoup4"
@@ -3345,13 +3331,13 @@ core = ["tree-sitter (>=0.22,<1.0)"]
 
 [[package]]
 name = "typer"
-version = "0.15.1"
+version = "0.15.2"
 description = "Typer, build great CLIs. Easy to code. Based on Python type hints."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "typer-0.15.1-py3-none-any.whl", hash = "sha256:7994fb7b8155b64d3402518560648446072864beefd44aa2dc36972a5972e847"},
-    {file = "typer-0.15.1.tar.gz", hash = "sha256:a0588c0a7fa68a1978a069818657778f86abe6ff5ea6abf472f940a08bfe4f0a"},
+    {file = "typer-0.15.2-py3-none-any.whl", hash = "sha256:46a499c6107d645a9c13f7ee46c5d5096cae6f5fc57dd11eccbbb9ae3e44ddfc"},
+    {file = "typer-0.15.2.tar.gz", hash = "sha256:ab2fab47533a813c49fe1f16b1a370fd5819099c00b119e0633df65f22144ba5"},
 ]
 
 [package.dependencies]
@@ -3893,4 +3879,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "096ccd0cac77173167f52da63fc70f47514e7c616b661a3df205712ba9754c6e"
+content-hash = "89ce539ad3fbf28fd1a5dcf0859f46df575e8732918f53bf82c2244108d34e65"

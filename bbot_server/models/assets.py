@@ -101,6 +101,7 @@ class AssetActivity(BaseBBOTServerModel):
     timestamp: float
     description: str
     description_colored: str = Field(default="")
+    detail: dict[str, Any] = {}
     host: Union[str, None] = None
     reverse_host: Annotated[Union[str, None], "indexed"] = None
     module: Union[str, None] = None
