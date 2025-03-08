@@ -1,6 +1,11 @@
 import orjson
 from typing import Optional
+from datetime import datetime
 from pydantic import BaseModel, create_model, Field
+
+
+def timestamp_to_human(timestamp: float) -> str:
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def smart_encode(obj):

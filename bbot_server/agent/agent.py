@@ -7,14 +7,15 @@ import websockets
 from omegaconf import OmegaConf
 from contextlib import suppress
 from typing import Callable, Any
-from starlette.websockets import WebSocketDisconnect
 from urllib.parse import urlparse, urlunparse, urljoin
 
 from bbot import Scanner, Preset
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
+from bbot_server.applets.scans.scan_models import ScanRun
 from bbot_server.applets.agents.agent_models import AgentResponse
+
 
 default_server_url = BBOT_SERVER_CONFIG.get("url", "http://localhost:8807/v1/")
 default_bbot_preset = BBOT_SERVER_CONFIG.get("agent", {}).get("base_preset", {})
@@ -54,11 +55,12 @@ class BBOTAgent:
                 "",
             )
         )
-        self.websocket_output_url = urljoin(self.websocket_base_url, f"scans/agents/output/{self.id}")
+        self.scan_output_url = urljoin(self.websocket_base_url, "events/")
         self.websocket_dock_url = urljoin(self.websocket_base_url, f"scans/agents/dock/{self.id}")
         self.websocket = None
         self._status = "READY"
         self._scan = None
+        self._agent_preset = None
 
     async def start(self):
         self.log.info(f"Starting agent {self.name} ({self.id})")
@@ -82,11 +84,12 @@ class BBOTAgent:
         return await command_fn(**kwargs)
 
     @command
-    async def start_scan(self, preset: dict[str, Any]):
-        preset = Preset.from_dict(preset)
-        preset = OmegaConf.merge(self.agent_preset, preset)
+    async def start_scan(self, scan_run: dict[str, Any]):
+        scan_run = ScanRun(**scan_run)
+        preset = self.make_agent_preset()
+        preset.merge(Preset.from_dict(scan_run.preset))
 
-        scan = Scanner(preset=preset)
+        scan = Scanner(preset=preset, scan_id=scan_run.id)
         scan = self._patch_scan(scan)
         self.scan_task = asyncio.create_task(scan.async_start_without_generator())
         return {"scan_id": scan.id, "scan_status": scan.status, "status": "success"}
@@ -115,25 +118,24 @@ class BBOTAgent:
     async def get_file(self):
         pass
 
-    @property
-    def agent_preset(self):
-        if self._agent_preset is None:
-            # default BBOT preset from bbot server YAML config
-            default_preset = Preset.from_dict(default_bbot_preset)
+    def make_agent_preset(self):
+        # default BBOT preset from bbot server YAML config
+        default_preset = Preset.from_dict(default_bbot_preset)
 
-            # agent-specific overrides for output url etc.
-            agent_preset = Preset(
-                config={
-                    "modules": {
-                        "websocket": {
-                            "url": self.websocket_output_url,
-                        }
+        # agent-specific overrides for output url etc.
+        agent_preset = Preset(
+            output_modules=["http"],
+            config={
+                "modules": {
+                    "http": {
+                        "url": self.scan_output_url,
                     }
                 }
-            )
+            },
+        )
 
-            self._agent_preset = OmegaConf.merge(default_preset, agent_preset)
-        return self._agent_preset
+        default_preset.merge(agent_preset)
+        return default_preset
 
     @property
     def agent_status(self):

@@ -114,13 +114,9 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_ht
 
         # agent
         if needs_agent:
-            print("CREATING AGENT")
             agent = await bbot_server.create_agent(name="test_agent", description="test agent")
             agent = BBOTAgent(name=agent.name, id=agent.id)
-            print("STARTING AGENT")
             await agent.start()
-        else:
-            print("NO AGENT")
 
         return bbot_server
 

@@ -64,7 +64,7 @@ class ScanRun(BaseBBOTServerModel):
     agent_id: Annotated[Union[UUID4, None], "indexed"] = None
     parent_scan_id: Annotated[UUID4, "indexed"]
     preset: dict[str, Any]
-    started_at: Annotated[float, "indexed"] = None
+    started_at: Annotated[Optional[float], "indexed"] = None
     finished_at: Annotated[Optional[float], "indexed"] = None
     duration_seconds: Optional[float] = None
     duration: Optional[str] = None

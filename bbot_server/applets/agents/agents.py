@@ -1,5 +1,6 @@
 import asyncio
 import traceback
+from typing import Any
 from pydantic import UUID4
 from fastapi import WebSocket
 from contextlib import suppress
@@ -83,6 +84,9 @@ class AgentsApplet(BaseApplet):
             if agent and (status is None or agent.status == status):
                 agents.append(agent)
         return agents
+
+    async def execute_command(self, agent_id: UUID4, command: str, **kwargs) -> dict:
+        return await self.connection_manager.execute_command(str(agent_id), command, **kwargs)
 
     @api_endpoint("/dock/{agent_id}", type="websocket")
     async def dock(self, websocket: WebSocket, agent_id: UUID4):

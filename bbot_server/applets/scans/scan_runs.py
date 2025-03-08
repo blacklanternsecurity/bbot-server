@@ -1,5 +1,6 @@
 import random
 import asyncio
+import traceback
 from contextlib import suppress
 
 from bbot_server.applets._base import BaseApplet, api_endpoint
@@ -43,7 +44,7 @@ class ScanRunsApplet(BaseApplet):
     @api_endpoint("/queued", methods=["GET"], summary="List queued scans")
     async def get_queued_scans(self) -> list[ScanRun]:
         cursor = self.collection.find({"status": "QUEUED"})
-        return await cursor.to_list(length=None)
+        return [ScanRun(**run) for run in await cursor.to_list(length=None)]
 
     async def new_run(self, scan_id: str, agent_id: str = None) -> ScanRun:
         scan = await self.parent.get_scan(id=scan_id)
@@ -84,29 +85,46 @@ class ScanRunsApplet(BaseApplet):
         )
 
     async def start_scans_loop(self):
-        while True:
-            # get all queued scans
-            queued_scans = await self.get_queued_scans()
-            if not queued_scans:
-                await self.sleep(1)
-                continue
-            # get all alive agents
-            alive_agents = {agent.id: agent for agent in await self.parent.get_online_agents()}
-            if not alive_agents:
-                self.log.warning("No agents are currently connected")
-                await self.sleep(1)
-                continue
-            for scan in queued_scans:
-                if scan.agent_id is None:
-                    selected_agent = random.choice(list(alive_agents.values()))
-                else:
-                    try:
-                        selected_agent = alive_agents[scan.agent_id]
-                    except KeyError:
-                        selected_agent = await self.parent.get_agent(id=scan.agent_id)
-                        self.log.warning(f"Agent {selected_agent.name} is not online")
-                        continue
-                await self
+        try:
+            while True:
+                # get all queued scans
+                queued_scans = await self.get_queued_scans()
+                if not queued_scans:
+                    await self.sleep(1)
+                    continue
+                # get all alive agents
+                ready_agents = {str(agent.id): agent for agent in await self.parent.get_online_agents(status="READY")}
+                if not ready_agents:
+                    self.log.warning("No agents are currently ready")
+                    await self.sleep(1)
+                    continue
+                for scan in queued_scans:
+                    # find a suitable agent for the scan
+                    if scan.agent_id is None:
+                        selected_agent = random.choice(list(ready_agents.values()))
+                    else:
+                        try:
+                            selected_agent = ready_agents[str(scan.agent_id)]
+                        except KeyError:
+                            self.log.warning(f"Agent {scan.agent_id} was selected for a scan, but it is not online")
+                            try:
+                                selected_agent = await self.parent.get_agent(id=scan.agent_id)
+                            except self.BBOTServerNotFoundError as e:
+                                self.log.warning(f"Error sending scan to selected agent: {e}")
+                                continue
+
+                    # send the scan to the agent
+                    await self.parent.execute_command(str(selected_agent.id), "start_scan", scan_run=scan.model_dump())
+                    await self.emit_activity(
+                        type="SCAN_SENT",
+                        description=f"Scan [[dark_orange]{scan.name}[/dark_orange]] sent to agent [[dark_orange]{selected_agent.name}[/dark_orange]]",
+                        detail={"scan_id": scan.id, "agent_id": str(selected_agent.id)},
+                    )
+                    # make the scan as sent
+                    await self.collection.update_one({"id": str(scan.id)}, {"$set": {"status": "SENT_TO_AGENT"}})
+        except Exception as e:
+            self.log.error(f"Error in scans loop: {e}")
+            self.log.error(traceback.format_exc())
 
     async def cleanup_scan(self):
         self.scan_watch_task.cancel()

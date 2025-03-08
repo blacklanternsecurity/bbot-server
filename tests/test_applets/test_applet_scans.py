@@ -68,7 +68,6 @@ async def test_applet_scans(bbot_server):
 
     # make sure an agent is running
     assert len(await bbot_server.get_agents()) == 1
-    print(f"AGENTS: {await bbot_server.get_agents()}")
 
     # tail asset activities
     activities = []
@@ -84,7 +83,7 @@ async def test_applet_scans(bbot_server):
 
     for _ in range(100):
         activity_types = [a.type for a in activities]
-        if activity_types == ["SCAN_QUEUED", "SCAN_SENT", "SCAN_STARTED", "SCAN_FINISHED"]:
+        if activity_types == ["AGENT_CONNECTED", "SCAN_QUEUED", "SCAN_SENT", "SCAN_STARTED", "SCAN_FINISHED"]:
             break
         await asyncio.sleep(0.1)
     else:
