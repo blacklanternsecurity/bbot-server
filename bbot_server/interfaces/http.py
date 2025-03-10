@@ -1,7 +1,7 @@
 import httpx
 import orjson
 import asyncio
-import logging
+import traceback
 from functools import partial
 from websockets import connect
 from contextlib import suppress
@@ -15,9 +15,6 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 
 from bbot_server.interfaces.base import BaseInterface
-
-
-log = logging.getLogger("bbot.server.http")
 
 
 class http(BaseInterface):
@@ -46,11 +43,17 @@ class http(BaseInterface):
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
         body = self._prepare_http_body(method, kwargs)
 
-        response = await self.client.request(url=_url, method=method, json=body)
+        try:
+            response = await self.client.request(url=_url, method=method, json=body)
+        except Exception as e:
+            self.log.error(f"Error making request for {method}->{_url}: {e}")
+            self.log.error(traceback.format_exc())
+            raise
+
         try:
             response_json = response.json()
         except Exception as e:
-            print(f"Error decoding response json for {response}: {e}: {getattr(response, 'text', '')}")
+            self.log.error(f"Error decoding response json for {response}: {e}: {getattr(response, 'text', '')}")
             raise
 
         # if our function doesn't have a return type, return the raw JSON
@@ -190,8 +193,13 @@ class http(BaseInterface):
 
         _wrap is used here to allow the coroutine to be called synchronously
         """
+        # if applet isn't initialized yet, just pass through
         try:
-            route = self.applet.route_maps[attr]
+            applet = super().__getattribute__("applet")
+        except AttributeError:
+            return super().__getattribute__(attr)
+        try:
+            route = applet.route_maps[attr]
             url = f"{self.base_url}{route.full_path}"
             if route.endpoint_type == "http":
                 coro = partial(self._http_request, url, route)
@@ -203,9 +211,46 @@ class http(BaseInterface):
                 coro = partial(self._websocket_publish, url, route)
             else:
                 raise ValueError(f"Unknown endpoint type: {route.endpoint_type}")
-            return self._wrap(coro)
-        except KeyError:
-            return self._wrap(getattr(self.applet, attr))
+            return coro
+        except (KeyError, AttributeError):
+            return getattr(applet, attr)
+            # return self._wrap(getattr(self.applet, attr))
+
+    # def __getattribute__(self, attr):
+    #     """
+    #     For every attribute, try to find a matching route in the route map and return a coroutine that will make the request
+
+    #     If the attribute isn't found in the route map, just return the attribute from the applet
+
+    #     _wrap is used here to allow the coroutine to be called synchronously
+    #     """
+    #     # if applet isn't initialized yet, just pass through
+    #     try:
+    #         applet = super().__getattribute__("applet")
+    #     except AttributeError:
+    #         return super().__getattribute__(attr)
+    #     try:
+    #         route = applet.route_maps[attr]
+    #         base_url = super().__getattribute__("base_url")
+    #         url = f"{base_url}{route.full_path}"
+    #         if route.endpoint_type == "http":
+    #             _http_request = super().__getattribute__("_http_request")
+    #             coro = partial(_http_request, url, route)
+    #         elif route.endpoint_type == "http_stream":
+    #             _http_stream = super().__getattribute__("_http_stream")
+    #             coro = partial(_http_stream, url, route)
+    #         elif route.endpoint_type == "websocket_stream_outgoing":
+    #             _websocket_request = super().__getattribute__("_websocket_request")
+    #             coro = partial(_websocket_request, url, route)
+    #         elif route.endpoint_type == "websocket_stream_incoming":
+    #             _websocket_publish = super().__getattribute__("_websocket_publish")
+    #             coro = partial(_websocket_publish, url, route)
+    #         else:
+    #             raise ValueError(f"Unknown endpoint type: {route.endpoint_type}")
+    #         return coro
+    #     except (KeyError, AttributeError):
+    #         return getattr(applet, attr)
+    #         # return self._wrap(getattr(self.applet, attr))
 
     def __dir__(self):
         """

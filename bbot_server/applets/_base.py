@@ -391,24 +391,37 @@ class BaseApplet:
             self.__class__._asset_lock = NamedLock()
         return self.__class__._asset_lock
 
-    def __getattribute__(self, attr):
-        """
-        Allow access to attributes on any of this applet's children, recursively
+    # def __getattribute__(self, attr):
+    #     """
+    #     Allow access to attributes on any of this applet's children, recursively
 
-        This saves you from having to do things like: `bbot_server.assets.scans.runs.get_scan_runs()`.
-        Instead, you can just do: `bbot_server.get_scan_runs()`.
-        """
+    #     This saves you from having to do things like: `bbot_server.assets.scans.runs.get_scan_runs()`.
+    #     Instead, you can just do: `bbot_server.get_scan_runs()`.
+    #     """
+    #     try:
+    #         # first try self
+    #         return super().__getattribute__(attr)
+    #     except AttributeError:
+    #         # then try all the child applets
+    #         for child_applet in super().__getattribute__("child_applets"):
+    #             try:
+    #                 return getattr(child_applet, attr)
+    #             except AttributeError:
+    #                 continue
+    #     raise AttributeError(f'{self.__class__.__name__} has no attribute "{attr}"')
+
+    def __getattr__(self, name):
         try:
             # first try self
-            return super().__getattribute__(attr)
+            return super().__getattribute__(name)
         except AttributeError:
             # then try all the child applets
             for child_applet in super().__getattribute__("child_applets"):
                 try:
-                    return getattr(child_applet, attr)
+                    return getattr(child_applet, name)
                 except AttributeError:
                     continue
-        raise AttributeError(f'{self.__class__.__name__} has no attribute "{attr}"')
+        raise AttributeError(f'{self.__class__.__name__} has no attribute "{name}"')
 
     ### ASYNC UTILS FOR CONVENIENCE ###
 

@@ -88,17 +88,19 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_ht
     agent = None
     bbot_server = None
 
-    async def _make_bbot_server(config_overrides=None, needs_agent=False):
+    async def _make_bbot_server(config_overrides=None, needs_agent=False, **kwargs):
         nonlocal watchdog, agent, bbot_server, bbot_server_config
 
         if config_overrides is not None:
             bbot_server_config = OmegaConf.merge(bbot_server_config, config_overrides)
 
-        kwargs = dict(request.param)
+        interface_kwargs = dict(request.param)
         # kwargs = {}
-        kwargs.update({"config": bbot_server_config})
+        interface_kwargs.update({"config": bbot_server_config})
+        kwargs.update(interface_kwargs)
 
         # main bbot server
+        log.info(f"Instantiating bbot server with kwargs: {kwargs}")
         bbot_server = BBOTServer(**kwargs)
         await bbot_server.setup()
 

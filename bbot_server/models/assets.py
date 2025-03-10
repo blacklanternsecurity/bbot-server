@@ -68,7 +68,7 @@ class Asset(BaseBBOTServerModel):
         A convenience method allowing custom data fields to be accessed directly from the asset object.
         """
         with suppress(AttributeError):
-            return super().__getattr__(name)
+            return super().__getattribute__(name)
 
         # first, we make sure the field exists as a declared applet field
         asset_field = self._get_field(name)

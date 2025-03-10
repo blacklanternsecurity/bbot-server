@@ -23,6 +23,17 @@ class BaseInterface:
 
         self.applet = BBOTServerRootApplet(**kwargs)
 
-    def __getattr__(self, attr):
-        # by default we just pass everything through to the applet
-        return getattr(self.applet, attr)
+    # def __getattribute__(self, attr):
+    #     # by default we just pass everything through to the applet
+    #     try:
+    #         applet = super().__getattribute__("applet")
+    #     except AttributeError:
+    #         return super().__getattribute__(attr)
+    #     return getattr(applet, attr)
+
+    def __getattr__(self, name):
+        try:
+            applet = super().__getattribute__("applet")
+        except AttributeError:
+            return super().__getattribute__(name)
+        return getattr(applet, name)

@@ -1,10 +1,11 @@
-import uvloop
 import asyncio
 import inspect
+import logging
 import threading
 from cachetools import LRUCache
 from contextlib import asynccontextmanager
 
+log = logging.getLogger("bbot.server.utils.async_utils")
 
 class _Lock(asyncio.Lock):
     def __init__(self, name):
@@ -68,7 +69,6 @@ class AsyncToSyncWrapper:
 
         This method must be called before run_coroutine().
         """
-
         def run_event_loop():
             self.loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self.loop)
@@ -103,7 +103,7 @@ class AsyncToSyncWrapper:
         """
         if not self.loop:
             raise RuntimeError("Event loop is not running. Call start() first.")
-        future = uvloop.run_coroutine_threadsafe(coro, self.loop)
+        future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return future.result()
 
 
@@ -141,24 +141,31 @@ def async_to_sync_class(cls):
     class Wrapper(cls):
         def __init__(self, *args, synchronous=False, **kwargs):
             self._synchronous = synchronous
+            if synchronous:
+                _wrapper = AsyncToSyncWrapper()
+                _wrapper.start()
+                self._wrapper = _wrapper
             super().__init__(*args, **kwargs)
-            if self._synchronous:
-                self._wrapper = AsyncToSyncWrapper()
-                self._wrapper.start()
 
         def _wrap(self, attr):
             if callable(attr) and inspect.iscoroutinefunction(attr) and self._synchronous:
-
                 def wrapper(*args, **kwargs):
                     return self._wrapper.run_coroutine(attr(*args, **kwargs))
 
                 return wrapper
             return attr
 
-        def __getattr__(self, name):
-            attr = super().__getattr__(name)
-            wrap = self.__getattribute__("_wrap")
-            return wrap(attr)
+        def __getattribute__(self, name):
+            """
+            This needs to be __getattribute__ instead of __getattr__ because it's wrapping existing classes, and it needs to 
+            intercept all attributes, especially ones that already exist on the wrapped class
+            """
+            try:
+                attr = super().__getattribute__(name)
+            except AttributeError:
+                attr = super().__getattr__(name)
+            _wrap = super().__getattribute__("_wrap")
+            return _wrap(attr)
 
         def __del__(self):
             if self.__getattribute__("_synchronous"):
