@@ -69,7 +69,7 @@ class NATSMessageQueue(BaseMessageQueue):
                     await self.js.add_stream(config=nats.js.api.StreamConfig(**config))
                     break
                 except Exception as e:
-                    self.log.error(f"Failed to add stream {config['name']}: {e}, retrying...")
+                    self.log.error(f"Failed to add stream {config['name']} at {self.uri}: {e}, retrying...")
                     self.log.error(traceback.format_exc())
                     await asyncio.sleep(1)
 

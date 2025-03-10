@@ -12,11 +12,12 @@ scans = typer.Typer()
 
 @scans.command(help="List preconfigured scans")
 def list():
-    async def get_assets():
+    async def get_scans():
         bbot_server = BBOTServer()
         await bbot_server.setup()
 
         scan_list = await bbot_server.get_scans()
+        print(scan_list)
 
         table = Table()
         table.add_column("Name", style="bold dark_orange")
@@ -26,7 +27,7 @@ def list():
 
         stdout.print(table)
 
-    uvloop.run(get_assets())
+    uvloop.run(get_scans())
 
 
 @scans.command(help="Create a new scan")

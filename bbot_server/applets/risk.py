@@ -3,7 +3,8 @@ from bbot_server.applets._base import BaseApplet, api_endpoint, BaseModel, Field
 
 
 class Risk(BaseApplet):
-    description = "risk assessment of assets"
+    name = "risk"
+    description = "basic risk scores for assets"
     route_prefix = ""
 
     @api_endpoint("/{host}/risk", methods=["GET"], summary="Get the risk rating for a host")

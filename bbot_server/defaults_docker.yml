@@ -1,12 +1,36 @@
+# url of BBOT server
 url: http://localhost:8807/v1/
 
+# event store is just a big bucket of BBOT scan events
 event_store:
-  uri: mongodb://mongodb:27017/bbot_events
+  uri: mongodb://mongodb:27017/bbot_eventstore
   table_name: events
+  # archive events older than 90 days
+  archive_after: 90
+  # run archive task once every 24 hours at midnight
+  archive_cron: "0 0 * * *"
 
+# assets are derived in real time from the event store, and can be recreated at any time
 asset_store:
-  uri: mongodb://mongodb:27017/bbot_assets
+  uri: mongodb://mongodb:27017/bbot_assetstore
   table_name: assets
+
+# user_store holds any user-specific data, overrides, etc. which are not derived from events
+# examples include targets, scans, etc.
+user_store:
+  uri: mongodb://mongodb:27017/bbot_userstore
+  table_name: userdata
 
 message_queue:
   uri: nats://nats:4222
+
+agent:
+  base_preset:
+    config:
+      omit_event_types:
+        # a smaller list of omitted event types
+        # since certain BBOT server applets rely on event types like RAW_DNS_RECORD
+        - HTTP_RESPONSE
+        - DNS_NAME_UNRESOLVED
+        - RAW_TEXT
+        - WEB_PARAMETER
