@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 log = logging.getLogger("bbot.server.utils.async_utils")
 
+
 class _Lock(asyncio.Lock):
     def __init__(self, name):
         self.name = name
@@ -69,6 +70,7 @@ class AsyncToSyncWrapper:
 
         This method must be called before run_coroutine().
         """
+
         def run_event_loop():
             self.loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self.loop)
@@ -149,6 +151,7 @@ def async_to_sync_class(cls):
 
         def _wrap(self, attr):
             if callable(attr) and inspect.iscoroutinefunction(attr) and self._synchronous:
+
                 def wrapper(*args, **kwargs):
                     return self._wrapper.run_coroutine(attr(*args, **kwargs))
 
@@ -157,7 +160,7 @@ def async_to_sync_class(cls):
 
         def __getattribute__(self, name):
             """
-            This needs to be __getattribute__ instead of __getattr__ because it's wrapping existing classes, and it needs to 
+            This needs to be __getattribute__ instead of __getattr__ because it's wrapping existing classes, and it needs to
             intercept all attributes, especially ones that already exist on the wrapped class
             """
             try:

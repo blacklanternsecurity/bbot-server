@@ -5,6 +5,7 @@ from bbot_server import BBOTServer
 
 log = logging.getLogger(__name__)
 
+
 async def test_async_to_sync_wrappers():
     from bbot_server.utils.async_utils import AsyncToSyncWrapper, async_to_sync_class
 
@@ -14,7 +15,7 @@ async def test_async_to_sync_wrappers():
     wrapper.start()
 
     async def my_coroutine():
-        await asyncio.sleep(.11)
+        await asyncio.sleep(0.11)
         return "Hello, World!"
 
     result = wrapper.run_coroutine(my_coroutine())
@@ -27,7 +28,7 @@ async def test_async_to_sync_wrappers():
     @async_to_sync_class
     class MyAsyncClass:
         async def async_method(self):
-            await asyncio.sleep(.1)
+            await asyncio.sleep(0.1)
             return "Hello, World!"
 
     sync_obj = MyAsyncClass(synchronous=True)
@@ -39,7 +40,6 @@ async def test_async_to_sync_wrappers():
     assert result == "Hello, World!"
 
 
-
 def _test_sychronous_api(interface):
     log.info(f"Testing synchronous API with interface: {interface}")
     bbot_server = BBOTServer(interface=interface, synchronous=True)
@@ -49,13 +49,10 @@ def _test_sychronous_api(interface):
     assert scans == []
 
 
-
 def test_sychronous_api_python(bbot_server_http):
     _test_sychronous_api("python")
-
 
 
 async def test_sychronous_api_http(bbot_server_http):
     await bbot_server_http()
     _test_sychronous_api("http")
-
