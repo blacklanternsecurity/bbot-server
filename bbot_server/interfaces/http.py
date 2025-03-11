@@ -17,6 +17,11 @@ from pydantic import TypeAdapter
 from bbot_server.interfaces.base import BaseInterface
 
 
+import logging
+
+log = logging.getLogger(__name__)
+
+
 class http(BaseInterface):
     """
     The HTTP interface presents an identical interface to BBOT server, but forwards all function calls as HTTP requests to a remote URL
@@ -195,9 +200,9 @@ class http(BaseInterface):
         """
         # if applet isn't initialized yet, just pass through
         try:
-            applet = super().__getattribute__("applet")
+            applet = self.applet
         except AttributeError:
-            return super().__getattribute__(attr)
+            return getattr(self, attr)
         try:
             route = applet.route_maps[attr]
             url = f"{self.base_url}{route.full_path}"
@@ -214,7 +219,6 @@ class http(BaseInterface):
             return coro
         except (KeyError, AttributeError):
             return getattr(applet, attr)
-            # return self._wrap(getattr(self.applet, attr))
 
     # def __getattribute__(self, attr):
     #     """

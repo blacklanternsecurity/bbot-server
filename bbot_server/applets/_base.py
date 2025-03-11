@@ -134,6 +134,7 @@ class BaseApplet:
 
         # inherit config, db, message queue, etc. from parent applet
         if self.parent is not None:
+            self._is_main_server = self.parent._is_main_server
             self.config = self.parent.config
 
             self.asset_store = self.parent.asset_store
@@ -173,13 +174,13 @@ class BaseApplet:
                     # This helps prevent duplicates in asset activity.
                     self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
 
-                    # indexes
-                    for fieldname, field in self.model.model_fields.items():
-                        if "indexed" in field.metadata:
-                            unique = "unique" in field.metadata
-                            await self.collection.create_index([(fieldname, ASCENDING)], unique=unique)
-                        elif "indexed_text" in field.metadata:
-                            await self.collection.create_index([(fieldname, "text")])
+                # indexes
+                for fieldname, field in self.model.model_fields.items():
+                    if "indexed" in field.metadata:
+                        unique = "unique" in field.metadata
+                        await self.collection.create_index([(fieldname, ASCENDING)], unique=unique)
+                    elif "indexed_text" in field.metadata:
+                        await self.collection.create_index([(fieldname, "text")])
 
         # taskiq broker
         if self.task_broker is None:

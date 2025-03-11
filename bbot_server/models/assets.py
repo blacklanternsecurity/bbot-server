@@ -170,7 +170,7 @@ class BaseAssetFacet(BaseBBOTServerModel):
     """
 
     host: Annotated[str, "indexed"]
-    type: Annotated[str, "indexed"]
+    type: Annotated[Optional[str], "indexed"] = None
     reverse_host: Annotated[Optional[Union[str, None]], "indexed"] = None
     ignored: bool = False
     archived: bool = False

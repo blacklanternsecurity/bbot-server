@@ -163,10 +163,7 @@ def async_to_sync_class(cls):
             This needs to be __getattribute__ instead of __getattr__ because it's wrapping existing classes, and it needs to
             intercept all attributes, especially ones that already exist on the wrapped class
             """
-            try:
-                attr = super().__getattribute__(name)
-            except AttributeError:
-                attr = super().__getattr__(name)
+            attr = super().__getattribute__(name)
             _wrap = super().__getattribute__("_wrap")
             return _wrap(attr)
 
