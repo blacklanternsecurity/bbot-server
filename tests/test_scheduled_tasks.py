@@ -30,14 +30,17 @@ class TestScheduledTasks(BaseAppletTest):
     config_overrides = {"test": {"cron_task_2": "*/1 * * * *"}}
 
     async def setup(self):
-        self.bbot_server.include_app(ScheduledTaskApplet)
-        await self.bbot_server.scheduled_tasks._setup()
+        app = self.bbot_server.include_app(ScheduledTaskApplet)
+        # register tasks on the bbot server side
+        await app._setup()
+        # register tasks on the watchdog side
+        await app.register_watchdog_tasks(self.watchdog.broker)
 
         assert self.bbot_server.scheduled_tasks.cron_task_ran is False, "cron_task ran before setup"
         assert self.bbot_server.scheduled_tasks.cron_task_2_ran is False, "cron_task_2 ran before setup"
         assert self.bbot_server.scheduled_tasks.cron_task_3_ran is False, "cron_task_3 ran before setup"
 
-        all_tasks = self.bbot_server.task_broker.get_all_tasks()
+        all_tasks = self.watchdog.broker.get_all_tasks()
 
         assert "tests.test_scheduled_tasks:cron_task" in all_tasks, "cron_task is not registered"
         assert "tests.test_scheduled_tasks:cron_task_2" in all_tasks, "cron_task_2 is not registered"

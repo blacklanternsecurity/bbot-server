@@ -5,7 +5,7 @@ import functools
 import traceback
 from pydantic import BaseModel
 from contextlib import suppress
-from taskiq_nats import NatsBroker
+from taskiq_nats import NatsBroker, PushBasedJetStreamBroker, PullBasedJetStreamBroker
 
 from .base import BaseMessageQueue
 
@@ -75,6 +75,8 @@ class NATSMessageQueue(BaseMessageQueue):
 
     async def make_taskiq_broker(self):
         return NatsBroker(self.uri)
+        # return PushBasedJetStreamBroker(self.uri)
+        # return PullBasedJetStreamBroker(self.uri)
 
     async def get(self, subject: str, timeout=None):
         subject = f"bbot.work.{subject}"

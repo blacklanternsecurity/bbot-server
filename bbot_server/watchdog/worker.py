@@ -33,12 +33,14 @@ class BBOTWatchdog:
 
         self.broker.add_event_handler(TaskiqEvents.WORKER_STARTUP, startup)
         # taskiq scheduler
-        self.taskiq_scheduler = TaskiqScheduler(self.broker, [LabelScheduleSource(self.broker)])
+        self.taskiq_schedule_source = LabelScheduleSource(self.broker)
+        self.taskiq_scheduler = TaskiqScheduler(self.broker, [self.taskiq_schedule_source])
 
         await self.broker.startup()
 
         # register watchdog tasks
-        await self.bbot_server.register_watchdog_tasks(self.broker)
+        for app in self.bbot_server.all_child_applets:
+            await app.register_watchdog_tasks(self.broker)
 
         # taskiq worker tasks
         self.taskiq_worker_task = asyncio.create_task(run_receiver_task(self.broker))

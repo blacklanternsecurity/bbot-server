@@ -1,5 +1,5 @@
 async def test_applet_targets(bbot_server):
-    bbot_server = await bbot_server()
+    bbot_server, watchdog, agent = await bbot_server()
 
     targets = await bbot_server.get_targets()
     assert targets == []

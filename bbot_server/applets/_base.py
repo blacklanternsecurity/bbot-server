@@ -202,27 +202,31 @@ class BaseApplet:
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks
-        for child_applet in self.all_child_applets:
-            methods = {name: member for name, member in inspect.getmembers(child_applet) if callable(member)}
-            for method_name, method in methods.items():
-                _watchdog_task = getattr(method, "_watchdog_task", None)
-                if _watchdog_task is None:
-                    continue
-                kwargs = getattr(method, "_kwargs", {})
-                # crontab handling
-                cron_default = kwargs.pop("cron", None)
-                cron_config_key = kwargs.pop("cron_config_key", None)
-                if cron_config_key is not None:
-                    if cron_default is None:
-                        raise ValueError(
-                            f"{self.name}.{method_name}: When specifying a crontab config value, you must also give a default crontab value (kwarg: 'cron')"
-                        )
-                    cron = OmegaConf.select(self.config, cron_config_key, default=cron_default)
-                    kwargs["schedule"] = [{"cron": cron}]
-                elif cron_default is not None:
-                    kwargs["schedule"] = [{"cron": cron_default}]
-                task = broker.register_task(method, **kwargs)
-                setattr(child_applet, method_name, task)
+        methods = {name: member for name, member in inspect.getmembers(self) if callable(member)}
+        for method_name, method in methods.items():
+            # handle case where tasks have already been registered
+            method = getattr(method, "original_func", method)
+
+            _watchdog_task = getattr(method, "_watchdog_task", None)
+            if _watchdog_task is None:
+                continue
+            kwargs = getattr(method, "_kwargs", {})
+            # crontab handling
+            cron_default = kwargs.pop("cron", None)
+            cron_config_key = kwargs.pop("cron_config_key", None)
+            if cron_config_key is not None:
+                if cron_default is None:
+                    raise ValueError(
+                        f"{self.name}.{method_name}: When specifying a crontab config value, you must also give a default crontab value (kwarg: 'cron')"
+                    )
+                cron = OmegaConf.select(self.config, cron_config_key, default=cron_default)
+                kwargs["schedule"] = [{"cron": cron}]
+            elif cron_default is not None:
+                kwargs["schedule"] = [{"cron": cron_default}]
+            self.log.debug(f"Registering task: {method_name} {kwargs}")
+            task = broker.register_task(method, **kwargs)
+            # overwrite the original method with the decorated TaskIQ task
+            setattr(self, method_name, task)
 
     async def setup(self):
         pass
@@ -263,6 +267,7 @@ class BaseApplet:
         router.include_router(applet.router)
         # add it to our list of child apps
         self.child_applets.append(applet)
+        return applet
 
     async def _get_obj(self, host: str):
         """

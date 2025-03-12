@@ -120,7 +120,7 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_ht
             agent = BBOTAgent(name=agent.name, id=agent.id)
             await agent.start()
 
-        return bbot_server
+        return bbot_server, watchdog, agent
 
     yield _make_bbot_server
 

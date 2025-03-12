@@ -7,7 +7,7 @@ from tests.test_applets.base import BaseAppletTest
 
 @pytest.mark.asyncio
 async def test_fifo_queue_nats(bbot_server):
-    bbot_server = await bbot_server()
+    bbot_server, watchdog, agent = await bbot_server()
 
     # first, we test the basic put/get functionality
     await bbot_server.message_queue.put({"test1": "test1"}, "test")
