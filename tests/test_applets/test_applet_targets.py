@@ -1,7 +1,5 @@
 async def test_applet_targets(bbot_server):
-    from bbot_server.applets.targets import Target
-
-    bbot_server = await bbot_server()
+    bbot_server, watchdog, agent = await bbot_server()
 
     targets = await bbot_server.get_targets()
     assert targets == []
@@ -17,10 +15,13 @@ async def test_applet_targets(bbot_server):
 
     targets = await bbot_server.get_targets()
     assert len(targets) == 1
-    assert targets[0].name == "target1"
-    assert targets[0].target == ["localhost"]
-    assert targets[0].whitelist == ["127.0.0.1", "evilcorp.com"]
-    assert targets[0].blacklist == ["127.0.0.2"]
+    target = targets[0]
+    assert target.name == "target1"
+    assert target.id == target1.id
+    assert target.description == "target1 description"
+    assert target.target == ["localhost"]
+    assert target.whitelist == ["127.0.0.1", "evilcorp.com"]
+    assert target.blacklist == ["127.0.0.2"]
 
     # create a second target
     target2 = await bbot_server.create_target(
@@ -33,16 +34,20 @@ async def test_applet_targets(bbot_server):
 
     targets = await bbot_server.get_targets()
     assert len(targets) == 2
-    assert targets[1].name == "target2"
-    assert targets[1].target == ["localhost"]
-    assert targets[1].whitelist == ["127.0.0.1", "evilcorp.com"]
-    assert targets[1].blacklist == ["127.0.0.2"]
+    target = targets[1]
+    assert target.name == "target2"
+    assert target.id == target2.id
+    assert target.description == "target2 description"
+    assert target.target == ["localhost"]
+    assert target.whitelist == ["127.0.0.1", "evilcorp.com"]
+    assert target.blacklist == ["127.0.0.2"]
 
     # delete target1
     await bbot_server.delete_target(target1.id)
     targets = await bbot_server.get_targets()
     assert len(targets) == 1
-    assert targets[0].name == "target2"
+    target = targets[0]
+    assert target.name == "target2"
 
     # edit target2
     target2.name = "target2_edited"
@@ -52,7 +57,8 @@ async def test_applet_targets(bbot_server):
     await bbot_server.update_target(target2.id, target2)
     targets = await bbot_server.get_targets()
     assert len(targets) == 1
-    assert targets[0].name == "target2_edited"
-    assert targets[0].target == []
-    assert targets[0].whitelist == []
-    assert targets[0].blacklist == []
+    target = targets[0]
+    assert target.name == "target2_edited"
+    assert target.target == []
+    assert target.whitelist == []
+    assert target.blacklist == []

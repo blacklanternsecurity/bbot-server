@@ -1,3 +1,7 @@
+import os
+import time
+import httpx
+import signal
 import asyncio  # noqa
 import logging
 import pytest  # noqa
@@ -5,6 +9,7 @@ import pytest_asyncio
 from omegaconf import OmegaConf
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
+import multiprocessing
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 
@@ -24,57 +29,82 @@ def bbot_server_config():
         "asset_store": {
             "uri": "mongodb://localhost:27017/test_bbot_server_assets",
         },
+        "user_store": {
+            "uri": "mongodb://localhost:27017/test_bbot_server_userdata",
+        },
     }
     return OmegaConf.merge(BBOT_SERVER_CONFIG, config_overrides)
 
 
-@pytest_asyncio.fixture(scope="function")
-async def bbot_server_http(bbot_server_config):
-    import httpx
-    import uvicorn
-    from uvicorn.server import logger
-    from bbot_server.api import make_server_app
+class BBOTHTTPTestServer:
+    def __init__(self, config):
+        self.config = config
+        self.server_process = None
 
-    server = None
-    api = None
+    def _run_bbot_server(self):
+        """Run the BBOT server in a separate process."""
+        import uvicorn
+        from uvicorn.config import Config
+        from bbot_server.api import make_server_app
 
-    async def _make_bbot_server_http(config_overrides=None):
-        nonlocal server, api, bbot_server_config
+        server_app = make_server_app(config=self.config)
+        server = uvicorn.Server(Config(server_app, host="127.0.0.1", port=8807, log_level="info"))
+        server.run()
 
-        if config_overrides is not None:
-            bbot_server_config = OmegaConf.merge(bbot_server_config, config_overrides)
-
-        server_app = make_server_app(config=bbot_server_config)
-
-        server = uvicorn.Server(uvicorn.Config(server_app, host="127.0.0.1", port=8807, log_level="info"))
-        api = asyncio.create_task(server.serve())
+    def start(self):
+        print("STARTING SERVER")
+        self.server_process = multiprocessing.Process(target=self._run_bbot_server, daemon=True)
+        self.server_process.start()
 
         # Wait for the server to be ready
         url = "http://127.0.0.1:8807/v1/assets/"
-        while True:
+        max_retries = 30
+        retry_count = 0
+
+        while retry_count < max_retries:
             try:
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(url)
-                    if response.status_code == 200:
-                        break
-            except httpx.RequestError as e:
-                logger.debug(f"Error connecting to bbot-server at {url}: {e}")
-            await asyncio.sleep(0.2)
+                response = httpx.get(url)
+                if response.status_code == 200:
+                    break
+            except httpx.RequestError:
+                pass
 
-    yield _make_bbot_server_http
+            time.sleep(0.2)
+            retry_count += 1
 
-    # server.should_exit = True
-    server.force_exit = True
-    await server.shutdown()
-    await asyncio.sleep(0.5)
-    api.cancel()
-    with suppress(BaseException):
-        await api
+        if retry_count >= max_retries:
+            self.stop()  # Use our stop method instead of direct terminate
+            raise RuntimeError("Failed to start bbot-server")
+
+    def stop(self):
+        if self.server_process and self.server_process.is_alive():
+            try:
+                self.server_process.terminate()
+                self.server_process.join(timeout=0.5)
+
+                # If still alive after terminate and join, force kill
+                if self.server_process.is_alive():
+                    log.debug("Killing server process because it didn't die properly the first time")
+                    os.kill(self.server_process.pid, signal.SIGKILL)
+                    self.server_process.join(timeout=1)
+            except Exception as e:
+                log.warning(f"Error stopping server process: {e}")
+
+            # Explicitly set to None to help garbage collection
+            self.server_process = None
+
+
+@pytest_asyncio.fixture
+def bbot_server_http(bbot_server_config, mongo_cleanup):
+    bbot_server_http = BBOTHTTPTestServer(bbot_server_config)
+    bbot_server_http.start()
+    yield bbot_server_http
+    bbot_server_http.stop()
 
 
 @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
 # @pytest_asyncio.fixture
-async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_http):
+async def bbot_server(request, mongo_cleanup, bbot_server_config):
     from bbot_server import BBOTServer
     from bbot_server.agent import BBOTAgent
     from bbot_server.watchdog import BBOTWatchdog
@@ -82,23 +112,31 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_ht
     watchdog = None
     agent = None
     bbot_server = None
+    bbot_server_http = None
 
-    async def _make_bbot_server(config_overrides=None, needs_agent=False):
-        nonlocal watchdog, agent, bbot_server, bbot_server_config
+    async def _make_bbot_server(config_overrides=None, needs_agent=False, needs_server=False, **kwargs):
+        nonlocal watchdog, agent, bbot_server, bbot_server_http, bbot_server_config
 
         if config_overrides is not None:
             bbot_server_config = OmegaConf.merge(bbot_server_config, config_overrides)
 
-        kwargs = dict(request.param)
+        interface_kwargs = dict(request.param)
         # kwargs = {}
-        kwargs.update({"config": bbot_server_config})
+        interface_kwargs.update({"config": bbot_server_config})
+        kwargs.update(interface_kwargs)
 
         # main bbot server
+        log.info(f"Instantiating bbot server with kwargs: {kwargs}")
         bbot_server = BBOTServer(**kwargs)
         await bbot_server.setup()
 
+        # clear the message queue
+        await bbot_server.message_queue.clear()
+
         # http server
-        await bbot_server_http(config_overrides=config_overrides)
+        if needs_server or kwargs["interface"] == "http":
+            bbot_server_http = BBOTHTTPTestServer(bbot_server_config)
+            bbot_server_http.start()
 
         # watchdog
         watchdog = BBOTWatchdog(bbot_server)
@@ -110,7 +148,7 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_ht
             agent = BBOTAgent(name=agent.name, id=agent.id)
             await agent.start()
 
-        return bbot_server
+        return bbot_server, watchdog, agent
 
     yield _make_bbot_server
 
@@ -120,6 +158,8 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config, bbot_server_ht
         await agent.stop()
     with suppress(Exception):
         await bbot_server.cleanup()
+    with suppress(AttributeError):
+        bbot_server_http.stop()
 
 
 BBOT_EVENTS = []
@@ -135,9 +175,11 @@ async def mongo_cleanup():
     client = AsyncIOMotorClient(BBOT_SERVER_CONFIG["event_store"]["uri"])
     await client.drop_database("test_bbot_server_events")
     await client.drop_database("test_bbot_server_assets")
+    await client.drop_database("test_bbot_server_userdata")
     yield
     await client.drop_database("test_bbot_server_events")
     await client.drop_database("test_bbot_server_assets")
+    await client.drop_database("test_bbot_server_userdata")
 
 
 class DummyScan:

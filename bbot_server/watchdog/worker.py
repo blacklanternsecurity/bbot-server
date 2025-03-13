@@ -33,26 +33,21 @@ class BBOTWatchdog:
 
         self.broker.add_event_handler(TaskiqEvents.WORKER_STARTUP, startup)
         # taskiq scheduler
-        self.taskiq_scheduler = TaskiqScheduler(self.broker, [LabelScheduleSource(self.broker)])
+        self.taskiq_schedule_source = LabelScheduleSource(self.broker)
+        self.taskiq_scheduler = TaskiqScheduler(self.broker, [self.taskiq_schedule_source])
 
         await self.broker.startup()
-        # await self.bbot_server.register_watchdog_tasks(self.broker)
-        # for i in range(60):
-        #     try:
-        #         await self.broker.startup()
-        #         break
-        #     except Exception as e:
-        #         self.log.warning(f"Error starting broker: {e}")
-        #         await asyncio.sleep(1)
+
+        # register watchdog tasks
+        for app in self.bbot_server.all_child_applets:
+            await app.register_watchdog_tasks(self.broker)
 
         # taskiq worker tasks
         self.taskiq_worker_task = asyncio.create_task(run_receiver_task(self.broker))
         self.taskiq_scheduler_task = asyncio.create_task(run_scheduler_task(self.taskiq_scheduler))
 
         # start the event queue listener
-        self.event_listener = await self.bbot_server.message_queue.subscribe(
-            self._event_listener, "bbot.events", durable="events_watchdog"
-        )
+        self.event_listener = await self.bbot_server.message_queue.subscribe(self._event_listener, "events")
 
     async def _event_listener(self, message: dict) -> None:
         """

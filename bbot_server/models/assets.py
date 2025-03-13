@@ -68,7 +68,7 @@ class Asset(BaseBBOTServerModel):
         A convenience method allowing custom data fields to be accessed directly from the asset object.
         """
         with suppress(AttributeError):
-            return super().__getattr__(name)
+            return super().__getattribute__(name)
 
         # first, we make sure the field exists as a declared applet field
         asset_field = self._get_field(name)
@@ -101,6 +101,7 @@ class AssetActivity(BaseBBOTServerModel):
     timestamp: float
     description: str
     description_colored: str = Field(default="")
+    detail: dict[str, Any] = {}
     host: Union[str, None] = None
     reverse_host: Annotated[Union[str, None], "indexed"] = None
     module: Union[str, None] = None
@@ -169,7 +170,7 @@ class BaseAssetFacet(BaseBBOTServerModel):
     """
 
     host: Annotated[str, "indexed"]
-    type: Annotated[str, "indexed"]
+    type: Annotated[Optional[str], "indexed"] = None
     reverse_host: Annotated[Optional[Union[str, None]], "indexed"] = None
     ignored: bool = False
     archived: bool = False

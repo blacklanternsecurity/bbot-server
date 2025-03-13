@@ -4,6 +4,7 @@ from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
 class WebScreenshotsApplet(BaseApplet):
+    name = "Web Screenshots"
     watched_events = ["WEBSCREENSHOT"]
     description = "web screenshots taken during scans"
     route_prefix = ""

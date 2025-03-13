@@ -1,29 +1,36 @@
 import orjson
 import inspect
 import logging
+import asyncio
 from fastapi import WebSocket
 from pydantic import BaseModel
 from contextlib import suppress
 from fastapi.responses import StreamingResponse
+from starlette.websockets import WebSocketDisconnect
+
+from bbot_server.utils.misc import smart_encode
+
+log = logging.getLogger("bbot.server.applets.routing")
 
 
-log = logging.getLogger("bbot_server.applets.routing")
+ROUTE_TYPES = {}
 
 
-def smart_encode(obj):
-    # handle both python and pydantic objects, as well as strings
-    if isinstance(obj, BaseModel):
-        return obj.model_dump_json().encode()
-    elif isinstance(obj, str):
-        return obj.encode()
-    elif isinstance(obj, bytes):
-        return obj
-    else:
-        return orjson.dumps(obj)
+class ServerRouteMeta(type):
+    """Metaclass for registering BaseServerRoute subclasses"""
+
+    def __new__(cls, name, bases, attrs):
+        global ROUTE_TYPES
+        new_class = super().__new__(cls, name, bases, attrs)
+        # Only register classes that inherit from BaseServerRoute but aren't BaseServerRoute itself
+        if bases and BaseServerRoute in bases:
+            ROUTE_TYPES[new_class.endpoint_type] = new_class
+        return new_class
 
 
-class BaseServerRoute:
+class BaseServerRoute(metaclass=ServerRouteMeta):
     endpoint_type = None
+    requires_response_model = False
 
     def __init__(self, function, tags=[]):
         self.log = logging.getLogger(f"bbot.server.routing.{self.__class__.__name__.lower()}")
@@ -45,6 +52,11 @@ class BaseServerRoute:
 
     def setup(self):
         pass
+
+    @classmethod
+    def get_route_class(cls, endpoint_type):
+        """Get a route class by its endpoint_type"""
+        return cls.__class__.routes.get(endpoint_type)
 
 
 class HTTPRoute(BaseServerRoute):
@@ -71,6 +83,7 @@ class HTTPStreamRoute(BaseServerRoute):
     """
 
     endpoint_type = "http_stream"
+    requires_response_model = True
 
     def __init__(self, function, response_model, tags=[]):
         super().__init__(function, tags)
@@ -113,12 +126,13 @@ class WebsocketRoute(BaseServerRoute):
         router.add_api_websocket_route(self.endpoint, self.function, **self.kwargs)
 
 
-class WebsocketStreamRoute(BaseServerRoute):
+class WebsocketStreamOutgoingRoute(BaseServerRoute):
     """
     A simplified websocket route for one-way streaming from the server to the client, similar to `tail`.
     """
 
-    endpoint_type = "websocket_stream"
+    endpoint_type = "websocket_stream_outgoing"
+    requires_response_model = True
 
     def __init__(self, function, response_model, tags=[]):
         super().__init__(function, tags)
@@ -131,11 +145,51 @@ class WebsocketStreamRoute(BaseServerRoute):
             async for message in agen:
                 message = smart_encode(message)
                 await websocket.send_bytes(message)
+        except asyncio.CancelledError:
+            log.info("Outgoing websocket stream cancelled")
+        except WebSocketDisconnect:
+            log.info("Outgoing websocket stream disconnected")
         finally:
             with suppress(BaseException):
                 await websocket.close()
             with suppress(BaseException):
                 await agen.aclose()
+
+    def add_to_router(self, router):
+        router.add_api_websocket_route(self.endpoint, self.websocket_wrapper)
+
+
+class WebsocketStreamIncomingRoute(BaseServerRoute):
+    """
+    A simplified websocket route for one-way streaming from the client to the server, used for ingesting events etc.
+    """
+
+    endpoint_type = "websocket_stream_incoming"
+    requires_response_model = True
+
+    def __init__(self, function, response_model, tags=[]):
+        super().__init__(function, tags)
+        self.response_model = response_model
+        self.original_function = function
+        self.function = self.websocket_wrapper
+
+    async def websocket_wrapper(self, websocket: WebSocket):
+        try:
+            await websocket.accept()
+
+            async def agen():
+                try:
+                    async for message in websocket:
+                        message = orjson.loads(message)
+                        message = self.response_model(**message)
+                        yield message
+                except asyncio.CancelledError:
+                    log.info("Websocket stream incoming cancelled")
+
+            await self.original_function(agen())
+        finally:
+            with suppress(BaseException):
+                await websocket.close()
 
     def add_to_router(self, router):
         router.add_api_websocket_route(self.endpoint, self.websocket_wrapper)

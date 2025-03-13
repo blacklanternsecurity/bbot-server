@@ -1,20 +1,7 @@
-import uuid
-from pydantic import UUID4, Field
-from typing import Annotated, Union
-from bbot_server.models.base import BaseBBOTServerModel
+from pydantic import UUID4
 
+from bbot_server.applets.scans.scan_models import Target
 from bbot_server.applets._base import BaseApplet, api_endpoint
-
-
-class Target(BaseBBOTServerModel):
-    __tablename__ = "targets"
-
-    name: Annotated[str, "indexed", "unique"]
-    id: Annotated[UUID4, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
-    description: str = ""
-    target: list[str] = []
-    whitelist: Union[list[str], None] = None
-    blacklist: Union[list[str], None] = None
 
 
 class TargetsApplet(BaseApplet):
@@ -25,7 +12,7 @@ class TargetsApplet(BaseApplet):
     @api_endpoint("/", methods=["GET"], summary="Get a single scan target by its name or id")
     async def get_target(self, name: str = "", id: UUID4 = None) -> Target:
         if (not name) and (not id):
-            raise self.BBOTValueError("Either name or id must be provided")
+            raise self.BBOTServerError("Either name or id must be provided")
         query = {}
         if name:
             query["name"] = name
@@ -42,8 +29,8 @@ class TargetsApplet(BaseApplet):
         name: str,
         description: str = "",
         target: list[str] = [],
-        whitelist: list[str] = [],
-        blacklist: list[str] = [],
+        whitelist: list[str] = None,
+        blacklist: list[str] = None,
     ) -> Target:
         target = Target(name=name, description=description, target=target, whitelist=whitelist, blacklist=blacklist)
         await self.collection.insert_one(target.model_dump())

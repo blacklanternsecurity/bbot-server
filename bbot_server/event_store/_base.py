@@ -11,15 +11,16 @@ class BaseEventStore(BaseDB):
         super().__init__(*args, **kwargs)
         self.event_store_config = self.config.get("event_store", {})
         self.archive_after_days = self.event_store_config.get("archive_after", 90)
-        self.archive_after_timestamp = (
-            datetime.now(timezone.utc) - timedelta(days=self.archive_after_days)
-        ).timestamp()
         self.archive_cron = self.event_store_config.get("archive_cron", "0 0 * * *")
 
     async def insert_event(self, event):
         if not isinstance(event, Event):
             raise ValueError("Event must be an instance of Event")
         await self._insert_event(event)
+
+    async def get_event(self, uuid: str):
+        event = await self._get_event(uuid)
+        return Event(**event)
 
     async def get_events(self, host: str = None, type=None, min_timestamp=None, archived=False, active=True):
         async for event in self._get_events(

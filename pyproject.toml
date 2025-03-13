@@ -13,7 +13,6 @@ fastapi = "^0.111.0"
 omegaconf = "^2.3.0"
 bbot = {git = "https://github.com/blacklanternsecurity/bbot", rev = "3.0"}
 orjson = "^3.10.12"
-typer = "^0.15.1"
 rich = "^13.9.4"
 cachetools = "^5.5.0"
 aio-pika = "^9.5.4"
@@ -25,6 +24,7 @@ taskiq = "^0.11.10"
 taskiq-nats = "^0.5.1"
 taskiq-aio-pika = "^0.4.1"
 ruff = "^0.9.7"
+typer = "^0.15.2"
 
 [tool.poetry.scripts]
 bbctl = 'bbot_server.cli:main'

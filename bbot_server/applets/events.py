@@ -1,3 +1,4 @@
+from typing import AsyncGenerator
 from bbot.models.pydantic import Event
 from datetime import datetime, timezone, timedelta
 from bbot_server.applets._base import BaseApplet, api_endpoint, watchdog_task
@@ -25,18 +26,14 @@ class EventsApplet(BaseApplet):
         # it will be picked up by the watchdog and ingested
         await self.root.message_queue.event_publish(event)
 
-    # @api_endpoint("/", methods=["GET"], summary="Get all events")
-    # async def get_events(self, archived: bool = None):
-    #     async for event in self.event_store.get_events(archived=archived):
-    #         yield event.model_dump()
-    #     # events = await self.event_store.get_events(archived=archived)
-    #     # return events
+    async def _insert_event(self, event: Event):
+        await self.event_store.insert_event(event)
 
     @api_endpoint("/{uuid}", methods=["GET"], summary="Get an event by its UUID")
-    async def get_event(self, uuid: str) -> dict:
-        print("GETTING EVENT", uuid)
+    async def get_event(self, uuid: str) -> Event:
+        return await self.event_store.get_event(uuid)
 
-    @api_endpoint("/tail", type="websocket_stream", response_model=Event)
+    @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)
     async def tail_events(self):
         async for event in self.message_queue.event_tail():
             yield event
@@ -66,3 +63,15 @@ class EventsApplet(BaseApplet):
     async def get_events(self, type: str = None, archived: bool = False, active: bool = True):
         async for event in self.event_store.get_events(type=type, archived=archived, active=active):
             yield event
+
+    @api_endpoint(
+        "/insert", type="websocket_stream_incoming", response_model=Event, summary="Insert events via websocket"
+    )
+    async def consume_event_stream(self, event_generator: AsyncGenerator[Event, None]):
+        """
+        Allows consuming of events via a websocket stream.
+
+        This is used by the agent to send events to the server.
+        """
+        async for event in event_generator:
+            await self.insert_event(event)

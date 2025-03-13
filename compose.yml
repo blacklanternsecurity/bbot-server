@@ -1,3 +1,12 @@
+x-bbot-server-base: &bbot-server-base
+  build:
+    context: .
+  restart: always
+  volumes:
+    - ~/.config/bbot_server:/root/.config/bbot_server
+    - ./bbot_server/defaults_docker.yml:/app/bbot_server/defaults.yml
+    - .:/app
+
 services:
   bbot-server:
     <<: *bbot-server-base
@@ -7,7 +16,7 @@ services:
       - BBOT_HOST=0.0.0.0
       - BBOT_PORT=8807
       - BBOT_AUTO_RELOAD
-    command: ["uvicorn", "bbot_server.api.app:server_app", "--host", "${BBOT_HOST}", "--port", "${BBOT_PORT}"]
+    command: ["uvicorn", "bbot_server.api.app:server_app", "--reload", "--host", "${BBOT_HOST}", "--port", "${BBOT_PORT:-8807}"]
 
   bbot-server-watchdog:
     <<: *bbot-server-base
@@ -22,12 +31,4 @@ services:
   nats:
     image: nats
     restart: always
-
-x-bbot-server-base: &bbot-server-base
-  build:
-    context: .
-  restart: always
-  volumes:
-    - ~/.config/bbot_server:/root/.config/bbot_server
-    - ./bbot_server/defaults_docker.yml:/app/bbot_server/defaults.yml
-    - .:/app
+    command: ["-js"]

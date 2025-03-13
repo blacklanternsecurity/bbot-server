@@ -3,15 +3,15 @@ import asyncio
 import inspect
 import logging
 from omegaconf import OmegaConf
-from pymongo import WriteConcern
 from typing import Annotated, Any  # noqa
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
+from pymongo import WriteConcern, ASCENDING
 from fastapi import APIRouter, HTTPException
 
 from bbot.models.pydantic import Event
 from bbot_server.models.assets import AssetActivity
-from bbot_server.applets._routing import HTTPRoute, HTTPStreamRoute, WebsocketRoute, WebsocketStreamRoute
+from bbot_server.applets._routing import ROUTE_TYPES
 
 word_regex = re.compile(r"\W+")
 
@@ -114,6 +114,10 @@ class BaseApplet:
 
         self._setup_finished = False
 
+        # whether this is the primary instance of BBOT server
+        # e.g. the one hosting the REST API / the one agents connect to
+        self._is_main_server = False
+
     async def refresh(self, host: str):
         """
         After an archive completes, we iterate through each host, and pass it into this function
@@ -130,37 +134,53 @@ class BaseApplet:
 
         # inherit config, db, message queue, etc. from parent applet
         if self.parent is not None:
+            self._is_main_server = self.parent._is_main_server
             self.config = self.parent.config
+
             self.asset_store = self.parent.asset_store
+            self.asset_db = self.parent.asset_db
+            self.asset_fs = self.parent.asset_fs
+
+            self.user_store = self.parent.user_store
+            self.user_db = self.parent.user_db
+            self.user_fs = self.parent.user_fs
+
             self.event_store = self.parent.event_store
             self.message_queue = self.parent.message_queue
-            self.collection = self.parent.collection
-            self.strict_collection = self.parent.strict_collection
             self.task_broker = self.parent.task_broker
 
+            # if model isn't defined, inherit from parent
             if self.model is None:
                 self.model = self.parent.model
+                self.collection = self.parent.collection
+                self.strict_collection = self.parent.strict_collection
+            else:
+                # otherwise, set up applet-specific db tables
+                self.table_name = getattr(self.model, "__tablename__", None)
+                self.is_user_data = getattr(self.model, "__user__", False)
+                if self.is_user_data:
+                    self.db = self.user_db
+                else:
+                    self.db = self.asset_db
 
-        # database tables
-        if self.model is not None:
-            self.table_name = getattr(self.model, "__tablename__", None)
-            if self.table_name is not None:
-                self.collection = self.asset_store.db[self.table_name]
-                # WriteConcern options:
-                #  w=1: Acknowledges the write operation only after it has been written to the primary. (the default)
-                #  j=True: Ensures the write operation is committed to the journal. (default is False)
-                # This helps prevent duplicates in asset activity.
-                self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
+                if self.table_name is None:
+                    self.collection = self.parent.collection
+                    self.strict_collection = self.parent.strict_collection
+                else:
+                    self.collection = self.db[self.table_name]
+                    # WriteConcern options:
+                    #  w=1: Acknowledges the write operation only after it has been written to the primary. (the default)
+                    #  j=True: Ensures the write operation is committed to the journal. (default is False)
+                    # This helps prevent duplicates in asset activity.
+                    self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
 
-        # create database indexes
-        if self.model is not None:
-            for fieldname, field in self.model.model_fields.items():
-                if "indexed" in field.metadata:
-                    unique = "unique" in field.metadata
-                    # create mongodb index
-                    await self.collection.create_index([(fieldname, 1)], unique=unique)
-                elif "indexed_text" in field.metadata:
-                    await self.collection.create_index([(fieldname, "text")])
+                # indexes
+                for fieldname, field in self.model.model_fields.items():
+                    if "indexed" in field.metadata:
+                        unique = "unique" in field.metadata
+                        await self.collection.create_index([(fieldname, ASCENDING)], unique=unique)
+                    elif "indexed_text" in field.metadata:
+                        await self.collection.create_index([(fieldname, "text")])
 
         # taskiq broker
         if self.task_broker is None:
@@ -182,27 +202,31 @@ class BaseApplet:
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks
-        for child_applet in self.all_child_applets:
-            methods = {name: member for name, member in inspect.getmembers(child_applet) if callable(member)}
-            for method_name, method in methods.items():
-                _watchdog_task = getattr(method, "_watchdog_task", None)
-                if _watchdog_task is None:
-                    continue
-                kwargs = getattr(method, "_kwargs", {})
-                # crontab handling
-                cron_default = kwargs.pop("cron", None)
-                cron_config_key = kwargs.pop("cron_config_key", None)
-                if cron_config_key is not None:
-                    if cron_default is None:
-                        raise ValueError(
-                            f"{self.name}.{method_name}: When specifying a crontab config value, you must also give a default crontab value (kwarg: 'cron')"
-                        )
-                    cron = OmegaConf.select(self.config, cron_config_key, default=cron_default)
-                    kwargs["schedule"] = [{"cron": cron}]
-                elif cron_default is not None:
-                    kwargs["schedule"] = [{"cron": cron_default}]
-                task = broker.register_task(method, **kwargs)
-                setattr(child_applet, method_name, task)
+        methods = {name: member for name, member in inspect.getmembers(self) if callable(member)}
+        for method_name, method in methods.items():
+            # handle case where tasks have already been registered
+            method = getattr(method, "original_func", method)
+
+            _watchdog_task = getattr(method, "_watchdog_task", None)
+            if _watchdog_task is None:
+                continue
+            kwargs = getattr(method, "_kwargs", {})
+            # crontab handling
+            cron_default = kwargs.pop("cron", None)
+            cron_config_key = kwargs.pop("cron_config_key", None)
+            if cron_config_key is not None:
+                if cron_default is None:
+                    raise ValueError(
+                        f"{self.name}.{method_name}: When specifying a crontab config value, you must also give a default crontab value (kwarg: 'cron')"
+                    )
+                cron = OmegaConf.select(self.config, cron_config_key, default=cron_default)
+                kwargs["schedule"] = [{"cron": cron}]
+            elif cron_default is not None:
+                kwargs["schedule"] = [{"cron": cron_default}]
+            self.log.debug(f"Registering task: {method_name} {kwargs}")
+            task = broker.register_task(method, **kwargs)
+            # overwrite the original method with the decorated TaskIQ task
+            setattr(self, method_name, task)
 
     async def setup(self):
         pass
@@ -243,6 +267,7 @@ class BaseApplet:
         router.include_router(applet.router)
         # add it to our list of child apps
         self.child_applets.append(applet)
+        return applet
 
     async def _get_obj(self, host: str):
         """
@@ -287,6 +312,10 @@ class BaseApplet:
             fieldnames.extend(child_applet.fieldnames)
         return fieldnames
 
+    @property
+    def is_main_server(self):
+        return self._is_main_server
+
     def _add_custom_routes(self):
         # automatically add API routes for any methods marked with @api_endpoint decorator
         # for every attribute on this class
@@ -299,27 +328,25 @@ class BaseApplet:
             endpoint = getattr(function, "_endpoint", None)
             # if it's a callable function and it has _endpoint, it's an @api_endpoint
             if endpoint is not None:
-                kwargs = dict(getattr(function, "_kwargs", {}))
-                endpoint_type = kwargs.pop("type", "http")
-                response_model = kwargs.pop("response_model", None)
-                if endpoint_type == "http":
-                    bbot_server_route = HTTPRoute(function, tags=[self.tag])
-                elif endpoint_type == "http_stream":
+                fastapi_kwargs = dict(getattr(function, "_kwargs", {}))
+                endpoint_type = fastapi_kwargs.pop("type", "http")
+                response_model = fastapi_kwargs.pop("response_model", None)
+
+                try:
+                    route_class = ROUTE_TYPES[endpoint_type]
+                except KeyError:
+                    raise self.BBOTServerError(f"Invalid endpoint type: {endpoint_type}")
+
+                kwargs = {"tags": [self.tag]}
+
+                if route_class.requires_response_model:
                     if response_model is None:
-                        raise ValueError(
-                            f"{self.name}.{function.__name__} {endpoint}: Must specify a pydantic model used for deserializing HTTP streams"
+                        raise self.BBOTServerError(
+                            f"{self.name}.{function.__name__} {endpoint}: Must specify a pydantic model used for deserializing {endpoint_type} streams"
                         )
-                    bbot_server_route = HTTPStreamRoute(function, tags=[self.tag], response_model=response_model)
-                elif endpoint_type == "websocket":
-                    bbot_server_route = WebsocketRoute(function, tags=[self.tag])
-                elif endpoint_type == "websocket_stream":
-                    if response_model is None:
-                        raise ValueError(
-                            f"{self.name}.{function.__name__} {endpoint}: Must specify a pydantic model used for deserializing websocket messages"
-                        )
-                    bbot_server_route = WebsocketStreamRoute(function, tags=[self.tag], response_model=response_model)
-                else:
-                    raise ValueError(f"Invalid endpoint type: {endpoint_type}")
+                    kwargs["response_model"] = response_model
+
+                bbot_server_route = route_class(function, **kwargs)
                 bbot_server_route.add_to_applet(self)
 
     @property
@@ -370,24 +397,37 @@ class BaseApplet:
             self.__class__._asset_lock = NamedLock()
         return self.__class__._asset_lock
 
-    def __getattribute__(self, attr):
-        """
-        Allow access to attributes on any of this applet's children, recursively
+    # def __getattribute__(self, attr):
+    #     """
+    #     Allow access to attributes on any of this applet's children, recursively
 
-        This saves you from having to do things like: `bbot_server.assets.scans.runs.get_scan_runs()`.
-        Instead, you can just do: `bbot_server.get_scan_runs()`.
-        """
+    #     This saves you from having to do things like: `bbot_server.assets.scans.runs.get_scan_runs()`.
+    #     Instead, you can just do: `bbot_server.get_scan_runs()`.
+    #     """
+    #     try:
+    #         # first try self
+    #         return super().__getattribute__(attr)
+    #     except AttributeError:
+    #         # then try all the child applets
+    #         for child_applet in super().__getattribute__("child_applets"):
+    #             try:
+    #                 return getattr(child_applet, attr)
+    #             except AttributeError:
+    #                 continue
+    #     raise AttributeError(f'{self.__class__.__name__} has no attribute "{attr}"')
+
+    def __getattr__(self, name):
         try:
             # first try self
-            return super().__getattribute__(attr)
+            return super().__getattribute__(name)
         except AttributeError:
             # then try all the child applets
             for child_applet in super().__getattribute__("child_applets"):
                 try:
-                    return getattr(child_applet, attr)
+                    return getattr(child_applet, name)
                 except AttributeError:
                     continue
-        raise AttributeError(f'{self.__class__.__name__} has no attribute "{attr}"')
+        raise AttributeError(f'{self.__class__.__name__} has no attribute "{name}"')
 
     ### ASYNC UTILS FOR CONVENIENCE ###
 
@@ -401,4 +441,4 @@ class BaseApplet:
 
     ### BBOT IMPORTS FOR CONVENIENCE ###
 
-    from bbot_server.errors import BBOTServerError, BBOTValueError, BBOTNotFoundError
+    from bbot_server.errors import BBOTServerError, BBOTServerNotFoundError, BBOTServerValueError

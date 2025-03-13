@@ -1,3 +1,4 @@
+from gridfs import GridFSBucket
 from omegaconf import OmegaConf
 
 from bbot_server.applets._base import BaseApplet
@@ -7,8 +8,7 @@ from bbot_server.utils.misc import combine_pydantic_models
 # assets imports
 from bbot_server.applets.assets import AssetsApplet
 from bbot_server.applets.events import EventsApplet
-from bbot_server.applets.scans import ScansApplet
-from bbot_server.applets.agents import AgentsApplet
+from bbot_server.applets.scans.scans import ScansApplet
 
 
 class RootApplet(BaseApplet):
@@ -29,12 +29,20 @@ class RootApplet(BaseApplet):
         super().__init__(**kwargs)
 
     async def setup(self):
-        # set up asset store
+        # set up asset store, user store, and gridfs buckets
         if self.asset_store is None:
-            from bbot_server.asset_store import MongoAssetStore
+            from bbot_server.store.user_store import UserStore
+            from bbot_server.store.asset_store import AssetStore
 
-            self.asset_store = MongoAssetStore(self.config)
+            self.asset_store = AssetStore(self.config)
             await self.asset_store.setup()
+            self.asset_db = self.asset_store.db
+            self.asset_fs = self.asset_store.fs
+
+            self.user_store = UserStore(self.config)
+            await self.user_store.setup()
+            self.user_db = self.user_store.db
+            self.user_fs = self.user_store.fs
 
         # set up event store
         from bbot_server.event_store import EventStore

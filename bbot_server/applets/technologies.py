@@ -4,7 +4,8 @@ from bbot_server.applets._base import BaseApplet, api_endpoint, BaseModel, Field
 
 
 class Technologies(BaseApplet):
-    # watched_events = ["TECHNOLOGY"]
+    name = "Technologies"
+    watched_events = ["TECHNOLOGY"]
     description = "technologies discovered during scans"
     route_prefix = ""
 

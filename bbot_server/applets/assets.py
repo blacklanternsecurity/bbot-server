@@ -1,12 +1,13 @@
 from contextlib import suppress
 
 # applets imports
-from bbot_server.applets.findings import FindingsApplet
-from bbot_server.applets.open_ports import OpenPortsApplet
-from bbot_server.applets.dns_links import DNSLinksApplet
+from bbot_server.applets.risk import Risk
 from bbot_server.applets.emails import EmailsApplet
-from bbot_server.applets.web_screenshots import WebScreenshotsApplet
 from bbot_server.applets.export import ExportApplet
+from bbot_server.applets.findings import FindingsApplet
+from bbot_server.applets.dns_links import DNSLinksApplet
+from bbot_server.applets.open_ports import OpenPortsApplet
+from bbot_server.applets.web_screenshots import WebScreenshotsApplet
 
 # watchdog
 # from bbot_server.watchdogs.assets import AssetsWatchdog
@@ -25,7 +26,15 @@ class Asset(BaseAssetFacet):
 class AssetsApplet(BaseApplet):
     name = "Assets"
     description = "hostnames and IP addresses discovered during scans"
-    include_apps = [FindingsApplet, OpenPortsApplet, DNSLinksApplet, EmailsApplet, WebScreenshotsApplet, ExportApplet]
+    include_apps = [
+        FindingsApplet,
+        OpenPortsApplet,
+        DNSLinksApplet,
+        EmailsApplet,
+        WebScreenshotsApplet,
+        ExportApplet,
+        Risk,
+    ]
     # watchdogs = [AssetsWatchdog]
     model = Asset
 
@@ -63,7 +72,7 @@ class AssetsApplet(BaseApplet):
         fieldnames = self.all_fieldnames
         return fieldnames
 
-    @api_endpoint("/tail", type="websocket_stream", response_model=AssetActivity)
+    @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=AssetActivity)
     async def tail_assets(self):
         agen = self.message_queue.asset_tail()
         try:

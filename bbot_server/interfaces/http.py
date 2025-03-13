@@ -1,6 +1,7 @@
 import httpx
 import orjson
-import logging
+import asyncio
+import traceback
 from functools import partial
 from websockets import connect
 from contextlib import suppress
@@ -14,12 +15,20 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 
 from bbot_server.interfaces.base import BaseInterface
+from bbot_server.errors import HTTP_STATUS_MAPPINGS, BBOTServerError
 
+import logging
 
-log = logging.getLogger("bbot.server.http")
+log = logging.getLogger(__name__)
 
 
 class http(BaseInterface):
+    """
+    The HTTP interface presents an identical interface to BBOT server, but forwards all function calls as HTTP requests to a remote URL
+
+    This lets us to write the same code for both local and remote
+    """
+
     interface_type = "http"
 
     def __init__(self, **kwargs):
@@ -30,16 +39,6 @@ class http(BaseInterface):
         self.base_url = url.strip("/")
         self.client = httpx.AsyncClient()
 
-    @property
-    def options(self):
-        options = dict(self.applet.backend.options)
-        options.update(
-            {
-                "url": "URL of BBOT server",
-            }
-        )
-        return options
-
     async def _http_request(self, _url, _route, *args, **kwargs):
         """
         Builds and issues a web request to the bbot server REST API
@@ -49,12 +48,23 @@ class http(BaseInterface):
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
         body = self._prepare_http_body(method, kwargs)
 
-        response = await self.client.request(url=_url, method=method, json=body)
+        try:
+            response = await self.client.request(url=_url, method=method, json=body)
+        except Exception as e:
+            self.log.error(f"Error making request for {method}->{_url}: {e}")
+            self.log.error(traceback.format_exc())
+            raise
+
         try:
             response_json = response.json()
         except Exception as e:
-            print(f"Error decoding response json for {response}: {e}: {getattr(response, 'text', '')}")
+            self.log.error(f"Error decoding response json for {response}: {e}: {getattr(response, 'text', '')}")
             raise
+
+        # detect errors
+        if response_json and list(response_json) == ["error"]:
+            error_class = HTTP_STATUS_MAPPINGS.get(response.status_code, BBOTServerError)
+            raise error_class(response_json["error"])
 
         # if our function doesn't have a return type, return the raw JSON
         if _route.response_model is None:
@@ -82,21 +92,31 @@ class http(BaseInterface):
 
     async def _websocket_request(self, _url, _route, *args, **kwargs) -> AsyncGenerator:
         """
-        Creates a websocket connection instead of an HTTP request
-
-        Returns an async generator that yields websocket messages
+        Creates a websocket connection, and yields messages from the server
         """
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
 
         # replace scheme with ws
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
+        try:
+            async with connect(_url) as websocket:
+                async for message in websocket:
+                    decoded_json = orjson.loads(message)
+                    model_obj = _route.response_model(**decoded_json)
+                    yield model_obj
+        except asyncio.CancelledError:
+            self.log.info("Websocket stream incoming cancelled")
 
-        async with connect(_url) as ws:
-            while 1:
-                message = await ws.recv()
-                decoded_json = orjson.loads(message)
-                model_obj = _route.response_model(**decoded_json)
-                yield model_obj
+    async def _websocket_publish(self, _url, _route, message_generator, *args, **kwargs):
+        """
+        Creates a websocket connection, and sends messages to the server
+        """
+        method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
+
+        _url = _url.replace("http://", "ws://").replace("https://", "wss://")
+        async for message in message_generator:
+            async for websocket in connect(_url):
+                await websocket.send(message)
 
     def _prepare_http_body(self, method, kwargs):
         # body
@@ -183,20 +203,63 @@ class http(BaseInterface):
 
         _wrap is used here to allow the coroutine to be called synchronously
         """
+        # if applet isn't initialized yet, just pass through
         try:
-            route = self.applet.route_maps[attr]
+            applet = self.applet
+        except AttributeError:
+            return self._async_wrap(getattr(self, attr))
+        try:
+            route = applet.route_maps[attr]
             url = f"{self.base_url}{route.full_path}"
             if route.endpoint_type == "http":
                 coro = partial(self._http_request, url, route)
             elif route.endpoint_type == "http_stream":
                 coro = partial(self._http_stream, url, route)
-            elif route.endpoint_type == "websocket_stream":
+            elif route.endpoint_type == "websocket_stream_outgoing":
                 coro = partial(self._websocket_request, url, route)
+            elif route.endpoint_type == "websocket_stream_incoming":
+                coro = partial(self._websocket_publish, url, route)
             else:
                 raise ValueError(f"Unknown endpoint type: {route.endpoint_type}")
-            return self._wrap(coro)
-        except KeyError:
-            return self._wrap(getattr(self.applet, attr))
+            return self._async_wrap(coro)
+        except (KeyError, AttributeError):
+            return self._async_wrap(getattr(applet, attr))
+
+    # def __getattribute__(self, attr):
+    #     """
+    #     For every attribute, try to find a matching route in the route map and return a coroutine that will make the request
+
+    #     If the attribute isn't found in the route map, just return the attribute from the applet
+
+    #     _wrap is used here to allow the coroutine to be called synchronously
+    #     """
+    #     # if applet isn't initialized yet, just pass through
+    #     try:
+    #         applet = super().__getattribute__("applet")
+    #     except AttributeError:
+    #         return super().__getattribute__(attr)
+    #     try:
+    #         route = applet.route_maps[attr]
+    #         base_url = super().__getattribute__("base_url")
+    #         url = f"{base_url}{route.full_path}"
+    #         if route.endpoint_type == "http":
+    #             _http_request = super().__getattribute__("_http_request")
+    #             coro = partial(_http_request, url, route)
+    #         elif route.endpoint_type == "http_stream":
+    #             _http_stream = super().__getattribute__("_http_stream")
+    #             coro = partial(_http_stream, url, route)
+    #         elif route.endpoint_type == "websocket_stream_outgoing":
+    #             _websocket_request = super().__getattribute__("_websocket_request")
+    #             coro = partial(_websocket_request, url, route)
+    #         elif route.endpoint_type == "websocket_stream_incoming":
+    #             _websocket_publish = super().__getattribute__("_websocket_publish")
+    #             coro = partial(_websocket_publish, url, route)
+    #         else:
+    #             raise ValueError(f"Unknown endpoint type: {route.endpoint_type}")
+    #         return coro
+    #     except (KeyError, AttributeError):
+    #         return getattr(applet, attr)
+    #         # return self._wrap(getattr(self.applet, attr))
 
     def __dir__(self):
         """
