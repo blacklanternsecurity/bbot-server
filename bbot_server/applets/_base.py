@@ -134,6 +134,7 @@ class BaseApplet:
 
         # inherit config, db, message queue, etc. from parent applet
         if self.parent is not None:
+            self._is_main_server = self.parent._is_main_server
             self.config = self.parent.config
 
             self.asset_store = self.parent.asset_store
@@ -173,13 +174,13 @@ class BaseApplet:
                     # This helps prevent duplicates in asset activity.
                     self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
 
-                    # indexes
-                    for fieldname, field in self.model.model_fields.items():
-                        if "indexed" in field.metadata:
-                            unique = "unique" in field.metadata
-                            await self.collection.create_index([(fieldname, ASCENDING)], unique=unique)
-                        elif "indexed_text" in field.metadata:
-                            await self.collection.create_index([(fieldname, "text")])
+                # indexes
+                for fieldname, field in self.model.model_fields.items():
+                    if "indexed" in field.metadata:
+                        unique = "unique" in field.metadata
+                        await self.collection.create_index([(fieldname, ASCENDING)], unique=unique)
+                    elif "indexed_text" in field.metadata:
+                        await self.collection.create_index([(fieldname, "text")])
 
         # taskiq broker
         if self.task_broker is None:
@@ -201,27 +202,31 @@ class BaseApplet:
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks
-        for child_applet in self.all_child_applets:
-            methods = {name: member for name, member in inspect.getmembers(child_applet) if callable(member)}
-            for method_name, method in methods.items():
-                _watchdog_task = getattr(method, "_watchdog_task", None)
-                if _watchdog_task is None:
-                    continue
-                kwargs = getattr(method, "_kwargs", {})
-                # crontab handling
-                cron_default = kwargs.pop("cron", None)
-                cron_config_key = kwargs.pop("cron_config_key", None)
-                if cron_config_key is not None:
-                    if cron_default is None:
-                        raise ValueError(
-                            f"{self.name}.{method_name}: When specifying a crontab config value, you must also give a default crontab value (kwarg: 'cron')"
-                        )
-                    cron = OmegaConf.select(self.config, cron_config_key, default=cron_default)
-                    kwargs["schedule"] = [{"cron": cron}]
-                elif cron_default is not None:
-                    kwargs["schedule"] = [{"cron": cron_default}]
-                task = broker.register_task(method, **kwargs)
-                setattr(child_applet, method_name, task)
+        methods = {name: member for name, member in inspect.getmembers(self) if callable(member)}
+        for method_name, method in methods.items():
+            # handle case where tasks have already been registered
+            method = getattr(method, "original_func", method)
+
+            _watchdog_task = getattr(method, "_watchdog_task", None)
+            if _watchdog_task is None:
+                continue
+            kwargs = getattr(method, "_kwargs", {})
+            # crontab handling
+            cron_default = kwargs.pop("cron", None)
+            cron_config_key = kwargs.pop("cron_config_key", None)
+            if cron_config_key is not None:
+                if cron_default is None:
+                    raise ValueError(
+                        f"{self.name}.{method_name}: When specifying a crontab config value, you must also give a default crontab value (kwarg: 'cron')"
+                    )
+                cron = OmegaConf.select(self.config, cron_config_key, default=cron_default)
+                kwargs["schedule"] = [{"cron": cron}]
+            elif cron_default is not None:
+                kwargs["schedule"] = [{"cron": cron_default}]
+            self.log.debug(f"Registering task: {method_name} {kwargs}")
+            task = broker.register_task(method, **kwargs)
+            # overwrite the original method with the decorated TaskIQ task
+            setattr(self, method_name, task)
 
     async def setup(self):
         pass
@@ -262,6 +267,7 @@ class BaseApplet:
         router.include_router(applet.router)
         # add it to our list of child apps
         self.child_applets.append(applet)
+        return applet
 
     async def _get_obj(self, host: str):
         """
@@ -391,24 +397,37 @@ class BaseApplet:
             self.__class__._asset_lock = NamedLock()
         return self.__class__._asset_lock
 
-    def __getattribute__(self, attr):
-        """
-        Allow access to attributes on any of this applet's children, recursively
+    # def __getattribute__(self, attr):
+    #     """
+    #     Allow access to attributes on any of this applet's children, recursively
 
-        This saves you from having to do things like: `bbot_server.assets.scans.runs.get_scan_runs()`.
-        Instead, you can just do: `bbot_server.get_scan_runs()`.
-        """
+    #     This saves you from having to do things like: `bbot_server.assets.scans.runs.get_scan_runs()`.
+    #     Instead, you can just do: `bbot_server.get_scan_runs()`.
+    #     """
+    #     try:
+    #         # first try self
+    #         return super().__getattribute__(attr)
+    #     except AttributeError:
+    #         # then try all the child applets
+    #         for child_applet in super().__getattribute__("child_applets"):
+    #             try:
+    #                 return getattr(child_applet, attr)
+    #             except AttributeError:
+    #                 continue
+    #     raise AttributeError(f'{self.__class__.__name__} has no attribute "{attr}"')
+
+    def __getattr__(self, name):
         try:
             # first try self
-            return super().__getattribute__(attr)
+            return super().__getattribute__(name)
         except AttributeError:
             # then try all the child applets
             for child_applet in super().__getattribute__("child_applets"):
                 try:
-                    return getattr(child_applet, attr)
+                    return getattr(child_applet, name)
                 except AttributeError:
                     continue
-        raise AttributeError(f'{self.__class__.__name__} has no attribute "{attr}"')
+        raise AttributeError(f'{self.__class__.__name__} has no attribute "{name}"')
 
     ### ASYNC UTILS FOR CONVENIENCE ###
 

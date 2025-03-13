@@ -82,6 +82,8 @@ class TestAppletAgents(BaseAppletTest):
 
                         response = AgentResponse(request_id=status_command.request_id, response={"status": "READY"})
                         await websocket.send(orjson.dumps(response.model_dump()))
+            except asyncio.CancelledError:
+                pass
             except BaseException:
                 self.log.error(f"Error in dummy agent: {traceback.format_exc()}")
 

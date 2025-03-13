@@ -7,7 +7,7 @@ from tests.test_applets.base import BaseAppletTest
 
 @pytest.mark.asyncio
 async def test_fifo_queue_nats(bbot_server):
-    bbot_server = await bbot_server()
+    bbot_server, watchdog, agent = await bbot_server()
 
     # first, we test the basic put/get functionality
     await bbot_server.message_queue.put({"test1": "test1"}, "test")
@@ -44,7 +44,7 @@ class TestMessageQueuesNATS(BaseAppletTest):
         event = self.scan1_events[0]
         await self.bbot_server.message_queue.publish(event, "events")
         # wait a second
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
         # read the message back
         events = []
 
@@ -52,7 +52,7 @@ class TestMessageQueuesNATS(BaseAppletTest):
             events.append(message)
 
         sub = await self.bbot_server.message_queue.subscribe(callback, "events")
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
         assert len(events) == 1
         assert events[0] == event.model_dump()
         await self.bbot_server.message_queue.unsubscribe(sub)
@@ -61,19 +61,22 @@ class TestMessageQueuesNATS(BaseAppletTest):
         # the server should remember where it left off
         events.clear()
         sub = await self.bbot_server.message_queue.subscribe(callback, "events", durable="test_durable")
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
         assert len(events) == 1
         await self.bbot_server.message_queue.unsubscribe(sub)
+        # this sleep is critical, otherwise you'll run into the race condition: "JetStream.Error consumer is already bound to a subscription"
+        await asyncio.sleep(0.1)
 
         events.clear()
         sub = await self.bbot_server.message_queue.subscribe(callback, "events", durable="test_durable")
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
         assert len(events) == 0
         await self.bbot_server.message_queue.unsubscribe(sub)
+        await asyncio.sleep(0.1)
 
         events.clear()
         sub = await self.bbot_server.message_queue.subscribe(callback, "events", durable="test_durable_new")
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
         assert len(events) == 1
         await self.bbot_server.message_queue.unsubscribe(sub)
 

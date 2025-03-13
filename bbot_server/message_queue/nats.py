@@ -5,7 +5,7 @@ import functools
 import traceback
 from pydantic import BaseModel
 from contextlib import suppress
-from taskiq_nats import NatsBroker
+from taskiq_nats import NatsBroker, PushBasedJetStreamBroker, PullBasedJetStreamBroker
 
 from .base import BaseMessageQueue
 
@@ -75,6 +75,8 @@ class NATSMessageQueue(BaseMessageQueue):
 
     async def make_taskiq_broker(self):
         return NatsBroker(self.uri)
+        # return PushBasedJetStreamBroker(self.uri)
+        # return PullBasedJetStreamBroker(self.uri)
 
     async def get(self, subject: str, timeout=None):
         subject = f"bbot.work.{subject}"
@@ -110,6 +112,9 @@ class NATSMessageQueue(BaseMessageQueue):
         await self.js.publish(subject, message, stream="bbot_stream")
 
     async def subscribe(self, callback, subject: str, durable: str = None):
+        """
+        Subscribe to a subject. If 'durable' is provided, it will pick up where it left off.
+        """
         subject = f"bbot.stream.{subject}"
 
         @functools.wraps(callback)
@@ -117,14 +122,14 @@ class NATSMessageQueue(BaseMessageQueue):
             message_json = orjson.loads(msg.data)
             await callback(message_json)
 
-        config = None
+        kwargs = dict(
+            cb=wrapped_callback,
+            stream="bbot_stream",
+        )
         if durable:
-            config = nats.js.api.ConsumerConfig(
-                durable_name=durable,
-            )
+            kwargs["durable"] = durable
 
-        subscription = await self.js.subscribe(subject, cb=wrapped_callback, stream="bbot_stream", config=config)
-
+        subscription = await self.js.subscribe(subject, **kwargs)
         self._active_subscriptions.append(subscription)
         return subscription
 

@@ -8,15 +8,8 @@ from bbot.models.pydantic import Event
 
 
 @pytest.mark.asyncio
-async def test_watchdog(bbot_events):
-    from bbot_server import BBOTServer
-    from bbot_server.watchdog import BBOTWatchdog
-
-    bbot_server = BBOTServer()
-    await bbot_server.setup()
-
-    watchdog = BBOTWatchdog(bbot_server)
-    await watchdog.start()
+async def test_watchdog(bbot_events, bbot_server):
+    bbot_server, watchdog, agent = await bbot_server()
 
     # allow some time for the startup to complete
     await asyncio.sleep(2)
@@ -42,5 +35,3 @@ async def test_watchdog(bbot_events):
     db_events = [e async for e in bbot_server.get_events()]
     assert db_events
     assert len(db_events) == len(scan1_events)
-
-    await watchdog.stop()

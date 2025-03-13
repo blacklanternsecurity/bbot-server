@@ -49,7 +49,9 @@ class BaseAppletTest:
         The main test function that runs each of the individual applet tests.
         """
         self.log = logging.getLogger(f"bbot.server.test.{self.__class__.__name__.lower()}")
-        self.bbot_server = await bbot_server(config_overrides=self.config_overrides, needs_agent=self.needs_agent)
+        self.bbot_server, self.watchdog, self.agent = await bbot_server(
+            config_overrides=self.config_overrides, needs_agent=self.needs_agent
+        )
 
         self.scan1_events = bbot_events[0]
         self.scan2_events = bbot_events[1]

@@ -1,5 +1,5 @@
 async def test_asset_indexes(bbot_server):
-    bbot_server = await bbot_server()
+    bbot_server, watchdog, agent = await bbot_server()
 
     assert bbot_server.assets.open_ports.model.indexed_fields() == {
         "host": "indexed",
