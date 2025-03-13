@@ -52,6 +52,7 @@ class BBOTHTTPTestServer:
         server.run()
 
     def start(self):
+        print("STARTING SERVER")
         self.server_process = multiprocessing.Process(target=self._run_bbot_server, daemon=True)
         self.server_process.start()
 
@@ -113,7 +114,7 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config):
     bbot_server = None
     bbot_server_http = None
 
-    async def _make_bbot_server(config_overrides=None, needs_agent=False, **kwargs):
+    async def _make_bbot_server(config_overrides=None, needs_agent=False, needs_server=False, **kwargs):
         nonlocal watchdog, agent, bbot_server, bbot_server_http, bbot_server_config
 
         if config_overrides is not None:
@@ -133,7 +134,7 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config):
         await bbot_server.message_queue.clear()
 
         # http server
-        if kwargs["interface"] == "http":
+        if needs_server or kwargs["interface"] == "http":
             bbot_server_http = BBOTHTTPTestServer(bbot_server_config)
             bbot_server_http.start()
 
