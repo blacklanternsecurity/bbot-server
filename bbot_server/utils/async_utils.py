@@ -1,3 +1,4 @@
+import atexit
 import asyncio
 import inspect
 import logging
@@ -75,7 +76,11 @@ class AsyncToSyncWrapper:
             self.loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self.loop)
             self._ready.set()  # Signal that the loop is ready
-            self.loop.run_forever()
+            try:
+                self.loop.run_forever()
+            finally:
+                self.loop.stop()
+                self.loop.close()
 
         self.thread = threading.Thread(target=run_event_loop, daemon=True)
         self.thread.start()
@@ -144,32 +149,69 @@ def async_to_sync_class(cls):
         def __init__(self, *args, synchronous=False, **kwargs):
             self._synchronous = synchronous
             if synchronous:
-                _wrapper = AsyncToSyncWrapper()
-                _wrapper.start()
-                self._wrapper = _wrapper
+                self._wrapper = AsyncToSyncWrapper()
+                self._wrapper.start()
+                atexit.register(self._wrapper.stop)
             super().__init__(*args, **kwargs)
 
-        def _wrap(self, attr):
-            if callable(attr) and inspect.iscoroutinefunction(attr) and self._synchronous:
+        def _async_wrap(self, attr):
+            """
+            Gracefully wraps async functions and generators so they can be called synchronously
+            """
+            # Skip wrapping if not synchronous or not callable
+            if not self._synchronous or not callable(attr):
+                return attr
+
+            # Handle regular async functions
+            if inspect.iscoroutinefunction(attr):
 
                 def wrapper(*args, **kwargs):
                     return self._wrapper.run_coroutine(attr(*args, **kwargs))
 
                 return wrapper
+
+            # Handle async generator functions
+            elif inspect.isasyncgenfunction(attr):
+
+                def wrapper(*args, **kwargs):
+                    # Get the async generator object
+                    async_gen = attr(*args, **kwargs)
+
+                    # Create a synchronous generator that yields from the async generator
+                    def sync_generator():
+                        try:
+                            while True:
+                                # Get the next item from the async generator
+                                coro = async_gen.__anext__()
+                                try:
+                                    # Run the coroutine synchronously and yield its result
+                                    yield self._wrapper.run_coroutine(coro)
+                                except StopAsyncIteration:
+                                    # This is raised when the async generator is exhausted
+                                    break
+                        finally:
+                            # Ensure the async generator is properly closed
+                            if hasattr(async_gen, "aclose"):
+                                self._wrapper.run_coroutine(async_gen.aclose())
+
+                    # Return the synchronous generator
+                    return sync_generator()
+
+                return wrapper
+
             return attr
 
-        def __getattribute__(self, name):
-            """
-            This needs to be __getattribute__ instead of __getattr__ because it's wrapping existing classes, and it needs to
-            intercept all attributes, especially ones that already exist on the wrapped class
-            """
-            attr = super().__getattribute__(name)
-            _wrap = super().__getattribute__("_wrap")
-            return _wrap(attr)
+        def __getattr__(self, name):
+            attr = super().__getattr__(name)
+            return self._async_wrap(attr)
 
-        def __del__(self):
-            if self.__getattribute__("_synchronous"):
-                self._wrapper.stop()
+        def __getattribute__(self, name):
+            if name in ("_synchronous", "_wrapper", "_async_wrap"):
+                return super().__getattribute__(name)
+
+            attr = super().__getattribute__(name)
+            wrap = super().__getattribute__("_async_wrap")
+            return wrap(attr)
 
     return Wrapper
 

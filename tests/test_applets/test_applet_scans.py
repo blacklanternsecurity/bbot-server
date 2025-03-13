@@ -2,7 +2,7 @@ import asyncio
 
 
 async def test_applet_scans(bbot_server):
-    bbot_server = await bbot_server(needs_agent=True)
+    bbot_server, watchdog, agent = await bbot_server(needs_agent=True)
 
     scans = await bbot_server.get_scans()
     assert scans == []

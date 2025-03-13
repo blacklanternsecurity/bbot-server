@@ -15,7 +15,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 
 from bbot_server.interfaces.base import BaseInterface
-
+from bbot_server.errors import HTTP_STATUS_MAPPINGS, BBOTServerError
 
 import logging
 
@@ -60,6 +60,11 @@ class http(BaseInterface):
         except Exception as e:
             self.log.error(f"Error decoding response json for {response}: {e}: {getattr(response, 'text', '')}")
             raise
+
+        # detect errors
+        if response_json and list(response_json) == ["error"]:
+            error_class = HTTP_STATUS_MAPPINGS.get(response.status_code, BBOTServerError)
+            raise error_class(response_json["error"])
 
         # if our function doesn't have a return type, return the raw JSON
         if _route.response_model is None:
@@ -202,7 +207,7 @@ class http(BaseInterface):
         try:
             applet = self.applet
         except AttributeError:
-            return getattr(self, attr)
+            return self._async_wrap(getattr(self, attr))
         try:
             route = applet.route_maps[attr]
             url = f"{self.base_url}{route.full_path}"
@@ -216,9 +221,9 @@ class http(BaseInterface):
                 coro = partial(self._websocket_publish, url, route)
             else:
                 raise ValueError(f"Unknown endpoint type: {route.endpoint_type}")
-            return coro
+            return self._async_wrap(coro)
         except (KeyError, AttributeError):
-            return getattr(applet, attr)
+            return self._async_wrap(getattr(applet, attr))
 
     # def __getattribute__(self, attr):
     #     """

@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
 from fastapi.responses import RedirectResponse, ORJSONResponse
 
-# from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+from bbot_server.errors import BBOTServerError
 
+# from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 
 app_kwargs = {
     "title": "BBOT Server",
@@ -36,6 +37,16 @@ def make_app(config=None):
     @app.get("/", include_in_schema=False)
     async def docs_redirect():
         return RedirectResponse(url="docs")
+
+    @app.exception_handler(BBOTServerError)
+    async def exception_handler(request: Request, exc: Exception):
+        status_code = exc.http_status_code
+        error_message = str(exc)
+        message = error_message if error_message else exc.default_message
+        return ORJSONResponse(
+            status_code=status_code,
+            content={"error": message},
+        )
 
     # favicon overrides - not working
 

@@ -1,6 +1,8 @@
 from pymongo import WriteConcern
 from motor.motor_asyncio import AsyncIOMotorClient
 
+
+from bbot_server.errors import BBOTServerNotFoundError
 from bbot_server.event_store._base import BaseEventStore
 
 
@@ -44,6 +46,12 @@ class MongoEventStore(BaseEventStore):
             query["host"] = host
         async for event in self.collection.find(query):
             yield event
+
+    async def _get_event(self, uuid: str):
+        event = await self.collection.find_one({"uuid": uuid})
+        if event is None:
+            raise BBOTServerNotFoundError(f"Event {uuid} not found")
+        return event
 
     async def _clear(self, confirm):
         if not confirm == f"WIPE {self.db_name}":
