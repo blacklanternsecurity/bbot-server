@@ -27,7 +27,7 @@ ruff = "^0.9.7"
 typer = "^0.15.2"
 
 [tool.poetry.scripts]
-bbctl = 'bbot_server.cli:main'
+bbctl = 'bbot_server.cli.bbctl:main'
 
 [tool.ruff]
 line-length = 119

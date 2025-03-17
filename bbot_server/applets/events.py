@@ -26,9 +26,6 @@ class EventsApplet(BaseApplet):
         # it will be picked up by the watchdog and ingested
         await self.root.message_queue.event_publish(event)
 
-    async def _insert_event(self, event: Event):
-        await self.event_store.insert_event(event)
-
     @api_endpoint("/{uuid}", methods=["GET"], summary="Get an event by its UUID")
     async def get_event(self, uuid: str) -> Event:
         return await self.event_store.get_event(uuid)

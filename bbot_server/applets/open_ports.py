@@ -64,7 +64,7 @@ class OpenPortsApplet(BaseApplet):
             return []
         return open_ports_obj.open_ports
 
-    async def ingest_event(self, event):
+    async def handle_event(self, event):
         open_ports = await self.get_open_ports(event.host)
         current_facet = self.model(host=event.host, open_ports=open_ports)
         activities = current_facet._ingest_event(event)

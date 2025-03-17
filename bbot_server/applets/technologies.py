@@ -12,7 +12,7 @@ class Technologies(BaseApplet):
     class AssetFields(BaseModel):
         technologies: list[str] = Field(default_factory=list)
 
-    # async def ingest_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
+    # async def handle_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
     #     activities = []
     #     technology = event.data["technology"]
     #     current_technologies = self._get_technologies(asset)

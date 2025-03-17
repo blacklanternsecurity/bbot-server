@@ -64,7 +64,7 @@ class AssetsApplet(BaseApplet):
     async def get_asset(self, host: str) -> Asset:
         asset = await self.collection.find_one({"host": host})
         if not asset:
-            self.raise404("Asset not found")
+            raise self.BBOTServerNotFoundError(f"Asset {host} not found")
         return Asset(**asset)
 
     @api_endpoint("/fieldnames", methods=["GET"], summary="List all current asset fieldnames")

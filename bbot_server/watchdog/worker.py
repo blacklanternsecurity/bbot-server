@@ -47,7 +47,9 @@ class BBOTWatchdog:
         self.taskiq_scheduler_task = asyncio.create_task(run_scheduler_task(self.taskiq_scheduler))
 
         # start the event queue listener
-        self.event_listener = await self.bbot_server.message_queue.subscribe(self._event_listener, "events")
+        self.event_listener = await self.bbot_server.message_queue.subscribe(
+            self._event_listener, "events", durable="bbot_worker"
+        )
 
     async def _event_listener(self, message: dict) -> None:
         """
@@ -61,7 +63,7 @@ class BBOTWatchdog:
         for applet in self.bbot_server.all_child_applets:
             if event.type in applet.watched_events:
                 try:
-                    activities.extend(await applet.ingest_event(event))
+                    activities.extend(await applet.handle_event(event))
                 except Exception as e:
                     self.log.error(f"Error ingesting event {event.type} for applet {applet.name}: {e}")
                     self.log.error(traceback.format_exc())

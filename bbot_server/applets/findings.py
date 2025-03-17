@@ -15,7 +15,7 @@ class FindingsApplet(BaseApplet):
         vulnerabilities: list[str] = Field(default_factory=list)
         findings: list[str] = Field(default_factory=list)
 
-    # async def ingest_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
+    # async def handle_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
     #     activities = []
     #     vuln_id = event.id
     #     vuln_description = event.data_json["description"]

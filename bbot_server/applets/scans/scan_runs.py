@@ -17,7 +17,7 @@ class ScanRunsApplet(BaseApplet):
     async def setup(self):
         self.scan_watch_task = self.create_task(self.start_scans_loop())
 
-    # async def ingest_event(self, asset, event) -> list[AssetActivity]:
+    # async def handle_event(self, asset, event) -> list[AssetActivity]:
     #     scan_run = ScanRun(**event.data_json)
     #     activity_type = f"SCAN_{scan_run.status}"
 

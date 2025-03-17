@@ -6,6 +6,7 @@ import asyncio  # noqa
 import logging
 import pytest  # noqa
 import pytest_asyncio
+from pathlib import Path
 from omegaconf import OmegaConf
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
@@ -18,6 +19,9 @@ from bbot.models.pydantic import Event
 from bbot.modules.base import BaseModule
 
 log = logging.getLogger(__name__)
+
+
+TEST_CONFIG_PATH = Path(__file__).parent / "test_config.yml"
 
 
 @pytest.fixture
@@ -52,7 +56,6 @@ class BBOTHTTPTestServer:
         server.run()
 
     def start(self):
-        print("STARTING SERVER")
         self.server_process = multiprocessing.Process(target=self._run_bbot_server, daemon=True)
         self.server_process.start()
 
@@ -73,7 +76,7 @@ class BBOTHTTPTestServer:
             retry_count += 1
 
         if retry_count >= max_retries:
-            self.stop()  # Use our stop method instead of direct terminate
+            self.stop()
             raise RuntimeError("Failed to start bbot-server")
 
     def stop(self):
@@ -121,7 +124,7 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config):
             bbot_server_config = OmegaConf.merge(bbot_server_config, config_overrides)
 
         interface_kwargs = dict(request.param)
-        # kwargs = {}
+        interface = interface_kwargs.get("interface", "python")
         interface_kwargs.update({"config": bbot_server_config})
         kwargs.update(interface_kwargs)
 
@@ -130,8 +133,17 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config):
         bbot_server = BBOTServer(**kwargs)
         await bbot_server.setup()
 
-        # clear the message queue
-        await bbot_server.message_queue.clear()
+        # we need an underlying bbot server for the watchdog, etc. because http interface is just a stub
+        # and the usual message queues, etc. aren't available
+        if interface == "python":
+            underlying_bbot_server = bbot_server
+        else:
+            underlying_kwargs = dict(kwargs)
+            underlying_kwargs.pop("interface")
+            underlying_bbot_server = BBOTServer(interface="python", **underlying_kwargs)
+
+        await underlying_bbot_server.setup()
+        await underlying_bbot_server.message_queue.clear()
 
         # http server
         if needs_server or kwargs["interface"] == "http":
@@ -139,16 +151,16 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config):
             bbot_server_http.start()
 
         # watchdog
-        watchdog = BBOTWatchdog(bbot_server)
+        watchdog = BBOTWatchdog(underlying_bbot_server)
         await watchdog.start()
 
         # agent
         if needs_agent:
-            agent = await bbot_server.create_agent(name="test_agent", description="test agent")
+            agent = await underlying_bbot_server.create_agent(name="test_agent", description="test agent")
             agent = BBOTAgent(name=agent.name, id=agent.id)
             await agent.start()
 
-        return bbot_server, watchdog, agent
+        return underlying_bbot_server, watchdog, agent
 
     yield _make_bbot_server
 
@@ -160,6 +172,17 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config):
         await bbot_server.cleanup()
     with suppress(AttributeError):
         bbot_server_http.stop()
+
+
+@pytest.fixture
+def bbot_watchdog():
+    import subprocess
+
+    watchdog_process = subprocess.Popen(
+        ["bbctl", "--config", str(TEST_CONFIG_PATH), "server", "start", "--watchdog-only"]
+    )
+    yield watchdog_process
+    watchdog_process.terminate()
 
 
 BBOT_EVENTS = []

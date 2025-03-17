@@ -32,10 +32,12 @@ class http(BaseInterface):
     interface_type = "http"
 
     def __init__(self, **kwargs):
+        url = kwargs.pop("url", None)
         super().__init__(**kwargs)
-        if not "url" in self.config:
-            raise ValueError("When using the HTTP interface, url is required in the config")
-        url = self.config["url"]
+        if url is None:
+            if not "url" in self.config:
+                raise ValueError("When using the HTTP interface, url is required in the config")
+            url = self.config["url"]
         self.base_url = url.strip("/")
         self.client = httpx.AsyncClient()
 
@@ -51,20 +53,24 @@ class http(BaseInterface):
         try:
             response = await self.client.request(url=_url, method=method, json=body)
         except Exception as e:
-            self.log.error(f"Error making request for {method}->{_url}: {e}")
-            self.log.error(traceback.format_exc())
-            raise
+            self.log.error(f"Error making {method} request for -> {_url}: {e}")
+            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
         try:
             response_json = response.json()
         except Exception as e:
             self.log.error(f"Error decoding response json for {response}: {e}: {getattr(response, 'text', '')}")
-            raise
+            raise BBOTServerError(
+                f"Error decoding response JSON for {response}: {e}: {getattr(response, 'text', '')}"
+            ) from e
 
-        # detect errors
-        if response_json and list(response_json) == ["error"]:
-            error_class = HTTP_STATUS_MAPPINGS.get(response.status_code, BBOTServerError)
-            raise error_class(response_json["error"])
+        if not response.is_success:
+            # detect errors
+            if response_json and list(response_json) == ["error"]:
+                error_class = HTTP_STATUS_MAPPINGS.get(response.status_code, BBOTServerError)
+                raise error_class(response_json["error"])
+
+            raise BBOTServerError(f"Error making {method} request -> {_url}: {response.status_code} {response.text}")
 
         # if our function doesn't have a return type, return the raw JSON
         if _route.response_model is None:
@@ -194,6 +200,19 @@ class http(BaseInterface):
         new_query = urlencode(query_dict, doseq=True)
         # Reconstruct the URL with new query string
         return urlunparse((scheme, netloc, path, params, new_query, fragment))
+
+    # these are no-ops for the http interface
+    async def setup(self):
+        self._setup_finished = True
+
+    async def _setup(self):
+        pass
+
+    async def cleanup(self):
+        pass
+
+    async def _cleanup(self):
+        pass
 
     def __getattr__(self, attr):
         """

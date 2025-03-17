@@ -119,6 +119,8 @@ class NATSMessageQueue(BaseMessageQueue):
 
         @functools.wraps(callback)
         async def wrapped_callback(msg):
+            if durable is not None:
+                await msg.ack()
             message_json = orjson.loads(msg.data)
             await callback(message_json)
 

@@ -1,3 +1,5 @@
+from pathlib import Path
+from contextlib import suppress
 from gridfs import GridFSBucket
 from omegaconf import OmegaConf
 
@@ -20,9 +22,14 @@ class RootApplet(BaseApplet):
 
     _route_prefix = ""
 
-    def __init__(self, **kwargs):
-        config = kwargs.pop("config", {})
-        if config:
+    def __init__(self, config=None, **kwargs):
+        """
+        "config" can be either a path to a config file or an OmegaConf object
+        """
+        if config is not None:
+            with suppress(Exception):
+                config_path = Path(config)
+                config = OmegaConf.load(config_path)
             self.config = OmegaConf.merge(BBOT_SERVER_CONFIG, config)
         else:
             self.config = BBOT_SERVER_CONFIG

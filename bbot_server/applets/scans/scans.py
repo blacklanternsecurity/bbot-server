@@ -22,7 +22,7 @@ class ScansApplet(BaseApplet):
     include_apps = [TargetsApplet, AgentsApplet, ScanRunsApplet, YaraRulesApplet]
     model = ScanDBEntry
 
-    async def ingest_event(self, event):
+    async def handle_event(self, event):
         scan_id = event.data_json["id"]
         try:
             scan_run = await self.get_scan(id=scan_id)

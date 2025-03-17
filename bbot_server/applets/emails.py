@@ -20,7 +20,7 @@ class EmailsApplet(BaseApplet):
             emails.update(asset.fields.get("emails", []))
         return sorted(emails)
 
-    # async def ingest_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
+    # async def handle_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
     #     activities = []
     #     email = event.data
     #     current_emails = set(asset.fields.get("emails", [])) or set()

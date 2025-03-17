@@ -239,7 +239,7 @@ class BaseApplet:
     async def cleanup(self):
         pass
 
-    async def ingest_event(self, event: Event):
+    async def handle_event(self, event: Event):
         return []
 
     async def emit_activity(self, *args, **kwargs):
@@ -248,9 +248,6 @@ class BaseApplet:
 
     async def _emit_activity(self, activity: AssetActivity):
         await self.root.message_queue.asset_publish(activity)
-
-    def raise404(self, detail: str):
-        raise HTTPException(status_code=404, detail=detail)
 
     def include_app(self, app_class):
         self.log.debug(f"{self.__class__.__name__} including {app_class.__name__}")
