@@ -4,6 +4,7 @@ import logging
 # coverage for tests
 if os.getenv("BBOT_TESTING"):
     import coverage
+
     cov = coverage.process_startup()
 
 for root_logger in ("bbot", "bbot_server"):
