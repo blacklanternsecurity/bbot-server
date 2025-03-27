@@ -156,7 +156,7 @@ def bbot_agent(bbot_server_http):
     try:
         agent_info = json.loads(agent_stdout)
     except json.JSONDecodeError:
-        raise Exception(f"Failed to create agent: (stdout: {agent_stdout})")
+        raise Exception(f"Failed to create agent: (stdout: {agent_stdout}, stderr: {agent_info.stderr})")
     agent_name = agent_info["name"]
     agent_id = agent_info["id"]
     agent_process = subprocess.Popen([*BBCTL_COMMAND, "agent", "start", "--name", agent_name, "--id", agent_id])
