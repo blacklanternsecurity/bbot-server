@@ -3,6 +3,7 @@ from omegaconf import OmegaConf
 from contextlib import contextmanager
 
 from bbot_server.config import BBOT_SERVER_CONFIG
+from bbot_server.message_queue import MessageQueue
 
 from ..conftest import *
 
@@ -12,7 +13,9 @@ class BaseAppletTest:
 
     config_overrides = {}
 
+    needs_api = False
     needs_agent = False
+    needs_watchdog = False
 
     async def setup(self):
         """
@@ -44,13 +47,17 @@ class BaseAppletTest:
         """
         pass
 
-    async def test_applet_run(self, bbot_server, bbot_events):
+    async def test_applet_run(self, bbot_server, bbot_events, bbot_server_config):
         """
         The main test function that runs each of the individual applet tests.
         """
         self.log = logging.getLogger(f"bbot.server.test.{self.__class__.__name__.lower()}")
-        self.bbot_server, self.watchdog, self.agent = await bbot_server(
-            config_overrides=self.config_overrides, needs_agent=self.needs_agent
+        self.bbot_server_config = bbot_server_config
+        self.bbot_server = await bbot_server(
+            config_overrides=self.config_overrides,
+            needs_api=self.needs_api,
+            needs_agent=self.needs_agent,
+            needs_watchdog=self.needs_watchdog,
         )
 
         self.scan1_events = bbot_events[0]
@@ -92,6 +99,7 @@ class BaseAppletTest:
             # archive old events (from the first scan)
             with self.handle_errors("running archive task"):
                 await self.bbot_server.archive_old_events()
+            # wait for the archive task to finish
             await asyncio.sleep(1)
 
             # final test - after archiving
@@ -124,11 +132,12 @@ class BaseAppletTest:
                 self.log.critical(traceback.format_exc())
                 raise
 
-        async def tail_assets():
+        async def tail_activities():
             try:
                 agen = self.bbot_server.tail_assets()
-                async for asset in agen:
-                    asset_messages.append(asset)
+                async for activity in agen:
+                    self.log.info(f"New Activity: [{activity.type}] {activity.description}")
+                    asset_messages.append(activity)
                 with suppress(BaseException):
                     await agen.aclose()
             except Exception:
@@ -138,7 +147,7 @@ class BaseAppletTest:
                 raise
 
         event_tail_task = asyncio.create_task(tail_events())
-        asset_tail_task = asyncio.create_task(tail_assets())
+        asset_tail_task = asyncio.create_task(tail_activities())
 
         return event_tail_task, asset_tail_task
 

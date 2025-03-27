@@ -3,6 +3,7 @@ import asyncio
 import inspect
 import logging
 import threading
+from functools import wraps
 from cachetools import LRUCache
 from contextlib import asynccontextmanager
 
@@ -115,51 +116,42 @@ class AsyncToSyncWrapper:
 
 
 def async_to_sync_class(cls):
-    """Decorator that allows async class methods to be called synchronously.
+    """Decorator that allows async class methods to be called synchronously."""
 
-    This decorator wraps a class, adding a 'synchronous' parameter to its
-    constructor. When True, async methods are executed synchronously using
-    the current event loop, without blocking it.
+    # Store the original __new__ method
+    orig_new = cls.__new__
 
-    Args:
-        cls: The class to be decorated.
+    # Define a new __new__ method that handles the synchronous parameter
+    def __new__(mcs, *args, synchronous=False, **kwargs):
+        # Create the instance using the original __new__
+        instance = orig_new(cls)  # Only create the instance, don't pass args yet
 
-    Returns:
-        A new class that wraps the original, with the ability to call async
-        methods synchronously.
+        # If synchronous mode is requested, wrap the instance
+        if synchronous:
+            wrapper = _SyncWrapper(instance)
+            # Initialize the original instance
+            instance.__init__(*args, **kwargs)
+            return wrapper
 
-    Example:
-        @async_to_sync_class
-        class MyAsyncClass:
-            async def async_method(self):
-                await asyncio.sleep(1)
-                return "Hello, World!"
+        return instance
 
-        # Synchronous usage
-        sync_obj = MyAsyncClass(synchronous=True)
-        result = sync_obj.async_method()  # Runs synchronously
+    # Replace the __new__ method
+    cls.__new__ = __new__
 
-        # Asynchronous usage
-        async_obj = MyAsyncClass(synchronous=False)
-        async def run_async():
-            result = await async_obj.async_method()
-    """
-
-    class Wrapper(cls):
-        def __init__(self, *args, synchronous=False, **kwargs):
-            self._synchronous = synchronous
-            if synchronous:
-                self._wrapper = AsyncToSyncWrapper()
-                self._wrapper.start()
-                atexit.register(self._wrapper.stop)
-            super().__init__(*args, **kwargs)
+    # Define the wrapper class in the closure
+    class _SyncWrapper:
+        def __init__(self, instance):
+            self._instance = instance
+            self._wrapper = AsyncToSyncWrapper()
+            self._wrapper.start()
+            atexit.register(self._wrapper.stop)
 
         def _async_wrap(self, attr):
             """
             Gracefully wraps async functions and generators so they can be called synchronously
             """
             # Skip wrapping if not synchronous or not callable
-            if not self._synchronous or not callable(attr):
+            if not callable(attr):
                 return attr
 
             # Handle regular async functions
@@ -201,19 +193,15 @@ def async_to_sync_class(cls):
 
             return attr
 
+        # def __getattr__(self, name):
+        #     attr = getattr(self._instance, name)
+        #     return self._async_wrap(attr)
+
         def __getattr__(self, name):
-            attr = super().__getattr__(name)
+            attr = getattr(self._instance, name)
             return self._async_wrap(attr)
 
-        def __getattribute__(self, name):
-            if name in ("_synchronous", "_wrapper", "_async_wrap"):
-                return super().__getattribute__(name)
-
-            attr = super().__getattribute__(name)
-            wrap = super().__getattribute__("_async_wrap")
-            return wrap(attr)
-
-    return Wrapper
+    return cls
 
 
 async def tail_queue(q):

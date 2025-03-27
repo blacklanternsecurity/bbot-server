@@ -8,6 +8,7 @@ from contextlib import suppress
 from typing import AsyncGenerator
 from urllib.parse import urlparse, parse_qs, urlunparse, urlencode
 
+
 # for converting pydantic objects into raw JSON
 from fastapi.encoders import jsonable_encoder
 
@@ -15,6 +16,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 
 from bbot_server.interfaces.base import BaseInterface
+from bbot_server.utils.async_utils import async_to_sync_class
 from bbot_server.errors import HTTP_STATUS_MAPPINGS, BBOTServerError
 
 import logging
@@ -22,6 +24,7 @@ import logging
 log = logging.getLogger(__name__)
 
 
+@async_to_sync_class
 class http(BaseInterface):
     """
     The HTTP interface presents an identical interface to BBOT server, but forwards all function calls as HTTP requests to a remote URL
@@ -112,6 +115,8 @@ class http(BaseInterface):
                     yield model_obj
         except asyncio.CancelledError:
             self.log.info("Websocket stream incoming cancelled")
+        except RuntimeError as e:
+            self.log.error(f"Unexpected error in websocket stream: {e}")
 
     async def _websocket_publish(self, _url, _route, message_generator, *args, **kwargs):
         """
@@ -201,10 +206,6 @@ class http(BaseInterface):
         # Reconstruct the URL with new query string
         return urlunparse((scheme, netloc, path, params, new_query, fragment))
 
-    # these are no-ops for the http interface
-    async def setup(self):
-        self._setup_finished = True
-
     async def _setup(self):
         pass
 
@@ -222,11 +223,8 @@ class http(BaseInterface):
 
         _wrap is used here to allow the coroutine to be called synchronously
         """
-        # if applet isn't initialized yet, just pass through
-        try:
-            applet = self.applet
-        except AttributeError:
-            return self._async_wrap(getattr(self, attr))
+        # if the attribute is a route, prepare the request
+        applet = getattr(self, "applet")
         try:
             route = applet.route_maps[attr]
             url = f"{self.base_url}{route.full_path}"
@@ -240,9 +238,10 @@ class http(BaseInterface):
                 coro = partial(self._websocket_publish, url, route)
             else:
                 raise ValueError(f"Unknown endpoint type: {route.endpoint_type}")
-            return self._async_wrap(coro)
+            return coro
+        # otherwise just return the attribute as is
         except (KeyError, AttributeError):
-            return self._async_wrap(getattr(applet, attr))
+            return getattr(applet, attr)
 
     # def __getattribute__(self, attr):
     #     """

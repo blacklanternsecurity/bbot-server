@@ -185,6 +185,8 @@ class WebsocketStreamIncomingRoute(BaseServerRoute):
                         yield message
                 except asyncio.CancelledError:
                     log.info("Websocket stream incoming cancelled")
+                except RuntimeError as e:
+                    log.error(f"Unexpected error in websocket stream: {e}")
 
             await self.original_function(agen())
         finally:

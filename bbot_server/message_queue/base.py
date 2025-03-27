@@ -63,6 +63,8 @@ class BaseMessageQueue:
                 yield model(**message)
             except asyncio.TimeoutError:
                 continue
+            except GeneratorExit:
+                raise
             except (asyncio.CancelledError, RuntimeError):
                 break
             except BaseException as e:

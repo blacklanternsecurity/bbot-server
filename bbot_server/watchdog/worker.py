@@ -3,11 +3,11 @@ import logging
 import traceback
 from contextlib import suppress
 from taskiq.schedule_sources import LabelScheduleSource
+from taskiq.api import run_receiver_task, run_scheduler_task
 from taskiq import TaskiqScheduler, TaskiqEvents, TaskiqState
 
 from bbot.models.pydantic import Event
-
-from taskiq.api import run_receiver_task, run_scheduler_task
+from bbot_server.errors import BBOTServerNotFoundError
 
 
 class BBOTWatchdog:
@@ -39,7 +39,7 @@ class BBOTWatchdog:
         await self.broker.startup()
 
         # register watchdog tasks
-        for app in self.bbot_server.all_child_applets:
+        for app in self.bbot_server.all_child_applets(include_self=True):
             await app.register_watchdog_tasks(self.broker)
 
         # taskiq worker tasks
@@ -59,19 +59,33 @@ class BBOTWatchdog:
         event = Event(**message)
         # write the event to the database
         await self.bbot_server.event_store.insert_event(event)
+        if event.host is not None:
+            try:
+                asset = await self.bbot_server.assets.get_asset(event.host)
+            except BBOTServerNotFoundError:
+                asset = self.bbot_server.assets.model(host=event.host)
+        else:
+            asset = None
         # let each applet process the event
-        for applet in self.bbot_server.all_child_applets:
+        for applet in self.bbot_server.all_child_applets(include_self=True):
             if event.type in applet.watched_events:
                 try:
-                    activities.extend(await applet.handle_event(event))
+                    new_activities = await applet.handle_event(event, asset)
+                    activities.extend(new_activities)
                 except Exception as e:
                     self.log.error(f"Error ingesting event {event.type} for applet {applet.name}: {e}")
                     self.log.error(traceback.format_exc())
+
+        if activities and asset is not None:
+            # if there were any changes, update the asset in the database
+            await self.bbot_server.assets.update_asset(asset)
+
         # publish applet activities to the message queue
         for activity in activities:
             await self.bbot_server._emit_activity(activity)
 
     async def stop(self) -> None:
+        self.log.critical("STOPPING WATCHDOG")
         await self.bbot_server.message_queue.unsubscribe(self.event_listener)
         self.taskiq_worker_task.cancel()
         self.taskiq_scheduler_task.cancel()

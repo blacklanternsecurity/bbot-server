@@ -1,8 +1,6 @@
 import logging
-from bbot_server.utils.async_utils import async_to_sync_class
 
 
-@async_to_sync_class
 class BaseInterface:
     """
     Interface is the frontend of the BBOT IO API.
@@ -22,18 +20,11 @@ class BaseInterface:
         from bbot_server.applets import BBOTServerRootApplet
 
         self.applet = BBOTServerRootApplet(**kwargs)
-
-    # def __getattribute__(self, attr):
-    #     # by default we just pass everything through to the applet
-    #     try:
-    #         applet = super().__getattribute__("applet")
-    #     except AttributeError:
-    #         return super().__getattribute__(attr)
-    #     return getattr(applet, attr)
+        self.applet._interface = self
 
     def __getattr__(self, name):
-        try:
-            applet = super().__getattribute__("applet")
-        except AttributeError:
-            return super().__getattribute__(name)
+        """
+        Default is to pass through to the applet
+        """
+        applet = self.__getattribute__("applet")
         return getattr(applet, name)

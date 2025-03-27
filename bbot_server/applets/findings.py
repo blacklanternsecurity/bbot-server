@@ -1,7 +1,7 @@
 import orjson
 
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import Asset, AssetActivity
+from bbot_server.models.assets import AssetActivity
 from bbot_server.applets._base import BaseApplet, api_endpoint, BaseModel, Field
 
 

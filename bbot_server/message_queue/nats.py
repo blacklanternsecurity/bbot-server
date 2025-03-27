@@ -10,9 +10,10 @@ from taskiq_nats import NatsBroker, PushBasedJetStreamBroker, PullBasedJetStream
 from .base import BaseMessageQueue
 
 from bbot_server.utils.misc import smart_encode
-from bbot_server.errors import BBOTServerValueError
+from bbot_server.utils.async_utils import async_to_sync_class
 
 
+@async_to_sync_class
 class NATSMessageQueue(BaseMessageQueue):
     """
     docker run --rm -p 4222:4222 nats -js

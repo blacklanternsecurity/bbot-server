@@ -1,7 +1,6 @@
 import uuid
-from datetime import datetime, timezone
-from typing import Annotated, Any, Optional
 from pydantic import BaseModel, Field, UUID4
+from typing import Annotated, Any, Optional, Union
 from bbot_server.models.base import BaseBBOTServerModel
 
 
@@ -12,7 +11,7 @@ class Agent(BaseBBOTServerModel):
     description: str
     connected: Annotated[bool, "indexed"] = False
     status: Annotated[str, "indexed"] = "OFFLINE"
-    last_seen: Annotated[float, "indexed"] = Field(default_factory=lambda: datetime.now(timezone.utc).timestamp())
+    last_seen: Annotated[Union[float, None], "indexed"] = None
 
 
 class AgentCommand(BaseModel):

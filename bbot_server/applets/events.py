@@ -71,4 +71,5 @@ class EventsApplet(BaseApplet):
         This is used by the agent to send events to the server.
         """
         async for event in event_generator:
-            await self.insert_event(event)
+            # we use "interface" here because we need it to still work even if we're accessing a remote BBOT server instance
+            await self.interface.insert_event(event)

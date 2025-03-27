@@ -2,7 +2,7 @@ import asyncio
 
 
 async def test_applet_scans(bbot_server):
-    bbot_server, watchdog, agent = await bbot_server(needs_agent=True, needs_server=True)
+    bbot_server = await bbot_server(needs_agent=True, needs_api=True)
 
     scans = await bbot_server.get_scans()
     assert scans == []
@@ -68,6 +68,7 @@ async def test_applet_scans(bbot_server):
 
     # make sure an agent is running
     assert len(await bbot_server.get_agents()) == 1
+    assert len(await bbot_server.get_online_agents()) == 1
 
     # tail asset activities
     activities = []
@@ -87,5 +88,4 @@ async def test_applet_scans(bbot_server):
             break
         await asyncio.sleep(0.1)
     else:
-        print(f"ACTIVITIES: {activity_types}")
-        assert False, f"Scan didn't finish properly. Activities: {activities}"
+        assert False, f"Scan didn't finish properly. Activities: {[a.type for a in activities]}"

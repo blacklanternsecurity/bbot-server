@@ -9,7 +9,7 @@ from tests.test_applets.base import BaseAppletTest
 async def test_events_websocket_ingest(bbot_server, bbot_events):
     scan1_events, scan2_events = bbot_events
 
-    bbot_server, watchdog, agent = await bbot_server()
+    bbot_server = await bbot_server()
 
     events = [e async for e in bbot_server.get_events()]
     assert events == []
@@ -33,7 +33,7 @@ async def test_events_websocket_ingest(bbot_server, bbot_events):
 async def test_events_http_ingest(bbot_server, bbot_events):
     scan1_events, scan2_events = bbot_events
 
-    bbot_server, watchdog, agent = await bbot_server()
+    bbot_server = await bbot_server()
 
     events = [e async for e in bbot_server.get_events()]
     assert events == []

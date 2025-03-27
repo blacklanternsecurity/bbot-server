@@ -14,8 +14,8 @@ from bbot import Scanner, Preset
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
 from bbot_server.applets.scans.scan_models import ScanRun
+from bbot_server.utils.async_utils import async_to_sync_class
 from bbot_server.applets.agents.agent_models import AgentResponse
-
 
 default_server_url = BBOT_SERVER_CONFIG.get("url", "http://localhost:8807/v1/")
 default_bbot_preset = BBOT_SERVER_CONFIG.get("agent", {}).get("base_preset", {})
@@ -37,12 +37,23 @@ def command(fn: Callable) -> Callable:
     return fn
 
 
+@async_to_sync_class
 class BBOTAgent:
-    def __init__(self, id: str, name: str, server_url: str = ""):
+    """
+    MUST-HAVE FEATURES
+    - change log level (globally set on agent)
+    - kill module mid scan
+    - finish scan gracefully
+    - forcefully stop scan
+    - get full scan status (with detailed module status)
+    """
+
+    def __init__(self, id: str, name: str, config):
         self.log = logging.getLogger("bbot.server.agent")
         self.id = id
         self.name = name
-        self.server_url = server_url or default_server_url
+        self.config = config
+        self.server_url = config.url
         self.parsed_server_url = urlparse(self.server_url)
         self.websocket_scheme = "ws" if self.parsed_server_url.scheme == "http" else "wss"
         self.websocket_base_url = urlunparse(
@@ -61,15 +72,17 @@ class BBOTAgent:
         self._status = "READY"
         self._scan = None
         self._agent_preset = None
+        self._agent_task = None
 
     async def start(self):
         self.log.info(f"Starting agent {self.name} ({self.id})")
-        self.agent_task = asyncio.create_task(self.loop())
+        self._agent_task = asyncio.create_task(self.loop())
 
     async def stop(self):
-        self.agent_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await self.agent_task
+        if self._agent_task is not None:
+            self._agent_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._agent_task
 
     async def handle_message(self, message):
         command = message["command"]
@@ -85,6 +98,8 @@ class BBOTAgent:
 
     @command
     async def start_scan(self, scan_run: dict[str, Any]):
+        if self._scan is not None:
+            return {"status": "error", "message": "Scan already running"}
         scan_run = ScanRun(**scan_run)
         preset = self.make_agent_preset()
         preset.merge(Preset.from_dict(scan_run.preset))
@@ -169,7 +184,22 @@ class BBOTAgent:
 
                         try:
                             request_id = message.pop("request_id")
-                            response = await self.handle_message(message)
+                            try:
+                                command = message["command"]
+                                kwargs = message["kwargs"]
+                                if not isinstance(command, str) or not isinstance(kwargs, dict):
+                                    raise BBOTServerValueError("Invalid message format")
+
+                                if command not in VALID_AGENT_COMMANDS:
+                                    raise BBOTServerValueError(f"Invalid command: {command}")
+
+                                command_fn = getattr(self, command)
+                                response = await command_fn(**kwargs)
+
+                            except BaseException as e:
+                                self.log.error(f"Error handling message: {e}")
+                                self.log.error(traceback.format_exc())
+                                raise
                             response = AgentResponse(request_id=request_id, response=response)
 
                         except Exception as e:
@@ -183,14 +213,18 @@ class BBOTAgent:
                         await websocket.send(orjson.dumps(response.model_dump()))
 
                 except websockets.ConnectionClosed:
-                    self.log.warning("Connection closed, attempting to reconnect...")
-                    await asyncio.sleep(1)  # Wait before retrying
+                    self.log.error("Connection closed, attempting to reconnect...")
+                except RuntimeError:
+                    raise
                 except Exception as e:
                     self.log.error(f"Unexpected error when connecting to {self.websocket_dock_url}: {e}")
                     self.log.error(traceback.format_exc())
                     await asyncio.sleep(1)  # Wait before retrying
+
         except asyncio.CancelledError:
-            self.log.info("Agent loop cancelled")
+            self.log.error("Agent loop cancelled")
+        except RuntimeError as e:
+            self.log.error(f"Unexpected error in agent loop: {e}")
         except BaseException as e:
             self.log.error(f"Unexpected error in agent loop: {e}")
             self.log.error(traceback.format_exc())

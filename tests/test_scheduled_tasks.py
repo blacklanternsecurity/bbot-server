@@ -1,7 +1,16 @@
 import asyncio
+from contextlib import suppress
+from omegaconf import OmegaConf
 
-from tests.test_applets.base import BaseAppletTest
 from bbot_server.applets._base import BaseApplet, watchdog_task
+
+
+# TODO:
+# - how many tasks can be executing at a time?
+# - is it configurable?
+# - what if a task runs into overtime and a bunch of the same one get queued?
+# - can we reject duplicates?
+# - dependencies (DAG / airflow?)
 
 
 class ScheduledTaskApplet(BaseApplet):
@@ -26,21 +35,31 @@ class ScheduledTaskApplet(BaseApplet):
         self.cron_task_3_ran = True
 
 
-class TestScheduledTasks(BaseAppletTest):
+async def test_scheduled_tasks(bbot_server_config, mongo_cleanup):
+    from bbot_server import BBOTServer
+    from bbot_server.watchdog import BBOTWatchdog
+
     config_overrides = {"test": {"cron_task_2": "*/1 * * * *"}}
 
-    async def setup(self):
-        app = self.bbot_server.include_app(ScheduledTaskApplet)
+    bbot_server_config = OmegaConf.merge(bbot_server_config, config_overrides)
+
+    bbot_server = BBOTServer(config=bbot_server_config)
+    await bbot_server.setup()
+    watchdog = BBOTWatchdog(bbot_server)
+    await watchdog.start()
+
+    try:
+        app = bbot_server.include_app(ScheduledTaskApplet)
         # register tasks on the bbot server side
         await app._setup()
         # register tasks on the watchdog side
-        await app.register_watchdog_tasks(self.watchdog.broker)
+        await app.register_watchdog_tasks(watchdog.broker)
 
-        assert self.bbot_server.scheduled_tasks.cron_task_ran is False, "cron_task ran before setup"
-        assert self.bbot_server.scheduled_tasks.cron_task_2_ran is False, "cron_task_2 ran before setup"
-        assert self.bbot_server.scheduled_tasks.cron_task_3_ran is False, "cron_task_3 ran before setup"
+        assert bbot_server.scheduled_tasks.cron_task_ran is False, "cron_task ran before setup"
+        assert bbot_server.scheduled_tasks.cron_task_2_ran is False, "cron_task_2 ran before setup"
+        assert bbot_server.scheduled_tasks.cron_task_3_ran is False, "cron_task_3 ran before setup"
 
-        all_tasks = self.watchdog.broker.get_all_tasks()
+        all_tasks = watchdog.broker.get_all_tasks()
 
         assert "tests.test_scheduled_tasks:cron_task" in all_tasks, "cron_task is not registered"
         assert "tests.test_scheduled_tasks:cron_task_2" in all_tasks, "cron_task_2 is not registered"
@@ -54,14 +73,20 @@ class TestScheduledTasks(BaseAppletTest):
         for i in range(60 * 10):
             if all(
                 [
-                    self.bbot_server.scheduled_tasks.cron_task_ran,
-                    self.bbot_server.scheduled_tasks.cron_task_2_ran,
-                    self.bbot_server.scheduled_tasks.cron_task_3_ran,
+                    bbot_server.scheduled_tasks.cron_task_ran,
+                    bbot_server.scheduled_tasks.cron_task_2_ran,
+                    bbot_server.scheduled_tasks.cron_task_3_ran,
                 ]
             ):
                 break
             await asyncio.sleep(0.1)
 
-        assert self.bbot_server.scheduled_tasks.cron_task_ran, "cron_task did not run"
-        assert self.bbot_server.scheduled_tasks.cron_task_2_ran, "cron_task_2 did not run"
-        assert self.bbot_server.scheduled_tasks.cron_task_3_ran, "cron_task_3 did not run"
+        assert bbot_server.scheduled_tasks.cron_task_ran, "cron_task did not run"
+        assert bbot_server.scheduled_tasks.cron_task_2_ran, "cron_task_2 did not run"
+        assert bbot_server.scheduled_tasks.cron_task_3_ran, "cron_task_3 did not run"
+
+    finally:
+        with suppress(Exception):
+            await bbot_server.stop()
+        with suppress(Exception):
+            await watchdog.stop()

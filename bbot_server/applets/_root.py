@@ -5,7 +5,6 @@ from omegaconf import OmegaConf
 
 from bbot_server.applets._base import BaseApplet
 from bbot_server.config import BBOT_SERVER_CONFIG
-from bbot_server.utils.misc import combine_pydantic_models
 
 # assets imports
 from bbot_server.applets.assets import AssetsApplet
@@ -24,12 +23,9 @@ class RootApplet(BaseApplet):
 
     def __init__(self, config=None, **kwargs):
         """
-        "config" can be either a path to a config file or an OmegaConf object
+        "config" can be either a dictionary or an omegaconf object
         """
         if config is not None:
-            with suppress(Exception):
-                config_path = Path(config)
-                config = OmegaConf.load(config_path)
             self.config = OmegaConf.merge(BBOT_SERVER_CONFIG, config)
         else:
             self.config = BBOT_SERVER_CONFIG
@@ -65,22 +61,9 @@ class RootApplet(BaseApplet):
 
         await self._setup()
 
-        # from bbot_server.models.assets import Asset
-
-        # # the combined model containing all the custom asset fields defined by applets
-        # combined_model = combine_pydantic_models(self.all_asset_models, model_name="AssetModel")
-        # # ensure every field has a type validator and default factory
-        # for field, field_info in combined_model.model_fields.items():
-        #     if field_info.annotation is None:
-        #         raise ValueError(f"Field '{field}' has no type annotation")
-        #     if field_info.default_factory is None:
-        #         raise ValueError(f"Field '{field}' has no default factory")
-
-        # Asset._field_validator = combined_model
-
     async def cleanup(self):
         for child_applet in self.child_applets:
-            await child_applet.cleanup()
+            await child_applet._cleanup()
         await self.asset_store.cleanup()
         await self.event_store.cleanup()
         await self.message_queue.cleanup()

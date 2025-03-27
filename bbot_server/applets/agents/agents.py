@@ -1,3 +1,4 @@
+import time
 import asyncio
 import traceback
 from typing import Any
@@ -7,7 +8,10 @@ from contextlib import suppress
 from datetime import datetime, timezone
 from bbot_server.applets.agents.agent_models import Agent
 from bbot_server.applets._base import BaseApplet, api_endpoint
-from bbot_server.applets.agents.connectionmanager import ConnectionManager
+
+
+# TODO: will multiple uvicorn workers break this?
+# does only one of them have access to the active websocket connections?
 
 
 class AgentsApplet(BaseApplet):
@@ -16,24 +20,21 @@ class AgentsApplet(BaseApplet):
     model = Agent
 
     async def setup(self):
-        self.connection_manager = ConnectionManager()
-        # we only kick off scans from the main server instance
+        # if this is the main server instance,
         if self.root.is_main_server:
-            self.kickoff_queued_scans_task = self.create_task(self._kickoff_queued_scans_loop())
+            from bbot_server.applets.agents.connectionmanager import ConnectionManager
 
-    def _make_agent(self, agent: Agent):
-        agent = Agent(**agent)
-        if self.connection_manager.is_connected(agent.id):
-            agent.connected = True
-            agent.last_seen = datetime.now(timezone.utc).timestamp()
-        return agent
+            # manage incoming agent connections
+            self.connection_manager = ConnectionManager()
+            # watch the
+            self.kickoff_queued_scans_task = self.create_task(self._kickoff_queued_scans_loop())
 
     @api_endpoint("/list", methods=["GET"], summary="List all agents")
     async def get_agents(self) -> list[Agent]:
         db_results = await self.collection.find().to_list(length=None)
         agents = []
         for agent in db_results:
-            agent = self._make_agent(agent)
+            agent = await self._make_agent(agent)
             agents.append(agent)
         return agents
 
@@ -55,12 +56,10 @@ class AgentsApplet(BaseApplet):
         agent = await self.collection.find_one(query)
         if agent is None:
             raise self.BBOTServerNotFoundError(f"Agent not found")
-        return self._make_agent(agent)
+        return await self._make_agent(agent)
 
     @api_endpoint("/status", methods=["GET"], summary="Get the status of an agent")
     async def get_agent_status(self, id: UUID4) -> dict[str, str]:
-        import time
-
         start_time = time.time()
         try:
             command_response = await self.connection_manager.execute_command(str(id), "status", timeout=10)
@@ -79,21 +78,24 @@ class AgentsApplet(BaseApplet):
     @api_endpoint("/online", methods=["GET"], summary="Get all online agents")
     async def get_online_agents(self, status: str = "READY") -> list[Agent]:
         agents = []
-        for agent_id in self.connection_manager.active_connections:
-            agent = await self.get_agent(id=agent_id)
-            if agent and (status is None or agent.status == status):
-                agents.append(agent)
+        agents = await self.collection.find({"status": status}).to_list(length=None)
+        agents = [Agent(**agent) for agent in agents]
         return agents
 
     async def execute_command(self, agent_id: UUID4, command: str, **kwargs) -> dict:
-        return await self.connection_manager.execute_command(str(agent_id), command, **kwargs)
+        # since this is communicating directly with a connected agent over websocket,
+        # it must be called from the main bbot server instance
+        self.ensure_main_server()
+        ret = await self.connection_manager.execute_command(str(agent_id), command, **kwargs)
+        return ret
 
     @api_endpoint("/dock/{agent_id}", type="websocket")
     async def dock(self, websocket: WebSocket, agent_id: UUID4):
         """
         The main websocket endpoint where agents connect
         """
-        self.log.info(f"Agent {agent_id} initiated docking procedure")
+        self.ensure_main_server()
+        self.log.warning(f"Agent {agent_id} initiated docking procedure")
 
         # reject any connection without a valid agent id
         agent = await self.get_agent(id=str(agent_id))
@@ -110,19 +112,14 @@ class AgentsApplet(BaseApplet):
             await websocket.close(code=1013, reason=reason)
             return
 
-        await self.emit_activity(
-            type="AGENT_CONNECTED",
-            detail={"agent_id": str(agent.id)},
-            description=f"Agent [dark_orange]{agent.name}[/dark_orange] connected",
-        )
-
         self.log.info(f"Agent {agent.name} connected")
+        await self._on_connect(agent)
         # this loop handles gratuitous messages from the agent (i.e. messages that are not responses to commands)
         try:
             async for message in self.connection_manager.loop(agent.id, websocket):
                 self.log.info(f"Server received gratuitous message from agent {agent.name}: {message}")
                 if list(message.response) == ["status"]:
-                    await self._update_agent_status(agent.id, message.response["status"])
+                    await self._update_agent_status(agent.id, message.response["status"], True)
 
         except Exception as e:
             self.log.error(f"Error in server-side websocket loop for agent {agent.id}: {e}")
@@ -130,24 +127,64 @@ class AgentsApplet(BaseApplet):
 
         finally:
             self.log.warning(f"Agent {agent.name} disconnected")
-            await self._update_agent_status(agent.id, "OFFLINE")
-            await self.emit_activity(
-                type="AGENT_DISCONNECTED",
-                detail={"agent_id": str(agent.id)},
-                description=f"Agent [dark_orange]{agent.name}[/dark_orange] disconnected",
-            )
+            await self._on_disconnect(agent)
 
-    async def _update_agent_status(self, agent_id: UUID4, status: str):
+    async def _on_connect(self, agent):
+        await self._update_agent_status(agent.id, "ONLINE", True)
+        await self.emit_activity(
+            type="AGENT_CONNECTED",
+            detail={"agent_id": str(agent.id)},
+            description=f"Agent [dark_orange]{agent.name}[/dark_orange] connected",
+        )
+
+    async def _on_disconnect(self, agent):
+        await self._update_agent_status(agent.id, "OFFLINE", False)
+        await self.emit_activity(
+            type="AGENT_DISCONNECTED",
+            detail={"agent_id": str(agent.id)},
+            description=f"Agent [dark_orange]{agent.name}[/dark_orange] disconnected",
+        )
+
+    async def _update_agent_status(self, agent_id: UUID4, status: str, connected: bool):
         now = datetime.now(timezone.utc).timestamp()
-        await self.collection.update_one({"id": str(agent_id)}, {"$set": {"status": status, "last_seen": now}})
+        await self.collection.update_one(
+            {"id": str(agent_id)},
+            {
+                "$set": {
+                    "status": status,
+                    "connected": connected,
+                    "last_seen": now,
+                }
+            },
+        )
+
+    async def _refresh_agent_status(self, agent: Agent):
+        """
+        Checks the 'connected' status of the agent and updates its last_seen timestamp if needed
+        """
+        if agent.connected:
+            now = datetime.now(timezone.utc).timestamp()
+            agent.last_seen = now
+        await self.collection.update_one({"id": str(agent.id)}, {"$set": agent.model_dump()})
+        return agent
+
+    async def _make_agent(self, agent_dict: dict):
+        agent = Agent(**agent_dict)
+        agent = await self._refresh_agent_status(agent)
+        return agent
 
     async def _kickoff_queued_scans(self):
         return 0
 
     async def _kickoff_queued_scans_loop(self):
-        while True:
+        for i in range(1000):
             online_agents = await self.get_online_agents()
             online_agents = [str(agent.id) for agent in online_agents]
+            if i > 20:
+                import traceback
+
+                traceback.print_stack()
+                assert False
             if not online_agents:
                 await self.sleep(5)
                 continue
@@ -158,8 +195,7 @@ class AgentsApplet(BaseApplet):
                 await self.sleep(1)
 
     async def cleanup(self):
-        update_agents_last_seen = getattr(self, "update_agents_last_seen_task", None)
-        if update_agents_last_seen is not None:
-            update_agents_last_seen.cancel()
-            with suppress(self.CancelledError):
-                await update_agents_last_seen
+        if self.is_main_server:
+            self.kickoff_queued_scans_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.kickoff_queued_scans_task

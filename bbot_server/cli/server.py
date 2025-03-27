@@ -36,6 +36,10 @@ class Server(BaseBBCTL):
         port: Annotated[int, Option("--port", "-p", help="Port to run the server on", metavar="PORT")] = 8807,
     ):
         if api_only:
+            print("Starting BBOT server API")
+            if self.root.config_path is not None:
+                self.log.info(f"Using config file: {self.root.config_path}")
+                os.environ["BBOT_SERVER_CONFIG"] = str(self.root.config_path)
             import uvicorn
 
             uvicorn.run("bbot_server.api.app:server_app", host=listen, port=port, reload=True)
@@ -74,6 +78,11 @@ class Server(BaseBBCTL):
             env["BBOT_HOST"] = "0.0.0.0"
             env["BBOT_PORT"] = str(port)
             run(docker_compose_command, check=False, cwd=self.docker_compose_dir, env=env)
+
+    @subcommand(help="Stop BBOT server")
+    def stop(self):
+        self.ensure_docker_compose()
+        run(["docker-compose", "down"], check=False, cwd=self.docker_compose_dir)
 
     def ensure_docker_compose(self):
         # make sure docker compose is installed
