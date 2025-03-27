@@ -52,7 +52,7 @@ class NATSMessageQueue(BaseMessageQueue):
             "max_msgs": 10000,
         }
 
-        self.log.info(f"Setting up message queue at {self.uri}")
+        self.log.debug(f"Setting up message queue at {self.uri}")
 
         while 1:
             try:
@@ -145,23 +145,27 @@ class NATSMessageQueue(BaseMessageQueue):
             await self.js.purge_stream(stream)
 
     async def cleanup(self):
-        # Add consumer cleanup
-        for consumer in self._consumers.values():
-            with suppress(Exception):
-                await consumer.unsubscribe()
-        self._consumers.clear()
+        # Unsubscribe from all active subscriptions
+        for subscription in self._active_subscriptions:
+            await self.unsubscribe(subscription)
+        self._active_subscriptions = []
 
-        # Close the connection
-        with suppress(Exception):
-            await self.nc.close()
-        for task_name in (
-            "_reading_task",
-            "_ping_interval_task",
-            "_reconnection_task",
-        ):
-            task = getattr(self.nc, task_name, None)
-            if task:
-                task.cancel()
-                with suppress(BaseException):
-                    await task
-        self.log.info("Connection closed successfully.")
+        # Close the NATS connection
+        if hasattr(self, "nc") and self.nc:
+            try:
+                # First check if connection is already closed
+                if self.nc.is_closed:
+                    self.log.debug("NATS connection already closed")
+                    return
+
+                # Drain and close the connection with a timeout
+                try:
+                    await asyncio.wait_for(self.nc.drain(), timeout=2.0)
+                    await asyncio.wait_for(self.nc.close(), timeout=2.0)
+                    self.log.debug("NATS connection closed successfully")
+                except asyncio.TimeoutError:
+                    self.log.warning("NATS connection drain/close timed out")
+
+            except Exception as e:
+                self.log.error(f"Error closing NATS connection: {e}")
+                self.log.error(traceback.format_exc())

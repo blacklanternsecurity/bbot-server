@@ -87,16 +87,6 @@ class AsyncToSyncWrapper:
         self.thread.start()
         self._ready.wait()  # Wait for the loop to be ready
 
-    def stop(self):
-        """Stops the background event loop and joins the thread.
-
-        This method should be called to clean up resources when done.
-        """
-        if self.loop:
-            self.loop.call_soon_threadsafe(self.loop.stop)
-        if self.thread:
-            self.thread.join()
-
     def run_coroutine(self, coro):
         """Runs a coroutine in the background event loop and returns the result.
 
@@ -144,7 +134,6 @@ def async_to_sync_class(cls):
             self._instance = instance
             self._wrapper = AsyncToSyncWrapper()
             self._wrapper.start()
-            atexit.register(self._wrapper.stop)
 
         def _async_wrap(self, attr):
             """
@@ -192,10 +181,6 @@ def async_to_sync_class(cls):
                 return wrapper
 
             return attr
-
-        # def __getattr__(self, name):
-        #     attr = getattr(self._instance, name)
-        #     return self._async_wrap(attr)
 
         def __getattr__(self, name):
             attr = getattr(self._instance, name)

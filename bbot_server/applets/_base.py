@@ -239,8 +239,8 @@ class BaseApplet:
         pass
 
     async def _cleanup(self):
-        await self.cleanup()
         for child_applet in self.child_applets:
+            await child_applet.cleanup()
             await child_applet._cleanup()
 
     async def cleanup(self):

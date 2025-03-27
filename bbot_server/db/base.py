@@ -16,7 +16,7 @@ class BaseDB:
         except Exception as e:
             raise ValueError("Event store URI is missing") from e
 
-        self.log.info(f"Setting up {self.__class__.__name__} at {self.uri}")
+        self.log.debug(f"Setting up {self.__class__.__name__} at {self.uri}")
 
         self._setup_finished = False
 

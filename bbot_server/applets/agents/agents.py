@@ -41,7 +41,10 @@ class AgentsApplet(BaseApplet):
     @api_endpoint("/", methods=["POST"], summary="Create an agent")
     async def create_agent(self, name: str, description: str = "") -> Agent:
         agent = Agent(name=name, description=description)
-        await self.collection.insert_one(agent.model_dump())
+        try:
+            await self.collection.insert_one(agent.model_dump())
+        except Exception as e:
+            raise self.BBOTServerError(f"Error creating agent {name}: {e}") from e
         return agent
 
     @api_endpoint("/", methods=["GET"], summary="Get an agent by its id")

@@ -62,10 +62,8 @@ class http(BaseInterface):
         try:
             response_json = response.json()
         except Exception as e:
-            self.log.error(f"Error decoding response json for {response}: {e}: {getattr(response, 'text', '')}")
-            raise BBOTServerError(
-                f"Error decoding response JSON for {response}: {e}: {getattr(response, 'text', '')}"
-            ) from e
+            self.log.debug(f"Error decoding response json for {response}: {e} - {getattr(response, 'text', '')}")
+            raise BBOTServerError(f"Error decoding response JSON for {response}: {e}") from e
 
         if not response.is_success:
             # detect errors
@@ -205,15 +203,6 @@ class http(BaseInterface):
         new_query = urlencode(query_dict, doseq=True)
         # Reconstruct the URL with new query string
         return urlunparse((scheme, netloc, path, params, new_query, fragment))
-
-    async def _setup(self):
-        pass
-
-    async def cleanup(self):
-        pass
-
-    async def _cleanup(self):
-        pass
 
     def __getattr__(self, attr):
         """
