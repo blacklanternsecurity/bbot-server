@@ -139,7 +139,7 @@ def async_to_sync_class(cls):
             """
             Gracefully wraps async functions and generators so they can be called synchronously
             """
-            # Skip wrapping if not synchronous or not callable
+            # Skip wrapping if not callable
             if not callable(attr):
                 return attr
 
@@ -151,7 +151,7 @@ def async_to_sync_class(cls):
 
                 return wrapper
 
-            # Handle async generator functions
+            # Handle async generators
             elif inspect.isasyncgenfunction(attr):
 
                 def wrapper(*args, **kwargs):

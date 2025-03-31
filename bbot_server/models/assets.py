@@ -12,7 +12,7 @@ from bbot.models.pydantic import Event
 from bbot_server.models.base import BaseBBOTServerModel
 
 
-remove_rich_color_pattern = re.compile(r"\[\[.*?\](.*?)\[/.*?\]\]")
+remove_rich_color_pattern = re.compile(r"\[(\w+)\](.*?)\[/\1\]")
 
 
 # class Asset(BaseBBOTServerModel):
@@ -128,7 +128,7 @@ class AssetActivity(BaseBBOTServerModel):
         description = kwargs["description"]
         # we save the description in two forms - colored and uncolored
         kwargs["description_colored"] = description
-        kwargs["description"] = remove_rich_color_pattern.sub(r"\1", description)
+        kwargs["description"] = remove_rich_color_pattern.sub(r"\2", description)
         super().__init__(*args, **kwargs)
 
     @cached_property
