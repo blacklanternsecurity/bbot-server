@@ -19,7 +19,7 @@ def MessageQueue(config):
     except Exception as e:
         raise ValueError(f"Message queue URI is missing from config: {config}") from e
 
-    # depending on the URI scheme, return either a RabbitMQ or NATS message queue
+    # depending on the URI scheme, return either a RabbitMQ, NATS, or Redis message queue
     parsed_uri = urlparse(uri)
     scheme = parsed_uri.scheme.lower()
     if scheme in ("rabbitmq", "amqp"):
@@ -30,5 +30,9 @@ def MessageQueue(config):
         from .nats import NATSMessageQueue
 
         return NATSMessageQueue(uri, config)
+    elif scheme in ("redis", "rediss"):
+        from .redis import RedisMessageQueue
+
+        return RedisMessageQueue(uri, mq_config)
     else:
         raise ValueError(f"Unsupported message queue scheme: {scheme}")

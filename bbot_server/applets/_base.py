@@ -231,6 +231,7 @@ class BaseApplet:
             elif cron_default is not None:
                 kwargs["schedule"] = [{"cron": cron_default}]
             self.log.debug(f"Registering task: {method_name} {kwargs}")
+            # task_fn = getattr(method, "__func__", method)
             task = broker.register_task(method, **kwargs)
             # overwrite the original method with the decorated TaskIQ task
             setattr(self, method_name, task)

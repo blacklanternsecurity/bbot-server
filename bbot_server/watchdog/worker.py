@@ -85,7 +85,7 @@ class BBOTWatchdog:
             await self.bbot_server._emit_activity(activity)
 
     async def stop(self) -> None:
-        self.log.critical("STOPPING WATCHDOG")
+        self.log.info("Stopping watchdog")
         await self.bbot_server.message_queue.unsubscribe(self.event_listener)
         self.taskiq_worker_task.cancel()
         self.taskiq_scheduler_task.cancel()
