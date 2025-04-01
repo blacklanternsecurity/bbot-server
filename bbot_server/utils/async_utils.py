@@ -3,8 +3,8 @@ import asyncio
 import inspect
 import logging
 import threading
-from functools import wraps
 from cachetools import LRUCache
+from functools import wraps, partial
 from contextlib import asynccontextmanager
 
 log = logging.getLogger("bbot.server.utils.async_utils")
@@ -143,7 +143,7 @@ def async_to_sync_class(cls):
 
             # Handle regular async functions
             if inspect.iscoroutinefunction(attr) or (
-                hasattr(attr, "__code__") and attr.__code__.co_flags & inspect.CO_COROUTINE
+                isinstance(attr, partial) and inspect.iscoroutinefunction(attr.func)
             ):
 
                 @wraps(attr)
@@ -154,7 +154,7 @@ def async_to_sync_class(cls):
 
             # Handle async generators
             elif inspect.isasyncgenfunction(attr) or (
-                hasattr(attr, "__code__") and attr.__code__.co_flags & inspect.CO_ASYNC_GENERATOR
+                isinstance(attr, partial) and inspect.isasyncgenfunction(attr.func)
             ):
 
                 @wraps(attr)

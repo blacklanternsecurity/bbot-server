@@ -42,7 +42,8 @@ class Server(BaseBBCTL):
                 os.environ["BBOT_SERVER_CONFIG"] = str(self.root.config_path)
             import uvicorn
 
-            uvicorn.run("bbot_server.api.app:server_app", host=listen, port=port, reload=True)
+            # TODO: increase workers after adding websocket channels
+            uvicorn.run("bbot_server.api.app:server_app", host=listen, port=port, reload=True, workers=1)
 
         elif watchdog_only:
             print("Starting watchdog")
