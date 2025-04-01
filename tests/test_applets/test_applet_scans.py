@@ -67,8 +67,10 @@ async def test_applet_scans(bbot_server):
     assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent 3"}}}
 
     # make sure an agent is running
-    assert len(await bbot_server.get_agents()) == 1
-    assert len(await bbot_server.get_online_agents()) == 1
+    all_agents = await bbot_server.get_agents()
+    assert len(all_agents) == 1
+    online_agents = await bbot_server.get_online_agents()
+    assert len(online_agents) == 1, f"No online agents ({all_agents})"
 
     # tail asset activities
     activities = []
