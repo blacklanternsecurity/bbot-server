@@ -21,7 +21,7 @@ async def test_events_websocket_ingest(bbot_server, bbot_events):
 
     agen = event_generator()
     await bbot_server.consume_event_stream(agen)
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(2.0)
 
     # pull them out and compare them to the original events
     events = [e async for e in bbot_server.get_events()]
