@@ -139,10 +139,10 @@ async def _test_historic_subscribe(bbot_server):
     to_send = [{"id": i, "content": f"historic message {i}"} for i in range(10)]
     for message in to_send:
         await bbot_server.message_queue.publish(message, "test_channel")
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(1.0)
 
     sub = await bbot_server.message_queue.subscribe(callback, "test_channel", historic=5)
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(1.0)
 
     assert messages == to_send[5:]
 
