@@ -24,8 +24,6 @@ async def test_async_to_sync_wrappers():
     result = wrapper.run_coroutine(my_coroutine())
     assert result == "Hello, World!"
 
-    wrapper.stop()
-
     ### class decorator ###
 
     @async_to_sync_class

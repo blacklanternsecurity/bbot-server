@@ -58,8 +58,6 @@ class AsyncToSyncWrapper:
 
         result = wrapper.run_coroutine(my_coroutine())
         print(result)  # Prints: Hello, World!
-
-        wrapper.stop()
     """
 
     def __init__(self):
@@ -144,16 +142,16 @@ def async_to_sync_class(cls):
                 return attr
 
             # Handle regular async functions
-            if inspect.iscoroutinefunction(attr):
-
+            if inspect.iscoroutinefunction(attr) or (hasattr(attr, "__code__") and attr.__code__.co_flags & inspect.CO_COROUTINE):
+                @wraps(attr)
                 def wrapper(*args, **kwargs):
                     return self._wrapper.run_coroutine(attr(*args, **kwargs))
 
                 return wrapper
 
             # Handle async generators
-            elif inspect.isasyncgenfunction(attr):
-
+            elif inspect.isasyncgenfunction(attr) or (hasattr(attr, "__code__") and attr.__code__.co_flags & inspect.CO_ASYNC_GENERATOR):
+                @wraps(attr)
                 def wrapper(*args, **kwargs):
                     # Get the async generator object
                     async_gen = attr(*args, **kwargs)
