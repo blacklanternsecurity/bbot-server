@@ -120,7 +120,13 @@ def bbot_server_http():
     command = [*BBCTL_COMMAND, "server", "start", "--api-only"]
 
     # Start process in its own process group
-    server_process = subprocess.Popen(command, preexec_fn=os.setsid)
+    for _ in range(10):
+        server_process = subprocess.Popen(command, preexec_fn=os.setsid)
+        time.sleep(2)
+        if server_process.poll() is None:
+            break
+        else:
+            log.error(f"Failed to start server: return code: {server_process.returncode}")
 
     try:
         success = False

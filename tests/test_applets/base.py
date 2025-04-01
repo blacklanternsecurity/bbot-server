@@ -116,12 +116,12 @@ class BaseAppletTest:
 
     async def setup_activities(self, event_messages, asset_messages):
         """
-        Tail event and asset activities and store them for the convenience of the applet tests
+        Tail event and asset activities and store them for use in the tests
         """
 
         async def tail_events():
             try:
-                agen = self.bbot_server.tail_events()
+                agen = self.bbot_server.tail_events(n=10)
                 async for event in agen:
                     event_messages.append(event)
                 with suppress(BaseException):
@@ -134,7 +134,7 @@ class BaseAppletTest:
 
         async def tail_activities():
             try:
-                agen = self.bbot_server.tail_assets()
+                agen = self.bbot_server.tail_assets(n=10)
                 async for activity in agen:
                     self.log.info(f"{activity.type} - {activity.description}")
                     asset_messages.append(activity)

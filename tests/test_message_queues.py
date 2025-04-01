@@ -130,6 +130,25 @@ async def _test_durable_subscribe(bbot_server):
     await asyncio.sleep(0.2)
 
 
+async def _test_historic_subscribe(bbot_server):
+    messages = []
+
+    async def callback(message):
+        messages.append(message)
+
+    to_send = [{"id": i, "content": f"historic message {i}"} for i in range(10)]
+    for message in to_send:
+        await bbot_server.message_queue.publish(message, "test_channel")
+    await asyncio.sleep(0.2)
+
+    sub = await bbot_server.message_queue.subscribe(callback, "test_channel", historic=5)
+    await asyncio.sleep(0.2)
+
+    assert messages == to_send[5:]
+
+    await sub.unsubscribe()
+
+
 @pytest.mark.asyncio
 async def test_queues_redis(bbot_server):
     # Override the message queue URI for this test
@@ -138,6 +157,7 @@ async def test_queues_redis(bbot_server):
     await _test_fifo_queue(bbot_server)
     await _test_basic_subscribe(bbot_server)
     await _test_durable_subscribe(bbot_server)
+    await _test_historic_subscribe(bbot_server)
     await bbot_server.message_queue.clear()
 
 
@@ -241,20 +261,3 @@ class TestMessageQueuesRedis(BaseAppletTest):
                 task.cancel()
                 with suppress(BaseException):
                     await task
-
-
-# class TestMessageQueuesRabbitMQ(TestMessageQueuesNATS):
-#     config_overrides = {
-#         "message_queue": {
-#             "uri": "amqp://localhost:5672",
-#         }
-#     }
-
-#     expected_message_queue_uri = "amqp://localhost:5672"
-
-
-# class TestMessageQueuesRedis(TestMessageQueuesNATS):
-#     config_overrides = {"message_queue": {"uri": "redis://localhost:6379"}}
-#     needs_watchdog = True
-
-#     expected_message_queue_uri = "redis://localhost:6379"

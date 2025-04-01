@@ -91,6 +91,7 @@ class TestAppletAgents(BaseAppletTest):
         await asyncio.sleep(0.1)
 
         connected_agents = await self.bbot_server.get_online_agents()
+        self.log.critical(connected_agents)
         assert len(connected_agents) == 2
         assert any(agent.id == self.agent_3.id for agent in connected_agents)
 
@@ -105,5 +106,6 @@ class TestAppletAgents(BaseAppletTest):
         await asyncio.sleep(1)
 
         asset_activity_types = [a.type for a in self.asset_messages]
+        self.log.critical(self.asset_messages)
         assert asset_activity_types.count("AGENT_CONNECTED") == 2
         assert asset_activity_types.count("AGENT_DISCONNECTED") == 1

@@ -1,3 +1,4 @@
+import orjson
 import asyncio
 import logging
 import traceback
@@ -24,11 +25,11 @@ class BaseMessageQueue:
         """
         await self.publish(event, "events")
 
-    async def event_tail(self):
+    async def event_tail(self, n: int = 0):
         """
         Tail new events as they come in
         """
-        async for event in self.tail(Event, "events"):
+        async for event in self.tail(Event, "events", n=n):
             yield event
 
     async def asset_publish(self, activity: AssetActivity):
@@ -37,21 +38,21 @@ class BaseMessageQueue:
         """
         await self.publish(activity, "assets")
 
-    async def asset_tail(self):
+    async def asset_tail(self, n: int = 0):
         """
         Tail new assets as they come in
         """
-        async for activity in self.tail(AssetActivity, "assets"):
+        async for activity in self.tail(AssetActivity, "assets", n=n):
             yield activity
 
-    async def tail(self, model: BaseModel, subject: str):
+    async def tail(self, model: BaseModel, subject: str, n=0):
         q = asyncio.Queue()
 
         async def callback(msg):
             await q.put(msg)
 
         try:
-            subscription = await self.subscribe(callback, subject)
+            subscription = await self.subscribe(callback, subject, historic=n)
         except Exception as e:
             self.log.critical(f"Error subscribing to {subject}: {e}")
             self.log.critical(traceback.format_exc())

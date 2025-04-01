@@ -2,6 +2,7 @@ import orjson
 import inspect
 import logging
 import asyncio
+import functools
 from fastapi import WebSocket
 from pydantic import BaseModel
 from contextlib import suppress
@@ -14,6 +15,22 @@ log = logging.getLogger("bbot.server.applets.routing")
 
 
 ROUTE_TYPES = {}
+
+
+def _patch_websocket_signature(original_function, wrapper_function):
+    """
+    Creates a signature for a websocket wrapper function that includes the websocket parameter
+    and all parameters from the original function.
+
+    This is needed because FastAPI requires 'websocket' as a positional argument in the function signature
+    """
+    wrapper_function.__signature__ = inspect.Signature(
+        parameters=[
+            inspect.Parameter("websocket", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=WebSocket),
+            *[p for p in inspect.signature(original_function).parameters.values()],
+        ],
+        return_annotation=inspect.signature(original_function).return_annotation,
+    )
 
 
 class ServerRouteMeta(type):
@@ -138,25 +155,33 @@ class WebsocketStreamOutgoingRoute(BaseServerRoute):
         super().__init__(function, tags)
         self.response_model = response_model
 
-    async def websocket_wrapper(self, websocket: WebSocket):
-        try:
-            await websocket.accept()
-            agen = self.function()
-            async for message in agen:
-                message = smart_encode(message)
-                await websocket.send_bytes(message)
-        except asyncio.CancelledError:
-            log.info("Outgoing websocket stream cancelled")
-        except WebSocketDisconnect:
-            log.info("Outgoing websocket stream disconnected")
-        finally:
-            with suppress(BaseException):
-                await websocket.close()
-            with suppress(BaseException):
-                await agen.aclose()
-
     def add_to_router(self, router):
-        router.add_api_websocket_route(self.endpoint, self.websocket_wrapper)
+        @functools.wraps(self.function)
+        async def websocket_wrapper(websocket: WebSocket, *args, **kwargs):
+            """
+            Handles opening and closing of the websocket, allowing the user-defined function to be a simple async generator
+            """
+            self.log.critical(f"Websocket stream outgoing: {args} / {kwargs}")
+            try:
+                await websocket.accept()
+                agen = self.function(*args, **kwargs)
+                async for message in agen:
+                    message = smart_encode(message)
+                    await websocket.send_bytes(message)
+            except asyncio.CancelledError:
+                log.info("Outgoing websocket stream cancelled")
+            except WebSocketDisconnect:
+                log.info("Outgoing websocket stream disconnected")
+            finally:
+                with suppress(BaseException):
+                    await websocket.close()
+                with suppress(BaseException):
+                    await agen.aclose()
+
+        # Use the helper function to set the signature
+        _patch_websocket_signature(self.function, websocket_wrapper)
+
+        router.add_api_websocket_route(self.endpoint, websocket_wrapper)
 
 
 class WebsocketStreamIncomingRoute(BaseServerRoute):
