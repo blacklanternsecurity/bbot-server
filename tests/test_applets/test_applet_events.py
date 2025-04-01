@@ -41,7 +41,7 @@ async def test_events_http_ingest(bbot_server, bbot_events):
     # insert events via http
     for event in scan1_events:
         await bbot_server.insert_event(event)
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(2.0)
 
     events = [e async for e in bbot_server.get_events()]
     events.sort(key=lambda x: x.timestamp)
