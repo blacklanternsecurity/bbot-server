@@ -105,7 +105,7 @@ def bbot_watchdog():
     command = [*BBCTL_COMMAND, "server", "start", "--watchdog-only"]
     watchdog_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
-        time.sleep(1)
+        time.sleep(3)
         yield watchdog_process
         watchdog_process.send_signal(signal.SIGINT)
     finally:
