@@ -61,9 +61,9 @@ class AsyncToSyncWrapper:
     """
 
     def __init__(self):
+        self.log = logging.getLogger("bbot.server.utils.async_utils")
         self.loop = None
         self.thread = None
-        self._ready = threading.Event()
 
     def start(self):
         """Starts the background thread and event loop.
@@ -71,19 +71,28 @@ class AsyncToSyncWrapper:
         This method must be called before run_coroutine().
         """
 
-        def run_event_loop():
-            self.loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self.loop)
-            self._ready.set()  # Signal that the loop is ready
-            try:
-                self.loop.run_forever()
-            finally:
-                self.loop.stop()
-                self.loop.close()
+        # get current event loop, if any
+        try:
+            self.loop = asyncio.get_running_loop()
+            self.log.debug(f"Using existing event loop: {self.loop}")
+        except RuntimeError:
+            self.log.debug("No existing event loop found, creating new one")
+            self._ready = threading.Event()
 
-        self.thread = threading.Thread(target=run_event_loop, daemon=True)
-        self.thread.start()
-        self._ready.wait()  # Wait for the loop to be ready
+            def run_event_loop():
+                self.loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(self.loop)
+                self._ready.set()  # Signal that the loop is ready
+                try:
+                    self.loop.run_forever()
+                finally:
+                    self.loop.stop()
+                    self.loop.close()
+
+            self.thread = threading.Thread(target=run_event_loop, daemon=True)
+            self.thread.start()
+            self._ready.wait()  # Wait for the loop to be ready
+        atexit.register(self.shutdown)
 
     def run_coroutine(self, coro):
         """Runs a coroutine in the background event loop and returns the result.
@@ -101,6 +110,15 @@ class AsyncToSyncWrapper:
             raise RuntimeError("Event loop is not running. Call start() first.")
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return future.result()
+
+    def shutdown(self):
+        """Properly shut down the background thread and event loop."""
+        loop = getattr(self, "loop", None)
+        if loop is not None and loop.is_running():
+            self.loop.call_soon_threadsafe(self.loop.stop)
+            thread = getattr(self, "thread", None)
+            if thread is not None:
+                thread.join(timeout=5)  # Wait for thread to finish
 
 
 def async_to_sync_class(cls):

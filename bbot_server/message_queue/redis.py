@@ -123,11 +123,9 @@ class RedisMessageQueue(BaseMessageQueue):
                         except redis.ResponseError as create_err:
                             self.log.critical(f"Failed to recreate group: {create_err}")
                             # if "BUSYGROUP" not in str(create_err):
-                            #     self.log.error(f"Failed to recreate group: {create_err}")
-                            await asyncio.sleep(0.1)
-                    else:
+                            #     self.log.error(f"Failed to recreate group: {create_err}")                    else:
                         self.log.error("Sleeping for 1 second")
-                        await asyncio.sleep(1)
+                    await asyncio.sleep(0.1)
                 except asyncio.CancelledError:
                     break
                 except Exception as e:

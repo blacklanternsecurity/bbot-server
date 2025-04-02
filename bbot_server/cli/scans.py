@@ -17,7 +17,7 @@ class Scans(BaseBBCTL):
 
         if json:
             for scan in scan_list:
-                self.sys.stderr.buffer.write(self.orjson.dumps(scan))
+                self.sys.stdout.buffer.write(self.orjson.dumps(scan.model_dump()))
             return
 
         if csv:
