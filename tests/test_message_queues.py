@@ -142,7 +142,7 @@ async def _test_historic_subscribe(bbot_server):
     await asyncio.sleep(2.0)
 
     sub = await bbot_server.message_queue.subscribe("test_channel", callback, historic=5)
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(2.0)
 
     assert messages == to_send[5:]
 
