@@ -18,7 +18,7 @@ async def test_watchdog(bbot_events, bbot_server_config):
 
     try:
         # allow some time for the startup to complete
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
 
         @watchdog.broker.task
         async def insert_event(
@@ -36,7 +36,7 @@ async def test_watchdog(bbot_events, bbot_server_config):
         for event in scan1_events:
             await insert_event.kiq(event)
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(3)
 
         db_events = [e async for e in bbot_server.get_events()]
         assert db_events
