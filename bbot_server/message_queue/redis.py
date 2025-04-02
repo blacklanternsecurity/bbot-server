@@ -1,4 +1,3 @@
-import time
 import orjson
 import asyncio
 import traceback
@@ -76,11 +75,7 @@ class RedisMessageQueue(BaseMessageQueue):
     async def publish(self, message, subject: str):
         stream_key = f"bbot:stream:{subject}"
         message_data = smart_encode(message)
-        if getattr(message, "type", None) and getattr(message, "id", None):
-            self.log.critical(f"Publishing to redis: {message.type}:{message.id} at {time.time()}")
         await self.redis.xadd(stream_key, {"data": message_data}, maxlen=10000, approximate=True)
-        if getattr(message, "type", None) and getattr(message, "id", None):
-            self.log.critical(f"Published to redis: {message.type}:{message.id} at {time.time()}")
 
     async def subscribe(self, subject: str, callback, durable: str = None, historic=0):
         if not callable(callback):
@@ -169,11 +164,7 @@ class RedisMessageQueue(BaseMessageQueue):
             message = message.get(b"data") or message.get("data")
             message = orjson.loads(message)
             try:
-                if message.get("type", "") and message.get("id", ""):
-                    self.log.critical(f"Received message: {message['type']}:{message['id']} at {time.time()}")
                 await callback(message)
-                if message.get("type", "") and message.get("id", ""):
-                    self.log.critical(f"Processed message: {message['type']}:{message['id']} at {time.time()}")
             except Exception as e:
                 self.log.error(f"Error in callback {callback.__name__}({message}): {e}")
                 self.log.error(traceback.format_exc())

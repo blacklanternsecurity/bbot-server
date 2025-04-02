@@ -112,7 +112,7 @@ def bbot_watchdog():
         # Capture stdout/stderr regardless of exit state
         with suppress(Exception):
             stdout, stderr = watchdog_process.communicate(timeout=1)
-            log.critical(f"Watchdog process output - stdout: {stdout.decode()}, stderr: {stderr.decode()}")
+            log.info(f"Watchdog process output - stdout: {stdout.decode()}, stderr: {stderr.decode()}")
         try:
             watchdog_process.wait(timeout=5)
         except subprocess.TimeoutExpired:
@@ -188,7 +188,7 @@ def bbot_agent(bbot_server_http):
         # Capture stdout/stderr regardless of exit state
         with suppress(Exception):
             stdout, stderr = agent_process.communicate(timeout=1)
-            log.critical(f"Agent process output - stdout: {stdout.decode()}, stderr: {stderr.decode()}")
+            log.info(f"Agent process output - stdout: {stdout.decode()}, stderr: {stderr.decode()}")
         if agent_process.poll() is None:
             log.error("Agent process still running, killing forcefully")
             agent_process.kill()

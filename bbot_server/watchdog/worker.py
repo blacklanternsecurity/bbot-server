@@ -57,7 +57,6 @@ class BBOTWatchdog:
         """
         activities = []
         event = Event(**message)
-        self.log.critical(f"Event listener received event: {event.type}:{event.host}")
         # write the event to the database
         await self.bbot_server.event_store.insert_event(event)
         if event.host is not None:
