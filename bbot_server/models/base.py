@@ -1,10 +1,23 @@
 from bbot.models.pydantic import BBOTBaseModel
 
+_index_keywords = ["indexed", "indexed_text"]
+
+
+import logging
+
+log = logging.getLogger("bbot.server.models")
+
 
 class BaseBBOTServerModel(BBOTBaseModel):
-    _type: str
+    @classmethod
+    def indexed_fields(cls):
+        indexed_fields = {}
+        for fieldname, field in cls.model_fields.items():
+            for keyword in _index_keywords:
+                if keyword in field.metadata:
+                    indexed_fields[fieldname] = keyword
+                    break
+        return indexed_fields
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not getattr(self, "__tablename__", None):
-            self._type = self.__class__.__name__
+    def model_dump(self, *args, mode="json", exclude_none=True, **kwargs):
+        return super().model_dump(*args, mode=mode, exclude_none=exclude_none, **kwargs)

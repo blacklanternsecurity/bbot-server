@@ -1,0 +1,33 @@
+x-bbot-server-base: &bbot-server-base
+  build:
+    context: .
+  restart: always
+  volumes:
+    - ~/.config/bbot_server:/root/.config/bbot_server
+    - ./bbot_server/defaults_docker.yml:/app/bbot_server/defaults.yml
+    - .:/app
+
+services:
+  bbot-server:
+    <<: *bbot-server-base
+    ports:
+      - "8807:8807"
+    environment:
+      - BBOT_HOST
+      - BBOT_PORT
+    command: ["bbctl", "server", "start", "--api-only", "--listen", "0.0.0.0"]
+
+  bbot-server-watchdog:
+    <<: *bbot-server-base
+    command: ["bbctl", "server", "start", "--watchdog-only"]
+
+  mongodb:
+    image: mongo:latest
+    restart: always
+    volumes:
+      - ./mongodb:/data/db
+
+  nats:
+    image: nats
+    restart: always
+    command: ["-js"]

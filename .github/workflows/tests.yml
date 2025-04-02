@@ -21,14 +21,10 @@ jobs:
         image: mongo
         ports:
           - 27017:27017
-      nats:
-        image: nats
+      redis:
+        image: redis
         ports:
-          - 4222:4222
-      rabbitmq:
-        image: rabbitmq
-        ports:
-          - 5672:5672
+          - 6379:6379
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -45,7 +41,7 @@ jobs:
           poetry run ruff format --check
       - name: Run tests
         run: |
-          poetry run pytest --exitfirst --disable-warnings --log-cli-level=DEBUG --cov-report xml:cov.xml --cov=bbot_server .
+          poetry run pytest --exitfirst --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
       - name: Upload Code Coverage
         uses: codecov/codecov-action@v3
         with:

@@ -1,15 +1,15 @@
 from fastapi.responses import StreamingResponse
 
-from bbot_server.models.scans import Scan
 from bbot_server.utils.export import stream_csv
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
-class Export(BaseApplet):
+class ExportApplet(BaseApplet):
+    name = "Export"
     description = "Export assets to CSV, JSON, and more"
 
     @api_endpoint("/csv", methods=["GET"], summary="Export assets to CSV")
-    async def export_csv(self) -> list[Scan]:
+    async def export_csv(self):
         cursor = self.collection.find()
 
         fieldnames = self.root.assets.all_fieldnames

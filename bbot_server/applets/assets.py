@@ -1,66 +1,72 @@
 from contextlib import suppress
 
+# applets imports
+from bbot_server.applets.risk import Risk
+from bbot_server.applets.emails import EmailsApplet
+from bbot_server.applets.export import ExportApplet
+from bbot_server.applets.findings import FindingsApplet
+from bbot_server.applets.dns_links import DNSLinksApplet
+from bbot_server.applets.open_ports import OpenPortsApplet
+from bbot_server.applets.web_screenshots import WebScreenshotsApplet
+
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import Asset, AssetActivity
+from bbot_server.utils.misc import combine_pydantic_models
 from bbot_server.applets._base import BaseApplet, api_endpoint
+from bbot_server.models.assets import AssetActivity, BaseAssetFacet
 
 
-class Assets(BaseApplet):
+class Asset(BaseAssetFacet):
+    __tablename__ = "assets"
+
+
+class AssetsApplet(BaseApplet):
+    name = "Assets"
     description = "hostnames and IP addresses discovered during scans"
-    include_apps = ["Findings", "Open_Ports", "DNS_Links", "Emails", "Web_Screenshots", "Export"]
-    fieldnames = ["host"]
+    include_apps = [
+        FindingsApplet,
+        OpenPortsApplet,
+        DNSLinksApplet,
+        EmailsApplet,
+        WebScreenshotsApplet,
+        ExportApplet,
+        Risk,
+    ]
 
-    _data_model = Asset
+    model = Asset
 
-    async def process_new_event(self, event: Event) -> list[AssetActivity]:
-        activities = []
+    async def setup(self):
+        global Asset
+        asset_field_models = set()
+        for child_applet in self.all_child_applets():
+            asset_field_model = getattr(child_applet, "asset_fields", None)
+            if asset_field_model is not None:
+                await self.build_indexes(asset_field_model)
+                asset_field_models.add(asset_field_model)
+        master_asset_model = combine_pydantic_models(
+            asset_field_models, model_name="Asset", base_model=BaseAssetFacet, make_optional=True
+        )
 
-        # we use a lock to prevent race conditions on the same asset
-        async with self._asset_lock.lock(event.host):
-            asset = None
-            if event.host:
-                # first try to get the asset based on the event's host
-                asset = await self.collection.find_one({"host": event.host})
-                if asset is not None:
-                    asset = Asset(**asset)
-                else:
-                    # if it doesn't exist, create it
-                    asset = Asset(host=event.host, fields={})
-                    await self.collection.insert_one(asset.model_dump())
-                    new_asset_description = f"New asset [{event.host}] discovered"
-                    new_asset_description_colored = f"New asset [[dark_orange]{event.host}[/dark_orange]] discovered"
-                    new_asset_activity = AssetActivity(
-                        type="NEW_ASSET",
-                        event=event,
-                        description=new_asset_description,
-                        description_colored=new_asset_description_colored,
-                    )
-                    activities.append(new_asset_activity)
+        self.model = master_asset_model
+        Asset = master_asset_model
 
-            # let the other modules ingest the event
-            new_activities = await self.root._ingest_event(asset, event)
-            activities.extend(new_activities)
-
-            # publish activities to the message queue
-            for activity in activities:
-                await self.emit_activity(activity)
-
-            # write the updated asset to the database
-            if asset is not None:
-                await self.root.assets.strict_collection.update_one({"host": event.host}, {"$set": asset.model_dump()})
-
-        return activities
-
-    @api_endpoint("/", methods=["GET"], summary="Get assets")
-    async def get_assets(self) -> list[Asset]:
-        cursor = self.collection.find()
-        assets = await cursor.to_list(length=None)
-        assets = [Asset(**asset) for asset in assets]
-        return assets
+    @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
+    async def get_assets(self):
+        # pipeline = [
+        #     {
+        #         "$group": {
+        #             "_id": "$host",  # Group by the 'category' field
+        #             "documents": {"$push": "$$ROOT"}  # Push the entire document into an array
+        #         }
+        #     }
+        # ]
+        # async for result in self.collection.aggregate(pipeline):
+        #     yield result
+        async for asset in self.collection.find({"type": "asset"}):
+            yield self.model(**asset)
 
     @api_endpoint("/{host}/list", methods=["GET"], summary="List assets by host (including subdomains)")
     async def get_assets_by_host(self, host: str) -> list[Asset]:
-        cursor = self.collection.find({"reverse_host": {"$regex": f"^{host[::-1]}."}})
+        cursor = self.collection.find({"type": "asset", "reverse_host": {"$regex": f"^{host[::-1]}."}})
         assets = await cursor.to_list(length=None)
         assets = [Asset(**asset) for asset in assets]
         return assets
@@ -69,20 +75,52 @@ class Assets(BaseApplet):
     async def get_asset(self, host: str) -> Asset:
         asset = await self.collection.find_one({"host": host})
         if not asset:
-            self.raise404("Asset not found")
+            raise self.BBOTServerNotFoundError(f"Asset {host} not found")
         return Asset(**asset)
 
-    @api_endpoint("/fieldnames", methods=["GET"], summary="List all current asset fieldnames")
-    async def get_asset_fieldnames(self) -> list[str]:
-        fieldnames = self.all_fieldnames
-        return fieldnames
-
-    @api_endpoint("/tail", type="websocket", response_model=AssetActivity)
-    async def tail_assets(self):
-        agen = self.message_queue.asset_tail()
+    @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=AssetActivity)
+    async def tail_assets(self, n: int = 0):
+        agen = self.message_queue.asset_tail(n=n)
         try:
             async for activity in agen:
                 yield activity
         finally:
             with suppress(BaseException):
                 await agen.aclose()
+
+    async def update_asset(self, asset: Asset):
+        await self.strict_collection.update_one({"host": asset.host}, {"$set": asset.model_dump()}, upsert=True)
+
+    async def refresh_assets(self):
+        """
+        Allow each child applet to refresh assets based on the current state of the event store.
+
+        Typically run after an archival.
+        """
+        for host in await self.get_hosts():
+            # get all the events for this host, and group them by type
+            events_by_type = {}
+            async for event in self.event_store.get_events(host=host):
+                try:
+                    events_by_type[event.type].add(event)
+                except KeyError:
+                    events_by_type[event.type] = {event}
+
+            # get the asset for this host
+            asset = await self.get_asset(host)
+
+            # let each child applet do their thing based on the old asset and the current events
+            for child_applet in self.all_child_applets(include_self=True):
+                activities = await child_applet.refresh(asset, events_by_type)
+                for activity in activities:
+                    await self._emit_activity(activity)
+
+            # update the asset with any changes made by the child applets
+            await self.update_asset(asset)
+
+    @api_endpoint("/hosts", methods=["GET"], summary="List all hosts")
+    async def get_hosts(self) -> list[str]:
+        cursor = self.collection.find({"archived": False, "ignored": False})
+        hosts = await cursor.distinct("host")
+        hosts.sort()
+        return hosts

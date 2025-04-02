@@ -18,6 +18,6 @@ def EventStore(config, **kwargs):
     # package = importlib.import_module(f".event_store.{backend}", package="bbot_server")
     # module = getattr(package, backend)
     # return module(**kwargs)
-    from bbot_server.event_store.mongo import mongo
+    from bbot_server.event_store.mongo import MongoEventStore
 
-    return mongo(config)
+    return MongoEventStore(config)
