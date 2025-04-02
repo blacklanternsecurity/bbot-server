@@ -125,7 +125,9 @@ def bbot_server_http():
 
     # Start process in its own process group
     for _ in range(10):
-        server_process = subprocess.Popen(command, preexec_fn=os.setsid, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        server_process = subprocess.Popen(
+            command, preexec_fn=os.setsid, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
         time.sleep(2)
         if server_process.poll() is None:
             break
@@ -173,8 +175,11 @@ def bbot_agent(bbot_server_http):
         raise Exception(f"Failed to create agent: (stdout: {agent_stdout}, stderr: {agent_info.stderr})")
     agent_name = agent_info["name"]
     agent_id = agent_info["id"]
-    agent_process = subprocess.Popen([*BBCTL_COMMAND, "agent", "start", "--name", agent_name, "--id", agent_id], 
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    agent_process = subprocess.Popen(
+        [*BBCTL_COMMAND, "agent", "start", "--name", agent_name, "--id", agent_id],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
     # give agent a second to start
     time.sleep(2)
     yield agent_process
