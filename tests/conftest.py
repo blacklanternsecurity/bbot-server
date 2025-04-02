@@ -126,9 +126,7 @@ def bbot_server_http():
 
     # Start process in its own process group
     for _ in range(20):
-        server_process = subprocess.Popen(
-            command, preexec_fn=os.setsid, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        server_process = subprocess.Popen(command, preexec_fn=os.setsid)
         time.sleep(2)
         if server_process.poll() is None:
             break
@@ -150,10 +148,6 @@ def bbot_server_http():
         yield server_process
         server_process.send_signal(signal.SIGINT)
     finally:
-        # Capture stdout/stderr regardless of exit state
-        with suppress(Exception):
-            stdout, stderr = server_process.communicate(timeout=1)
-            log.critical(f"Server process output - stdout: {stdout.decode()}, stderr: {stderr.decode()}")
         try:
             server_process.wait(timeout=1)
         except subprocess.TimeoutExpired:

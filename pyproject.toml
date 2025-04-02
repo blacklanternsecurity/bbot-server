@@ -23,9 +23,10 @@ nats-py = "^2.9.0"
 taskiq = "0.11.14"
 taskiq-nats = "^0.5.1"
 taskiq-aio-pika = "^0.4.1"
-taskiq-redis = "^1.0.3"
 ruff = "^0.9.7"
 typer = "^0.15.2"
+redis = "^5.2.1"
+taskiq-redis = "^1.0.3"
 
 [tool.poetry.scripts]
 bbctl = 'bbot_server.cli.bbctl:main'
