@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from omegaconf import OmegaConf
 
@@ -13,13 +14,15 @@ if not config_file.exists():
 
 # Load defaults
 
-default_config_file = BBOT_SERVER_DIR / "defaults.yml"
-default_config = OmegaConf.load(default_config_file)
+BBOT_SERVER_DEFAULTS_PATH = BBOT_SERVER_DIR / "defaults.yml"
+BBOT_SERVER_DEFAULTS = OmegaConf.load(BBOT_SERVER_DEFAULTS_PATH)
+BBOT_SERVER_CONFIG = BBOT_SERVER_DEFAULTS
 
-# Load config
+# if a custom config is provided, merge it with the defaults
 
-config = OmegaConf.load(config_file)
+custom_config_path = os.environ.get("BBOT_SERVER_CONFIG", "")
+if custom_config_path and Path(custom_config_path).exists():
+    custom_config = OmegaConf.load(custom_config_path)
+    BBOT_SERVER_CONFIG = OmegaConf.merge(BBOT_SERVER_DEFAULTS, custom_config)
 
-# Merge defaults and config
-
-BBOT_SERVER_CONFIG = OmegaConf.merge(default_config, config)
+BBOT_SERVER_URL = BBOT_SERVER_CONFIG.url

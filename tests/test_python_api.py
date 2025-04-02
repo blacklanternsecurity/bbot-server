@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 import logging
+from time import sleep
 from contextlib import suppress
 
 from bbot_server import BBOTServer
@@ -22,8 +23,6 @@ async def test_async_to_sync_wrappers():
 
     result = wrapper.run_coroutine(my_coroutine())
     assert result == "Hello, World!"
-
-    wrapper.stop()
 
     ### class decorator ###
 
@@ -107,7 +106,8 @@ def _test_sychronous_api(interface, bbot_events, bbot_server_config):
             bbot_server.get_event(bbot_event.uuid)
 
         # insert one event
-        bbot_server._insert_event(bbot_event)
+        bbot_server.insert_event(bbot_event)
+        sleep(0.5)
 
         # we should now have one event
         events = list(bbot_server.get_events())
@@ -120,9 +120,9 @@ def _test_sychronous_api(interface, bbot_events, bbot_server_config):
             bbot_server.cleanup()
 
 
-def test_sychronous_api_python(bbot_events, mongo_cleanup, bbot_server_config):
+def test_sychronous_api_python(bbot_server_http, bbot_events, mongo_cleanup, bbot_server_config, bbot_watchdog):
     _test_sychronous_api("python", bbot_events, bbot_server_config)
 
 
-def test_sychronous_api_http(bbot_server_http, bbot_events, mongo_cleanup, bbot_server_config):
+def test_sychronous_api_http(bbot_server_http, bbot_events, mongo_cleanup, bbot_server_config, bbot_watchdog):
     _test_sychronous_api("http", bbot_events, bbot_server_config)

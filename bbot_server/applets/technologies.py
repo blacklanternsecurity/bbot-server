@@ -1,5 +1,5 @@
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import Asset, AssetActivity
+from bbot_server.models.assets import AssetActivity
 from bbot_server.applets._base import BaseApplet, api_endpoint, BaseModel, Field
 
 
@@ -12,7 +12,7 @@ class Technologies(BaseApplet):
     class AssetFields(BaseModel):
         technologies: list[str] = Field(default_factory=list)
 
-    # async def ingest_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
+    # async def handle_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
     #     activities = []
     #     technology = event.data["technology"]
     #     current_technologies = self._get_technologies(asset)
@@ -33,7 +33,7 @@ class Technologies(BaseApplet):
     #         activities.append(technology_activity)
     #     return activities
 
-    def _get_technologies(self, asset: Asset) -> set[str]:
+    def _get_technologies(self, asset) -> set[str]:
         return set(asset.fields.get("technologies", [])) or set()
 
     @api_endpoint("/{host}/technologies", methods=["GET"], summary="Get all the technologies for a host")

@@ -1,3 +1,8 @@
+import logging
+
+log = logging.getLogger("bbot.server.interfaces")
+
+
 def BBOTServer(interface="python", **kwargs):
     if interface == "python":
         from .python import python

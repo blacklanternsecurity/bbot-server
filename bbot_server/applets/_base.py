@@ -114,11 +114,14 @@ class BaseApplet:
 
         self._setup_finished = False
 
+        # stores the interface (http, python, etc. for convenience)
+        self._interface = None
+
         # whether this is the primary instance of BBOT server
         # e.g. the one hosting the REST API / the one agents connect to
         self._is_main_server = False
 
-    async def refresh(self, host: str):
+    async def refresh(self, asset, events_by_type):
         """
         After an archive completes, we iterate through each host, and pass it into this function
 
@@ -173,14 +176,8 @@ class BaseApplet:
                     #  j=True: Ensures the write operation is committed to the journal. (default is False)
                     # This helps prevent duplicates in asset activity.
                     self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
-
-                # indexes
-                for fieldname, field in self.model.model_fields.items():
-                    if "indexed" in field.metadata:
-                        unique = "unique" in field.metadata
-                        await self.collection.create_index([(fieldname, ASCENDING)], unique=unique)
-                    elif "indexed_text" in field.metadata:
-                        await self.collection.create_index([(fieldname, "text")])
+                # build indexes
+                await self.build_indexes(self.model)
 
         # taskiq broker
         if self.task_broker is None:
@@ -199,6 +196,16 @@ class BaseApplet:
             await child_applet._setup()
 
         self._setup_finished = True
+
+    async def build_indexes(self, model):
+        if not model:
+            return
+        for fieldname, field in model.model_fields.items():
+            if "indexed" in field.metadata:
+                unique = "unique" in field.metadata
+                await self.collection.create_index([(fieldname, ASCENDING)], unique=unique)
+            elif "indexed_text" in field.metadata:
+                await self.collection.create_index([(fieldname, "text")])
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks
@@ -232,14 +239,14 @@ class BaseApplet:
         pass
 
     async def _cleanup(self):
-        await self.cleanup()
         for child_applet in self.child_applets:
             await child_applet.cleanup()
+            await child_applet._cleanup()
 
     async def cleanup(self):
         pass
 
-    async def ingest_event(self, event: Event):
+    async def handle_event(self, event: Event, asset=None):
         return []
 
     async def emit_activity(self, *args, **kwargs):
@@ -248,9 +255,6 @@ class BaseApplet:
 
     async def _emit_activity(self, activity: AssetActivity):
         await self.root.message_queue.asset_publish(activity)
-
-    def raise404(self, detail: str):
-        raise HTTPException(status_code=404, detail=detail)
 
     def include_app(self, app_class):
         self.log.debug(f"{self.__class__.__name__} including {app_class.__name__}")
@@ -269,13 +273,14 @@ class BaseApplet:
         self.child_applets.append(applet)
         return applet
 
-    async def _get_obj(self, host: str):
+    async def _get_obj(self, host: str, kwargs):
         """
         Shorthand for getting an object (matching the applet's model) from the asset store
         """
-        obj = await self.collection.find_one({"$and": [{"host": host}, {"type": self.model.__name__}]})
+        query = {"host": host, "type": self.model.__name__}
+        obj = await self.collection.find_one(query, kwargs)
         if not obj:
-            return
+            raise self.BBOTServerNotFoundError(f"Object of type {self.model.__name__} for host {host} not found")
         return self.model(**obj)
 
     async def _put_obj(self, obj):
@@ -291,26 +296,20 @@ class BaseApplet:
         # Replace non-alphanumeric characters with an underscore
         return word_regex.sub("_", self.name.lower())
 
-    @property
-    def all_child_applets(self):
-        applets = [self]
+    def all_child_applets(self, include_self=False):
+        applets = []
+        if include_self:
+            applets.append(self)
         for applet in self.child_applets:
-            applets.extend(applet.all_child_applets)
+            applets.extend(applet.all_child_applets(include_self=True))
         return applets
 
-    @property
-    def all_asset_models(self):
-        asset_models = [self.AssetFields]
-        for child_applet in self.all_child_applets:
-            asset_models.append(child_applet.AssetFields)
-        return asset_models
-
-    @property
-    def all_fieldnames(self):
-        fieldnames = self.fieldnames
-        for child_applet in self.all_child_applets:
-            fieldnames.extend(child_applet.fieldnames)
-        return fieldnames
+    def ensure_main_server(self):
+        """
+        Makes sure we are in the main instance of BBOT server.
+        """
+        if not self.is_main_server:
+            raise self.BBOTServerValueError("This endpoint is only available on the main server instance")
 
     @property
     def is_main_server(self):
@@ -396,6 +395,10 @@ class BaseApplet:
 
             self.__class__._asset_lock = NamedLock()
         return self.__class__._asset_lock
+
+    @property
+    def interface(self):
+        return self.root._interface
 
     # def __getattribute__(self, attr):
     #     """

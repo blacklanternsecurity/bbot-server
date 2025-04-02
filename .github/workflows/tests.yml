@@ -21,17 +21,12 @@ jobs:
         image: mongo
         ports:
           - 27017:27017
-      rabbitmq:
-        image: rabbitmq
+      redis:
+        image: redis
         ports:
-          - 5672:5672
+          - 6379:6379
     steps:
       - uses: actions/checkout@v4
-      - name: Setup NATS with JetStream
-        run: |
-          curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@latest | sh
-          ./nats-server --jetstream &
-          sleep 2
       - name: Set up Python
         uses: actions/setup-python@v4
         with:

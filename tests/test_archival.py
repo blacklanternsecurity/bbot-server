@@ -6,6 +6,8 @@ class TestArchival(BaseAppletTest):
     This is a basic sanity check to make sure the event archiving process works as intended
     """
 
+    needs_watchdog = True
+
     async def setup(self):
         events = [e async for e in self.bbot_server.get_events(archived=None)]
         assert events == [], "events are not empty during setup"

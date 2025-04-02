@@ -2,6 +2,8 @@ from tests.test_applets.base import BaseAppletTest
 
 
 class TestAppletOpenPorts(BaseAppletTest):
+    needs_watchdog = True
+
     async def setup(self):
         # at the beginning, everything should be empty
         assert await self.bbot_server.get_open_ports("openport80a.evilcorp.com") == []

@@ -53,9 +53,6 @@ class TestAppletAgents(BaseAppletTest):
         if self.bbot_server.interface_type != "http":
             return
 
-        # connect to the agent, send a message, and disconnect
-        agent_url = f"ws://localhost:8807/v1/scans/agents/dock/{self.agent_3.id}"
-
         # our agent should be offline
         agent_status = await self.bbot_server.get_agent_status(self.agent_3.id)
         assert agent_status == {"status": "OFFLINE"}
@@ -65,6 +62,8 @@ class TestAppletAgents(BaseAppletTest):
 
         # sample agent just responds to status commands
         async def agent_dummy():
+            # connect to the agent, send a message, and disconnect
+            agent_url = f"ws://localhost:8807/v1/scans/agents/dock/{self.agent_3.id}"
             try:
                 async for websocket in websockets.connect(agent_url):
                     gratuitous_status = AgentResponse(response={"status": "READY"})
@@ -82,7 +81,7 @@ class TestAppletAgents(BaseAppletTest):
 
                         response = AgentResponse(request_id=status_command.request_id, response={"status": "READY"})
                         await websocket.send(orjson.dumps(response.model_dump()))
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, RuntimeError):
                 pass
             except BaseException:
                 self.log.error(f"Error in dummy agent: {traceback.format_exc()}")

@@ -26,16 +26,13 @@ class EventsApplet(BaseApplet):
         # it will be picked up by the watchdog and ingested
         await self.root.message_queue.event_publish(event)
 
-    async def _insert_event(self, event: Event):
-        await self.event_store.insert_event(event)
-
     @api_endpoint("/{uuid}", methods=["GET"], summary="Get an event by its UUID")
     async def get_event(self, uuid: str) -> Event:
         return await self.event_store.get_event(uuid)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)
-    async def tail_events(self):
-        async for event in self.message_queue.event_tail():
+    async def tail_events(self, n: int = 0):
+        async for event in self.message_queue.event_tail(n=n):
             yield event
 
     @api_endpoint("/{uuid}/archive", methods=["GET"], summary="Archive an event")
@@ -74,4 +71,5 @@ class EventsApplet(BaseApplet):
         This is used by the agent to send events to the server.
         """
         async for event in event_generator:
-            await self.insert_event(event)
+            # we use "interface" here because we need it to still work even if we're accessing a remote BBOT server instance
+            await self.interface.insert_event(event)

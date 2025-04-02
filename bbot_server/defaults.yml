@@ -22,7 +22,7 @@ user_store:
   table_name: userdata
 
 message_queue:
-  uri: nats://localhost:4222
+  uri: redis://localhost:6379
 
 agent:
   base_preset:

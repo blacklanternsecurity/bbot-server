@@ -13,10 +13,9 @@ services:
     ports:
       - "8807:8807"
     environment:
-      - BBOT_HOST=0.0.0.0
-      - BBOT_PORT=8807
-      - BBOT_AUTO_RELOAD
-    command: ["uvicorn", "bbot_server.api.app:server_app", "--reload", "--host", "${BBOT_HOST}", "--port", "${BBOT_PORT:-8807}"]
+      - BBOT_HOST
+      - BBOT_PORT
+    command: ["bbctl", "server", "start", "--api-only", "--listen", "0.0.0.0"]
 
   bbot-server-watchdog:
     <<: *bbot-server-base

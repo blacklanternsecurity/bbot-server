@@ -15,9 +15,10 @@ class ScanRunsApplet(BaseApplet):
     model = ScanRun
 
     async def setup(self):
-        self.scan_watch_task = self.create_task(self.start_scans_loop())
+        if self.is_main_server:
+            self.scan_watch_task = self.create_task(self.start_scans_loop())
 
-    # async def ingest_event(self, asset, event) -> list[AssetActivity]:
+    # async def handle_event(self, asset, event) -> list[AssetActivity]:
     #     scan_run = ScanRun(**event.data_json)
     #     activity_type = f"SCAN_{scan_run.status}"
 
@@ -92,12 +93,14 @@ class ScanRunsApplet(BaseApplet):
                 if not queued_scans:
                     await self.sleep(1)
                     continue
+                self.log.info(f"Found {len(queued_scans):,} queued scans")
                 # get all alive agents
                 ready_agents = {str(agent.id): agent for agent in await self.parent.get_online_agents(status="READY")}
                 if not ready_agents:
                     self.log.warning("No agents are currently ready")
                     await self.sleep(1)
                     continue
+                self.log.info(f"Found {len(ready_agents):,} ready agents")
                 for scan in queued_scans:
                     # find a suitable agent for the scan
                     if scan.agent_id is None:
@@ -113,8 +116,17 @@ class ScanRunsApplet(BaseApplet):
                                 self.log.warning(f"Error sending scan to selected agent: {e}")
                                 continue
 
+                    self.log.info(f"Selected agent: {selected_agent.name}")
+
                     # send the scan to the agent
-                    await self.parent.execute_command(str(selected_agent.id), "start_scan", scan_run=scan.model_dump())
+                    scan_start_response = await self.parent.execute_command(
+                        str(selected_agent.id), "start_scan", scan_run=scan.model_dump()
+                    )
+                    if scan_start_response.error:
+                        self.log.warning(f"Error sending scan to agent: {scan_start_response.error}")
+                        await self.sleep(1)
+                        continue
+
                     await self.emit_activity(
                         type="SCAN_SENT",
                         description=f"Scan [[dark_orange]{scan.name}[/dark_orange]] sent to agent [[dark_orange]{selected_agent.name}[/dark_orange]]",
@@ -122,11 +134,13 @@ class ScanRunsApplet(BaseApplet):
                     )
                     # make the scan as sent
                     await self.collection.update_one({"id": str(scan.id)}, {"$set": {"status": "SENT_TO_AGENT"}})
+
         except Exception as e:
             self.log.error(f"Error in scans loop: {e}")
             self.log.error(traceback.format_exc())
 
-    async def cleanup_scan(self):
-        self.scan_watch_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await self.scan_watch_task
+    async def cleanup(self):
+        if self.is_main_server:
+            self.scan_watch_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.scan_watch_task

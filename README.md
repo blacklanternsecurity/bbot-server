@@ -68,7 +68,7 @@ Two types of components make up BBOT server: **Applets** and **Watchdogs**.
 
 ### Applets
 
-Applets are the main interface into the database. They allow convenient querying and updating of data via Python or the REST API.
+Applets are the main interface into the database. They allow convenient querying and updating of data via the Python or REST API.
 
 Examples of applets include:
 
@@ -84,8 +84,7 @@ Examples of applets include:
     - `Agents` - Manage BBOT scan agents.
 
 - Each applet's functionality is exposed via a collection of API functions like `get_subdomains()`, `get_webscreenshots()`, etc., which double as FastAPI endpoints.
-- Applets can be nested beneath other applets, allowing for neat compartmentalization.
-- Unlike watchdogs, applets do not run continuously. They must be explicitly called by the user (or by a watchdog).
+- Applets can be nested beneath other applets, allowing for tidy organization.
 
 Each applet is a single python file in `bbot_server/applets/`. It's common for an applet to have a companion watchdog which updates and maintains the data they expose via the API. Typically, an applet and its watchdog will share a Pydantic model. 
 
@@ -100,6 +99,6 @@ Watchdogs are backend-centric tasks. They can be triggered by events, asset acti
 - `Archiver` - Periodically archives old scans.
 - `Scan_Runner` - Periodically kicks off new scans.
 
-- Watchdogs can listen for new BBOT events, and ingest them via `ingest_event()`. Some applets, like `Open_Ports`, use this information to update the associated asset, while others like `Vulnerabilities` have their own dedicated database table.
+- Watchdogs can listen for new BBOT events, and ingest them via `handle_event()`. Some applets, like `Open_Ports`, use this information to update the associated asset, while others like `Vulnerabilities` have their own dedicated database table.
 
 Watchdogs are dependent on their applets, not the other way around. It makes use of the applet's functions to query/update the database. Each watchdog is a single python file underneath `bbot_server/watchdogs/`.
