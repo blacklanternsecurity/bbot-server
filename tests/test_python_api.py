@@ -107,7 +107,7 @@ def _test_sychronous_api(interface, bbot_events, bbot_server_config):
 
         # insert one event
         bbot_server.insert_event(bbot_event)
-        sleep(1.0)
+        sleep(3.0)
 
         # we should now have one event
         events = list(bbot_server.get_events())
