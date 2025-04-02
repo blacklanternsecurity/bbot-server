@@ -1,4 +1,7 @@
 import asyncio
+import logging
+
+log = logging.getLogger("bbot.server.test_applet_scans")
 
 
 async def test_applet_scans(bbot_server):
@@ -85,9 +88,9 @@ async def test_applet_scans(bbot_server):
     all_agents = await bbot_server.get_agents()
     assert len(all_agents) == 1
     online_agents = await bbot_server.get_online_agents()
-    print(f"ONLINE: {online_agents}")
-    print(f"ALL: {all_agents}")
-    print(f"ACTIVITIES: {activities}")
+    log.critical(f"ONLINE: {online_agents}")
+    log.critical(f"ALL: {all_agents}")
+    log.critical(f"ACTIVITIES: {activities}")
     assert len(online_agents) == 1, f"No online agents (all agents: {all_agents} / activities: {activities})"
 
     # start scan2
@@ -96,8 +99,8 @@ async def test_applet_scans(bbot_server):
     for _ in range(100):
         activity_types = [a.type for a in activities]
         event_types = [e.type for e in events]
-        print(f"ACTIVITIES: {activity_types}")
-        print(f"EVENTS: {event_types}")
+        log.critical(f"ACTIVITIES: {activity_types}")
+        log.critical(f"EVENTS: {event_types}")
         if activity_types == ["AGENT_CONNECTED", "SCAN_QUEUED", "SCAN_SENT", "SCAN_STARTED", "SCAN_FINISHED"]:
             if event_types == ["SCAN", "SCAN"]:
                 break
