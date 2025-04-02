@@ -107,18 +107,21 @@ class RedisMessageQueue(BaseMessageQueue):
                                     await self.redis.xack(stream_key, group_name, message_id)
                             await self._callback(callback, *messages)
                 except redis.ResponseError as e:
+                    self.log.error(f"Error reading from stream {stream_key}: {e}")
                     if "NOGROUP" in str(e):
                         try:
                             # For non-durable subscribers, start from '$' (only new messages)
                             # For durable subscribers, start from '0' (all messages)
                             start_id = "0" if durable else "$"
-                            await self.redis.xgroup_create(stream_key, group_name, id=start_id, mkstream=True)
+                            self.log.critical(f"Creating group {group_name} for stream {stream_key} with start_id {start_id}")
+                            result = await self.redis.xgroup_create(stream_key, group_name, id=start_id, mkstream=True)
+                            self.log.critical(f"Group {group_name} created for stream {stream_key} with result: {result}")
                         except redis.ResponseError as create_err:
                             if "BUSYGROUP" not in str(create_err):
                                 self.log.error(f"Failed to recreate group: {create_err}")
                                 await asyncio.sleep(0.1)
                     else:
-                        self.log.error(f"Redis error: {e}")
+                        self.log.error("Sleeping for 1 second")
                         await asyncio.sleep(1)
                 except asyncio.CancelledError:
                     break
