@@ -1,12 +1,16 @@
-def BBOTInterface(backend="sqlite", **kwargs):
-    backend = backend.strip().lower()
-    if backend == "http":
-        from bbot_server.interfaces.http import HTTPInterface
+import logging
 
-        # we don't actually use sqlite here, it's used only as a placeholder
-        return HTTPInterface("sqlite", **kwargs)
+log = logging.getLogger("bbot.server.interfaces")
 
+
+def BBOTServer(interface="python", **kwargs):
+    if interface == "python":
+        from .python import python
+
+        return python(**kwargs)
+    elif interface == "http":
+        from .http import http
+
+        return http(**kwargs)
     else:
-        from bbot_server.interfaces._base import BaseInterface
-
-        return BaseInterface(backend, **kwargs)
+        raise ValueError(f"Invalid interface: '{interface}' - must be either 'python' or 'http'")

@@ -1,0 +1,4 @@
+# BBOT preset for tests
+
+target:
+  - evilcorp.com

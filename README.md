@@ -1,129 +1,104 @@
+![bbot-server](https://github.com/user-attachments/assets/3041001f-5135-4f69-a585-fea30341d803)
+
 # BBOT Server
 
-[![Python Version](https://img.shields.io/badge/python-3.9+-FF8400)](https://www.python.org) [![License](https://img.shields.io/badge/license-GPLv3-FF8400.svg)](https://github.com/blacklanternsecurity/bbot/blob/dev/LICENSE) [![tests](https://github.com/blacklanternsecurity/bbot-server/actions/workflows/tests.yml/badge.svg)](https://github.com/blacklanternsecurity/bbot-server/actions/workflows/tests.yml) [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![Discord](https://img.shields.io/discord/859164869970362439)](https://discord.com/invite/PZqkgxu5SA)
+<!-- ![bbot-server](https://github.com/user-attachments/assets/f97648ad-fc72-4fbf-8f85-3896b9f8f02c) -->
 
-BBOT Server is a convenient database and API for managing your [BBOT](https://github.com/blacklanternsecurity/bbot) scan data. Deploy in a single command!
+BBOT Server is a central command center for all your [BBOT](https://github.com/blacklanternsecurity/bbot) activities!
+
+- [x] **Scan Management**
+    - [ ] Kick off concurrent scans on remote servers
+    - [x] Monitor scan progress, statistics
+- [x] **Asset Tracking and Alerting**
+    - [x] Detailed history for each individual asset
+    - [ ] Instant alerting on new vulnerabilities, open ports, etc.
+- [x] **Collaboration**
+    - [x] Multi-user CLI
+    - [ ] Multiple concurrent scans
+- [x] **Advanced Querying**
+    - [x] REST API
+    - [x] Python SDK
+    - [ ] GraphQL
+
+## Example Usage
 
 ```bash
-# install
-pipx install git+https://github.com/blacklanternsecurity/bbot-server
+# Start bbot server
+bbctl server start
 
-# start bbot server
-bbot-server -p 8000
+# Create a new scan
+bbctl scans create
 
-# visit REST API at http://127.0.0.1:8000/
+# Start the scan
+bbctl scans start demonic_jimmy
 
-# run bbot scan
-bbot -t blacklanternsecurity.com -om http -c modules.http.url=http://localhost:8000/events/
+# monitor new asset activity
+bbctl assets tail
+bbctl assets list
 
-# get subdomains
-curl http://localhost:8000/subdomains
+# monitor new event activity
+bbctl events tail
+bbctl events list
+
+# list scan status
+bbctl scans runs
 ```
 
-## Supported Backends
+## Screenshots
 
-- [x] SQLite (default)
-- [x] Postgres
-- [x] REST Client
+![scan-editor](https://github.com/user-attachments/assets/9c31d2ef-f4f0-4d65-bd45-263a8d16bd7f)
+
+*Scan editor (terminal UI)*
+
+![scans](https://github.com/user-attachments/assets/7644809f-e111-49f8-b627-c0c77a65110a)
+
+*Launch and monitor concurrent scans*
+
+![monitor-assets](https://github.com/user-attachments/assets/ed7ac9f2-34e8-4770-a971-49fdf7f77bea)
+
+*Realtime asset monitoring*
+
+![rest-api](https://github.com/user-attachments/assets/567bd266-b047-4005-bc0b-22d5bfd2a12b)
+
+*REST API*
 
 ## How it works
 
-BBOT server has several layers of abstraction which make it very versatile:
+Two types of components make up BBOT server: **Applets** and **Watchdogs**.
 
-### **Interfaces** --> **Applets** --> **Backends**
+### Applets
 
----
+Applets are the main interface into the database. They allow convenient querying and updating of data via the Python or REST API.
 
-### 1. Interfaces (`bbot_server/interfaces/*.py`)
+Examples of applets include:
 
-Interfaces let you interact with BBOT server transparently via its python API, regardless of whether the server is local or remote. This will useful for future projects, such as an interactive command-line interface, because it allows multiple clients to connect at the same time (BBOT multiplayer!).
+- `Assets` - Query assets.
+    - `Open_Ports` - Query open ports.
+    - `Vulnerabilities` - Track discovered vulnerabilities over time.
+    - `Technologies` - Track discovered technologies over time.
+    - `Emails` - Query discovered emails.
+    - `Export` - Export assets to CSV, JSON, etc.
+    - `Web_Screenshots` - Query web screenshots.
+- `Scans` - Manage BBOT scans.
+    - `Targets` - Manage scan targets.
+    - `Agents` - Manage BBOT scan agents.
 
-Right now there are only two interfaces: `local` and `http`. In the future we might add more high-performance protocols like ZeroMQ.
+- Each applet's functionality is exposed via a collection of API functions like `get_subdomains()`, `get_webscreenshots()`, etc., which double as FastAPI endpoints.
+- Applets can be nested beneath other applets, allowing for tidy organization.
 
-### 2. Applets (`bbot_server/applets/*.py`)
+Each applet is a single python file in `bbot_server/applets/`. It's common for an applet to have a companion watchdog which updates and maintains the data they expose via the API. Typically, an applet and its watchdog will share a Pydantic model. 
 
-Applets are where the core business logic lives. They make it easy to add new functionality, while keeping the server small and lightweight.
+### Watchdogs
 
-Each applet (e.g. `Events`, `Scans`, or `Subdomains`) has a small collection of python functions (e.g. `get_subdomains()`), which double as HTTP endpoints. Methods from all applets can be accessed directly from the `BBOT_IO` interface.
+Watchdogs are backend-centric tasks. They can be triggered by events, asset activities, or on a schedule. For performance reasons, they run in a dedicated process, and are responsible for watching queues and maintaining the database. Examples of watchdogs include:
 
-Each applet typically has its own database model (i.e. its own SQL table), but can also access other applets if needed. For example, `io.delete_scan()` will remove a scan from the `scan` table, but also delete all its events from the `event` table. 
+- `Open_Ports`
+- `Event_Watcher` - Consumes new scan events from the queue, and inserts them into the database.
+- `Notifier` - Listens for new changes to assets, and sends notifications to the user via Teams, Discord, etc.
+- `Scope_Keeper` - Ensures assets in the database are up to date with the current scope.
+- `Archiver` - Periodically archives old scans.
+- `Scan_Runner` - Periodically kicks off new scans.
 
-### 3. Backends (`bbot_server/backends/*.py`)
+- Watchdogs can listen for new BBOT events, and ingest them via `handle_event()`. Some applets, like `Open_Ports`, use this information to update the associated asset, while others like `Vulnerabilities` have their own dedicated database table.
 
-Backends abstract the database. This enables you to spin up quickly with `sqlite`, or use `postgres` for bigger datasets.
-
-## Usage (Python)
-```python
-import asyncio
-
-from bbot import Scanner
-from bbot_server import BBOT_IO
-from bbot_server.models import Event
-
-
-async def main():
-    # local SQLite database
-    io = BBOT_IO("sqlite", database="./bbot.db")
-    # or Postgres
-    io = BBOT_IO("postgres", host="localhost", username="postgres", password="bbotislife")
-    # or a BBOT server already running somewhere else
-    io = BBOT_IO("http", url="http://bbot.server")
-
-    # setup
-    await io.setup()
-
-    # fill database with BBOT data
-    scan = Scanner("blacklanternsecurity.com")
-    async for event in scan.async_start():
-        pydantic_event = Event(**event.json())
-        await io.create_event(pydantic_event)
-
-    # get subdomains
-    subdomains = await io.get_subdomains()
-    print(subdomains)
-
-    # get events
-    events = await io.get_events()
-
-    # clear database
-    await io.drop_database()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-## Synchronous Mode
-
-BBOT IO is async by default, but can also operate in synchronous mode:
-
-```python
-# local SQLite database
-io = BBOT_IO("sqlite", database="./bbot.db", synchronous=True)
-
-# setup
-io.setup()
-
-# get subdomains
-subdomains = io.get_subdomains()
-print(subdomains)
-```
-
-## Running Tests
-```bash
-# first, start postgres
-docker run --rm -e POSTGRES_PASSWORD=bbotislife -p 5432:5432 postgres
-
-# run tests
-poetry run pytest
-```
-
-![bbot-server](https://github.com/user-attachments/assets/c68d3b81-0cb4-4721-9421-879c1b2b6d04)
-
-### TODO
-
-- [x] Basic tests
-- [x] Github actions
-- [ ] HTTP Authentication (API Key)
-- [ ] Codecov
-- [ ] Full documentation
+Watchdogs are dependent on their applets, not the other way around. It makes use of the applet's functions to query/update the database. Each watchdog is a single python file underneath `bbot_server/watchdogs/`.

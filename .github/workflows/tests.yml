@@ -10,49 +10,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: psf/black@stable
-        with:
-          options: "--check"
-      - name: Install Python 3
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
-      - name: Install dependencies
-        run: |
-          pip install flake8
-      - name: flake8
-        run: |
-          flake8
   test:
-    needs: lint
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
     services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: bbotislife
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+      mongo:
+        image: mongo
         ports:
-          - 5432:5432
+          - 27017:27017
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
     steps:
-      - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@1.11.0
-        with:
-          mongodb-version: "7.0"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -61,9 +35,13 @@ jobs:
         run: |
           pip install poetry
           poetry install
+      - name: Lint
+        run: |
+          poetry run ruff check
+          poetry run ruff format --check
       - name: Run tests
         run: |
-          poetry run pytest --exitfirst --disable-warnings --log-cli-level=DEBUG --cov-report xml:cov.xml --cov=bbot_server .
+          poetry run pytest --exitfirst --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
       - name: Upload Code Coverage
         uses: codecov/codecov-action@v3
         with:
