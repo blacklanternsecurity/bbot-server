@@ -117,9 +117,10 @@ class RedisMessageQueue(BaseMessageQueue):
                             result = await self.redis.xgroup_create(stream_key, group_name, id=start_id, mkstream=True)
                             self.log.critical(f"Group {group_name} created for stream {stream_key} with result: {result}")
                         except redis.ResponseError as create_err:
-                            if "BUSYGROUP" not in str(create_err):
-                                self.log.error(f"Failed to recreate group: {create_err}")
-                                await asyncio.sleep(0.1)
+                            self.log.critical(f"Failed to recreate group: {create_err}")
+                            # if "BUSYGROUP" not in str(create_err):
+                            #     self.log.error(f"Failed to recreate group: {create_err}")
+                            await asyncio.sleep(0.1)
                     else:
                         self.log.error("Sleeping for 1 second")
                         await asyncio.sleep(1)
