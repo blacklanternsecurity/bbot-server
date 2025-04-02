@@ -24,6 +24,9 @@ class EventsApplet(BaseApplet):
         """
         # publish event to the message queue
         # it will be picked up by the watchdog and ingested
+        import time
+
+        self.log.critical(f"Inserting event: {event.type}:{event.id} at {time.time()}")
         await self.root.message_queue.event_publish(event)
 
     @api_endpoint("/{uuid}", methods=["GET"], summary="Get an event by its UUID")
