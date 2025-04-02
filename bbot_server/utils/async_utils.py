@@ -70,28 +70,21 @@ class AsyncToSyncWrapper:
 
         This method must be called before run_coroutine().
         """
+        self._ready = threading.Event()
 
-        # get current event loop, if any
-        try:
-            self.loop = asyncio.get_running_loop()
-            self.log.debug(f"Using existing event loop: {self.loop}")
-        except RuntimeError:
-            self.log.debug("No existing event loop found, creating new one")
-            self._ready = threading.Event()
+        def run_event_loop():
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
+            self._ready.set()  # Signal that the loop is ready
+            try:
+                self.loop.run_forever()
+            finally:
+                self.loop.stop()
+                self.loop.close()
 
-            def run_event_loop():
-                self.loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(self.loop)
-                self._ready.set()  # Signal that the loop is ready
-                try:
-                    self.loop.run_forever()
-                finally:
-                    self.loop.stop()
-                    self.loop.close()
-
-            self.thread = threading.Thread(target=run_event_loop, daemon=True)
-            self.thread.start()
-            self._ready.wait()  # Wait for the loop to be ready
+        self.thread = threading.Thread(target=run_event_loop, daemon=True)
+        self.thread.start()
+        self._ready.wait()  # Wait for the loop to be ready
         atexit.register(self.shutdown)
 
     def run_coroutine(self, coro):

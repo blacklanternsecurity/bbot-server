@@ -125,7 +125,7 @@ def bbot_server_http():
     command = [*BBCTL_COMMAND, "server", "start", "--api-only"]
 
     # Start process in its own process group
-    for _ in range(10):
+    for _ in range(20):
         server_process = subprocess.Popen(
             command, preexec_fn=os.setsid, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )

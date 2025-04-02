@@ -169,10 +169,11 @@ class BBOTAgent:
 
     async def loop(self):
         try:
-            self.log.info(f"Agent {self.name} connecting to {self.websocket_dock_url}")
+            self.log.info(f"Agent {self.name} connecting to {self.websocket_dock_url}...")
             # "async for" will use websocket's builtin retry/reconnect mechanism, with exponential backoff
             # https://websockets.readthedocs.io/en/stable/reference/asyncio/client.html
             async for websocket in websockets.connect(self.websocket_dock_url):
+                self.log.info(f"Agent {self.name} successfully connected to {self.websocket_dock_url}")
                 self.websocket = websocket
                 try:
                     # gratuitous status update on first connection
