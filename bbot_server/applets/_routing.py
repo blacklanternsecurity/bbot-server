@@ -161,7 +161,6 @@ class WebsocketStreamOutgoingRoute(BaseServerRoute):
             """
             Handles opening and closing of the websocket, allowing the user-defined function to be a simple async generator
             """
-            self.log.critical(f"Websocket stream outgoing: {args} / {kwargs}")
             try:
                 await websocket.accept()
                 agen = self.function(*args, **kwargs)

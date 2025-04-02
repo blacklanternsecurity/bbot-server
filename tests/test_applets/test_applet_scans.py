@@ -4,6 +4,21 @@ import asyncio
 async def test_applet_scans(bbot_server):
     bbot_server = await bbot_server(needs_agent=True, needs_api=True)
 
+    # tail activities + events
+    activities = []
+    events = []
+
+    async def tail_activities():
+        async for activity in bbot_server.tail_assets(n=10):
+            activities.append(activity)
+
+    async def tail_events():
+        async for event in bbot_server.tail_events(n=10):
+            events.append(event)
+
+    asyncio.create_task(tail_activities())
+    asyncio.create_task(tail_events())
+
     scans = await bbot_server.get_scans()
     assert scans == []
 
@@ -70,24 +85,22 @@ async def test_applet_scans(bbot_server):
     all_agents = await bbot_server.get_agents()
     assert len(all_agents) == 1
     online_agents = await bbot_server.get_online_agents()
-    assert len(online_agents) == 1, f"No online agents ({all_agents})"
-
-    # tail asset activities
-    activities = []
-
-    async def tail_activities():
-        async for activity in bbot_server.tail_assets(n=10):
-            activities.append(activity)
-
-    asyncio.create_task(tail_activities())
+    print(f"ONLINE: {online_agents}")
+    print(f"ALL: {all_agents}")
+    print(f"ACTIVITIES: {activities}")
+    assert len(online_agents) == 1, f"No online agents (all agents: {all_agents} / activities: {activities})"
 
     # start scan2
     await bbot_server.start_scan(scan2.id)
 
     for _ in range(100):
         activity_types = [a.type for a in activities]
+        event_types = [e.type for e in events]
+        print(f"ACTIVITIES: {activity_types}")
+        print(f"EVENTS: {event_types}")
         if activity_types == ["AGENT_CONNECTED", "SCAN_QUEUED", "SCAN_SENT", "SCAN_STARTED", "SCAN_FINISHED"]:
-            break
+            if event_types == ["SCAN", "SCAN"]:
+                break
         await asyncio.sleep(0.1)
     else:
         assert False, f"Scan didn't finish properly. Activities: {[a.type for a in activities]}"

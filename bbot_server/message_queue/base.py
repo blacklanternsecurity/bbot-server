@@ -52,7 +52,7 @@ class BaseMessageQueue:
             await q.put(msg)
 
         try:
-            subscription = await self.subscribe(callback, subject, historic=n)
+            subscription = await self.subscribe(subject, callback, historic=n)
         except Exception as e:
             self.log.critical(f"Error subscribing to {subject}: {e}")
             self.log.critical(traceback.format_exc())
@@ -93,7 +93,7 @@ class BaseMessageQueue:
         """
         raise NotImplementedError()
 
-    async def subscribe(self, callback, subject: str):
+    async def subscribe(self, subject: str, callback, durable: str = None, historic=0):
         """
         Execute a callback for each new message on the given subject.
         """

@@ -77,7 +77,12 @@ class RedisMessageQueue(BaseMessageQueue):
         message_data = smart_encode(message)
         await self.redis.xadd(stream_key, {"data": message_data}, maxlen=10000, approximate=True)
 
-    async def subscribe(self, callback, subject: str, durable: str = None, historic=0):
+    async def subscribe(self, subject: str, callback, durable: str = None, historic=0):
+        if not callable(callback):
+            raise ValueError("Callback must be a callable")
+        if not isinstance(subject, str):
+            raise ValueError("Subject must be a string")
+
         stream_key = f"bbot:stream:{subject}"
         if historic > 0:
             messages = await self.redis.xrevrange(stream_key, count=historic)

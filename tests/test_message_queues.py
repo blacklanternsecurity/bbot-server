@@ -27,7 +27,7 @@ async def _test_basic_subscribe(bbot_server):
         messages1.append(message)
 
     # Subscribe to a test channel
-    sub1 = await bbot_server.message_queue.subscribe(callback1, "test_channel")
+    sub1 = await bbot_server.message_queue.subscribe("test_channel", callback1)
 
     await asyncio.sleep(0.2)
 
@@ -43,7 +43,7 @@ async def _test_basic_subscribe(bbot_server):
     async def callback2(message):
         messages2.append(message)
 
-    sub2 = await bbot_server.message_queue.subscribe(callback2, "test_channel")
+    sub2 = await bbot_server.message_queue.subscribe("test_channel", callback2)
     await asyncio.sleep(0.2)
 
     assert messages2 == []
@@ -80,7 +80,7 @@ async def _test_durable_subscribe(bbot_server):
     await asyncio.sleep(0.2)
 
     # Create first durable subscription - should receive all historical messages
-    sub1 = await bbot_server.message_queue.subscribe(callback1, "durable_channel", durable="test_consumer1")
+    sub1 = await bbot_server.message_queue.subscribe("durable_channel", callback1, durable="test_consumer1")
     await asyncio.sleep(0.2)
 
     # Verify first subscription received both historical messages
@@ -102,14 +102,14 @@ async def _test_durable_subscribe(bbot_server):
     messages1.clear()
 
     # Resubscribe with the same durable name - should NOT receive previous messages
-    sub1 = await bbot_server.message_queue.subscribe(callback1, "durable_channel", durable="test_consumer1")
+    sub1 = await bbot_server.message_queue.subscribe("durable_channel", callback1, durable="test_consumer1")
     await asyncio.sleep(0.2)
 
     # Verify no messages were received (since we've already processed them)
     assert messages1 == []
 
     # Create a second durable subscription with a different name - should receive all messages
-    sub2 = await bbot_server.message_queue.subscribe(callback2, "durable_channel", durable="test_consumer2")
+    sub2 = await bbot_server.message_queue.subscribe("durable_channel", callback2, durable="test_consumer2")
     await asyncio.sleep(0.2)
 
     # Verify second subscription received all historical messages
@@ -141,7 +141,7 @@ async def _test_historic_subscribe(bbot_server):
         await bbot_server.message_queue.publish(message, "test_channel")
     await asyncio.sleep(1.0)
 
-    sub = await bbot_server.message_queue.subscribe(callback, "test_channel", historic=5)
+    sub = await bbot_server.message_queue.subscribe("test_channel", callback, historic=5)
     await asyncio.sleep(1.0)
 
     assert messages == to_send[5:]
@@ -195,20 +195,20 @@ class TestMessageQueuesRedis(BaseAppletTest):
             events.append(message)
 
         # not durable, so historical message won't show up
-        sub = await self.bbot_server.message_queue.subscribe(callback, "events")
+        sub = await self.bbot_server.message_queue.subscribe("events", callback)
         await asyncio.sleep(0.2)
         assert events == []
         await self.bbot_server.message_queue.unsubscribe(sub)
 
         # there should be one historical message
         events.clear()
-        sub = await self.bbot_server.message_queue.subscribe(callback, "events", durable="test_durable")
+        sub = await self.bbot_server.message_queue.subscribe("events", callback, durable="test_durable")
         await asyncio.sleep(0.2)
         assert len(events) == 1
         await self.bbot_server.message_queue.unsubscribe(sub)
 
         events.clear()
-        sub = await self.bbot_server.message_queue.subscribe(callback, "events", durable="test_durable")
+        sub = await self.bbot_server.message_queue.subscribe("events", callback, durable="test_durable")
         await asyncio.sleep(0.2)
         # there should be no new events
         assert len(events) == 0
@@ -222,7 +222,7 @@ class TestMessageQueuesRedis(BaseAppletTest):
         await asyncio.sleep(0.2)
 
         events.clear()
-        sub = await self.bbot_server.message_queue.subscribe(callback, "events", durable="test_durable_new")
+        sub = await self.bbot_server.message_queue.subscribe("events", callback, durable="test_durable_new")
         await asyncio.sleep(0.2)
         assert len(events) == 2
         await self.bbot_server.message_queue.unsubscribe(sub)
