@@ -1,8 +1,5 @@
 from contextlib import suppress
 
-from bbot_server.utils.misc import combine_pydantic_models
-
-
 # applets imports
 from bbot_server.applets.risk import Risk
 from bbot_server.applets.emails import EmailsApplet
@@ -12,11 +9,10 @@ from bbot_server.applets.dns_links import DNSLinksApplet
 from bbot_server.applets.open_ports import OpenPortsApplet
 from bbot_server.applets.web_screenshots import WebScreenshotsApplet
 
-# pydantic
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import AssetActivity, BaseAssetFacet
-
+from bbot_server.utils.misc import combine_pydantic_models
 from bbot_server.applets._base import BaseApplet, api_endpoint
+from bbot_server.models.assets import AssetActivity, BaseAssetFacet
 
 
 class Asset(BaseAssetFacet):
@@ -83,8 +79,8 @@ class AssetsApplet(BaseApplet):
         return Asset(**asset)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=AssetActivity)
-    async def tail_assets(self):
-        agen = self.message_queue.asset_tail()
+    async def tail_assets(self, n: int = 0):
+        agen = self.message_queue.asset_tail(n=n)
         try:
             async for activity in agen:
                 yield activity

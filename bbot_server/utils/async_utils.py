@@ -3,8 +3,8 @@ import asyncio
 import inspect
 import logging
 import threading
-from functools import wraps
 from cachetools import LRUCache
+from functools import wraps, partial
 from contextlib import asynccontextmanager
 
 log = logging.getLogger("bbot.server.utils.async_utils")
@@ -58,20 +58,19 @@ class AsyncToSyncWrapper:
 
         result = wrapper.run_coroutine(my_coroutine())
         print(result)  # Prints: Hello, World!
-
-        wrapper.stop()
     """
 
     def __init__(self):
+        self.log = logging.getLogger("bbot.server.utils.async_utils")
         self.loop = None
         self.thread = None
-        self._ready = threading.Event()
 
     def start(self):
         """Starts the background thread and event loop.
 
         This method must be called before run_coroutine().
         """
+        self._ready = threading.Event()
 
         def run_event_loop():
             self.loop = asyncio.new_event_loop()
@@ -86,6 +85,7 @@ class AsyncToSyncWrapper:
         self.thread = threading.Thread(target=run_event_loop, daemon=True)
         self.thread.start()
         self._ready.wait()  # Wait for the loop to be ready
+        atexit.register(self.shutdown)
 
     def run_coroutine(self, coro):
         """Runs a coroutine in the background event loop and returns the result.
@@ -103,6 +103,15 @@ class AsyncToSyncWrapper:
             raise RuntimeError("Event loop is not running. Call start() first.")
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return future.result()
+
+    def shutdown(self):
+        """Properly shut down the background thread and event loop."""
+        loop = getattr(self, "loop", None)
+        if loop is not None and loop.is_running():
+            self.loop.call_soon_threadsafe(self.loop.stop)
+            thread = getattr(self, "thread", None)
+            if thread is not None:
+                thread.join(timeout=5)  # Wait for thread to finish
 
 
 def async_to_sync_class(cls):
@@ -144,16 +153,22 @@ def async_to_sync_class(cls):
                 return attr
 
             # Handle regular async functions
-            if inspect.iscoroutinefunction(attr):
+            if inspect.iscoroutinefunction(attr) or (
+                isinstance(attr, partial) and inspect.iscoroutinefunction(attr.func)
+            ):
 
+                @wraps(attr)
                 def wrapper(*args, **kwargs):
                     return self._wrapper.run_coroutine(attr(*args, **kwargs))
 
                 return wrapper
 
             # Handle async generators
-            elif inspect.isasyncgenfunction(attr):
+            elif inspect.isasyncgenfunction(attr) or (
+                isinstance(attr, partial) and inspect.isasyncgenfunction(attr.func)
+            ):
 
+                @wraps(attr)
                 def wrapper(*args, **kwargs):
                     # Get the async generator object
                     async_gen = attr(*args, **kwargs)

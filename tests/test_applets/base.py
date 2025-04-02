@@ -80,7 +80,7 @@ class BaseAppletTest:
             with self.handle_errors("inserting data from first scan"):
                 for event in self.scan1_events:
                     await self.bbot_server.insert_event(event)
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
 
             # run the first test after scan #1 has been ingested
             with self.handle_errors("running tests after first scan"):
@@ -90,7 +90,7 @@ class BaseAppletTest:
             with self.handle_errors("inserting data from second scan"):
                 for event in self.scan2_events:
                     await self.bbot_server.insert_event(event)
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
 
             # run test after scan #2 has been ingested
             with self.handle_errors("running tests after second scan"):
@@ -116,12 +116,12 @@ class BaseAppletTest:
 
     async def setup_activities(self, event_messages, asset_messages):
         """
-        Tail event and asset activities and store them for the convenience of the applet tests
+        Tail event and asset activities and store them for use in the tests
         """
 
         async def tail_events():
             try:
-                agen = self.bbot_server.tail_events()
+                agen = self.bbot_server.tail_events(n=10)
                 async for event in agen:
                     event_messages.append(event)
                 with suppress(BaseException):
@@ -134,9 +134,9 @@ class BaseAppletTest:
 
         async def tail_activities():
             try:
-                agen = self.bbot_server.tail_assets()
+                agen = self.bbot_server.tail_assets(n=10)
                 async for activity in agen:
-                    self.log.info(f"New Activity: [{activity.type}] {activity.description}")
+                    self.log.info(f"{activity.type} - {activity.description}")
                     asset_messages.append(activity)
                 with suppress(BaseException):
                     await agen.aclose()
@@ -148,6 +148,8 @@ class BaseAppletTest:
 
         event_tail_task = asyncio.create_task(tail_events())
         asset_tail_task = asyncio.create_task(tail_activities())
+
+        await asyncio.sleep(0.2)
 
         return event_tail_task, asset_tail_task
 

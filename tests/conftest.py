@@ -103,15 +103,20 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config):
 @pytest.fixture
 def bbot_watchdog():
     command = [*BBCTL_COMMAND, "server", "start", "--watchdog-only"]
-    watchdog_process = subprocess.Popen(command)
+    watchdog_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
-        time.sleep(1)
+        time.sleep(5)
         yield watchdog_process
         watchdog_process.send_signal(signal.SIGINT)
     finally:
+        # Capture stdout/stderr regardless of exit state
+        with suppress(Exception):
+            stdout, stderr = watchdog_process.communicate(timeout=1)
+            log.info(f"Watchdog process output - stdout: {stdout.decode()}, stderr: {stderr.decode()}")
         try:
             watchdog_process.wait(timeout=5)
         except subprocess.TimeoutExpired:
+            log.error("Watchdog process timed out, killing forcefully")
             watchdog_process.kill()
 
 
@@ -120,7 +125,13 @@ def bbot_server_http():
     command = [*BBCTL_COMMAND, "server", "start", "--api-only"]
 
     # Start process in its own process group
-    server_process = subprocess.Popen(command, preexec_fn=os.setsid)
+    for _ in range(20):
+        server_process = subprocess.Popen(command, preexec_fn=os.setsid)
+        time.sleep(2)
+        if server_process.poll() is None:
+            break
+        else:
+            log.error(f"Failed to start server: return code: {server_process.returncode}")
 
     try:
         success = False
@@ -140,6 +151,7 @@ def bbot_server_http():
         try:
             server_process.wait(timeout=1)
         except subprocess.TimeoutExpired:
+            log.error("Server process timed out, killing process group")
             # Kill the entire process group
             os.killpg(os.getpgid(server_process.pid), signal.SIGKILL)
 
@@ -159,15 +171,27 @@ def bbot_agent(bbot_server_http):
         raise Exception(f"Failed to create agent: (stdout: {agent_stdout}, stderr: {agent_info.stderr})")
     agent_name = agent_info["name"]
     agent_id = agent_info["id"]
-    agent_process = subprocess.Popen([*BBCTL_COMMAND, "agent", "start", "--name", agent_name, "--id", agent_id])
-    # give agent a second to start
-    time.sleep(2)
+    agent_process = subprocess.Popen(
+        [*BBCTL_COMMAND, "agent", "start", "--name", agent_name, "--id", agent_id],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    # give agent a few seconds to start
+    time.sleep(3)
     yield agent_process
     agent_process.send_signal(signal.SIGINT)
     try:
         agent_process.wait(timeout=5)
     except subprocess.TimeoutExpired:
-        agent_process.kill()
+        pass
+    finally:
+        # Capture stdout/stderr regardless of exit state
+        with suppress(Exception):
+            stdout, stderr = agent_process.communicate(timeout=1)
+            log.info(f"Agent process output - stdout: {stdout.decode()}, stderr: {stderr.decode()}")
+        if agent_process.poll() is None:
+            log.error("Agent process still running, killing forcefully")
+            agent_process.kill()
 
 
 BBOT_EVENTS = []

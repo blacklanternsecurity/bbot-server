@@ -75,7 +75,8 @@ def main():
     except (KeyboardInterrupt, asyncio.CancelledError):
         log.warning("Interrupted")
     finally:
-        bbctl.bbot_server.cleanup()
+        if "bbot_server" in bbctl.__dict__:
+            bbctl.bbot_server.cleanup()
 
 
 if __name__ == "__main__":

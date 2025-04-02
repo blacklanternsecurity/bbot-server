@@ -24,8 +24,6 @@ async def test_async_to_sync_wrappers():
     result = wrapper.run_coroutine(my_coroutine())
     assert result == "Hello, World!"
 
-    wrapper.stop()
-
     ### class decorator ###
 
     @async_to_sync_class
@@ -109,7 +107,7 @@ def _test_sychronous_api(interface, bbot_events, bbot_server_config):
 
         # insert one event
         bbot_server.insert_event(bbot_event)
-        sleep(1.0)
+        sleep(0.5)
 
         # we should now have one event
         events = list(bbot_server.get_events())

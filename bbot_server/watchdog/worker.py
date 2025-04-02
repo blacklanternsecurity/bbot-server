@@ -48,7 +48,7 @@ class BBOTWatchdog:
 
         # start the event queue listener
         self.event_listener = await self.bbot_server.message_queue.subscribe(
-            self._event_listener, "events", durable="bbot_worker"
+            "events", self._event_listener, durable="bbot_worker"
         )
 
     async def _event_listener(self, message: dict) -> None:
@@ -85,7 +85,7 @@ class BBOTWatchdog:
             await self.bbot_server._emit_activity(activity)
 
     async def stop(self) -> None:
-        self.log.critical("STOPPING WATCHDOG")
+        self.log.info("Stopping watchdog")
         await self.bbot_server.message_queue.unsubscribe(self.event_listener)
         self.taskiq_worker_task.cancel()
         self.taskiq_scheduler_task.cancel()

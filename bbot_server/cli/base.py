@@ -34,7 +34,6 @@ class BaseBBCTL:
     import orjson
     from rich.table import Table
     from rich.console import Console
-    from bbot_server.cli.common import json_to_csv
 
     stdout = Console(file=sys.stdout)
     stderr = Console(file=sys.stderr)
