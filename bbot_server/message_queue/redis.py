@@ -113,9 +113,13 @@ class RedisMessageQueue(BaseMessageQueue):
                             # For non-durable subscribers, start from '$' (only new messages)
                             # For durable subscribers, start from '0' (all messages)
                             start_id = "0" if durable else "$"
-                            self.log.critical(f"Creating group {group_name} for stream {stream_key} with start_id {start_id}")
+                            self.log.critical(
+                                f"Creating group {group_name} for stream {stream_key} with start_id {start_id}"
+                            )
                             result = await self.redis.xgroup_create(stream_key, group_name, id=start_id, mkstream=True)
-                            self.log.critical(f"Group {group_name} created for stream {stream_key} with result: {result}")
+                            self.log.critical(
+                                f"Group {group_name} created for stream {stream_key} with result: {result}"
+                            )
                         except redis.ResponseError as create_err:
                             self.log.critical(f"Failed to recreate group: {create_err}")
                             # if "BUSYGROUP" not in str(create_err):
