@@ -4,6 +4,7 @@ import asyncio
 from pathlib import Path
 from subprocess import run
 from omegaconf import OmegaConf
+from contextlib import suppress
 
 from bbot_server.cli import common
 from bbot_server.config import BBOT_SERVER_CONFIG
@@ -65,11 +66,10 @@ class Server(BaseBBCTL):
                     await event.wait()
 
                 except KeyboardInterrupt:
-                    await watchdog.stop()
+                    with suppress(Exception):
+                        await watchdog.stop()
 
-            import uvloop
-
-            uvloop.run(run_watchdog())
+            asyncio.run(run_watchdog())
 
         else:
             self.ensure_docker_compose()
