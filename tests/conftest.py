@@ -176,8 +176,8 @@ def bbot_agent(bbot_server_http):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    # give agent a second to start
-    time.sleep(3)
+    # give agent a few seconds to start
+    time.sleep(5)
     yield agent_process
     agent_process.send_signal(signal.SIGINT)
     try:
