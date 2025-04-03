@@ -12,7 +12,7 @@ FILE_FORMAT = "[%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 
 # Create logger
 logger = logging.getLogger("bbot_server")
-logger.setLevel(logging.NOTSET)
+logger.setLevel(logging.INFO)
 
 # Create console handler with the current format
 console_handler = logging.StreamHandler()

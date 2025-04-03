@@ -1,4 +1,5 @@
 import pytest_asyncio
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 from bbot import Scanner
@@ -14,10 +15,11 @@ class DummyScan:
             "report_distance": 100,
         }
     }
+    output_dir = "/tmp/.bbot_server_test"
 
     @classmethod
     async def run(cls):
-        scan = Scanner(scan_name=cls.name, *cls.targets, config=cls.config)
+        scan = Scanner(scan_name=cls.name, output_dir=cls.output_dir, *cls.targets, config=cls.config)
         await scan.helpers.dns._mock_dns(cls.dns)
         for i, dummy_module in enumerate(cls.dummy_modules):
             dummy_module = dummy_module(scan)
@@ -27,7 +29,9 @@ class DummyScan:
             event = Event(**e.json())
             events.append(event)
         events.sort(key=lambda x: x.timestamp)
-        return events
+
+        out_file = scan.home / "output.json"
+        return events, out_file.read_text()
 
 
 class DummyScan1(DummyScan):
@@ -115,23 +119,31 @@ class DummyScan2(DummyScan):
 
 
 async def create_dummy_data():
-    scan1_events = await DummyScan1.run()
+    scan1_events, scan1_out_file = await DummyScan1.run()
     # scan1 events are 91 days old
     for event in scan1_events:
         event.timestamp = (datetime.now(timezone.utc) - timedelta(days=91)).timestamp()
-    scan2_events = await DummyScan2.run()
+    scan2_events, scan2_out_file = await DummyScan2.run()
     # scan2 events are 89 days old
     for event in scan2_events:
         event.timestamp = (datetime.now(timezone.utc) - timedelta(days=89)).timestamp()
-    return scan1_events, scan2_events
+    return (scan1_events, scan2_events), (scan1_out_file, scan2_out_file)
 
 
-BBOT_EVENTS = []
+BBOT_DUMMY_DATA = []
 
 
 @pytest_asyncio.fixture
 async def bbot_events():
-    global BBOT_EVENTS
-    if not BBOT_EVENTS:
-        BBOT_EVENTS = await create_dummy_data()
-    return BBOT_EVENTS
+    global BBOT_DUMMY_DATA
+    if not BBOT_DUMMY_DATA:
+        BBOT_DUMMY_DATA = await create_dummy_data()
+    return BBOT_DUMMY_DATA[0]
+
+
+@pytest_asyncio.fixture
+async def bbot_out_file():
+    global BBOT_DUMMY_DATA
+    if not BBOT_DUMMY_DATA:
+        BBOT_DUMMY_DATA = await create_dummy_data()
+    return BBOT_DUMMY_DATA[1]

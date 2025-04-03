@@ -183,13 +183,8 @@ class AgentsApplet(BaseApplet):
         for i in range(1000):
             online_agents = await self.get_online_agents()
             online_agents = [str(agent.id) for agent in online_agents]
-            if i > 20:
-                import traceback
-
-                traceback.print_stack()
-                assert False
             if not online_agents:
-                await self.sleep(5)
+                await self.sleep(1)
                 continue
             now = datetime.now(timezone.utc).timestamp()
             await self.collection.update_many({"id": {"$in": online_agents}}, {"$set": {"last_seen": now}})

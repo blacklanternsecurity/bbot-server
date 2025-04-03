@@ -6,10 +6,7 @@ import subprocess
 from pathlib import Path
 from bbot_server.cli.bbctl import main
 
-
-PROJ_ROOT = Path(__file__).parent.parent.parent
-BBCTL_FILE = PROJ_ROOT / "bbot_server" / "cli" / "bbctl.py"
-BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE)]
+from tests.conftest import BBCTL_COMMAND
 
 
 # make sure error handling works properly

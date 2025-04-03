@@ -4,6 +4,7 @@ import json
 import time
 import httpx
 import pytest  # noqa
+import shutil
 import signal
 import asyncio  # noqa
 import logging
@@ -101,7 +102,7 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config):
 
 
 @pytest.fixture
-def bbot_watchdog():
+def bbot_watchdog(mongo_cleanup):
     command = [*BBCTL_COMMAND, "server", "start", "--watchdog-only"]
     watchdog_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
@@ -121,7 +122,7 @@ def bbot_watchdog():
 
 
 @pytest.fixture
-def bbot_server_http():
+def bbot_server_http(mongo_cleanup):
     command = [*BBCTL_COMMAND, "server", "start", "--api-only"]
 
     # Start process in its own process group
@@ -209,3 +210,10 @@ async def mongo_cleanup():
     await client.drop_database("test_bbot_server_events")
     await client.drop_database("test_bbot_server_assets")
     await client.drop_database("test_bbot_server_userdata")
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_sessionfinish(session, exitstatus):
+    # Wipe out testing home dir
+    shutil.rmtree("/tmp/.bbot_server_test", ignore_errors=True)
+    yield
