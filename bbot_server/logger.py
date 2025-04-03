@@ -34,7 +34,7 @@ class GzipRotatingFileHandler(RotatingFileHandler):
 # Create gzip file handler with line numbers in the format
 file_handler = GzipRotatingFileHandler(
     filename=str(log_file),
-    maxBytes=10 * 1024 * 1024,  # 10MB
+    maxBytes=50 * 1000 * 1000,  # 50MB
     backupCount=5,
     mode="at",
 )
