@@ -6,9 +6,9 @@ class TestAppletOpenPorts(BaseAppletTest):
 
     async def setup(self):
         # at the beginning, everything should be empty
-        assert await self.bbot_server.get_open_ports("openport80a.evilcorp.com") == []
-        assert await self.bbot_server.get_open_ports("openport80b.evilcorp.com") == []
-        assert await self.bbot_server.get_open_ports("openport443.evilcorp.com") == []
+        assert await self.bbot_server.get_open_ports("www.evilcorp.com") == []
+        assert await self.bbot_server.get_open_ports("www2.evilcorp.com") == []
+        assert await self.bbot_server.get_open_ports("api.evilcorp.com") == []
 
         open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 0
@@ -17,9 +17,9 @@ class TestAppletOpenPorts(BaseAppletTest):
 
     async def after_scan_1(self):
         # first scan should have only one open port
-        assert await self.bbot_server.get_open_ports("openport80a.evilcorp.com") == [80]
-        assert await self.bbot_server.get_open_ports("openport80b.evilcorp.com") == [80]
-        assert await self.bbot_server.get_open_ports("openport443.evilcorp.com") == []
+        assert await self.bbot_server.get_open_ports("www.evilcorp.com") == [80]
+        assert await self.bbot_server.get_open_ports("www2.evilcorp.com") == [80]
+        assert await self.bbot_server.get_open_ports("api.evilcorp.com") == []
 
         open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 2
@@ -29,9 +29,9 @@ class TestAppletOpenPorts(BaseAppletTest):
 
     async def after_scan_2(self):
         # second scan should have two
-        assert await self.bbot_server.get_open_ports("openport443.evilcorp.com") == [443]
-        assert await self.bbot_server.get_open_ports("openport80a.evilcorp.com") == [80]
-        assert await self.bbot_server.get_open_ports("openport80b.evilcorp.com") == [80]
+        assert await self.bbot_server.get_open_ports("api.evilcorp.com") == [443]
+        assert await self.bbot_server.get_open_ports("www.evilcorp.com") == [80]
+        assert await self.bbot_server.get_open_ports("www2.evilcorp.com") == [80]
 
         open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 4
@@ -45,9 +45,9 @@ class TestAppletOpenPorts(BaseAppletTest):
 
     async def after_archive(self):
         # after archiving, the first open port should be gone
-        assert await self.bbot_server.get_open_ports("openport80a.evilcorp.com") == []
-        assert await self.bbot_server.get_open_ports("openport80b.evilcorp.com") == [80]
-        assert await self.bbot_server.get_open_ports("openport443.evilcorp.com") == [443]
+        assert await self.bbot_server.get_open_ports("www.evilcorp.com") == []
+        assert await self.bbot_server.get_open_ports("www2.evilcorp.com") == [80]
+        assert await self.bbot_server.get_open_ports("api.evilcorp.com") == [443]
 
         open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 2

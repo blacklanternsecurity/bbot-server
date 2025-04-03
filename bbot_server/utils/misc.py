@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, create_model, Field
 
 
-log = logging.getLogger("bbot.server.utils.misc")
+log = logging.getLogger("bbot_server.utils.misc")
 
 
 def timestamp_to_human(timestamp: float) -> str:

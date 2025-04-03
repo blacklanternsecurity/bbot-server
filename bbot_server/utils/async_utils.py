@@ -7,7 +7,7 @@ from cachetools import LRUCache
 from functools import wraps, partial
 from contextlib import asynccontextmanager
 
-log = logging.getLogger("bbot.server.utils.async_utils")
+log = logging.getLogger("bbot_server.utils.async_utils")
 
 
 class _Lock(asyncio.Lock):
@@ -61,7 +61,7 @@ class AsyncToSyncWrapper:
     """
 
     def __init__(self):
-        self.log = logging.getLogger("bbot.server.utils.async_utils")
+        self.log = logging.getLogger("bbot_server.utils.async_utils")
         self.loop = None
         self.thread = None
 

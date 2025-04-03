@@ -86,7 +86,7 @@ class BaseApplet:
 
     def __init__(self, parent=None):
         self.child_applets = []
-        self.log = logging.getLogger(f"bbot.server.{self.name.lower()}")
+        self.log = logging.getLogger(f"bbot_server.{self.name.lower()}")
         self.parent = parent
         self.router = APIRouter(prefix=self.route_prefix)
         self.route_maps = {}

@@ -39,7 +39,7 @@ class BaseBBCTL:
     stderr = Console(file=sys.stderr)
 
     def __init__(self, parent=None):
-        self.log = logging.getLogger(f"bbot.server.cli.bbctl.{self.__class__.__name__.lower()}")
+        self.log = logging.getLogger(f"bbot_server.cli.bbctl.{self.__class__.__name__.lower()}")
         self.parent = parent
         self.children = {}
 

@@ -81,8 +81,9 @@ class http(BaseInterface):
         try:
             return TypeAdapter(_route.response_model).validate_python(response_json)
         except Exception as e:
-            print(f"Error validating response json for {method}->{_url}: response: {response_json}: {e}")
-            raise
+            raise BBOTServerError(
+                f"Error validating response json for {method}->{_url}: response: {response_json}: {e}"
+            ) from e
 
     async def _http_stream(self, _url, _route, *args, **kwargs):
         """
@@ -91,11 +92,14 @@ class http(BaseInterface):
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
         body = self._prepare_http_body(method, kwargs)
 
-        async with self.client.stream(method=method, url=_url, json=body) as response:
-            async for chunk in response.aiter_bytes():
-                decoded_json = orjson.loads(chunk)
-                model_obj = _route.response_model(**decoded_json)
-                yield model_obj
+        try:
+            async with self.client.stream(method=method, url=_url, json=body) as response:
+                async for chunk in response.aiter_bytes():
+                    decoded_json = orjson.loads(chunk)
+                    model_obj = _route.response_model(**decoded_json)
+                    yield model_obj
+        except Exception as e:
+            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
     async def _websocket_request(self, _url, _route, *args, **kwargs) -> AsyncGenerator:
         """
@@ -115,6 +119,8 @@ class http(BaseInterface):
             self.log.info("Websocket stream incoming cancelled")
         except RuntimeError as e:
             self.log.error(f"Unexpected error in websocket stream: {e}")
+        except Exception as e:
+            raise BBOTServerError(f"Error in websocket stream at {_url}: {e}") from e
 
     async def _websocket_publish(self, _url, _route, message_generator, *args, **kwargs):
         """
@@ -123,9 +129,12 @@ class http(BaseInterface):
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
 
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
-        async for message in message_generator:
-            async for websocket in connect(_url):
-                await websocket.send(message)
+        try:
+            async for message in message_generator:
+                async for websocket in connect(_url):
+                    await websocket.send(message)
+        except Exception as e:
+            raise BBOTServerError(f"Error in websocket stream at {_url}: {e}") from e
 
     def _prepare_http_body(self, method, kwargs):
         # body

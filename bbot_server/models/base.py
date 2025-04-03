@@ -5,7 +5,7 @@ _index_keywords = ["indexed", "indexed_text"]
 
 import logging
 
-log = logging.getLogger("bbot.server.models")
+log = logging.getLogger("bbot_server.models")
 
 
 class BaseBBOTServerModel(BBOTBaseModel):

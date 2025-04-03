@@ -11,7 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from bbot_server.utils.misc import smart_encode
 
-log = logging.getLogger("bbot.server.applets.routing")
+log = logging.getLogger("bbot_server.applets.routing")
 
 
 ROUTE_TYPES = {}
@@ -50,7 +50,7 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
     requires_response_model = False
 
     def __init__(self, function, tags=[]):
-        self.log = logging.getLogger(f"bbot.server.routing.{self.__class__.__name__.lower()}")
+        self.log = logging.getLogger(f"bbot_server.routing.{self.__class__.__name__.lower()}")
         self.function = function
         self.endpoint = getattr(function, "_endpoint", None)
         self.function_signature = inspect.signature(function)

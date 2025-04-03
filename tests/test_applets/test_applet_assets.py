@@ -15,18 +15,18 @@ class TestAppletAssets(BaseAppletTest):
         assert await self.bbot_server.get_hosts() == []
 
     async def after_scan_1(self):
-        assert await self.bbot_server.get_hosts() == ["openport80a.evilcorp.com", "openport80b.evilcorp.com"]
+        assert await self.bbot_server.get_hosts() == ["www.evilcorp.com", "www2.evilcorp.com"]
 
     async def after_scan_2(self):
         assert await self.bbot_server.get_hosts() == [
-            "openport443.evilcorp.com",
-            "openport80a.evilcorp.com",
-            "openport80b.evilcorp.com",
+            "api.evilcorp.com",
+            "www.evilcorp.com",
+            "www2.evilcorp.com",
         ]
 
     async def after_archive(self):
         assert await self.bbot_server.get_hosts() == [
-            "openport443.evilcorp.com",
-            "openport80a.evilcorp.com",
-            "openport80b.evilcorp.com",
+            "api.evilcorp.com",
+            "www.evilcorp.com",
+            "www2.evilcorp.com",
         ]

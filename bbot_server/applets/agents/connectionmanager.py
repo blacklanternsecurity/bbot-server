@@ -20,7 +20,7 @@ class ConnectionManager:
     """
 
     def __init__(self):
-        self.log = logging.getLogger("bbot.server.agent.connection_manager")
+        self.log = logging.getLogger("bbot_server.agent.connection_manager")
         # active connections - agent_id -> websocket
         self.active_connections: Dict[str, WebSocket] = {}
         # pending requests - request_id -> future

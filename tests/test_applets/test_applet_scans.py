@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-log = logging.getLogger("bbot.server.test_applet_scans")
+log = logging.getLogger("bbot_server.test_applet_scans")
 
 
 async def test_applet_scans(bbot_server):
