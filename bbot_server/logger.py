@@ -26,9 +26,40 @@ log_file = log_dir / "debug.log.gz"
 
 
 class GzipRotatingFileHandler(RotatingFileHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._check_count = 0
+        self._check_interval = 1000  # Check file size every 1000 log messages
+
     def _open(self):
         # Just override the file opening mechanism to use gzip
-        return gzip.open(self.baseFilename, "at")
+        return gzip.open(f"{self.baseFilename}.gz", mode="at", encoding=self.encoding)
+
+    def shouldRollover(self, record):
+        """
+        Override shouldRollover to handle gzip files which don't support seek from end
+        Only check file size every 1000 log messages to improve performance
+        """
+        if self.maxBytes <= 0:
+            return False
+
+        # Increment counter and check if we should evaluate file size
+        self._check_count = (self._check_count + 1) % self._check_interval
+
+        # Only check file size when counter is 0 (every _check_interval messages)
+        if self._check_count == 0:
+            if self.stream:
+                self.stream.flush()
+                # Get current file size without seeking
+                current_size = os.path.getsize(self.baseFilename)
+
+                # Check if this record would push us over the limit
+                msg = self.format(record)
+                # Conservatively estimate the size increase
+                estimated_msg_size = len(msg) + 1  # +1 for the newline
+                return current_size + estimated_msg_size >= self.maxBytes
+
+        return False
 
 
 # Create gzip file handler with line numbers in the format
