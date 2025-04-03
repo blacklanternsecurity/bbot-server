@@ -1,7 +1,7 @@
 import os
 
 # set up logging
-from . import logger
+import bbot_server.logger as logger
 
 # coverage for tests
 if os.getenv("BBOT_TESTING"):
