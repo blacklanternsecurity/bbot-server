@@ -139,7 +139,7 @@ async def _test_historic_subscribe(bbot_server):
     to_send = [{"id": i, "content": f"historic message {i}"} for i in range(10)]
     for message in to_send:
         await bbot_server.message_queue.publish(message, "test_channel")
-    await asyncio.sleep(5.0)
+    await asyncio.sleep(3.0)
 
     sub = await bbot_server.message_queue.subscribe("test_channel", callback, historic=5)
     await asyncio.sleep(1.0)
@@ -162,14 +162,9 @@ async def test_queues_redis(bbot_server):
 
 
 class TestMessageQueuesRedis(BaseAppletTest):
-    config_overrides = {
-        "message_queue": {
-            "uri": "redis://localhost:6379",
-        }
-    }
     needs_watchdog = True
 
-    expected_message_queue_uri = "redis://localhost:6379"
+    expected_message_queue_uri = "redis://localhost:6379/15"
 
     async def setup(self):
         assert self.bbot_server.message_queue.uri == self.expected_message_queue_uri
