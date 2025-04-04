@@ -13,7 +13,7 @@ class Events(BaseBBCTL):
     help = "Query, tail, or ingest BBOT events"
     epilog = "Query, tail, or ingest BBOT events"
 
-    @subcommand(help="List preconfigured scans")
+    @subcommand(help="List BBOT events")
     def list(
         self,
         json: common.json = False,
