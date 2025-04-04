@@ -1,6 +1,3 @@
-from pathlib import Path
-from contextlib import suppress
-from gridfs import GridFSBucket
 from omegaconf import OmegaConf
 
 from bbot_server.applets._base import BaseApplet

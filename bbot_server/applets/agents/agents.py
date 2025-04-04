@@ -1,7 +1,6 @@
 import time
 import asyncio
 import traceback
-from typing import Any
 from pydantic import UUID4
 from fastapi import WebSocket
 from contextlib import suppress

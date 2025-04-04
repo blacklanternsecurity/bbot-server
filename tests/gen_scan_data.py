@@ -1,5 +1,4 @@
 import pytest_asyncio
-from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 from bbot import Scanner

@@ -7,7 +7,7 @@ from typing import Annotated, Any  # noqa
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
 from pymongo import WriteConcern, ASCENDING
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from bbot.models.pydantic import Event
 from bbot_server.models.assets import AssetActivity

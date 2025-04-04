@@ -1,12 +1,9 @@
 import re
-import jsondiff
 from hashlib import sha1
-from copy import deepcopy
-from contextlib import suppress
 from functools import cached_property
 from datetime import datetime, timezone
 from typing import Annotated, Any, Union, Optional
-from pydantic import Field, ValidationError, TypeAdapter
+from pydantic import Field
 
 from bbot.models.pydantic import Event
 from bbot_server.models.base import BaseBBOTServerModel

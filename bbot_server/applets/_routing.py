@@ -4,7 +4,6 @@ import logging
 import asyncio
 import functools
 from fastapi import WebSocket
-from pydantic import BaseModel
 from contextlib import suppress
 from fastapi.responses import StreamingResponse
 from starlette.websockets import WebSocketDisconnect

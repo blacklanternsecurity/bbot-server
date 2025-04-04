@@ -1,7 +1,6 @@
 import httpx
 import orjson
 import asyncio
-import traceback
 from functools import partial
 from websockets import connect
 from contextlib import suppress

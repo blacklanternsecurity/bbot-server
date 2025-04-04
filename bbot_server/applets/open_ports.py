@@ -1,7 +1,7 @@
 from bbot.models.pydantic import Event
 from bbot.core.helpers.misc import make_netloc
 from bbot_server.models.assets import AssetActivity, BaseAssetFields
-from bbot_server.applets._base import BaseApplet, api_endpoint, Field, Annotated
+from bbot_server.applets._base import BaseApplet, api_endpoint, Annotated
 
 
 from pydantic import BeforeValidator

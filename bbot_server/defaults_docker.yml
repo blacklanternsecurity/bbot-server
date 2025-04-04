@@ -22,7 +22,7 @@ user_store:
   table_name: userdata
 
 message_queue:
-  uri: redis://redis:6379
+  uri: redis://redis:6379/0
 
 agent:
   base_preset:

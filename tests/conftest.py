@@ -13,14 +13,10 @@ import pytest_asyncio
 from pathlib import Path
 from omegaconf import OmegaConf
 from contextlib import suppress
-from datetime import datetime, timedelta, timezone
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 from .gen_scan_data import *
 
-from bbot import Scanner
-from bbot.models.pydantic import Event
-from bbot.modules.base import BaseModule
 
 log = logging.getLogger(__name__)
 
@@ -29,26 +25,20 @@ BBCTL_FILE = PROJ_ROOT / "bbot_server" / "cli" / "bbctl.py"
 TEST_CONFIG_PATH = Path(__file__).parent / "test_config.yml"
 BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH)]
 
+BBOT_SERVER_TEST_DIR = Path("/tmp/.bbot_server_test")
+BBOT_SERVER_TEST_DIR.mkdir(parents=True, exist_ok=True)
+
 
 @pytest.fixture
 def bbot_server_config():
-    config_overrides = {
-        "event_store": {
-            "uri": "mongodb://localhost:27017/test_bbot_server_events",
-        },
-        "asset_store": {
-            "uri": "mongodb://localhost:27017/test_bbot_server_assets",
-        },
-        "user_store": {
-            "uri": "mongodb://localhost:27017/test_bbot_server_userdata",
-        },
-    }
-    return OmegaConf.merge(BBOT_SERVER_CONFIG, config_overrides)
+    # load test file omegaconf config
+    test_config = OmegaConf.load(TEST_CONFIG_PATH)
+    return OmegaConf.merge(BBOT_SERVER_CONFIG, test_config)
 
 
 @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
 # @pytest_asyncio.fixture
-async def bbot_server(request, mongo_cleanup, bbot_server_config):
+async def bbot_server(request, mongo_cleanup, redis_cleanup, bbot_server_config):
     from bbot_server import BBOTServer
     from bbot_server.message_queue import MessageQueue
 
@@ -102,18 +92,18 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config):
 
 
 @pytest.fixture
-def bbot_watchdog(mongo_cleanup):
+def bbot_watchdog(mongo_cleanup, redis_cleanup):
     command = [*BBCTL_COMMAND, "server", "start", "--watchdog-only"]
-    watchdog_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    watchdog_process = subprocess.Popen(command)
     try:
         time.sleep(5)
         yield watchdog_process
         watchdog_process.send_signal(signal.SIGINT)
     finally:
-        # Capture stdout/stderr regardless of exit state
-        with suppress(Exception):
-            stdout, stderr = watchdog_process.communicate(timeout=1)
-            log.info(f"Watchdog process output - stdout: {stdout.decode()}, stderr: {stderr.decode()}")
+        # # Capture stdout/stderr regardless of exit state
+        # with suppress(Exception):
+        #     stdout, stderr = watchdog_process.communicate(timeout=1)
+        #     log.info(f"Watchdog process output - stdout: {stdout.decode()}, stderr: {stderr.decode()}")
         try:
             watchdog_process.wait(timeout=5)
         except subprocess.TimeoutExpired:
@@ -122,7 +112,7 @@ def bbot_watchdog(mongo_cleanup):
 
 
 @pytest.fixture
-def bbot_server_http(mongo_cleanup):
+def bbot_server_http(mongo_cleanup, redis_cleanup):
     command = [*BBCTL_COMMAND, "server", "start", "--api-only"]
 
     # Start process in its own process group
@@ -203,17 +193,43 @@ async def mongo_cleanup():
     from motor.motor_asyncio import AsyncIOMotorClient
 
     client = AsyncIOMotorClient(BBOT_SERVER_CONFIG["event_store"]["uri"])
-    await client.drop_database("test_bbot_server_events")
-    await client.drop_database("test_bbot_server_assets")
-    await client.drop_database("test_bbot_server_userdata")
+
+    async def clear_everything():
+        await client.drop_database("test_bbot_server_events")
+        await client.drop_database("test_bbot_server_assets")
+        await client.drop_database("test_bbot_server_userdata")
+
+    await clear_everything()
     yield
-    await client.drop_database("test_bbot_server_events")
-    await client.drop_database("test_bbot_server_assets")
-    await client.drop_database("test_bbot_server_userdata")
+    await clear_everything()
+
+
+@pytest_asyncio.fixture
+async def redis_cleanup(bbot_server_config):
+    """
+    Clear the redis database before and after each test
+    """
+    import redis.asyncio as redis
+
+    redis_uri = bbot_server_config.get("message_queue", {}).get("uri", "redis://localhost:6379/15")
+
+    # Connect to Redis
+    r = redis.from_url(redis_uri)
+
+    # Clear before test
+    await r.flushdb()
+
+    yield
+
+    # Clear after test
+    await r.flushdb()
+
+    # Close connection
+    await r.aclose()
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_sessionfinish(session, exitstatus):
     # Wipe out testing home dir
-    shutil.rmtree("/tmp/.bbot_server_test", ignore_errors=True)
+    shutil.rmtree(BBOT_SERVER_TEST_DIR, ignore_errors=True)
     yield

@@ -1,4 +1,3 @@
-import orjson
 import asyncio
 import logging
 import traceback

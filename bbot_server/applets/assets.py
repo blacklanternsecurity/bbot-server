@@ -9,7 +9,6 @@ from bbot_server.applets.dns_links import DNSLinksApplet
 from bbot_server.applets.open_ports import OpenPortsApplet
 from bbot_server.applets.web_screenshots import WebScreenshotsApplet
 
-from bbot.models.pydantic import Event
 from bbot_server.utils.misc import combine_pydantic_models
 from bbot_server.applets._base import BaseApplet, api_endpoint
 from bbot_server.models.assets import AssetActivity, BaseAssetFacet

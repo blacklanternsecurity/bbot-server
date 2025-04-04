@@ -1,6 +1,5 @@
 import inspect
 import logging
-from typing import Callable
 from typer import Typer, Option  # noqa
 from typing_extensions import Annotated  # noqa
 from functools import cached_property, wraps

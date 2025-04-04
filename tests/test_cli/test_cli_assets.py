@@ -1,6 +1,6 @@
-from tests.test_cli.base_cli_test import BaseCLITest
+from tests.test_applets.base import BaseAppletTest
 
 
-class TestCLIAssets(BaseCLITest):
+class TestCLIAssets(BaseAppletTest):
     async def after_scan(self):
         pass

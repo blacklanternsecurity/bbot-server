@@ -1,7 +1,6 @@
 from typing import Any
 from pydantic import UUID4
 
-from bbot import Preset
 
 from bbot_server.utils.misc import timestamp_to_human
 
@@ -12,7 +11,7 @@ from bbot_server.applets.scans.yara_rules import YaraRulesApplet
 
 from bbot_server.models.assets import AssetActivity
 from bbot_server.applets._base import BaseApplet, api_endpoint
-from bbot_server.applets.scans.scan_models import ScanResponse, ScanDBEntry, ScanRun
+from bbot_server.applets.scans.scan_models import ScanResponse, ScanDBEntry
 
 
 class ScansApplet(BaseApplet):

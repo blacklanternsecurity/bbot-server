@@ -1,9 +1,5 @@
-import pytest
-from omegaconf import OmegaConf
 from contextlib import contextmanager
 
-from bbot_server.config import BBOT_SERVER_CONFIG
-from bbot_server.message_queue import MessageQueue
 
 from ..conftest import *
 

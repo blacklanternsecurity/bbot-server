@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta, timezone
-
 from bbot.models.pydantic import Event
 from bbot_server.db.base import BaseDB
 

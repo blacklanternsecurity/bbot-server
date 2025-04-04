@@ -1,12 +1,9 @@
 # tests for basic CLI functionality like debugging, etc.
 
-import sys
 import yaml
 import subprocess
-from pathlib import Path
-from bbot_server.cli.bbctl import main
 
-from tests.conftest import BBCTL_COMMAND
+from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR
 
 
 # make sure error handling works properly
@@ -32,16 +29,23 @@ def test_cli_debugging():
 
 
 def test_cli_config():
-    TEST_CONFIG_PATH = Path(__file__).parent.parent / "test_config.yml"
-
     result = subprocess.run(BBCTL_COMMAND + ["server", "current-config"], capture_output=True, text=True)
     assert result.returncode == 0
     config = yaml.safe_load(result.stdout)
-    assert config["event_store"]["uri"] == "mongodb://localhost:27017/bbot_eventstore"
+    assert config["event_store"]["uri"] == "mongodb://localhost:27017/test_bbot_server_events"
+
+    yaml_config_str = """
+event_store:
+  uri: mongodb://localhost:27017/asdf
+"""
+    temp_config_path = BBOT_SERVER_TEST_DIR / "test_bbot_server_config.yml"
+    with open(temp_config_path, "w") as f:
+        f.write(yaml_config_str)
 
     result = subprocess.run(
-        BBCTL_COMMAND + ["-c", str(TEST_CONFIG_PATH), "server", "current-config"], capture_output=True, text=True
+        BBCTL_COMMAND + ["-c", str(temp_config_path), "server", "current-config"], capture_output=True, text=True
     )
     assert result.returncode == 0
     config = yaml.safe_load(result.stdout)
-    assert config["event_store"]["uri"] == "mongodb://localhost:27017/test_bbot_server_events"
+    assert config["event_store"]["uri"] == "mongodb://localhost:27017/asdf"
+    temp_config_path.unlink()

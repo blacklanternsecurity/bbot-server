@@ -2,7 +2,7 @@ import orjson
 import logging
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, create_model, Field
+from pydantic import BaseModel, create_model
 
 
 log = logging.getLogger("bbot_server.utils.misc")

@@ -4,7 +4,6 @@ import inspect
 import logging
 import traceback
 import websockets
-from omegaconf import OmegaConf
 from contextlib import suppress
 from typing import Callable, Any
 from urllib.parse import urlparse, urlunparse, urljoin

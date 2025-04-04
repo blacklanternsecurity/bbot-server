@@ -6,7 +6,6 @@ from pathlib import Path
 from omegaconf import OmegaConf
 from functools import cached_property
 
-from bbot.core import CORE
 
 from bbot_server.errors import BBOTServerError
 from bbot_server.cli.base import BaseBBCTL, Annotated, Option

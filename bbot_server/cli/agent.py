@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from bbot_server.cli import common
-from bbot_server.config import BBOT_SERVER_URL
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
