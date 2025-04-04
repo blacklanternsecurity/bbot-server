@@ -94,9 +94,20 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup, bbot_server_config)
 @pytest.fixture
 def bbot_watchdog(mongo_cleanup, redis_cleanup):
     command = [*BBCTL_COMMAND, "server", "start", "--watchdog-only"]
-    watchdog_process = subprocess.Popen(command)
+    watchdog_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
     try:
-        time.sleep(5)
+        # Wait for watchdog to be ready by monitoring stderr
+        ready = False
+        for _ in range(50):  # 10 second timeout (50 * 0.2)
+            line = watchdog_process.stderr.readline()
+            if "[INFO] Subscribed to bbot:stream:events" in line:
+                ready = True
+                break
+            time.sleep(0.2)
+
+        if not ready:
+            raise Exception("Watchdog failed to start and subscribe to events")
+
         yield watchdog_process
         watchdog_process.send_signal(signal.SIGINT)
     finally:

@@ -96,6 +96,7 @@ class RedisMessageQueue(BaseMessageQueue):
 
         # Create a task to process messages
         async def message_handler():
+            self.log.info(f"Subscribed to {stream_key}")
             while True:
                 try:
                     # Read new messages from the stream
