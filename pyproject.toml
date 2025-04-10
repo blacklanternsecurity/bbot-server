@@ -11,7 +11,7 @@ uvicorn = "^0.30.1"
 motor = "^3.4.0"
 fastapi = "^0.111.0"
 omegaconf = "^2.3.0"
-bbot = {git = "https://github.com/blacklanternsecurity/bbot", rev = "3.0"}
+bbot = {git = "https://github.com/blacklanternsecurity/bbot", rev = "3.0-temp"}
 orjson = "^3.10.12"
 rich = "^13.9.4"
 cachetools = "^5.5.0"

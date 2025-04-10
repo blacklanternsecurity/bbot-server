@@ -5,7 +5,7 @@ import traceback
 from pydantic import BaseModel
 
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import AssetActivity
+from bbot_server.models.assets import Activity
 
 
 class BaseMessageQueue:
@@ -31,7 +31,7 @@ class BaseMessageQueue:
         async for event in self.tail(Event, "events", n=n):
             yield event
 
-    async def asset_publish(self, activity: AssetActivity):
+    async def asset_publish(self, activity: Activity):
         """
         Publish an asset to the message queue.
         """
@@ -41,7 +41,7 @@ class BaseMessageQueue:
         """
         Tail new assets as they come in
         """
-        async for activity in self.tail(AssetActivity, "assets", n=n):
+        async for activity in self.tail(Activity, "assets", n=n):
             yield activity
 
     async def tail(self, model: BaseModel, subject: str, n=0):

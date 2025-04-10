@@ -10,7 +10,7 @@ from pymongo import WriteConcern, ASCENDING
 from fastapi import APIRouter
 
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import AssetActivity
+from bbot_server.models.assets import Activity
 from bbot_server.applets._routing import ROUTE_TYPES
 
 word_regex = re.compile(r"\W+")
@@ -65,24 +65,21 @@ class BaseApplet:
     # BBOT event types this applet watches
     watched_events = []
 
+    # BBOT activity types this applet watches
+    watched_activities = []
+
     # the pydantic model this applet uses
     model = None
 
-    # optionally you can include other appletsP
+    # optionally you can include other applets
     include_apps = []
 
-    # optionally include watchdogs
-    include_watchdogs = []
-
     # whether to nest this applet under its parent
-    nested = True
+    # this is typically true for every applet except the root
+    _nested = True
 
     # optionally override route prefix
     _route_prefix = None
-
-    # _asset_lock is used to prevent multiple simultaneous writes on the same asset
-    # it's intentionally defined at the class level so it's shared between all the watchdogs
-    _asset_lock = None
 
     def __init__(self, parent=None):
         self.child_applets = []
@@ -246,14 +243,17 @@ class BaseApplet:
     async def cleanup(self):
         pass
 
+    async def handle_activity(self, activity: Activity):
+        pass
+
     async def handle_event(self, event: Event, asset=None):
         return []
 
     async def emit_activity(self, *args, **kwargs):
-        activity = AssetActivity(*args, **kwargs)
+        activity = Activity(*args, **kwargs)
         await self._emit_activity(activity)
 
-    async def _emit_activity(self, activity: AssetActivity):
+    async def _emit_activity(self, activity: Activity):
         await self.root.message_queue.asset_publish(activity)
 
     def include_app(self, app_class):
@@ -263,7 +263,7 @@ class BaseApplet:
         # set it as an attribute on self
         setattr(self, applet.name_lowercase, applet)
 
-        if applet.nested or self.parent is None:
+        if applet._nested or self.parent is None:
             router = self.router
         else:
             router = self.parent.router
@@ -311,6 +311,16 @@ class BaseApplet:
         if not self.is_main_server:
             raise self.BBOTServerValueError("This endpoint is only available on the main server instance")
 
+    def watches_event(self, event_type):
+        if "*" in self.watched_events:
+            return True
+        return event_type in self.watched_events
+
+    def watches_activity(self, activity_type):
+        if "*" in self.watched_activities:
+            return True
+        return activity_type in self.watched_activities
+
     @property
     def is_main_server(self):
         return self._is_main_server
@@ -352,7 +362,7 @@ class BaseApplet:
     def tag(self):
         if self.parent is None:
             return ""
-        if self.nested and self.parent.parent is not None:
+        if self._nested and self.parent.parent is not None:
             return f"{self.parent.name} -> {self.name}"
         return self.name
 
@@ -371,7 +381,7 @@ class BaseApplet:
             prefix = self.router.prefix
         parent_prefix = ""
         if self.parent is not None:
-            if self.nested:
+            if self._nested:
                 parent_prefix = self.parent.full_prefix(include_self=True)
         return f"{parent_prefix}{prefix}"
 
@@ -387,14 +397,6 @@ class BaseApplet:
         if self._route_prefix is not None:
             return self._route_prefix
         return f"/{self.name.lower()}"
-
-    @property
-    def asset_lock(self):
-        if self.__class__._asset_lock is None:
-            from bbot_server.utils.async_utils import NamedLock
-
-            self.__class__._asset_lock = NamedLock()
-        return self.__class__._asset_lock
 
     @property
     def interface(self):

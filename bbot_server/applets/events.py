@@ -6,12 +6,17 @@ from bbot_server.applets._base import BaseApplet, api_endpoint, watchdog_task
 
 class EventsApplet(BaseApplet):
     name = "Events"
+    watched_events = ["*"]
     description = "query raw BBOT scan events"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # set up cron job for archiving events
         # self.archive_cron = self.event_store.event_store_config.archive_cron
+
+    async def handle_event(self, event: Event, asset):
+        # write the event to the database
+        await self.event_store.insert_event(event)
 
     @api_endpoint("/", methods=["POST"], summary="Insert a BBOT event into the asset database")
     async def insert_event(self, event: Event):
@@ -72,4 +77,5 @@ class EventsApplet(BaseApplet):
         """
         async for event in event_generator:
             # we use "interface" here because we need it to still work even if we're accessing a remote BBOT server instance
+            # wait what?? TODO
             await self.interface.insert_event(event)

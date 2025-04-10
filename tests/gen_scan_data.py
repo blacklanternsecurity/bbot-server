@@ -6,6 +6,35 @@ from bbot.models.pydantic import Event
 from bbot.modules.base import BaseModule
 
 
+"""
+We test BBOT server by running two BBOT scans:
+
+1. scan1: 91 days ago
+2. scan2: 89 days ago
+
+The scans are similar but different enough to test as many features as possible, across all the applets.
+
+Since archival by default happens every 90 days, the first scan will be archived while the second one will not.
+
+Below is a list of the events and how they change between the two scans.
+
+    Host                        Change                                Reason
+    ----                        ------                                ------
+    evilcorp.com
+    www.evilcorp.com            Open ports: 80 -> None                open_ports
+    www2.evilcorp.com           Open ports: 80 -> 80                  open_ports
+    api.evilcorp.com            Open ports: None -> 443               open_ports
+    cname.evilcorp.com          CNAME: a.com -> b.com
+    localhost.evilcorp.com      A record: 127.0.0.1 -> 127.0.0.2      DNS + scope
+
+    a.com                       None
+    b.com                       None
+
+
+
+"""
+
+
 class DummyScan:
     targets = []
     dns = {}
@@ -36,7 +65,13 @@ class DummyScan:
 class DummyScan1(DummyScan):
     name = "scan1"
     targets = ["evilcorp.com"]
-    subdomains = ["www.evilcorp.com", "www2.evilcorp.com", "api.evilcorp.com"]
+    subdomains = [
+        "www.evilcorp.com",
+        "www2.evilcorp.com",
+        "api.evilcorp.com",
+        "cname.evilcorp.com",
+        "localhost.evilcorp.com",
+    ]
     dns = {
         "evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
@@ -50,6 +85,18 @@ class DummyScan1(DummyScan):
         },
         "api.evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
+        },
+        "localhost.evilcorp.com": {
+            "A": ["127.0.0.1"],
+        },
+        "cname.evilcorp.com": {
+            "CNAME": ["a.com"],
+        },
+        "a.com": {
+            "A": ["127.0.0.3"],
+        },
+        "b.com": {
+            "A": ["127.0.0.4"],
         },
     }
 
@@ -76,7 +123,13 @@ class DummyScan1(DummyScan):
 class DummyScan2(DummyScan):
     name = "scan2"
     targets = ["evilcorp.com"]
-    subdomains = ["www.evilcorp.com", "www2.evilcorp.com", "api.evilcorp.com"]
+    subdomains = [
+        "www.evilcorp.com",
+        "www2.evilcorp.com",
+        "api.evilcorp.com",
+        "cname.evilcorp.com",
+        "localhost.evilcorp.com",
+    ]
     dns = {
         "evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
@@ -90,6 +143,18 @@ class DummyScan2(DummyScan):
         },
         "api.evilcorp.com": {
             "A": ["1.2.3.4", "5.6.7.8"],
+        },
+        "localhost.evilcorp.com": {
+            "A": ["127.0.0.2"],
+        },
+        "cname.evilcorp.com": {
+            "CNAME": ["b.com"],
+        },
+        "a.com": {
+            "A": ["127.0.0.3"],
+        },
+        "b.com": {
+            "A": ["127.0.0.4"],
         },
     }
 

@@ -9,7 +9,7 @@ from bbot_server.applets.scans.targets import TargetsApplet
 from bbot_server.applets.scans.scan_runs import ScanRunsApplet
 from bbot_server.applets.scans.yara_rules import YaraRulesApplet
 
-from bbot_server.models.assets import AssetActivity
+from bbot_server.models.assets import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
 from bbot_server.applets.scans.scan_models import ScanResponse, ScanDBEntry
 
@@ -40,7 +40,7 @@ class ScansApplet(BaseApplet):
             description = f"Scan [[dark_orange]{scan_run.name}[/dark_orange]] started at {human_started_at}"
 
         await self.collection.update_one({"id": scan_id}, update_op)
-        activity = AssetActivity(type=activity, description=description)
+        activity = Activity(type=activity, description=description)
         return [activity]
 
     @api_endpoint("/", methods=["GET"], summary="Get a single scan by its name")

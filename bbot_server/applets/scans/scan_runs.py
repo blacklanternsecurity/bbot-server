@@ -18,7 +18,7 @@ class ScanRunsApplet(BaseApplet):
         if self.is_main_server:
             self.scan_watch_task = self.create_task(self.start_scans_loop())
 
-    # async def handle_event(self, asset, event) -> list[AssetActivity]:
+    # async def handle_event(self, asset, event) -> list[Activity]:
     #     scan_run = ScanRun(**event.data_json)
     #     activity_type = f"SCAN_{scan_run.status}"
 
@@ -34,7 +34,7 @@ class ScanRunsApplet(BaseApplet):
     #         description_colored = f"Scan [[dark_orange]{scan_run.name}[/dark_orange]] started"
     #         await self.collection.insert_one(scan_run.model_dump())
 
-    #     scan_run_activity = AssetActivity(
+    #     scan_run_activity = Activity(
     #         type=activity_type,
     #         event=event,
     #         description=description,

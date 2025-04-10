@@ -14,7 +14,7 @@ class RootApplet(BaseApplet):
 
     name = "Root Applet"
 
-    nested = False
+    _nested = False
 
     _route_prefix = ""
 

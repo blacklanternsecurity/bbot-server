@@ -1,8 +1,29 @@
+import pytest
+import asyncio
+from contextlib import suppress
+
+from bbot_server.errors import BBOTServerNotFoundError, BBOTServerValueError
+
+
+# test CRUD operations on targets
 async def test_applet_targets(bbot_server):
     bbot_server = await bbot_server()
 
+    # watch for scope activity
+    activities = []
+
+    async def handle_activity():
+        async for activity in bbot_server.tail_assets(n=10):
+            activities.append(activity)
+
+    activity_tail_task = asyncio.create_task(handle_activity())
+    await asyncio.sleep(0.5)
+
     targets = await bbot_server.get_targets()
     assert targets == []
+
+    num_targets = await bbot_server.target_count()
+    assert num_targets == 0
 
     # create a target
     target1 = await bbot_server.create_target(
@@ -13,6 +34,15 @@ async def test_applet_targets(bbot_server):
         blacklist=["127.0.0.2"],
     )
 
+    assert target1.created is not None
+    assert target1.modified is not None
+    # Allow for small time differences (<10ms) between created and modified timestamps
+    time_diff = abs(target1.created - target1.modified)
+    assert time_diff < 0.01, f"Time difference between created and modified is {time_diff}s, expected <0.01s"
+
+    num_targets = await bbot_server.target_count()
+    assert num_targets == 1
+
     targets = await bbot_server.get_targets()
     assert len(targets) == 1
     target = targets[0]
@@ -22,7 +52,7 @@ async def test_applet_targets(bbot_server):
     assert target.target == ["localhost"]
     assert target.whitelist == ["127.0.0.1", "evilcorp.com"]
     assert target.blacklist == ["127.0.0.2"]
-
+    assert target.default is True
     # create a second target
     target2 = await bbot_server.create_target(
         name="target2",
@@ -41,6 +71,7 @@ async def test_applet_targets(bbot_server):
     assert target.target == ["localhost"]
     assert target.whitelist == ["127.0.0.1", "evilcorp.com"]
     assert target.blacklist == ["127.0.0.2"]
+    assert target.default is False
 
     # delete target1
     await bbot_server.delete_target(target1.id)
@@ -49,11 +80,20 @@ async def test_applet_targets(bbot_server):
     target = targets[0]
     assert target.name == "target2"
 
+    with pytest.raises(BBOTServerNotFoundError):
+        await bbot_server.get_target(id=target1.id)
+
+    # target2 should now be the default target
+    target = await bbot_server.get_target()
+    assert target.name == "target2"
+    assert target.default is True
+
     # edit target2
     target2.name = "target2_edited"
     target2.target = []
     target2.whitelist = []
     target2.blacklist = []
+    await asyncio.sleep(0.1)
     await bbot_server.update_target(target2.id, target2)
     targets = await bbot_server.get_targets()
     assert len(targets) == 1
@@ -62,3 +102,88 @@ async def test_applet_targets(bbot_server):
     assert target.target == []
     assert target.whitelist == []
     assert target.blacklist == []
+    assert abs(target.created - target.modified) >= 0.1, "Modified timestamp wasn't updated"
+
+    # add target3
+    target3 = await bbot_server.create_target(
+        name="target3",
+        description="target3 description",
+        target=["localhost"],
+        whitelist=["127.0.0.1", "evilcorp.com"],
+        blacklist=["127.0.0.2"],
+    )
+
+    # set target3 as the default target
+    await bbot_server.set_default_target(target3.id)
+    target = await bbot_server.get_target()
+    assert target.name == "target3"
+    assert target.default is True
+
+    # target2 should no longer be default
+    target = await bbot_server.get_target(id=target2.id)
+    assert target.name == "target2_edited"
+    assert target.default is False
+
+    # create target4
+    await bbot_server.create_target(
+        name="target4",
+        description="target4 description",
+        target=["localhost"],
+        whitelist=["127.0.0.1", "evilcorp.com"],
+        blacklist=["127.0.0.2"],
+    )
+
+    # deleting a target that's a part of a scan should not work
+    scan = await bbot_server.create_scan(name="scan", target=target2.id)
+    with pytest.raises(BBOTServerValueError):
+        await bbot_server.delete_target(target2.id)
+
+    # deleting the default target without specifying a new default target should raise an error
+    with pytest.raises(BBOTServerValueError):
+        await bbot_server.delete_target(target3.id)
+
+    # deleting the default target with a new default target should work
+    await bbot_server.delete_target(target3.id, new_default_target_id=target2.id)
+
+    # delete the scan associated with target2
+    await bbot_server.delete_scan(scan.id)
+
+    # deleting target2 should work now, even though it's the default target
+    # because there's only one other target left, it's assumed to be the new default
+    await bbot_server.delete_target(target2.id)
+
+    # since target4 is the only target left, it's now the default target
+    targets = await bbot_server.get_targets()
+    assert len(targets) == 1
+    target = targets[0]
+    assert target.name == "target4"
+    assert target.default is True
+
+    activity_types = [activity.type for activity in activities]
+    assert activity_types == ["TARGET_CREATED", "TARGET_CREATED", "TARGET_UPDATED", "TARGET_CREATED", "TARGET_CREATED"]
+
+    # cancel activity task
+    activity_tail_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await activity_tail_task
+
+
+# whenever a target or asset is created/modified, a maintenance task is kicked off to update scope on the affected assets
+async def test_scope(bbot_server, bbot_events):
+    bbot_server = await bbot_server()
+
+    scan1_events, scan2_events = bbot_events
+
+    await bbot_server.create_target(
+        name="evilcorp",
+        description="evilcorp target",
+        whitelist=["evilcorp.com"],
+    )
+
+    # insert scan events
+    for event in scan1_events:
+        await bbot_server.insert_event(event)
+    # wait for events to be processed
+    await asyncio.sleep(0.5)
+
+    # make sure the target is

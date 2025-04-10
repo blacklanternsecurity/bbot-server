@@ -9,9 +9,9 @@ from bbot_server.applets.dns_links import DNSLinksApplet
 from bbot_server.applets.open_ports import OpenPortsApplet
 from bbot_server.applets.web_screenshots import WebScreenshotsApplet
 
-from bbot_server.utils.misc import combine_pydantic_models
 from bbot_server.applets._base import BaseApplet, api_endpoint
-from bbot_server.models.assets import AssetActivity, BaseAssetFacet
+from bbot_server.models.assets import Activity, BaseAssetFacet
+from bbot_server.utils.misc import combine_pydantic_models, utc_now
 
 
 class Asset(BaseAssetFacet):
@@ -50,16 +50,6 @@ class AssetsApplet(BaseApplet):
 
     @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
     async def get_assets(self):
-        # pipeline = [
-        #     {
-        #         "$group": {
-        #             "_id": "$host",  # Group by the 'category' field
-        #             "documents": {"$push": "$$ROOT"}  # Push the entire document into an array
-        #         }
-        #     }
-        # ]
-        # async for result in self.collection.aggregate(pipeline):
-        #     yield result
         async for asset in self.collection.find({"type": "asset"}):
             yield self.model(**asset)
 
@@ -77,7 +67,7 @@ class AssetsApplet(BaseApplet):
             raise self.BBOTServerNotFoundError(f"Asset {host} not found")
         return Asset(**asset)
 
-    @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=AssetActivity)
+    @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Activity)
     async def tail_assets(self, n: int = 0):
         agen = self.message_queue.asset_tail(n=n)
         try:
@@ -88,6 +78,7 @@ class AssetsApplet(BaseApplet):
                 await agen.aclose()
 
     async def update_asset(self, asset: Asset):
+        asset.modified = utc_now()
         await self.strict_collection.update_one({"host": asset.host}, {"$set": asset.model_dump()}, upsert=True)
 
     async def refresh_assets(self):

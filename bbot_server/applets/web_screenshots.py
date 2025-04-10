@@ -1,5 +1,5 @@
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import AssetActivity
+from bbot_server.models.assets import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
@@ -9,7 +9,7 @@ class WebScreenshotsApplet(BaseApplet):
     description = "web screenshots taken during scans"
     route_prefix = ""
 
-    async def handle_event(self, event: Event, asset) -> list[AssetActivity]:
+    async def handle_event(self, event: Event, asset) -> list[Activity]:
         return []
 
     @api_endpoint("/webscreenshots", methods=["GET"], summary="Get all web screenshots")

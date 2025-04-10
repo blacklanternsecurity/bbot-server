@@ -1,11 +1,14 @@
 import orjson
 import logging
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, create_model
 
-
 log = logging.getLogger("bbot_server.utils.misc")
+
+
+def utc_now() -> float:
+    return datetime.now(timezone.utc).timestamp()
 
 
 def timestamp_to_human(timestamp: float) -> str:

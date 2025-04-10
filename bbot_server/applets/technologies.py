@@ -1,4 +1,4 @@
-# from bbot_server.models.assets import AssetActivity
+# from bbot_server.models.assets import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint, BaseModel, Field
 
 
@@ -11,7 +11,7 @@ class Technologies(BaseApplet):
     class AssetFields(BaseModel):
         technologies: list[str] = Field(default_factory=list)
 
-    # async def handle_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
+    # async def handle_event(self, asset: Asset, event: Event) -> list[Activity]:
     #     activities = []
     #     technology = event.data["technology"]
     #     current_technologies = self._get_technologies(asset)
@@ -20,7 +20,7 @@ class Technologies(BaseApplet):
     #         description_colored = f"New technology: [[dark_orange]{technology}[/dark_orange]]"
     #         current_technologies.add(technology)
     #         current_technologies = sorted(current_technologies)
-    #         technology_activity = AssetActivity.create(
+    #         technology_activity = Activity.create(
     #             type="NEW_TECHNOLOGY",
     #             asset=asset,
     #             event=event,

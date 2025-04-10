@@ -11,7 +11,7 @@ class DNSLinksApplet(BaseApplet):
     class AssetFields(BaseModel):
         dns_records: dict[str, list[str]] = Field(default_factory=dict)
 
-    # async def handle_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
+    # async def handle_event(self, asset: Asset, event: Event) -> list[Activity]:
     #     activities = []
     #     if event.type == "DNS_NAME":
     #         old_dns_records = asset.dns_records or {}
@@ -33,7 +33,7 @@ class DNSLinksApplet(BaseApplet):
     #                 del old_dns_records[rdtype]
     #             else:
     #                 old_dns_records[rdtype] = sorted(records)
-    #             dns_record_activity = AssetActivity.create(
+    #             dns_record_activity = Activity.create(
     #                 type="DELETED_DNS_LINK",
     #                 asset=asset,
     #                 event=event,
@@ -51,7 +51,7 @@ class DNSLinksApplet(BaseApplet):
     #             records = old_dns_records.get(rdtype, [])
     #             records.append(record)
     #             old_dns_records[rdtype] = sorted(records)
-    #             dns_record_activity = AssetActivity.create(
+    #             dns_record_activity = Activity.create(
     #                 type="NEW_DNS_LINK",
     #                 asset=asset,
     #                 event=event,

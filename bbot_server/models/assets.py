@@ -6,8 +6,8 @@ from typing import Annotated, Any, Union, Optional
 from pydantic import Field
 
 from bbot.models.pydantic import Event
+from bbot_server.utils.misc import utc_now
 from bbot_server.models.base import BaseBBOTServerModel
-
 
 remove_rich_color_pattern = re.compile(r"\[(\w+)\](.*?)\[/\1\]")
 
@@ -86,7 +86,7 @@ remove_rich_color_pattern = re.compile(r"\[(\w+)\](.*?)\[/\1\]")
 #         return field_value
 
 
-class AssetActivity(BaseBBOTServerModel):
+class Activity(BaseBBOTServerModel):
     """
     An "asset activity" is a record of a change to an asset.
 
@@ -148,7 +148,7 @@ class BaseAssetFields(BaseBBOTServerModel):
     def ingest_event(self, event):
         pass
 
-    def diff(self, old) -> list[AssetActivity]:
+    def diff(self, old) -> list[Activity]:
         return []
 
 
@@ -169,6 +169,9 @@ class BaseAssetFacet(BaseBBOTServerModel):
     type: Annotated[Optional[str], "indexed"] = None
     reverse_host: Annotated[Optional[Union[str, None]], "indexed"] = None
     netloc: Annotated[Optional[Union[str, None]], "indexed"] = None
+    scope: list[str] = []
+    created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
+    modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     ignored: bool = False
     archived: bool = False
 
@@ -177,7 +180,7 @@ class BaseAssetFacet(BaseBBOTServerModel):
             kwargs["type"] = self.__class__.__name__
         super().__init__(*args, **kwargs)
 
-    def _ingest_event(self, event) -> list[AssetActivity]:
+    def _ingest_event(self, event) -> list[Activity]:
         self_before = self.__class__.model_validate(self)
         self.ingest_event(event)
         return self.diff(self_before)
@@ -190,7 +193,7 @@ class BaseAssetFacet(BaseBBOTServerModel):
         """
         raise NotImplementedError(f"Must define ingest_event() in {self.__class__.__name__}")
 
-    def diff(self, other) -> list[AssetActivity]:
+    def diff(self, other) -> list[Activity]:
         """
         Given another facet (typically an older version of the same host), return a list of AssetActivities which describe the new changes.
         """

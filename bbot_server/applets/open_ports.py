@@ -1,6 +1,6 @@
 from bbot.models.pydantic import Event
 from bbot.core.helpers.misc import make_netloc
-from bbot_server.models.assets import AssetActivity, BaseAssetFields
+from bbot_server.models.assets import Activity, BaseAssetFields
 from bbot_server.applets._base import BaseApplet, api_endpoint, Annotated
 
 
@@ -51,7 +51,7 @@ class OpenPortsApplet(BaseApplet):
         for port in opened_ports:
             netloc = make_netloc(asset.host, port)
             activities.append(
-                AssetActivity.from_event(
+                Activity.from_event(
                     event,
                     type="PORT_OPENED",
                     description=f"New open port: [[dark_orange]{netloc}[/dark_orange]]",
@@ -81,7 +81,7 @@ class OpenPortsApplet(BaseApplet):
         for port in opened_ports:
             netloc = make_netloc(asset.host, port)
             activities.append(
-                AssetActivity(
+                Activity(
                     host=asset.host,
                     netloc=netloc,
                     type="PORT_OPENED",
@@ -91,7 +91,7 @@ class OpenPortsApplet(BaseApplet):
         for port in closed_ports:
             netloc = make_netloc(asset.host, port)
             activities.append(
-                AssetActivity(
+                Activity(
                     host=asset.host,
                     netloc=netloc,
                     type="PORT_CLOSED",

@@ -3,8 +3,8 @@ from pydantic import UUID4, Field
 from typing import Annotated, Any, Optional, Union
 
 from bbot import Preset
+from bbot_server.utils.misc import utc_now
 from bbot_server.models.base import BaseBBOTServerModel
-
 
 ### TARGETS ###
 
@@ -15,15 +15,16 @@ class BaseTarget(BaseBBOTServerModel):
     target: list[str] = []
     whitelist: Union[list[str], None] = None
     blacklist: Union[list[str], None] = None
+    strict_dns_scope: bool = False
 
 
 class Target(BaseTarget):
     __tablename__ = "targets"
     __user__ = True
     id: Annotated[UUID4, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
-
-
-### SCANS ###
+    default: Annotated[bool, "indexed"] = False
+    created: Annotated[Optional[float], "indexed"] = Field(default_factory=utc_now)
+    modified: Annotated[Optional[float], "indexed"] = Field(default_factory=utc_now)
 
 
 class BaseScan(BaseBBOTServerModel):
