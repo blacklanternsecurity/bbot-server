@@ -10,13 +10,31 @@ from bbot_server.applets._base import BaseApplet, api_endpoint
 class TargetsApplet(BaseApplet):
     name = "Targets"
     description = "scan targets"
+    watched_events = ["*"]
     watched_activities = ["TARGET_CREATED", "TARGET_UPDATED", "NEW_ASSET", "NEW_DNS_RECORD", "DELETED_DNS_RECORD"]
     model = Target
 
     async def setup(self):
         # this holds the BBOTTarget instance for each target
-        # enables near-instantaneous scope checks for any host
+        # enables near-instantaneous scope checks for any hosts
         self._scope_cache = {}
+        # this holds an up-to-date list of all the target IDs
+        self._target_ids = set()
+        self._target_ids_modified = None
+
+    async def handle_event(self, event, asset):
+        if asset is None or event.host is None:
+            return
+
+        print(f"EVENT: {event.host}")
+        resolved_hosts = {str(event.host)}
+        dns_children = getattr(event, "dns_children", {})
+        for rdtype in ("A", "AAAA"):
+            resolved_hosts.update(dns_children.get(rdtype, []))
+        for host in resolved_hosts:
+            for target_id in await self.get_target_ids():
+                if await self.in_scope(host, target_id):
+                    asset.scope = list(set(asset.scope) | set([target_id]))
 
     async def handle_activity(self, activity):
         """
@@ -26,19 +44,20 @@ class TargetsApplet(BaseApplet):
 
         Similarly, whenever a target is created/updated/deleted, we iterate through all the assets and update them
         """
+        await self._refresh_cache()
         if activity.type in ("TARGET_CREATED", "TARGET_UPDATED"):
             for host in await self.root.get_hosts():
-                await self.update_scope(host)
+                await self.refresh_scope(host)
         # elif activity.type in ("NEW_ASSET", "NEW_DNS_RECORD", "DELETED_DNS_RECORD"):
         #     await self.update_scope(activity.detail["host"])
 
-    async def update_scope(self, host: str):
+    async def refresh_scope(self, host: str):
         """
-        Given a host, evaluate it against all the
+        Given a host, evaluate it against all the current targets and tag it with each matching target's ID
         """
         asset = await self.root.assets.get_asset(host)
-        for target_id, target_scope in await self.get_scope().items():
-            if target_scope.in_scope(host):
+        for target_id, target in await self._scope_cache.items():
+            if target.in_scope(host):
                 asset.scope = set(asset.scope + [target_id])
             else:
                 asset.scope = set(asset.scope) - set([target_id])
@@ -96,7 +115,10 @@ class TargetsApplet(BaseApplet):
             detail={"target_id": str(target.id)},
             description=f"Target [dark_orange]{target.name}[/dark_orange] created",
         )
+        # update caches
         self._cache_put(target)
+        self._target_ids.add(str(target.id))
+        self._target_ids_modified = None
         return target
 
     @api_endpoint("/{id}", methods=["PATCH"], summary="Update a scan target by its id")
@@ -151,6 +173,9 @@ class TargetsApplet(BaseApplet):
         if self._scope_cache is not None:
             self._scope_cache.pop(str(id))
 
+        # clear target ID
+        self._target_ids.discard(str(id))
+
         # after deleting the target, also delete it from all the assets
         target_id_str = str(id)
         # Remove the target ID from all asset
@@ -159,6 +184,11 @@ class TargetsApplet(BaseApplet):
             {"$pull": {"scope": target_id_str}},  # Remove this target ID from the scope array
         )
 
+    @api_endpoint("/in_scope", methods=["GET"], summary="Check if a host or URL is in scope")
+    async def in_scope(self, host: str, target_id: UUID4 = None) -> bool:
+        bbot_target = await self._get_bbot_target(target_id)
+        return bbot_target.in_scope(host)
+
     @api_endpoint("/list", methods=["GET"], summary="List scans")
     async def get_targets(self) -> list[Target]:
         cursor = self.collection.find()
@@ -166,31 +196,36 @@ class TargetsApplet(BaseApplet):
         targets = [Target(**target) for target in targets]
         return targets
 
-    @api_endpoint("/in_scope/{host}", methods=["GET"], summary="Check if a host is in scope")
-    async def in_scope(self, host: str, target_id: UUID4 = None) -> bool:
-        scope = await self.get_scope()
-        try:
-            target = scope[target_id]
-        except KeyError:
-            raise self.BBOTServerNotFoundError(f"Target not found.")
-        return target.in_scope(host)
+    @api_endpoint("/list_ids", methods=["GET"], summary="List all target IDs")
+    async def get_target_ids(self, debounce: float = 5.0) -> list[UUID4]:
+        if self._target_ids_modified is None or utc_now() - self._target_ids_modified > debounce:
+            self._target_ids = set(await self.collection.distinct("id"))
+            self._target_ids_modified = utc_now()
+        return [UUID4(target_id) for target_id in self._target_ids]
 
-    async def _get_bbot_target(self, target_id: UUID4, lazy=False) -> BBOTTarget:
+    async def _get_bbot_target(self, target_id: UUID4 = None, debounce=5.0) -> BBOTTarget:
         """
         Get the BBOTTarget instance for a given target_id
 
         Will pull from the cache if it exists and is up to date, otherwise it will create a new one
 
-        if lazy is True, don't bother looking in the database for the target modified date, and just return the current cached target
+        debounce is the max age of cached entries to tolerate, to prevent hammering the database with requests
         """
+        now = utc_now()
         # check if the target is in the cache
-        cached_modified_date, cached_target = self._scope_cache.get(str(target_id), (None, None))
+        cached_modified_date, cached_target = self._scope_cache.get(str(target_id), (now, None))
+        cache_age = now - cached_modified_date
 
-        if cached_target is not None and lazy:
+        if cached_target is not None and cache_age < debounce:
             return cached_target
 
+        if target_id is None:
+            query = {"default": True}
+        else:
+            query = {"id": str(target_id)}
+
         # get the target modified date
-        db_modified_date = await self.collection.find_one({"id": str(target_id)}, {"modified": 1})
+        db_modified_date = await self.collection.find_one(query, {"modified": 1})
         if db_modified_date is None:
             raise self.BBOTServerNotFoundError(f"Target not found.")
         db_modified_date = db_modified_date["modified"]

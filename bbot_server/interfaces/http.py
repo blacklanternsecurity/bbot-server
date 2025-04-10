@@ -1,11 +1,12 @@
 import httpx
+import string
 import orjson
 import asyncio
 from functools import partial
 from websockets import connect
 from contextlib import suppress
 from typing import AsyncGenerator
-from urllib.parse import urlparse, parse_qs, urlunparse, urlencode
+from urllib.parse import urlparse, parse_qs, urlunparse, urlencode, quote
 
 
 # for converting pydantic objects into raw JSON
@@ -32,6 +33,8 @@ class http(BaseInterface):
     """
 
     interface_type = "http"
+
+    _url_safe_chars = string.ascii_letters + string.digits + "-_.~"
 
     def __init__(self, **kwargs):
         url = kwargs.pop("url", None)
@@ -181,7 +184,10 @@ class http(BaseInterface):
                     param = param.name
                 value = kwargs.pop(param)
                 path_params[param] = value
-            _url = _url.format(**path_params)
+
+            # URL encode path parameters before formatting
+            encoded_path_params = {k: quote(str(v), safe=self._url_safe_chars) for k, v in path_params.items()}
+            _url = _url.format(**encoded_path_params)
 
         # query params
         if fastapi_route.dependant.query_params:

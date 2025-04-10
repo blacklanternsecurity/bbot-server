@@ -53,6 +53,11 @@ async def test_applet_targets(bbot_server):
     assert target.whitelist == ["127.0.0.1", "evilcorp.com"]
     assert target.blacklist == ["127.0.0.2"]
     assert target.default is True
+
+    target_ids = await bbot_server.get_target_ids()
+    assert len(target_ids) == 1
+    assert target_ids[0] == target1.id
+
     # create a second target
     target2 = await bbot_server.create_target(
         name="target2",
@@ -72,6 +77,11 @@ async def test_applet_targets(bbot_server):
     assert target.whitelist == ["127.0.0.1", "evilcorp.com"]
     assert target.blacklist == ["127.0.0.2"]
     assert target.default is False
+
+    target_ids = await bbot_server.get_target_ids(debounce=0.0)
+    assert len(target_ids) == 2
+    assert target1.id in target_ids
+    assert target2.id in target_ids
 
     # delete target1
     await bbot_server.delete_target(target1.id)
@@ -168,22 +178,94 @@ async def test_applet_targets(bbot_server):
         await activity_tail_task
 
 
-# whenever a target or asset is created/modified, a maintenance task is kicked off to update scope on the affected assets
-async def test_scope(bbot_server, bbot_events):
+async def test_scope_checks(bbot_server):
     bbot_server = await bbot_server()
 
-    scan1_events, scan2_events = bbot_events
-
+    # simple target
     await bbot_server.create_target(
-        name="evilcorp",
-        description="evilcorp target",
-        whitelist=["evilcorp.com"],
+        name="target1",
+        description="target1 description",
+        target=["evilcorp.com"],
     )
 
-    # insert scan events
-    for event in scan1_events:
-        await bbot_server.insert_event(event)
-    # wait for events to be processed
-    await asyncio.sleep(0.5)
+    targets = await bbot_server.get_targets()
+    assert len(targets) == 1
+    target = targets[0]
+    assert target.name == "target1"
+    assert target.target == ["evilcorp.com"]
+    assert target.whitelist == None
+    assert target.blacklist == None
 
-    # make sure the target is
+    assert await bbot_server.in_scope("evilcorp.com") == True
+    assert await bbot_server.in_scope("external.evilcorp.com") == True
+    assert await bbot_server.in_scope("http://test.evilcorp.com") == True
+    assert await bbot_server.in_scope("bob@evilcorp.com") == True
+    assert await bbot_server.in_scope("test.evilcorp.net") == False
+    assert await bbot_server.in_scope("http://test.evilcorp.net") == False
+
+    # complex target
+    target2 = await bbot_server.create_target(
+        name="target2",
+        description="target2 description",
+        target=["evilcorp.org"],
+        whitelist=["127.0.0.1/24", "external.evilcorp.org"],
+        blacklist=["127.0.0.2", "test.external.evilcorp.org", "RE:plumbus"],
+    )
+
+    # default target is still target1
+    assert await bbot_server.in_scope("evilcorp.org") == False
+
+    # specifying target2 should return True
+    assert await bbot_server.in_scope("evilcorp.org", target_id=target2.id) == False
+    assert await bbot_server.in_scope("www.external.evilcorp.org", target_id=target2.id) == True
+    assert await bbot_server.in_scope("plumbus.external.evilcorp.org", target_id=target2.id) == False
+    assert await bbot_server.in_scope("http://www.external.evilcorp.org", target_id=target2.id) == True
+    assert await bbot_server.in_scope("http://plumbus.external.evilcorp.org", target_id=target2.id) == False
+    assert (
+        await bbot_server.in_scope("http://www.external.evilcorp.org/plumbus/index.html", target_id=target2.id)
+        == False
+    )
+    assert (
+        await bbot_server.in_scope("http://www.external.evilcorp.org/index.html?plumbus=a", target_id=target2.id)
+        == False
+    )
+    assert (
+        await bbot_server.in_scope("http://www.external.evilcorp.org/index.html#plumbus", target_id=target2.id) == True
+    )
+    assert await bbot_server.in_scope("127.0.0.1", target_id=target2.id) == True
+    assert await bbot_server.in_scope("127.0.0.2", target_id=target2.id) == False
+    assert await bbot_server.in_scope("127.0.0.3", target_id=target2.id) == True
+    assert await bbot_server.in_scope("www.test.external.evilcorp.org", target_id=target2.id) == False
+
+
+# # whenever a target or asset is created/modified, a maintenance task is kicked off to update scope on the affected assets
+# async def test_scope_maintenance(bbot_server, bbot_events):
+#     bbot_server = await bbot_server()
+
+#     scan1_events, scan2_events = bbot_events
+
+#     target1 = await bbot_server.create_target(
+#         name="evilcorp",
+#         description="evilcorp target",
+#         whitelist=["evilcorp.com"],
+#         blacklist=["www.evilcorp.com"],
+#     )
+
+#     target2 = await bbot_server.create_target(
+#         name="www evilcorp",
+#         description="www evilcorp target",
+#         whitelist=["www.evilcorp.com"],
+#     )
+
+#     # insert scan events
+#     for event in scan1_events:
+#         await bbot_server.insert_event(event)
+
+#     # wait for events to be processed
+#     await asyncio.sleep(5.0)
+
+#     assets = [a async for a in bbot_server.get_assets()]
+#     print(f"ASSETS: {assets}")
+
+#     for asset in assets:
+#         print(f"{asset.host}: {asset.scope}")

@@ -50,7 +50,7 @@ class AssetsApplet(BaseApplet):
 
     @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
     async def get_assets(self):
-        async for asset in self.collection.find({"type": "asset"}):
+        async for asset in self.collection.find({"type": "Asset"}):
             yield self.model(**asset)
 
     @api_endpoint("/{host}/list", methods=["GET"], summary="List assets by host (including subdomains)")
