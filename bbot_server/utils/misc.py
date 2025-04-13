@@ -1,6 +1,5 @@
 import orjson
 import logging
-from typing import Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, create_model
 
@@ -27,14 +26,13 @@ def smart_encode(obj):
         return orjson.dumps(obj)
 
 
-def combine_pydantic_models(models, model_name, base_model=BaseModel, make_optional=False):
+def combine_pydantic_models(models, model_name, base_model=BaseModel):
     """
     Combines multiple pydantic models into a single model.
 
     Args:
         models: list of pydantic models to combine
         model_name: name of the new model
-        make_optional: if True, make all fields optional
     """
     combined_fields = {field_name: (field.annotation, field) for field_name, field in base_model.model_fields.items()}
 
@@ -45,19 +43,14 @@ def combine_pydantic_models(models, model_name, base_model=BaseModel, make_optio
             raise ValueError(f"Model {model.__name__} has no attribute 'model_fields'") from e
 
         for field_name, field in model_fields.items():
-            annotation = Optional[field.annotation] if make_optional else field.annotation
-
-            if make_optional:
-                field.default = None
-
             if field_name in combined_fields:
                 current_annotation, _ = combined_fields[field_name]
-                if annotation != current_annotation:
+                if field.annotation != current_annotation:
                     raise ValueError(
-                        f"Field '{field_name}' on {model.__name__} already exists, but with a different annotation: ({current_annotation} vs {annotation})"
+                        f"Field '{field_name}' on {model.__name__} already exists, but with a different annotation: ({current_annotation} vs {field.annotation})"
                     )
             else:
-                combined_fields[field_name] = (annotation, field)
+                combined_fields[field_name] = (field.annotation, field)
 
     # Create the new model with all collected fields
     combined_model = create_model(

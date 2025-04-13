@@ -1,11 +1,10 @@
 import re
 from hashlib import sha1
+from pydantic import Field
 from functools import cached_property
 from datetime import datetime, timezone
 from typing import Annotated, Any, Union, Optional
-from pydantic import Field
 
-from bbot.models.pydantic import Event
 from bbot_server.utils.misc import utc_now
 from bbot_server.models.base import BaseBBOTServerModel
 
@@ -106,17 +105,6 @@ class Activity(BaseBBOTServerModel):
     event_uuid: Union[str, None] = None
     event_id: Union[str, None] = None
 
-    @classmethod
-    def from_event(cls, event: Event, **kwargs):
-        kwargs["host"] = event.host
-        kwargs["netloc"] = event.netloc
-        kwargs["module"] = event.module
-        kwargs["timestamp"] = event.timestamp
-        kwargs["event_uuid"] = event.uuid
-        kwargs["event_id"] = event.id
-        activity = cls(event=event, **kwargs)
-        return activity
-
     def __init__(self, *args, **kwargs):
         if not "description" in kwargs:
             raise ValueError("description is required")
@@ -126,7 +114,20 @@ class Activity(BaseBBOTServerModel):
         # we save the description in two forms - colored and uncolored
         kwargs["description_colored"] = description
         kwargs["description"] = remove_rich_color_pattern.sub(r"\2", description)
+        event = kwargs.pop("event", None)
         super().__init__(*args, **kwargs)
+        if event is not None:
+            self.set_event(event)
+
+    def set_event(self, event):
+        self.event_id = event.id
+        self.event_uuid = event.uuid
+        self.module = event.module
+        self.timestamp = event.timestamp
+        if not self.host:
+            self.host = event.host
+        if not self.netloc:
+            self.netloc = event.netloc
 
     @cached_property
     def id(self):
@@ -169,7 +170,6 @@ class BaseAssetFacet(BaseBBOTServerModel):
     type: Annotated[Optional[str], "indexed"] = None
     reverse_host: Annotated[Optional[Union[str, None]], "indexed"] = None
     netloc: Annotated[Optional[Union[str, None]], "indexed"] = None
-    scope: list[str] = []
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     ignored: bool = False

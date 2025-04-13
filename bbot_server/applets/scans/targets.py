@@ -1,10 +1,28 @@
 from pydantic import UUID4
+from typing import Annotated
 
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.applets.scans.scan_models import Target
 from bbot_server.applets._base import BaseApplet, api_endpoint
+from bbot_server.models.assets import Activity, BaseAssetFields
+
+
+class BlacklistedError(Exception):
+    pass
+
+
+# TODO:
+# we already have hashing implemented for targets.
+# we should include the target hash alongside its ID on assets,
+# this way we know whether the scope is up to date
+# we should have a single task for doing this, and automatically cancel or restart it if a new operation comes along
+# this enables extremely fast and precise updates whenever a target is updated
+
+
+class AppletScope(BaseAssetFields):
+    scope: Annotated[list[UUID4], "indexed"] = []
 
 
 class TargetsApplet(BaseApplet):
@@ -13,6 +31,7 @@ class TargetsApplet(BaseApplet):
     watched_events = ["*"]
     watched_activities = ["TARGET_CREATED", "TARGET_UPDATED", "NEW_ASSET", "NEW_DNS_RECORD", "DELETED_DNS_RECORD"]
     model = Target
+    asset_fields = AppletScope
 
     async def setup(self):
         # this holds the BBOTTarget instance for each target
@@ -23,18 +42,32 @@ class TargetsApplet(BaseApplet):
         self._target_ids_modified = None
 
     async def handle_event(self, event, asset):
+        """
+        Whenever a new event comes in, we check its host and all its A/AAAA records against our targets,
+        and update its associated asset scope with the matching targets
+        """
+        activities = []
+
         if asset is None or event.host is None:
             return
 
-        print(f"EVENT: {event.host}")
-        resolved_hosts = {str(event.host)}
+        resolved_hosts = {"SELF": [event.host]}
         dns_children = getattr(event, "dns_children", {})
         for rdtype in ("A", "AAAA"):
-            resolved_hosts.update(dns_children.get(rdtype, []))
-        for host in resolved_hosts:
-            for target_id in await self.get_target_ids():
-                if await self.in_scope(host, target_id):
-                    asset.scope = list(set(asset.scope) | set([target_id]))
+            resolved_hosts[rdtype] = dns_children.get(rdtype, [])
+
+        # check event against each of our targets
+        for target_id in await self.get_target_ids():
+            bbot_target = await self._get_bbot_target(target_id)
+            scope_result = self._check_scope(event.host, resolved_hosts, bbot_target, target_id, asset.scope)
+            if scope_result is not None:
+                scope_result.set_event(event)
+                if scope_result.type == "NEW_IN_SCOPE_ASSET":
+                    asset.scope = sorted(set(asset.scope) | set([target_id]))
+                else:
+                    asset.scope = sorted(set(asset.scope) - set([target_id]))
+                activities.append(scope_result)
+        return activities
 
     async def handle_activity(self, activity):
         """
@@ -44,24 +77,35 @@ class TargetsApplet(BaseApplet):
 
         Similarly, whenever a target is created/updated/deleted, we iterate through all the assets and update them
         """
-        await self._refresh_cache()
+        # await self._refresh_cache()
         if activity.type in ("TARGET_CREATED", "TARGET_UPDATED"):
-            for host in await self.root.get_hosts():
-                await self.refresh_scope(host)
+            for target_id in await self.get_target_ids(debounce=0.0):
+                target = await self._get_bbot_target(target_id, debounce=0.0)
+                for host in await self.root.get_hosts():
+                    await self.refresh_scope(host, target, target_id)
         # elif activity.type in ("NEW_ASSET", "NEW_DNS_RECORD", "DELETED_DNS_RECORD"):
         #     await self.update_scope(activity.detail["host"])
 
-    async def refresh_scope(self, host: str):
+    async def refresh_scope(self, host: str, target: BBOTTarget, target_id: UUID4):
         """
         Given a host, evaluate it against all the current targets and tag it with each matching target's ID
         """
-        asset = await self.root.assets.get_asset(host)
-        for target_id, target in await self._scope_cache.items():
-            if target.in_scope(host):
-                asset.scope = set(asset.scope + [target_id])
+        asset = await self.root.assets.collection.find_one({"host": host}, {"scope": 1, "dns_links": 1})
+        if asset is None:
+            raise self.BBOTServerNotFoundError(f"Asset not found for host {host}")
+        asset_scope = [UUID4(target_id) for target_id in asset.get("scope", [])]
+        asset_dns_links = asset.get("dns_links", {})
+        scope_result = self._check_scope(host, asset_dns_links, target, target_id, asset_scope)
+        if scope_result is not None:
+            if scope_result.type == "NEW_IN_SCOPE_ASSET":
+                asset_scope = sorted(set(asset_scope) | set([target_id]))
             else:
-                asset.scope = set(asset.scope) - set([target_id])
-        await self.root.assets.update_asset(asset)
+                asset_scope = sorted(set(asset_scope) - set([target_id]))
+            await self.root.assets.collection.update_one(
+                {"host": host},
+                {"$set": {"scope": [str(target_id) for target_id in asset_scope]}},
+            )
+            await self.emit_activity(scope_result)
 
     @api_endpoint("/", methods=["GET"], summary="Get a single scan target by its name or id")
     async def get_target(self, name: str = None, id: UUID4 = None) -> Target:
@@ -139,7 +183,7 @@ class TargetsApplet(BaseApplet):
     @api_endpoint("/{id}", methods=["DELETE"], summary="Delete a scan target by its id")
     async def delete_target(self, id: UUID4, new_default_target_id: UUID4 = None) -> None:
         # TODO: abort if the target is still in use by any scans
-        all_scans = await self.parent.get_scans()
+        all_scans = await self.root.scans.get_scans()
         scans_with_target = [scan for scan in all_scans if scan.target_id == id]
         if scans_with_target:
             raise self.BBOTServerValueError(
@@ -157,6 +201,7 @@ class TargetsApplet(BaseApplet):
                     # find the only other target that's not the one we're deleting
                     new_default_target = await self.collection.find_one({"default": False}, {"id": 1})
                     new_default_target_id = new_default_target["id"]
+                # otherwise you're out of luck, you need to specify one
                 elif num_targets > 2:
                     raise self.BBOTServerValueError(
                         "Must specify a new default target when deleting the default target."
@@ -189,6 +234,16 @@ class TargetsApplet(BaseApplet):
         bbot_target = await self._get_bbot_target(target_id)
         return bbot_target.in_scope(host)
 
+    @api_endpoint("/whitelisted", methods=["GET"], summary="Check if a host or URL is whitelisted")
+    async def is_whitelisted(self, host: str, target_id: UUID4 = None) -> bool:
+        bbot_target = await self._get_bbot_target(target_id)
+        return bbot_target.whitelisted(host)
+
+    @api_endpoint("/blacklisted", methods=["GET"], summary="Check if a host or URL is blacklisted")
+    async def is_blacklisted(self, host: str, target_id: UUID4 = None) -> bool:
+        bbot_target = await self._get_bbot_target(target_id)
+        return bbot_target.blacklisted(host)
+
     @api_endpoint("/list", methods=["GET"], summary="List scans")
     async def get_targets(self) -> list[Target]:
         cursor = self.collection.find()
@@ -202,6 +257,81 @@ class TargetsApplet(BaseApplet):
             self._target_ids = set(await self.collection.distinct("id"))
             self._target_ids_modified = utc_now()
         return [UUID4(target_id) for target_id in self._target_ids]
+
+    def _check_scope(self, host, resolved_hosts, target, target_id, asset_scope) -> Activity:
+        """
+        Given a host and its DNS records, check whether it's in scope for a given target
+
+        If the scope status changes, return an activity
+
+        Args:
+            host: the host to check
+            resolved_hosts: a dict of DNS records for the host
+            target: the target to check against
+            target_id: the target ID
+            asset_scope: the current scope of the asset (list of current target IDs for the asset,
+                         this way we know whether the scope changed)
+
+        Returns:
+            Activity: an activity that occurred as a result of the scope check
+        """
+        whitelisted_reason = ""
+        blacklisted_reason = ""
+        resolved_hosts = {k: v for k, v in resolved_hosts.items() if k in ("A", "AAAA")}
+        resolved_hosts["SELF"] = [host]
+        try:
+            # we take the main host and its A/AAAA DNS records into account
+            for rdtype, hosts in resolved_hosts.items():
+                for host in hosts:
+                    # if any of the hosts are blacklisted, abort immediately
+                    if target.blacklisted(host):
+                        blacklisted_reason = f"{rdtype}->{host}"
+                        whitelisted_reason = ""
+                        # break out of the loop
+                        raise BlacklistedError
+                    # check against whitelist
+                    if not whitelisted_reason:
+                        if target.whitelisted(host):
+                            whitelisted_reason = f"{rdtype}->{host}"
+        except BlacklistedError:
+            pass
+
+        if blacklisted_reason:
+            scope_after = sorted(set(asset_scope) - set([target_id]))
+            # it used to be in-scope, but not anymore
+            if scope_after != asset_scope:
+                reason = f"blacklisted host {blacklisted_reason}"
+                description = f"Host [dark_orange]{host}[/dark_orange] became out-of-scope due to {reason}"
+                return self.make_activity(
+                    type="ASSET_SCOPE_CHANGED",
+                    detail={
+                        "change": "out-of-scope",
+                        "host": host,
+                        "target_id": target_id,
+                        "reason": reason,
+                        "scope_before": asset_scope,
+                        "scope_after": scope_after,
+                    },
+                    description=description,
+                )
+        # event is in-scope for this target
+        elif whitelisted_reason:
+            scope_after = sorted(set(asset_scope) | set([target_id]))
+            # it wasn't in-scope, but now it is
+            if scope_after != asset_scope:
+                reason = f"whitelisted host {whitelisted_reason}"
+                description = f"Host [dark_orange]{host}[/dark_orange] became in-scope due to {reason}"
+                return self.make_activity(
+                    type="NEW_IN_SCOPE_ASSET",
+                    detail={
+                        "host": host,
+                        "target_id": target_id,
+                        "reason": reason,
+                        "scope_before": asset_scope,
+                        "scope_after": scope_after,
+                    },
+                    description=description,
+                )
 
     async def _get_bbot_target(self, target_id: UUID4 = None, debounce=5.0) -> BBOTTarget:
         """

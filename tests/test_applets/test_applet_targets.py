@@ -2,6 +2,7 @@ import pytest
 import asyncio
 from contextlib import suppress
 
+from tests.test_applets.base import BaseAppletTest
 from bbot_server.errors import BBOTServerNotFoundError, BBOTServerValueError
 
 
@@ -238,34 +239,76 @@ async def test_scope_checks(bbot_server):
     assert await bbot_server.in_scope("www.test.external.evilcorp.org", target_id=target2.id) == False
 
 
-# # whenever a target or asset is created/modified, a maintenance task is kicked off to update scope on the affected assets
-# async def test_scope_maintenance(bbot_server, bbot_events):
-#     bbot_server = await bbot_server()
+class TestTargetScopeMaintenance(BaseAppletTest):
+    needs_watchdog = True
 
-#     scan1_events, scan2_events = bbot_events
+    async def setup(self):
+        assert await self.bbot_server.get_hosts() == []
+        assert await self.bbot_server.get_targets() == []
 
-#     target1 = await bbot_server.create_target(
-#         name="evilcorp",
-#         description="evilcorp target",
-#         whitelist=["evilcorp.com"],
-#         blacklist=["www.evilcorp.com"],
-#     )
+        # target with domain blacklist
+        self.target1 = await self.bbot_server.create_target(
+            name="evilcorp",
+            description="evilcorp target",
+            whitelist=["evilcorp.com"],
+            blacklist=["www.evilcorp.com"],
+        )
 
-#     target2 = await bbot_server.create_target(
-#         name="www evilcorp",
-#         description="www evilcorp target",
-#         whitelist=["www.evilcorp.com"],
-#     )
+        # target with IP blacklist
+        self.target2 = await self.bbot_server.create_target(
+            name="www evilcorp",
+            description="www evilcorp target",
+            whitelist=["www.evilcorp.com", "localhost.evilcorp.com", "127.0.0.1"],
+            blacklist=["127.0.0.2"],
+        )
 
-#     # insert scan events
-#     for event in scan1_events:
-#         await bbot_server.insert_event(event)
+    async def after_scan_1(self):
+        assets = [a async for a in self.bbot_server.get_assets()]
+        self.log.critical(f"ASSETS {assets}")
+        target_1_assets = {a.host for a in assets if self.target1.id in a.scope}
+        target_2_assets = {a.host for a in assets if self.target2.id in a.scope}
 
-#     # wait for events to be processed
-#     await asyncio.sleep(5.0)
+        assert target_1_assets == {
+            "evilcorp.com",
+            "www2.evilcorp.com",
+            "localhost.evilcorp.com",
+            "cname.evilcorp.com",
+            "api.evilcorp.com",
+        }
+        assert target_2_assets == {
+            "www.evilcorp.com",
+            "localhost.evilcorp.com",
+            "127.0.0.1",
+        }
 
-#     assets = [a async for a in bbot_server.get_assets()]
-#     print(f"ASSETS: {assets}")
+    async def after_scan_2(self):
+        assets = [a async for a in self.bbot_server.get_assets()]
+        target_1_assets = {a.host for a in assets if self.target1.id in a.scope}
+        target_2_assets = {a.host for a in assets if self.target2.id in a.scope}
 
-#     for asset in assets:
-#         print(f"{asset.host}: {asset.scope}")
+        assert target_1_assets == {
+            "evilcorp.com",
+            "www2.evilcorp.com",
+            "localhost.evilcorp.com",
+            "cname.evilcorp.com",
+            "api.evilcorp.com",
+        }
+        assert target_2_assets == {
+            "www.evilcorp.com",
+            # localhost.evilcorp.com is no longer in scope for target2 due to its IP changing
+            "127.0.0.1",
+        }
+
+        # add a.com to target2
+        self.target2.whitelist = ["127.0.0.0/24"]
+        await self.bbot_server.update_target(self.target2.id, self.target2)
+        await asyncio.sleep(0.1)
+
+        assets = [a async for a in self.bbot_server.get_assets()]
+
+        # a.com (127.0.0.3) and b.com (127.0.0.4) are now part of the target
+        target_2_assets = {a.host for a in assets if self.target2.id in a.scope}
+        assert target_2_assets == {"a.com", "b.com", "www.evilcorp.com", "127.0.0.1"}
+
+    async def after_archive(self):
+        pass

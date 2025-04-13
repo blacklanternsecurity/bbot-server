@@ -96,7 +96,15 @@ async def test_applet_scans(bbot_server):
     for _ in range(100):
         activity_types = [a.type for a in activities]
         event_types = [e.type for e in events]
-        if activity_types == ["AGENT_CONNECTED", "SCAN_QUEUED", "SCAN_SENT", "SCAN_STARTED", "SCAN_FINISHED"]:
+        if activity_types == [
+            "AGENT_CONNECTED",
+            "TARGET_CREATED",
+            "TARGET_CREATED",
+            "SCAN_QUEUED",
+            "SCAN_SENT",
+            "SCAN_STARTED",
+            "SCAN_FINISHED",
+        ]:
             if event_types == ["SCAN", "SCAN"]:
                 break
         await asyncio.sleep(0.1)

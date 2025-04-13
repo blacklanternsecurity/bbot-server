@@ -249,8 +249,14 @@ class BaseApplet:
     async def handle_event(self, event: Event, asset=None):
         return []
 
+    def make_activity(self, *args, **kwargs):
+        return Activity(*args, **kwargs)
+
     async def emit_activity(self, *args, **kwargs):
-        activity = Activity(*args, **kwargs)
+        if not kwargs and len(args) == 1 and isinstance(args[0], Activity):
+            activity = args[0]
+        else:
+            activity = Activity(*args, **kwargs)
         await self._emit_activity(activity)
 
     async def _emit_activity(self, activity: Activity):

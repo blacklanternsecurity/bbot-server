@@ -1,7 +1,7 @@
 import inspect
 import logging
 from typer import Typer, Option  # noqa
-from typing_extensions import Annotated  # noqa
+from typing import Annotated  # noqa
 from functools import cached_property, wraps
 
 

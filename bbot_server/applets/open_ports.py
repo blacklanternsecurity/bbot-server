@@ -50,13 +50,12 @@ class OpenPortsApplet(BaseApplet):
         opened_ports, _ = new_obj.diff(old_obj)
         for port in opened_ports:
             netloc = make_netloc(asset.host, port)
-            activities.append(
-                Activity.from_event(
-                    event,
-                    type="PORT_OPENED",
-                    description=f"New open port: [[dark_orange]{netloc}[/dark_orange]]",
-                )
+            activity = self.make_activity(
+                type="PORT_OPENED",
+                description=f"New open port: [[dark_orange]{netloc}[/dark_orange]]",
+                event=event,
             )
+            activities.append(activity)
         return activities
 
     @api_endpoint("/{host}/open_ports", methods=["GET"], summary="Get all the open ports for a host")

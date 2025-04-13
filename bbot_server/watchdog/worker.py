@@ -69,6 +69,12 @@ class BBOTWatchdog:
                     asset = await self.bbot_server.assets.get_asset(event.host)
                 except BBOTServerNotFoundError:
                     asset = self.bbot_server.assets.model(host=event.host)
+                    activity = self.bbot_server.assets.make_activity(
+                        type="NEW_ASSET",
+                        description=f"New asset: [[dark_orange]{event.host}[/dark_orange]]",
+                        event=event,
+                    )
+                    activities.append(activity)
             else:
                 asset = None
 
@@ -82,8 +88,8 @@ class BBOTWatchdog:
                         self.log.error(f"Error ingesting event {event.type} for applet {applet.name}: {e}")
                         self.log.error(traceback.format_exc())
 
+            # update the asset in the database
             if activities and asset is not None:
-                # if there were any changes, update the asset in the database
                 await self.bbot_server.assets.update_asset(asset)
 
             # publish applet activities to the message queue

@@ -5,7 +5,6 @@ from pydantic import UUID4
 from bbot_server.utils.misc import timestamp_to_human
 
 from bbot_server.applets.agents import AgentsApplet
-from bbot_server.applets.scans.targets import TargetsApplet
 from bbot_server.applets.scans.scan_runs import ScanRunsApplet
 from bbot_server.applets.scans.yara_rules import YaraRulesApplet
 
@@ -18,7 +17,7 @@ class ScansApplet(BaseApplet):
     name = "Scans"
     description = "scans"
     watched_events = ["SCAN"]
-    include_apps = [TargetsApplet, AgentsApplet, ScanRunsApplet, YaraRulesApplet]
+    include_apps = [AgentsApplet, ScanRunsApplet, YaraRulesApplet]
     model = ScanDBEntry
 
     async def handle_event(self, event, asset=None):
