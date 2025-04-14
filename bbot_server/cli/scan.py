@@ -3,7 +3,7 @@ from bbot_server.cli.base import BaseBBCTL, subcommand
 
 
 class Scans(BaseBBCTL):
-    command = "scans"
+    command = "scan"
     help = "Manage BBOT scans"
     epilog = "Create, start, and monitor BBOT scans"
 

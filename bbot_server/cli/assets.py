@@ -13,7 +13,7 @@ class Assets(BaseBBCTL):
         json: common.json = False,
         csv: common.csv = False,
     ):
-        asset_list = self.bbot_server.get_assets()
+        asset_list = list(self.bbot_server.get_assets())
 
         if json:
             for asset in asset_list:

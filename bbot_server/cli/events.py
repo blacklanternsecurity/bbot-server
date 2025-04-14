@@ -19,7 +19,7 @@ class Events(BaseBBCTL):
         json: common.json = False,
         csv: common.csv = False,
     ):
-        event_list = self.bbot_server.get_events()
+        event_list = list(self.bbot_server.get_events())
 
         if json:
             for event in event_list:
@@ -35,9 +35,10 @@ class Events(BaseBBCTL):
         table.add_column("Type", style="bold dark_orange")
         table.add_column("Data", style="bold")
         for event in event_list:
+            event_data = event.data if event.data else self.orjson.dumps(event.data_json).decode()
             table.add_row(
-                event.name,
-                event.data if event.data else event.data_json,
+                event.type,
+                event_data,
             )
         self.stdout.print(table)
 
