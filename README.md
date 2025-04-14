@@ -110,7 +110,7 @@ If you'd like, you can also tail the raw events as they stream in from the BBOT 
 bbctl events tail
 ```
 
-**Monitor scan status**:
+**Check scan status**:
 
 You can monitor or stop an in-progress scan:
 
@@ -134,6 +134,9 @@ bbctl assets list
 
 # Export assets to CSV
 bbctl assets export --csv > assets.csv
+
+# Export assets as JSON
+bbctl assets export --json | jq
 ```
 
 **List events**:
@@ -144,6 +147,9 @@ bbctl events list
 
 # Export events to CSV
 bbctl events export --csv > events.csv
+
+# Export events as JSON
+bbctl events export --json | jq
 ```
 
 ## Screenshots

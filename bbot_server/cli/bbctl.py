@@ -14,7 +14,7 @@ from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG
 # subcommand imports
 from bbot_server.cli.agent import Agent
 from bbot_server.cli.assets import Assets
-from bbot_server.cli.scans import Scans
+from bbot_server.cli.scan import Scans
 from bbot_server.cli.server import Server
 from bbot_server.cli.events import Events
 
