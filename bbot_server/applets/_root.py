@@ -60,6 +60,7 @@ class RootApplet(BaseApplet):
 
     async def cleanup(self):
         await self.asset_store.cleanup()
+        await self.user_store.cleanup()
         await self.event_store.cleanup()
         await self.message_queue.cleanup()
         await self._cleanup()

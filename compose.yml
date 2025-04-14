@@ -21,6 +21,10 @@ services:
     <<: *bbot-server-base
     command: ["bbctl", "server", "start", "--watchdog-only"]
 
+  bbot-server-agent:
+    <<: *bbot-server-base
+    command: ["bbctl", "agent", "start"]
+
   mongodb:
     image: mongo:latest
     restart: always
