@@ -264,7 +264,6 @@ class TestTargetScopeMaintenance(BaseAppletTest):
 
     async def after_scan_1(self):
         assets = [a async for a in self.bbot_server.get_assets()]
-        self.log.critical(f"ASSETS {assets}")
         target_1_assets = {a.host for a in assets if self.target1.id in a.scope}
         target_2_assets = {a.host for a in assets if self.target2.id in a.scope}
 

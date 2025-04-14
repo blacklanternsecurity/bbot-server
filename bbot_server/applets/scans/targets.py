@@ -4,9 +4,10 @@ from typing import Annotated
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
+from bbot_server.models.activity import Activity
 from bbot_server.applets.scans.scan_models import Target
 from bbot_server.applets._base import BaseApplet, api_endpoint
-from bbot_server.models.assets import Activity, BaseAssetFields
+from bbot_server.assets.custom_fields import CustomAssetFields
 
 
 class BlacklistedError(Exception):
@@ -21,7 +22,7 @@ class BlacklistedError(Exception):
 # this enables extremely fast and precise updates whenever a target is updated
 
 
-class AppletScope(BaseAssetFields):
+class AssetScope(CustomAssetFields):
     scope: Annotated[list[UUID4], "indexed"] = []
 
 
@@ -31,7 +32,6 @@ class TargetsApplet(BaseApplet):
     watched_events = ["*"]
     watched_activities = ["TARGET_CREATED", "TARGET_UPDATED", "NEW_ASSET", "NEW_DNS_RECORD", "DELETED_DNS_RECORD"]
     model = Target
-    asset_fields = AppletScope
 
     async def setup(self):
         # this holds the BBOTTarget instance for each target

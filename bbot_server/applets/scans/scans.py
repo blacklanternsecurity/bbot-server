@@ -8,7 +8,7 @@ from bbot_server.applets.agents import AgentsApplet
 from bbot_server.applets.scans.scan_runs import ScanRunsApplet
 from bbot_server.applets.scans.yara_rules import YaraRulesApplet
 
-from bbot_server.models.assets import Activity
+from bbot_server.models.activity import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
 from bbot_server.applets.scans.scan_models import ScanResponse, ScanDBEntry
 

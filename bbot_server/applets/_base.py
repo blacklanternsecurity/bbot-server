@@ -10,7 +10,7 @@ from pymongo import WriteConcern, ASCENDING
 from fastapi import APIRouter
 
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import Activity
+from bbot_server.models.activity import Activity
 from bbot_server.applets._routing import ROUTE_TYPES
 
 word_regex = re.compile(r"\W+")
@@ -82,6 +82,8 @@ class BaseApplet:
     _route_prefix = None
 
     def __init__(self, parent=None):
+        # TODO: we need to collect all the child applets before doing any fastapi setup
+
         self.child_applets = []
         self.log = logging.getLogger(f"bbot_server.{self.name.lower()}")
         self.parent = parent
@@ -173,8 +175,10 @@ class BaseApplet:
                     #  j=True: Ensures the write operation is committed to the journal. (default is False)
                     # This helps prevent duplicates in asset activity.
                     self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
-                # build indexes
-                await self.build_indexes(self.model)
+
+                if self.collection is not None:
+                    # build indexes
+                    await self.build_indexes(self.model)
 
         # taskiq broker
         if self.task_broker is None:

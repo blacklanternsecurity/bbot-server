@@ -7,7 +7,7 @@ from taskiq.api import run_receiver_task, run_scheduler_task
 from taskiq import TaskiqScheduler, TaskiqEvents, TaskiqState
 
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import Activity
+from bbot_server.models.activity import Activity
 from bbot_server.errors import BBOTServerNotFoundError
 
 

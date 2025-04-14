@@ -3,7 +3,7 @@ import sys
 # import importlib
 from pathlib import Path
 
-from bbot_server.applets import APPLETS
+from bbot_server.preloader import APPLETS
 # from tests.test_applets.base import BaseAppletTest
 
 

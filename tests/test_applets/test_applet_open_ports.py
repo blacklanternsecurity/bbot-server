@@ -24,8 +24,16 @@ class TestAppletOpenPorts(BaseAppletTest):
         open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 2
 
-        assert len(self.asset_messages) == 2
-        assert [a.type for a in self.asset_messages] == ["PORT_OPENED", "PORT_OPENED"]
+        port_asset_messages = [a for a in self.asset_messages if a.type.startswith("PORT_")]
+        assert len(port_asset_messages) == 2
+        assert [a.type for a in port_asset_messages] == ["PORT_OPENED", "PORT_OPENED"]
+
+        www = await self.bbot_server.get_asset("www.evilcorp.com")
+        assert www.open_ports == [80]
+        www2 = await self.bbot_server.get_asset("www2.evilcorp.com")
+        assert www2.open_ports == [80]
+        api = await self.bbot_server.get_asset("api.evilcorp.com")
+        assert api.open_ports == []
 
     async def after_scan_2(self):
         # second scan should have two
@@ -36,12 +44,20 @@ class TestAppletOpenPorts(BaseAppletTest):
         open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 4
 
-        assert len(self.asset_messages) == 3
-        assert [a.type for a in self.asset_messages] == [
+        port_asset_messages = [a for a in self.asset_messages if a.type.startswith("PORT_")]
+        assert len(port_asset_messages) == 3
+        assert [a.type for a in port_asset_messages] == [
             "PORT_OPENED",
             "PORT_OPENED",
             "PORT_OPENED",
         ]
+
+        www = await self.bbot_server.get_asset("www.evilcorp.com")
+        assert www.open_ports == [80]
+        www2 = await self.bbot_server.get_asset("www2.evilcorp.com")
+        assert www2.open_ports == [80]
+        api = await self.bbot_server.get_asset("api.evilcorp.com")
+        assert api.open_ports == [443]
 
     async def after_archive(self):
         # after archiving, the first open port should be gone
@@ -52,10 +68,18 @@ class TestAppletOpenPorts(BaseAppletTest):
         open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 2
 
-        assert len(self.asset_messages) == 4
-        assert [a.type for a in self.asset_messages] == [
+        port_asset_messages = [a for a in self.asset_messages if a.type.startswith("PORT_")]
+        assert len(port_asset_messages) == 4
+        assert [a.type for a in port_asset_messages] == [
             "PORT_OPENED",
             "PORT_OPENED",
             "PORT_OPENED",
             "PORT_CLOSED",
         ]
+
+        www = await self.bbot_server.get_asset("www.evilcorp.com")
+        assert www.open_ports == []
+        www2 = await self.bbot_server.get_asset("www2.evilcorp.com")
+        assert www2.open_ports == [80]
+        api = await self.bbot_server.get_asset("api.evilcorp.com")
+        assert api.open_ports == [443]

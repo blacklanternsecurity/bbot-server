@@ -5,7 +5,7 @@ import traceback
 from pydantic import BaseModel
 
 from bbot.models.pydantic import Event
-from bbot_server.models.assets import Activity
+from bbot_server.models.activity import Activity
 
 
 class BaseMessageQueue:

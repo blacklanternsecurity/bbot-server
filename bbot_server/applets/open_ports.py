@@ -1,34 +1,11 @@
-from bbot.models.pydantic import Event
 from bbot.core.helpers.misc import make_netloc
-from bbot_server.models.assets import Activity, BaseAssetFields
+from bbot_server.assets.custom_fields import CustomAssetFields
 from bbot_server.applets._base import BaseApplet, api_endpoint, Annotated
 
 
-from pydantic import BeforeValidator
-
-
-def open_port_validator(value):
-    return [] if not value else sorted(set(value))
-
-
-class OpenPorts(BaseAssetFields):
-    open_ports: Annotated[list[int], "indexed", BeforeValidator(open_port_validator)] = []  # noqa: F821
-
-    def ingest_event(self, event: Event):
-        self.open_ports = sorted(set(self.open_ports) | {event.port})
-
-    def update_asset(self, asset):
-        if self.open_ports:
-            asset.open_ports = sorted(set(self.open_ports))
-        else:
-            asset.open_ports = []
-
-    def diff(self, old) -> tuple[set[int], set[int]]:
-        old_open_ports = set(old.open_ports)
-        new_open_ports = set(self.open_ports)
-        opened_ports = new_open_ports - old_open_ports
-        closed_ports = old_open_ports - new_open_ports
-        return opened_ports, closed_ports
+# add one field: 'open_ports' to the main asset model
+class OpenPortsFields(CustomAssetFields):
+    open_ports: Annotated[list[int], "indexed"] = []  # noqa: F821
 
 
 class OpenPortsApplet(BaseApplet):
@@ -36,23 +13,18 @@ class OpenPortsApplet(BaseApplet):
     watched_events = ["OPEN_TCP_PORT"]
     description = "open ports discovered during scans"
     route_prefix = ""
-    asset_fields = OpenPorts
 
     async def handle_event(self, event, asset):
         activities = []
         # get our fields from the asset
-        old_obj = self.asset_fields.model_validate(asset, from_attributes=True)
-        new_obj = self.asset_fields.model_validate(asset, from_attributes=True)
-        # update the asset with the event data
-        new_obj.ingest_event(event)
-        new_obj.update_asset(asset)
-        # diff the old and new asset
-        opened_ports, _ = new_obj.diff(old_obj)
-        for port in opened_ports:
-            netloc = make_netloc(asset.host, port)
+        old_open_ports = set(getattr(asset, "open_ports", []))
+        if event.port not in old_open_ports:
+            asset.open_ports = sorted(old_open_ports | {event.port})
+            netloc = make_netloc(asset.host, event.port)
             activity = self.make_activity(
                 type="PORT_OPENED",
                 description=f"New open port: [[dark_orange]{netloc}[/dark_orange]]",
+                detail={"port": event.port},
                 event=event,
             )
             activities.append(activity)
@@ -73,30 +45,33 @@ class OpenPortsApplet(BaseApplet):
         for event in events_by_type.get("OPEN_TCP_PORT", []):
             ports.add(event.port)
 
-        old_open_ports = self.asset_fields.model_validate(asset, from_attributes=True)
-        new_open_ports = self.asset_fields(open_ports=ports)
-        opened_ports, closed_ports = new_open_ports.diff(old_open_ports)
+        old_open_ports = set(asset.open_ports)
+        new_open_ports = set(ports)
+        opened_ports = new_open_ports - old_open_ports
+        closed_ports = old_open_ports - new_open_ports
+        asset.open_ports = sorted(new_open_ports)
+
         activities = []
         for port in opened_ports:
             netloc = make_netloc(asset.host, port)
             activities.append(
-                Activity(
+                self.make_activity(
                     host=asset.host,
                     netloc=netloc,
                     type="PORT_OPENED",
+                    detail={"port": port},
                     description=f"New open port: [[dark_orange]{netloc}[/dark_orange]]",
                 )
             )
         for port in closed_ports:
             netloc = make_netloc(asset.host, port)
             activities.append(
-                Activity(
+                self.make_activity(
                     host=asset.host,
                     netloc=netloc,
                     type="PORT_CLOSED",
+                    detail={"port": port},
                     description=f"Closed port: [[dark_orange]{netloc}[/dark_orange]]",
                 )
             )
-        if activities:
-            new_open_ports.update_asset(asset)
         return activities

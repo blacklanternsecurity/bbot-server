@@ -1,4 +1,3 @@
-# from bbot_server.models.assets import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 

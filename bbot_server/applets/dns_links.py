@@ -2,10 +2,10 @@ from pydantic import Field
 from typing import Annotated
 
 from bbot_server.applets._base import BaseApplet
-from bbot_server.models.assets import BaseAssetFields
+from bbot_server.assets.custom_fields import CustomAssetFields
 
 
-class DNSLinks(BaseAssetFields):
+class DNSLinks(CustomAssetFields):
     dns_links: Annotated[dict[str, list[str]], "indexed"] = Field(default_factory=dict)
 
 
@@ -23,7 +23,6 @@ class DNSLinksApplet(BaseApplet):
     name = "DNS Links"
     watched_events = ["DNS_NAME"]
     description = "DNS Links"
-    asset_fields = DNSLinks
 
     async def handle_event(self, event, asset):
         activities = []
