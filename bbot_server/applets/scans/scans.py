@@ -55,13 +55,13 @@ class ScansApplet(BaseApplet):
         if scan is None:
             raise self.BBOTServerNotFoundError("Scan not found")
         target_id = scan.pop("target_id")
-        target = await self.get_target(id=target_id)
+        target = await self.parent.get_target(id=target_id)
         scan["target"] = target
         return ScanResponse(**scan)
 
     @api_endpoint("/create", methods=["POST"], summary="Create a new scan")
     async def create_scan(self, name: str, target: UUID4, preset: dict[str, Any] = {}) -> ScanDBEntry:
-        if await self.get_target(id=target) is None:
+        if await self.parent.get_target(id=target) is None:
             raise self.BBOTServerNotFoundError("Target not found")
         scan = ScanDBEntry(name=name, target_id=target, preset=preset)
         await self.collection.insert_one(scan.model_dump())

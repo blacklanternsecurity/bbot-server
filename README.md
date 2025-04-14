@@ -7,22 +7,19 @@
 BBOT Server is a central database and multiplayer hub for all your [BBOT](https://github.com/blacklanternsecurity/bbot) scanning activities!
 
 - [x] **Scan Management**
-    - [ ] Kick off concurrent scans on remote servers
+    - [x] Kick off concurrent scans on remote servers
     - [x] Monitor scan progress, statistics
 - [x] **Asset Tracking and Alerting**
     - [x] Detailed history for each individual asset
     - [ ] Instant alerting on new vulnerabilities, open ports, etc.
 - [x] **Collaboration**
     - [x] Multi-user CLI
-    - [ ] Multiple concurrent scans
+    - [x] Multiple concurrent scans
 - [x] **Advanced Querying**
     - [x] REST API
     - [x] Python SDK
-    - [ ] GraphQL
 
-## Typical Usage
-
-### Installation
+## Installation
 
 ```bash
 # clone the repo and cd into it
@@ -34,7 +31,7 @@ pipx install -e .
 
 Note: to update to the latest version, run `git pull` in the `bbot_server` directory.
 
-### Starting the server
+## Starting the server
 
 Note: this requires Docker and Docker Compose to be installed.
 
@@ -43,7 +40,7 @@ Note: this requires Docker and Docker Compose to be installed.
 bbctl server start
 ```
 
-### Executing a scan
+## Executing a scan
 
 In BBOT server, scans are stored presets that can be run repeatably.
 
@@ -78,7 +75,7 @@ config:
     api_key: deadbeef
 ```
 
-### Start the scan
+## Start the scan
 
 ```bash
 # List scans
@@ -88,7 +85,7 @@ bbctl scan list
 bbctl scan start "evilcorp_subdomains"
 ```
 
-### Monitoring the scan
+## Monitoring the scan
 
 You can monitor the scan's progress in several ways:
 
@@ -122,7 +119,15 @@ bbctl scan runs
 bbctl scan runs stop --name "demonic_jimmy"
 ```
 
-### Querying the data
+## Custom triggers
+
+TODO
+
+## Alerting
+
+TODO
+
+## Viewing the data
 
 You can query and export the data even while a scan is running.
 
