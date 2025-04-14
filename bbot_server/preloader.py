@@ -5,6 +5,8 @@ from pathlib import Path
 applet_dir = Path(__file__).parent / "applets"
 
 APPLETS = {}
-for p in applet_dir.iterdir():
-    if p.is_file() and p.suffix.lower() == ".py" and not p.stem.startswith("_"):
+# Use rglob to recursively find all Python files
+for p in applet_dir.rglob("*.py"):
+    # Skip files that start with underscore
+    if not p.stem.startswith("_"):
         APPLETS[p.stem] = p

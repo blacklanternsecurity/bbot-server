@@ -7,7 +7,6 @@ from bbot_server.applets.export import ExportApplet
 from bbot_server.applets.findings import FindingsApplet
 from bbot_server.applets.dns_links import DNSLinksApplet
 from bbot_server.applets.open_ports import OpenPortsApplet
-from bbot_server.applets.scans.targets import TargetsApplet
 from bbot_server.applets.web_screenshots import WebScreenshotsApplet
 
 from bbot_server.assets import Asset
@@ -27,7 +26,6 @@ class AssetsApplet(BaseApplet):
         WebScreenshotsApplet,
         ExportApplet,
         Risk,
-        TargetsApplet,
     ]
 
     model = Asset

@@ -244,7 +244,7 @@ class TargetsApplet(BaseApplet):
         bbot_target = await self._get_bbot_target(target_id)
         return bbot_target.blacklisted(host)
 
-    @api_endpoint("/list", methods=["GET"], summary="List scans")
+    @api_endpoint("/list", methods=["GET"], summary="List targets")
     async def get_targets(self) -> list[Target]:
         cursor = self.collection.find()
         targets = await cursor.to_list(length=None)

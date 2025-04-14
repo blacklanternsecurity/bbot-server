@@ -9,8 +9,8 @@ from bbot_server.preloader import APPLETS
 
 # these imports are needed for the preloading process
 from typing import List, Optional, Dict, Any, Annotated  # noqa: F401
-from pydantic import Field, BeforeValidator, AfterValidator  # noqa: F401
 from bbot_server.assets.custom_fields import CustomAssetFields  # noqa: F401
+from pydantic import Field, BeforeValidator, AfterValidator, UUID4  # noqa: F401
 
 ASSET_FIELD_MODELS = []
 
