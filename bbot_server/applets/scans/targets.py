@@ -109,10 +109,10 @@ class TargetsApplet(BaseApplet):
             )
             await self.emit_activity(scope_result)
 
-    @api_endpoint("/", methods=["GET"], summary="Get a single scan target by its name or id")
-    async def get_target(self, name: str = None, id: UUID4 = None) -> Target:
+    @api_endpoint("/", methods=["GET"], summary="Get a single scan target by its name, id, or hash")
+    async def get_target(self, name: str = None, id: UUID4 = None, hash: str = None) -> Target:
         # if neither name nor id is provided, try to get the default target
-        if (name is None) and (id is None):
+        if (name is None) and (id is None) and (hash is None):
             target = await self.collection.find_one({"default": True})
             if target is None:
                 raise self.BBOTServerNotFoundError(
@@ -124,6 +124,8 @@ class TargetsApplet(BaseApplet):
                 query["name"] = name
             elif id is not None:
                 query["id"] = str(id)
+            elif hash is not None:
+                query["hash"] = hash
             target = await self.collection.find_one(query)
         if not target:
             raise self.BBOTServerNotFoundError(f"Target not found.")

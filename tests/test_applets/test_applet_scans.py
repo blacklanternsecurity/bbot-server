@@ -16,7 +16,7 @@ async def test_applet_scans(bbot_server):
             activities.append(activity)
 
     async def tail_events():
-        async for event in bbot_server.tail_activities(n=10):
+        async for event in bbot_server.tail_events(n=10):
             events.append(event)
 
     asyncio.create_task(tail_activities())
@@ -109,4 +109,4 @@ async def test_applet_scans(bbot_server):
                 break
         await asyncio.sleep(0.1)
     else:
-        assert False, f"Scan didn't finish properly. Activities: {[a.type for a in activities]}"
+        assert False, f"Scan didn't finish properly. Activities: {[a.type for a in activities]}, Events: {[e.type for e in events]}"
