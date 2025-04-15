@@ -1,15 +1,11 @@
-import pytest
-from omegaconf import OmegaConf
 from contextlib import contextmanager
 
-from bbot_server.config import BBOT_SERVER_CONFIG
-from bbot_server.message_queue import MessageQueue
 
 from ..conftest import *
 
 
 class BaseAppletTest:
-    log = logging.getLogger("bbot.server.test")
+    log = logging.getLogger("bbot_server.test")
 
     config_overrides = {}
 
@@ -51,7 +47,7 @@ class BaseAppletTest:
         """
         The main test function that runs each of the individual applet tests.
         """
-        self.log = logging.getLogger(f"bbot.server.test.{self.__class__.__name__.lower()}")
+        self.log = logging.getLogger(f"bbot_server.test.{self.__class__.__name__.lower()}")
         self.bbot_server_config = bbot_server_config
         self.bbot_server = await bbot_server(
             config_overrides=self.config_overrides,
@@ -80,7 +76,7 @@ class BaseAppletTest:
             with self.handle_errors("inserting data from first scan"):
                 for event in self.scan1_events:
                     await self.bbot_server.insert_event(event)
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(1.0)
 
             # run the first test after scan #1 has been ingested
             with self.handle_errors("running tests after first scan"):
@@ -90,7 +86,7 @@ class BaseAppletTest:
             with self.handle_errors("inserting data from second scan"):
                 for event in self.scan2_events:
                     await self.bbot_server.insert_event(event)
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(1.0)
 
             # run test after scan #2 has been ingested
             with self.handle_errors("running tests after second scan"):
@@ -134,7 +130,7 @@ class BaseAppletTest:
 
         async def tail_activities():
             try:
-                agen = self.bbot_server.tail_assets(n=10)
+                agen = self.bbot_server.tail_activities(n=10)
                 async for activity in agen:
                     self.log.info(f"{activity.type} - {activity.description}")
                     asset_messages.append(activity)

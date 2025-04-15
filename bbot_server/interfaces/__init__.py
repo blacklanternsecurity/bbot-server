@@ -1,6 +1,6 @@
 import logging
 
-log = logging.getLogger("bbot.server.interfaces")
+log = logging.getLogger("bbot_server.interfaces")
 
 
 def BBOTServer(interface="python", **kwargs):

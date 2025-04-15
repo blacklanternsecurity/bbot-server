@@ -6,8 +6,6 @@ from subprocess import run
 from omegaconf import OmegaConf
 from contextlib import suppress
 
-from bbot_server.cli import common
-from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 

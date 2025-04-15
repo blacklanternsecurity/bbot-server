@@ -20,16 +20,16 @@ class EmailsApplet(BaseApplet):
             emails.update(asset.fields.get("emails", []))
         return sorted(emails)
 
-    # async def handle_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
+    # async def handle_event(self, asset: Asset, event: Event) -> list[Activity]:
     #     activities = []
     #     email = event.data
     #     current_emails = set(asset.fields.get("emails", [])) or set()
     #     if email not in current_emails:
     #         description = f"New email: [{email}]"
-    #         description_colored = f"New email: [[dark_orange]{email}[/dark_orange]]"
+    #         description_colored = f"New email: [[COLOR]{email}[/COLOR]]"
     #         current_emails.add(email)
     #         current_emails = sorted(current_emails)
-    #         email_activity = AssetActivity.create(
+    #         email_activity = Activity.create(
     #             type="NEW_EMAIL",
     #             asset=asset,
     #             event=event,

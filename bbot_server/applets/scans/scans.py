@@ -1,25 +1,23 @@
 from typing import Any
 from pydantic import UUID4
 
-from bbot import Preset
 
 from bbot_server.utils.misc import timestamp_to_human
 
 from bbot_server.applets.agents import AgentsApplet
-from bbot_server.applets.scans.targets import TargetsApplet
 from bbot_server.applets.scans.scan_runs import ScanRunsApplet
 from bbot_server.applets.scans.yara_rules import YaraRulesApplet
 
-from bbot_server.models.assets import AssetActivity
+from bbot_server.models.activity import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
-from bbot_server.applets.scans.scan_models import ScanResponse, ScanDBEntry, ScanRun
+from bbot_server.applets.scans.scan_models import ScanResponse, ScanDBEntry
 
 
 class ScansApplet(BaseApplet):
     name = "Scans"
     description = "scans"
     watched_events = ["SCAN"]
-    include_apps = [TargetsApplet, AgentsApplet, ScanRunsApplet, YaraRulesApplet]
+    include_apps = [AgentsApplet, ScanRunsApplet, YaraRulesApplet]
     model = ScanDBEntry
 
     async def handle_event(self, event, asset=None):
@@ -33,15 +31,15 @@ class ScansApplet(BaseApplet):
             update_op = {"$set": {"finished_at": event.data_json["finished_at"]}}
             activity = "SCAN_FINISHED"
             human_finished_at = timestamp_to_human(event.data_json["finished_at"])
-            description = f"Scan [[dark_orange]{scan_run.name}[/dark_orange]] finished at {human_finished_at}"
+            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] finished at {human_finished_at}"
         else:
             update_op = {"$set": {"started_at": event.data_json["started_at"]}}
             activity = "SCAN_STARTED"
             human_started_at = timestamp_to_human(event.data_json["started_at"])
-            description = f"Scan [[dark_orange]{scan_run.name}[/dark_orange]] started at {human_started_at}"
+            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] started at {human_started_at}"
 
         await self.collection.update_one({"id": scan_id}, update_op)
-        activity = AssetActivity(type=activity, description=description)
+        activity = Activity(type=activity, description=description)
         return [activity]
 
     @api_endpoint("/", methods=["GET"], summary="Get a single scan by its name")
@@ -57,13 +55,13 @@ class ScansApplet(BaseApplet):
         if scan is None:
             raise self.BBOTServerNotFoundError("Scan not found")
         target_id = scan.pop("target_id")
-        target = await self.get_target(id=target_id)
+        target = await self.root.get_target(id=target_id)
         scan["target"] = target
         return ScanResponse(**scan)
 
     @api_endpoint("/create", methods=["POST"], summary="Create a new scan")
     async def create_scan(self, name: str, target: UUID4, preset: dict[str, Any] = {}) -> ScanDBEntry:
-        if await self.get_target(id=target) is None:
+        if await self.root.get_target(id=target) is None:
             raise self.BBOTServerNotFoundError("Target not found")
         scan = ScanDBEntry(name=name, target_id=target, preset=preset)
         await self.collection.insert_one(scan.model_dump())

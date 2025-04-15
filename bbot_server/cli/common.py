@@ -4,10 +4,9 @@ import orjson
 import logging
 import csv as csvlib
 from pydantic import BaseModel
-from typing import Any, Iterator, Union
-from typing_extensions import Annotated
+from typing import Any, Iterator, Union, Annotated
 
-log = logging.getLogger("bbot.server.cli.common")
+log = logging.getLogger("bbot_server.cli.common")
 
 
 def pretty_format(data: Any) -> str:

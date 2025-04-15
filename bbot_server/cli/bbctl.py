@@ -1,8 +1,11 @@
+import sys
 import asyncio
 import logging
+import traceback
 from pathlib import Path
 from omegaconf import OmegaConf
 from functools import cached_property
+
 
 from bbot_server.errors import BBOTServerError
 from bbot_server.cli.base import BaseBBCTL, Annotated, Option
@@ -10,8 +13,11 @@ from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG
 
 # subcommand imports
 from bbot_server.cli.agent import Agent
-from bbot_server.cli.scans import Scans
+from bbot_server.cli.assets import Assets
+from bbot_server.cli.scan import Scans
 from bbot_server.cli.server import Server
+from bbot_server.cli.events import Events
+from bbot_server.cli.activity import Activity
 
 
 class BBCTL(BaseBBCTL):
@@ -19,7 +25,7 @@ class BBCTL(BaseBBCTL):
     The root command for the BBCTL CLI
     """
 
-    include = [Scans, Server, Agent]
+    include = [Assets, Scans, Server, Agent, Events, Activity]
 
     def __init__(self):
         super().__init__()
@@ -33,9 +39,11 @@ class BBCTL(BaseBBCTL):
         color: Annotated[
             bool, Option(f"--color/--no-color", "-cl/-ncl", help="Enable or disable color in the terminal")
         ] = True,
+        debug: Annotated[bool, Option("--debug", "-d", help="Enable debug mode")] = False,
     ):
         self.silent = silent
         self.color = color
+        self.debug = debug
         self.config_path = None
         if config:
             try:
@@ -46,6 +54,8 @@ class BBCTL(BaseBBCTL):
                 raise BBOTServerError(f"Error loading config file {config}: {e}")
         else:
             self._config = BBOT_SERVER_CONFIG
+        if self.debug:
+            logging.getLogger().setLevel(logging.DEBUG)
         if server_url != BBOT_SERVER_URL:
             self._config.url = server_url
         self.server_url = self.config.url
@@ -63,7 +73,7 @@ class BBCTL(BaseBBCTL):
         return bbot_server
 
 
-log = logging.getLogger("bbot.server.bbctl")
+log = logging.getLogger("bbot_server.bbctl")
 
 
 def main():
@@ -71,10 +81,15 @@ def main():
     try:
         bbctl.typer()
     except BBOTServerError as e:
-        log.error(str(e))
+        _log = getattr(bbctl, "log", log)
+        _log.error(str(e))
+        _log.debug(traceback.format_exc())
+        sys.exit(1)
     except (KeyboardInterrupt, asyncio.CancelledError):
         log.warning("Interrupted")
+        sys.exit(2)
     finally:
+        # only cleanup if bbot_server was instantiated
         if "bbot_server" in bbctl.__dict__:
             bbctl.bbot_server.cleanup()
 

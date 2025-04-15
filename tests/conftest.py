@@ -4,6 +4,7 @@ import json
 import time
 import httpx
 import pytest  # noqa
+import shutil
 import signal
 import asyncio  # noqa
 import logging
@@ -12,13 +13,9 @@ import pytest_asyncio
 from pathlib import Path
 from omegaconf import OmegaConf
 from contextlib import suppress
-from datetime import datetime, timedelta, timezone
 
 from bbot_server.config import BBOT_SERVER_CONFIG
-
-from bbot import Scanner
-from bbot.models.pydantic import Event
-from bbot.modules.base import BaseModule
+from .gen_scan_data import *
 
 
 log = logging.getLogger(__name__)
@@ -28,26 +25,20 @@ BBCTL_FILE = PROJ_ROOT / "bbot_server" / "cli" / "bbctl.py"
 TEST_CONFIG_PATH = Path(__file__).parent / "test_config.yml"
 BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH)]
 
+BBOT_SERVER_TEST_DIR = Path("/tmp/.bbot_server_test")
+BBOT_SERVER_TEST_DIR.mkdir(parents=True, exist_ok=True)
+
 
 @pytest.fixture
 def bbot_server_config():
-    config_overrides = {
-        "event_store": {
-            "uri": "mongodb://localhost:27017/test_bbot_server_events",
-        },
-        "asset_store": {
-            "uri": "mongodb://localhost:27017/test_bbot_server_assets",
-        },
-        "user_store": {
-            "uri": "mongodb://localhost:27017/test_bbot_server_userdata",
-        },
-    }
-    return OmegaConf.merge(BBOT_SERVER_CONFIG, config_overrides)
+    # load test file omegaconf config
+    test_config = OmegaConf.load(TEST_CONFIG_PATH)
+    return OmegaConf.merge(BBOT_SERVER_CONFIG, test_config)
 
 
 @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
 # @pytest_asyncio.fixture
-async def bbot_server(request, mongo_cleanup, bbot_server_config):
+async def bbot_server(request, mongo_cleanup, redis_cleanup, bbot_server_config):
     from bbot_server import BBOTServer
     from bbot_server.message_queue import MessageQueue
 
@@ -101,18 +92,41 @@ async def bbot_server(request, mongo_cleanup, bbot_server_config):
 
 
 @pytest.fixture
-def bbot_watchdog():
+def bbot_watchdog(mongo_cleanup, redis_cleanup):
     command = [*BBCTL_COMMAND, "server", "start", "--watchdog-only"]
-    watchdog_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    watchdog_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
     try:
-        time.sleep(5)
+        # Wait for watchdog to be ready by monitoring stderr
+        ready = False
+        for _ in range(50):  # 10 second timeout (50 * 0.2)
+            line = watchdog_process.stderr.readline()
+            log.critical(f"Watchdog: {line}")
+            if "[INFO] Subscribed to bbot:stream:events" in line:
+                ready = True
+                break
+            time.sleep(0.2)
+
+        if not ready:
+            raise Exception("Watchdog failed to start and subscribe to events")
+
+        # here, start a thread to tail the watchdog's stderr
+        def tail_stderr():
+            while watchdog_process.poll() is None:
+                line = watchdog_process.stderr.readline()
+                if line:
+                    log.critical(f"Watchdog: {line.strip()}")
+                else:
+                    time.sleep(0.1)
+
+        import threading
+
+        stderr_thread = threading.Thread(target=tail_stderr, daemon=True)
+        stderr_thread.start()
+
         yield watchdog_process
+
         watchdog_process.send_signal(signal.SIGINT)
     finally:
-        # Capture stdout/stderr regardless of exit state
-        with suppress(Exception):
-            stdout, stderr = watchdog_process.communicate(timeout=1)
-            log.info(f"Watchdog process output - stdout: {stdout.decode()}, stderr: {stderr.decode()}")
         try:
             watchdog_process.wait(timeout=5)
         except subprocess.TimeoutExpired:
@@ -121,7 +135,7 @@ def bbot_watchdog():
 
 
 @pytest.fixture
-def bbot_server_http():
+def bbot_server_http(mongo_cleanup, redis_cleanup):
     command = [*BBCTL_COMMAND, "server", "start", "--api-only"]
 
     # Start process in its own process group
@@ -194,9 +208,6 @@ def bbot_agent(bbot_server_http):
             agent_process.kill()
 
 
-BBOT_EVENTS = []
-
-
 @pytest_asyncio.fixture
 async def mongo_cleanup():
     """
@@ -205,140 +216,43 @@ async def mongo_cleanup():
     from motor.motor_asyncio import AsyncIOMotorClient
 
     client = AsyncIOMotorClient(BBOT_SERVER_CONFIG["event_store"]["uri"])
-    await client.drop_database("test_bbot_server_events")
-    await client.drop_database("test_bbot_server_assets")
-    await client.drop_database("test_bbot_server_userdata")
+
+    async def clear_everything():
+        await client.drop_database("test_bbot_server_events")
+        await client.drop_database("test_bbot_server_assets")
+        await client.drop_database("test_bbot_server_userdata")
+
+    await clear_everything()
     yield
-    await client.drop_database("test_bbot_server_events")
-    await client.drop_database("test_bbot_server_assets")
-    await client.drop_database("test_bbot_server_userdata")
-
-
-class DummyScan:
-    targets = []
-    dns = {}
-    config = {
-        "scope": {
-            "report_distance": 100,
-        }
-    }
-
-    @classmethod
-    async def run(cls):
-        scan = Scanner(scan_name=cls.name, *cls.targets, config=cls.config)
-        await scan.helpers.dns._mock_dns(cls.dns)
-        for i, dummy_module in enumerate(cls.dummy_modules):
-            dummy_module = dummy_module(scan)
-            scan.modules[f"dummy_module_{i}"] = dummy_module
-        events = []
-        async for e in scan.async_start():
-            event = Event(**e.json())
-            events.append(event)
-        events.sort(key=lambda x: x.timestamp)
-        return events
-
-
-class DummyScan1(DummyScan):
-    name = "scan1"
-    targets = ["evilcorp.com"]
-    dns = {
-        "evilcorp.com": {
-            "A": ["1.2.3.4", "5.6.7.8"],
-            "TXT": [
-                "openport80a.evilcorp.com",
-                "openport80b.evilcorp.com",
-                "openport443.evilcorp.com",
-            ],
-        },
-        "openport80a.evilcorp.com": {
-            "A": ["1.2.3.4", "5.6.7.8"],
-        },
-        "openport80b.evilcorp.com": {
-            "A": ["1.2.3.4", "5.6.7.8"],
-        },
-        "openport443.evilcorp.com": {
-            "A": ["1.2.3.4", "5.6.7.8"],
-        },
-    }
-
-    class DummyModule(BaseModule):
-        watched_events = ["OPEN_TCP_PORT"]
-
-        async def handle_event(self, event):
-            if str(event.host) in ("openport80a.evilcorp.com", "openport80b.evilcorp.com"):
-                if event.type == "OPEN_TCP_PORT" and event.port == 80:
-                    await self.emit_event(
-                        {
-                            "severity": "HIGH",
-                            "description": "That's a paddlin'",
-                            "host": event.host,
-                            "url": f"https://{event.host}",
-                        },
-                        "VULNERABILITY",
-                        parent=event,
-                    )
-
-    dummy_modules = [DummyModule]
-
-
-class DummyScan2(DummyScan):
-    name = "scan2"
-    targets = ["evilcorp.com"]
-    dns = {
-        "evilcorp.com": {
-            "A": ["1.2.3.4", "5.6.7.8"],
-            "TXT": [
-                "openport80a.evilcorp.com",
-                "openport80b.evilcorp.com",
-                "openport443.evilcorp.com",
-            ],
-        },
-        "openport80a.evilcorp.com": {
-            "A": ["1.2.3.4", "5.6.7.8"],
-        },
-        "openport80b.evilcorp.com": {
-            "A": ["1.2.3.4", "5.6.7.8"],
-        },
-        "openport443.evilcorp.com": {
-            "A": ["1.2.3.4", "5.6.7.8"],
-        },
-    }
-
-    class DummyModule(BaseModule):
-        watched_events = ["OPEN_TCP_PORT"]
-
-        async def handle_event(self, event):
-            if event.type == "OPEN_TCP_PORT" and (
-                str(event.host) == "openport80b.evilcorp.com"
-                and event.port == 80
-                or str(event.host) == "openport443.evilcorp.com"
-                and event.port == 443
-            ):
-                await self.emit_event(
-                    {
-                        "severity": "HIGH",
-                        "description": "That's a paddlin'",
-                        "host": event.host,
-                        "url": f"http://{event.host}",
-                    },
-                    "VULNERABILITY",
-                    parent=event,
-                )
-
-    dummy_modules = [DummyModule]
+    await clear_everything()
 
 
 @pytest_asyncio.fixture
-async def bbot_events():
-    global BBOT_EVENTS
-    if not BBOT_EVENTS:
-        scan1_events = await DummyScan1.run()
-        # scan1 events are 91 days old
-        for event in scan1_events:
-            event.timestamp = (datetime.now(timezone.utc) - timedelta(days=91)).timestamp()
-        scan2_events = await DummyScan2.run()
-        # scan2 events are 89 days old
-        for event in scan2_events:
-            event.timestamp = (datetime.now(timezone.utc) - timedelta(days=89)).timestamp()
-        BBOT_EVENTS = scan1_events, scan2_events
-    return BBOT_EVENTS
+async def redis_cleanup(bbot_server_config):
+    """
+    Clear the redis database before and after each test
+    """
+    import redis.asyncio as redis
+
+    redis_uri = bbot_server_config.get("message_queue", {}).get("uri", "redis://localhost:6379/15")
+
+    # Connect to Redis
+    r = redis.from_url(redis_uri)
+
+    # Clear before test
+    await r.flushdb()
+
+    yield
+
+    # Clear after test
+    await r.flushdb()
+
+    # Close connection
+    await r.aclose()
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_sessionfinish(session, exitstatus):
+    # Wipe out testing home dir
+    shutil.rmtree(BBOT_SERVER_TEST_DIR, ignore_errors=True)
+    yield

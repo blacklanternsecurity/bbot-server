@@ -1,5 +1,3 @@
-import websockets
-
 from ..conftest import *
 
 from tests.test_applets.base import BaseAppletTest
@@ -56,14 +54,14 @@ class TestAppletEvents(BaseAppletTest):
 
     async def after_scan_1(self):
         # TODO: why does this change sometimes?
-        assert 20 <= len(self.event_messages) <= 21
+        assert 24 <= len(self.event_messages) <= 25
 
         # make sure our event store is populated
         # events = await self.bbot_server.get_events()
         # assert len(events) == len(self.event_messages)
 
     async def after_scan_2(self):
-        assert 40 <= len(self.event_messages) <= 42
+        assert 48 <= len(self.event_messages) <= 50
 
         # make sure the new events arrived in the event store
         # events = await self.bbot_server.get_events()

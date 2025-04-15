@@ -1,9 +1,6 @@
 import logging
-from omegaconf import OmegaConf
-from urllib.parse import urlparse
 
 from bbot_server.errors import BBOTServerError
-from bbot_server.config import BBOT_SERVER_CONFIG
 
 log = logging.getLogger(__name__)
 

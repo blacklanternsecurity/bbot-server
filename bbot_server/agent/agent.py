@@ -4,7 +4,6 @@ import inspect
 import logging
 import traceback
 import websockets
-from omegaconf import OmegaConf
 from contextlib import suppress
 from typing import Callable, Any
 from urllib.parse import urlparse, urlunparse, urljoin
@@ -49,7 +48,7 @@ class BBOTAgent:
     """
 
     def __init__(self, id: str, name: str, config):
-        self.log = logging.getLogger("bbot.server.agent")
+        self.log = logging.getLogger("bbot_server.agent")
         self.id = id
         self.name = name
         self.config = config

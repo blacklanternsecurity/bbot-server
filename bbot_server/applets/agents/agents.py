@@ -1,7 +1,6 @@
 import time
 import asyncio
 import traceback
-from typing import Any
 from pydantic import UUID4
 from fastapi import WebSocket
 from contextlib import suppress
@@ -22,7 +21,7 @@ class AgentsApplet(BaseApplet):
     async def setup(self):
         # if this is the main server instance,
         if self.root.is_main_server:
-            from bbot_server.applets.agents.connectionmanager import ConnectionManager
+            from bbot_server.connectionmanager import ConnectionManager
 
             # manage incoming agent connections
             self.connection_manager = ConnectionManager()
@@ -137,7 +136,7 @@ class AgentsApplet(BaseApplet):
         await self.emit_activity(
             type="AGENT_CONNECTED",
             detail={"agent_id": str(agent.id)},
-            description=f"Agent [dark_orange]{agent.name}[/dark_orange] connected",
+            description=f"Agent [COLOR]{agent.name}[/COLOR] connected",
         )
 
     async def _on_disconnect(self, agent):
@@ -145,7 +144,7 @@ class AgentsApplet(BaseApplet):
         await self.emit_activity(
             type="AGENT_DISCONNECTED",
             detail={"agent_id": str(agent.id)},
-            description=f"Agent [dark_orange]{agent.name}[/dark_orange] disconnected",
+            description=f"Agent [COLOR]{agent.name}[/COLOR] disconnected",
         )
 
     async def _update_agent_status(self, agent_id: UUID4, status: str, connected: bool):
@@ -183,13 +182,8 @@ class AgentsApplet(BaseApplet):
         for i in range(1000):
             online_agents = await self.get_online_agents()
             online_agents = [str(agent.id) for agent in online_agents]
-            if i > 20:
-                import traceback
-
-                traceback.print_stack()
-                assert False
             if not online_agents:
-                await self.sleep(5)
+                await self.sleep(1)
                 continue
             now = datetime.now(timezone.utc).timestamp()
             await self.collection.update_many({"id": {"$in": online_agents}}, {"$set": {"last_seen": now}})

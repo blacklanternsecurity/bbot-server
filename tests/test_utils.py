@@ -1,4 +1,5 @@
 import pytest
+from typing import Any, Dict, List
 from pydantic import BaseModel, Field
 from bbot_server.utils.misc import combine_pydantic_models
 
@@ -65,3 +66,38 @@ def test_combine_pydantic_models():
     assert single_model_instance.field1 == 10
     assert hasattr(single_model_instance, "field2")
     assert single_model_instance.field2 == "default"
+
+
+from bbot_server.cli.common import json_to_csv
+
+
+def test_json_to_csv():
+    json_data = [
+        {"name": "test", "value": 1, "value2": [{"a": 2}]},
+        {"name": "test2", "value": 2, "value2": {"a": [1, 2]}, "value3": "test"},
+    ]
+    csv_data = list(json_to_csv(json_data, fieldnames=["name", "value", "value2"]))
+    assert csv_data == [
+        b"name,value,value2\r\n",
+        b'test,1,"[{""a"":2}]"\r\n',
+        b'test2,2,"{""a"":[1,2]}"\r\n',
+    ]
+
+    # same exact thing but with pydantic model
+    class TestModel(BaseModel):
+        name: str = None
+        value: int = None
+        value2: List[Dict[str, Any]] = None
+        value3: str = None
+
+    pydantic_data = [
+        TestModel(name="test", value=1, value2=[{"a": 2}]),
+        TestModel(name="test2", value=2, value2=[{"a": [1, 2]}], value3="test"),
+    ]
+
+    csv_data_pydantic = list(json_to_csv(pydantic_data, fieldnames=["name", "value", "value2"]))
+    assert csv_data_pydantic == [
+        b"name,value,value2\r\n",
+        b'test,1,"[{""a"":2}]"\r\n',
+        b'test2,2,"[{""a"":[1,2]}]"\r\n',
+    ]

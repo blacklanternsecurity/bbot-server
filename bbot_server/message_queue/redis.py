@@ -28,6 +28,8 @@ class RedisMessageQueue(BaseMessageQueue):
     A wrapper around Redis, which uses two different key patterns:
     - bbot:stream:{subject}: for persistent, tailable streams - e.g. events, activities
     - bbot:work:{subject}: for one-time messages, e.g. tasks
+
+    docker run --rm -p 6379:6379 redis
     """
 
     def __init__(self, *args, **kwargs):
@@ -94,6 +96,7 @@ class RedisMessageQueue(BaseMessageQueue):
 
         # Create a task to process messages
         async def message_handler():
+            self.log.info(f"Subscribed to {stream_key}")
             while True:
                 try:
                     # Read new messages from the stream

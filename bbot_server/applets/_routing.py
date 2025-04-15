@@ -4,14 +4,13 @@ import logging
 import asyncio
 import functools
 from fastapi import WebSocket
-from pydantic import BaseModel
 from contextlib import suppress
 from fastapi.responses import StreamingResponse
 from starlette.websockets import WebSocketDisconnect
 
 from bbot_server.utils.misc import smart_encode
 
-log = logging.getLogger("bbot.server.applets.routing")
+log = logging.getLogger("bbot_server.applets.routing")
 
 
 ROUTE_TYPES = {}
@@ -50,7 +49,7 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
     requires_response_model = False
 
     def __init__(self, function, tags=[]):
-        self.log = logging.getLogger(f"bbot.server.routing.{self.__class__.__name__.lower()}")
+        self.log = logging.getLogger(f"bbot_server.routing.{self.__class__.__name__.lower()}")
         self.function = function
         self.endpoint = getattr(function, "_endpoint", None)
         self.function_signature = inspect.signature(function)
@@ -120,7 +119,7 @@ class HTTPStreamRoute(BaseServerRoute):
             # Call the original async generator function
             async def async_generator():
                 async for item in self.function(*args, **kwargs):
-                    item = smart_encode(item)
+                    item = smart_encode(item) + b"\n"
                     yield item
 
             # Return a StreamingResponse

@@ -1,12 +1,12 @@
 import httpx
+import string
 import orjson
 import asyncio
-import traceback
 from functools import partial
 from websockets import connect
 from contextlib import suppress
 from typing import AsyncGenerator
-from urllib.parse import urlparse, parse_qs, urlunparse, urlencode
+from urllib.parse import urlparse, parse_qs, urlunparse, urlencode, quote
 
 
 # for converting pydantic objects into raw JSON
@@ -33,6 +33,8 @@ class http(BaseInterface):
     """
 
     interface_type = "http"
+
+    _url_safe_chars = string.ascii_letters + string.digits + "-_.~"
 
     def __init__(self, **kwargs):
         url = kwargs.pop("url", None)
@@ -81,8 +83,9 @@ class http(BaseInterface):
         try:
             return TypeAdapter(_route.response_model).validate_python(response_json)
         except Exception as e:
-            print(f"Error validating response json for {method}->{_url}: response: {response_json}: {e}")
-            raise
+            raise BBOTServerError(
+                f"Error validating response json for {method}->{_url}: response: {response_json}: {e}"
+            ) from e
 
     async def _http_stream(self, _url, _route, *args, **kwargs):
         """
@@ -90,12 +93,44 @@ class http(BaseInterface):
         """
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
         body = self._prepare_http_body(method, kwargs)
+        buffer = b""
+        MAX_BUFFER_SIZE = 10 * 1024 * 1024  # 10 MB max buffer size
 
-        async with self.client.stream(method=method, url=_url, json=body) as response:
-            async for chunk in response.aiter_bytes():
-                decoded_json = orjson.loads(chunk)
-                model_obj = _route.response_model(**decoded_json)
-                yield model_obj
+        try:
+            async with self.client.stream(method=method, url=_url, json=body) as response:
+                async for chunk in response.aiter_bytes():
+                    buffer += chunk
+
+                    # Check if buffer exceeds maximum size
+                    if len(buffer) > MAX_BUFFER_SIZE:
+                        raise BBOTServerError(
+                            f"Buffer exceeded maximum size of {MAX_BUFFER_SIZE} bytes. Possible malformed JSON stream."
+                        )
+
+                    # Try to extract complete JSON objects from the buffer
+                    # Look for JSON object boundaries (assuming newline-delimited JSON)
+                    while b"\n" in buffer:
+                        line, buffer = buffer.split(b"\n", 1)
+                        if line.strip():  # Skip empty lines
+                            try:
+                                decoded_json = orjson.loads(line)
+                                model_obj = _route.response_model(**decoded_json)
+                                yield model_obj
+                            except Exception as e:
+                                self.log.error(f"Error decoding JSON: {line}")
+                                raise BBOTServerError(f"Error decoding JSON: {line}") from e
+
+                # Process any remaining data in the buffer after the stream ends
+                if buffer.strip():
+                    try:
+                        decoded_json = orjson.loads(buffer)
+                        model_obj = _route.response_model(**decoded_json)
+                        yield model_obj
+                    except Exception as e:
+                        self.log.error(f"Error decoding final chunk: {buffer}")
+                        raise BBOTServerError(f"Error decoding final chunk: {buffer}") from e
+        except Exception as e:
+            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
     async def _websocket_request(self, _url, _route, *args, **kwargs) -> AsyncGenerator:
         """
@@ -106,15 +141,17 @@ class http(BaseInterface):
         # replace scheme with ws
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
         try:
-            async with connect(_url) as websocket:
+            async for websocket in connect(_url):
                 async for message in websocket:
                     decoded_json = orjson.loads(message)
                     model_obj = _route.response_model(**decoded_json)
                     yield model_obj
         except asyncio.CancelledError:
-            self.log.info("Websocket stream incoming cancelled")
+            pass
         except RuntimeError as e:
-            self.log.error(f"Unexpected error in websocket stream: {e}")
+            self.log.debug(f"Unexpected error in websocket stream: {e}")
+        except Exception as e:
+            raise BBOTServerError(f"Error in websocket stream at {_url}: {e}") from e
 
     async def _websocket_publish(self, _url, _route, message_generator, *args, **kwargs):
         """
@@ -123,9 +160,12 @@ class http(BaseInterface):
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
 
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
-        async for message in message_generator:
-            async for websocket in connect(_url):
-                await websocket.send(message)
+        try:
+            async for message in message_generator:
+                async for websocket in connect(_url):
+                    await websocket.send(message)
+        except Exception as e:
+            raise BBOTServerError(f"Error in websocket stream at {_url}: {e}") from e
 
     def _prepare_http_body(self, method, kwargs):
         # body
@@ -173,7 +213,10 @@ class http(BaseInterface):
                     param = param.name
                 value = kwargs.pop(param)
                 path_params[param] = value
-            _url = _url.format(**path_params)
+
+            # URL encode path parameters before formatting
+            encoded_path_params = {k: quote(str(v), safe=self._url_safe_chars) for k, v in path_params.items()}
+            _url = _url.format(**encoded_path_params)
 
         # query params
         if fastapi_route.dependant.query_params:
@@ -231,42 +274,6 @@ class http(BaseInterface):
         # otherwise just return the attribute as is
         except (KeyError, AttributeError):
             return getattr(applet, attr)
-
-    # def __getattribute__(self, attr):
-    #     """
-    #     For every attribute, try to find a matching route in the route map and return a coroutine that will make the request
-
-    #     If the attribute isn't found in the route map, just return the attribute from the applet
-
-    #     _wrap is used here to allow the coroutine to be called synchronously
-    #     """
-    #     # if applet isn't initialized yet, just pass through
-    #     try:
-    #         applet = super().__getattribute__("applet")
-    #     except AttributeError:
-    #         return super().__getattribute__(attr)
-    #     try:
-    #         route = applet.route_maps[attr]
-    #         base_url = super().__getattribute__("base_url")
-    #         url = f"{base_url}{route.full_path}"
-    #         if route.endpoint_type == "http":
-    #             _http_request = super().__getattribute__("_http_request")
-    #             coro = partial(_http_request, url, route)
-    #         elif route.endpoint_type == "http_stream":
-    #             _http_stream = super().__getattribute__("_http_stream")
-    #             coro = partial(_http_stream, url, route)
-    #         elif route.endpoint_type == "websocket_stream_outgoing":
-    #             _websocket_request = super().__getattribute__("_websocket_request")
-    #             coro = partial(_websocket_request, url, route)
-    #         elif route.endpoint_type == "websocket_stream_incoming":
-    #             _websocket_publish = super().__getattribute__("_websocket_publish")
-    #             coro = partial(_websocket_publish, url, route)
-    #         else:
-    #             raise ValueError(f"Unknown endpoint type: {route.endpoint_type}")
-    #         return coro
-    #     except (KeyError, AttributeError):
-    #         return getattr(applet, attr)
-    #         # return self._wrap(getattr(self.applet, attr))
 
     def __dir__(self):
         """

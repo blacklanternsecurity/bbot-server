@@ -1,5 +1,5 @@
 # url of BBOT server
-url: http://localhost:8807/v1/
+url: http://bbot-server:8807/v1/
 
 # event store is just a big bucket of BBOT scan events
 event_store:
@@ -22,7 +22,7 @@ user_store:
   table_name: userdata
 
 message_queue:
-  uri: redis://redis:6379
+  uri: redis://redis:6379/0
 
 agent:
   base_preset:
