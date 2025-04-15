@@ -1,6 +1,9 @@
+from uuid import UUID
+from typer import Option
+from typing import Annotated
+
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
-
 
 class Scans(BaseBBCTL):
     command = "scan"
@@ -31,3 +34,18 @@ class Scans(BaseBBCTL):
         for scan in scan_list:
             table.add_row(scan.name, ", ".join(scan.target))
         self.stdout.print(table)
+
+    @subcommand(help="Create a new scan")
+    def create(
+        self,
+        name: Annotated[str, Option("--name", "-n", help="Name of the scan", metavar="NAME")],
+        target: Annotated[str, Option("--target", "-t", help="Target name or id of the scan", metavar="TARGET")],
+    ):
+        try:
+            target_id = UUID(target)
+        except ValueError:
+            target = self.bbot_server.get_target(name=target)
+            target_id = target.id
+
+        scan = self.bbot_server.create_scan(name=name, target=str(target_id))
+        self.sys.stdout.buffer.write(self.orjson.dumps(scan.model_dump()))

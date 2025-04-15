@@ -58,7 +58,6 @@ class http(BaseInterface):
         try:
             response = await self.client.request(url=_url, method=method, json=body)
         except Exception as e:
-            self.log.error(f"Error making {method} request for -> {_url}: {e}")
             raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
         try:
