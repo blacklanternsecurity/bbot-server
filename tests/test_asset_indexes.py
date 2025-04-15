@@ -3,6 +3,10 @@ async def test_asset_indexes(bbot_server):
 
     assert bbot_server.assets.model.indexed_fields() == {
         "host": "indexed",
+        "scope": "indexed",
+        "created": "indexed",
+        "modified": "indexed",
+        "dns_links": "indexed",
         "open_ports": "indexed",
         "netloc": "indexed",
         "reverse_host": "indexed",

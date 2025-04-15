@@ -21,7 +21,7 @@ class AgentsApplet(BaseApplet):
     async def setup(self):
         # if this is the main server instance,
         if self.root.is_main_server:
-            from bbot_server.applets.agents.connectionmanager import ConnectionManager
+            from bbot_server.connectionmanager import ConnectionManager
 
             # manage incoming agent connections
             self.connection_manager = ConnectionManager()
