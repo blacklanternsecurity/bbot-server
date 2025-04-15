@@ -166,6 +166,8 @@ class TestMessageQueuesRedis(BaseAppletTest):
 
     expected_message_queue_uri = "redis://localhost:6379/15"
 
+    native_only = True
+
     async def setup(self):
         assert self.bbot_server.message_queue.uri == self.expected_message_queue_uri
 

@@ -26,12 +26,14 @@ class AssetCTL(BaseBBCTL):
             return
 
         table = self.Table()
-        table.add_column("Host", style=self.color)
+        table.add_column("Host", style=self.COLOR)
         table.add_column("Open Ports")
+        table.add_column("Modified", style=self.DARK_COLOR)
         for asset in asset_list:
-            open_ports = ", ".join(getattr(asset, "open_ports", []))
+            open_ports = [str(port) for port in getattr(asset, "open_ports", [])]
             table.add_row(
                 asset.host,
-                open_ports,
+                ",".join(open_ports),
+                self.timestamp_to_human(asset.modified),
             )
         self.stdout.print(table)

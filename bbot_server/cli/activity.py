@@ -20,4 +20,4 @@ class ActivityCTL(BaseBBCTL):
                 continue
 
             timestamp = timestamp_to_human(a.timestamp)
-            self.stdout.print(f"[[bright_black]{timestamp}[/bright_black]] {a.description_colored}")
+            self.stdout.print(f"[[{self.DARK_COLOR}]{timestamp}[/{self.DARK_COLOR}]] {a.description_colored}")

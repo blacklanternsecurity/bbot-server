@@ -12,14 +12,14 @@ def test_cli_debugging():
     error_message = f"[ERROR] Error making GET request -> {bogus_server_url}/events/?archived=False&active=True: All connection attempts failed\n"
 
     # induce an error with a bogus server URL
-    command = BBCTL_COMMAND + ["-u", bogus_server_url, "events", "list"]
+    command = BBCTL_COMMAND + ["-u", bogus_server_url, "event", "list"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 1
     assert not process.stdout
     assert process.stderr == error_message
 
     # now same thing but with debug enabled
-    command = BBCTL_COMMAND + ["-d", "-u", bogus_server_url, "events", "list"]
+    command = BBCTL_COMMAND + ["-d", "-u", bogus_server_url, "event", "list"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 1
     assert not process.stdout
