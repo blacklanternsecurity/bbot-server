@@ -3,7 +3,7 @@ from bbot_server.utils.misc import timestamp_to_human
 from bbot_server.cli.base import BaseBBCTL, subcommand
 
 
-class Activity(BaseBBCTL):
+class ActivityCTL(BaseBBCTL):
     command = "activity"
     help = "Query or monitor BBOT activities"
     epilog = "Query or monitor BBOT activities"

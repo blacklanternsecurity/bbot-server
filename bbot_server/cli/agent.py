@@ -4,7 +4,7 @@ from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
-class Agent(BaseBBCTL):
+class AgentCTL(BaseBBCTL):
     command = "agent"
     help = "Manage BBOT agents"
     epilog = "Create or start a BBOT server agent. An agent runs BBOT scans, and reports results back to the server."

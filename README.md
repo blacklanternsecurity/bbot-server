@@ -59,7 +59,7 @@ To create a scan, pass a BBOT preset to `scans create`:
 
 ```bash
 # Create a new scan
-bbctl scans create --name "evilcorp_subdomains" --preset my_preset.yml
+bbctl scan create --name "evilcorp_subdomains" --preset my_preset.yml
 ```
 
 The preset contains your targets, and will look something like this:
@@ -115,7 +115,7 @@ If you'd like, you can also tail the raw events as they stream in from the BBOT 
 
 ```bash
 # Monitor raw BBOT events
-bbctl events tail
+bbctl event tail
 ```
 
 **Check scan status**:
@@ -146,26 +146,26 @@ You can query and export the data even while a scan is running.
 
 ```bash
 # List assets
-bbctl assets list
+bbctl asset list
 
 # Export assets to CSV
-bbctl assets export --csv > assets.csv
+bbctl asset export --csv > assets.csv
 
 # Export assets as JSON
-bbctl assets export --json | jq
+bbctl asset export --json | jq
 ```
 
 **List events**:
 
 ```bash
 # List events
-bbctl events list
+bbctl event list
 
 # Export events to CSV
-bbctl events export --csv > events.csv
+bbctl event export --csv > events.csv
 
 # Export events as JSON
-bbctl events export --json | jq
+bbctl event export --json | jq
 ```
 
 ## Ingest events from past BBOT scans
@@ -174,7 +174,7 @@ If you forgot to output a scan to BBOT server, you can easily ingest it after th
 
 ```bash
 # Ingest events from a past scan
-cat ~/.bbot/scans/demonic_jimmy/output.json | bbctl events ingest
+cat ~/.bbot/scans/demonic_jimmy/output.json | bbctl event ingest
 ```
 
 ## Screenshots

@@ -34,34 +34,33 @@ class RootApplet(BaseApplet):
     async def setup(self):
         # don't try to set up database/message queues if we're connected to a remote instance
         # e.g. through the HTTP interface
-        if not self.is_native:
-            return
-        # set up asset store, user store, and gridfs buckets
-        if self.asset_store is None:
-            from bbot_server.store.user_store import UserStore
-            from bbot_server.store.asset_store import AssetStore
+        if self.is_native:
+            # set up asset store, user store, and gridfs buckets
+            if self.asset_store is None:
+                from bbot_server.store.user_store import UserStore
+                from bbot_server.store.asset_store import AssetStore
 
-            self.asset_store = AssetStore(self.config)
-            await self.asset_store.setup()
-            self.asset_db = self.asset_store.db
-            self.asset_fs = self.asset_store.fs
+                self.asset_store = AssetStore(self.config)
+                await self.asset_store.setup()
+                self.asset_db = self.asset_store.db
+                self.asset_fs = self.asset_store.fs
 
-            self.user_store = UserStore(self.config)
-            await self.user_store.setup()
-            self.user_db = self.user_store.db
-            self.user_fs = self.user_store.fs
+                self.user_store = UserStore(self.config)
+                await self.user_store.setup()
+                self.user_db = self.user_store.db
+                self.user_fs = self.user_store.fs
 
-        # set up event store
-        from bbot_server.event_store import EventStore
+            # set up event store
+            from bbot_server.event_store import EventStore
 
-        self.event_store = EventStore(self.config)
-        await self.event_store.setup()
+            self.event_store = EventStore(self.config)
+            await self.event_store.setup()
 
-        # set up NATS client
-        from bbot_server.message_queue import MessageQueue
+            # set up NATS client
+            from bbot_server.message_queue import MessageQueue
 
-        self.message_queue = MessageQueue(self.config)
-        await self.message_queue.setup()
+            self.message_queue = MessageQueue(self.config)
+            await self.message_queue.setup()
 
         await self._setup()
 

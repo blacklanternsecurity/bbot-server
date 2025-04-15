@@ -22,6 +22,9 @@ class BaseTarget(BaseBBOTServerModel):
     seed_hash: Annotated[str, "indexed"] = ""
     whitelist_hash: Annotated[str, "indexed"] = ""
     blacklist_hash: Annotated[str, "indexed"] = ""
+    seed_size: int = 0
+    whitelist_size: int = 0
+    blacklist_size: int = 0
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -33,6 +36,9 @@ class BaseTarget(BaseBBOTServerModel):
         self.seed_hash = self.bbot_target.seeds.hash.hex()
         self.whitelist_hash = self.bbot_target.whitelist.hash.hex()
         self.blacklist_hash = self.bbot_target.blacklist.hash.hex()
+        self.seed_size = len(self.bbot_target.seeds)
+        self.whitelist_size = len(self.bbot_target.whitelist)
+        self.blacklist_size = len(self.bbot_target.blacklist)
 
     @property
     def bbot_target(self):

@@ -7,8 +7,8 @@ from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
 
 
-class Events(BaseBBCTL):
-    command = "events"
+class EventCTL(BaseBBCTL):
+    command = "event"
     help = "Query, tail, or ingest BBOT events"
     epilog = "Query, tail, or ingest BBOT events"
 

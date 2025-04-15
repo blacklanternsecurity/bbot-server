@@ -2,8 +2,8 @@ from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
 
 
-class Assets(BaseBBCTL):
-    command = "assets"
+class AssetCTL(BaseBBCTL):
+    command = "asset"
     help = "Query, tail, or export BBOT assets"
     epilog = "Query, tail, or export BBOT assets"
 

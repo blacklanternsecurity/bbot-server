@@ -221,6 +221,19 @@ async def test_target_default_names(bbot_server):
     assert target3.name == "Target 3"
 
 
+async def test_target_size(bbot_server):
+    bbot_server = await bbot_server()
+
+    target = await bbot_server.create_target(
+        target=["evilcorp.com", "1.2.3.4/30"],
+        whitelist=["evilcorp.com", "1.2.3.4/29"],
+        blacklist=["www.evilcorp.com", "test.evilcorp.com", "1.2.3.5/28"],
+    )
+    assert target.seed_size == 5  # /30 (4 hosts) + 1 domain
+    assert target.whitelist_size == 9  # /29 (8 hosts) + 1 domain
+    assert target.blacklist_size == 18  # /28 (16 hosts) + 2 domains
+
+
 async def test_scope_checks(bbot_server):
     bbot_server = await bbot_server()
 
