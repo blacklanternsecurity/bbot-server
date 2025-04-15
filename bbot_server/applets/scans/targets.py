@@ -1,3 +1,4 @@
+from uuid import UUID
 from pydantic import UUID4
 from typing import Annotated
 from contextlib import contextmanager
@@ -94,7 +95,7 @@ class TargetsApplet(BaseApplet):
         asset = await self.root.assets.collection.find_one({"host": host}, {"scope": 1, "dns_links": 1})
         if asset is None:
             raise self.BBOTServerNotFoundError(f"Asset not found for host {host}")
-        asset_scope = [UUID4(target_id) for target_id in asset.get("scope", [])]
+        asset_scope = [UUID(target_id) for target_id in asset.get("scope", [])]
         asset_dns_links = asset.get("dns_links", {})
         scope_result = self._check_scope(host, asset_dns_links, target, target_id, asset_scope)
         if scope_result is not None:
@@ -259,7 +260,7 @@ class TargetsApplet(BaseApplet):
         if self._target_ids_modified is None or utc_now() - self._target_ids_modified > debounce:
             self._target_ids = set(await self.collection.distinct("id"))
             self._target_ids_modified = utc_now()
-        return [UUID4(target_id) for target_id in self._target_ids]
+        return [UUID(target_id) for target_id in self._target_ids]
 
     def _check_scope(self, host, resolved_hosts, target, target_id, asset_scope) -> Activity:
         """

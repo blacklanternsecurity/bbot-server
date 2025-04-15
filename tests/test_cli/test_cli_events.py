@@ -28,11 +28,7 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     )
     assert process.returncode == 0
     assert process.stdout == ""
-    assert (
-        process.stderr
-        == """[INFO] Ingested 10 events
-"""
-    )
+    assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n"
 
     sleep(1)
 
@@ -47,11 +43,7 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     )
     assert process.returncode == 0
     assert process.stdout == ""
-    assert (
-        process.stderr
-        == """[INFO] Ingested 10 events
-"""
-    )
+    assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n"
 
     sleep(1)
 
