@@ -109,4 +109,6 @@ async def test_applet_scans(bbot_server):
                 break
         await asyncio.sleep(0.1)
     else:
-        assert False, f"Scan didn't finish properly. Activities: {[a.type for a in activities]}, Events: {[e.type for e in events]}"
+        assert False, (
+            f"Scan didn't finish properly. Activities: {[a.type for a in activities]}, Events: {[e.type for e in events]}"
+        )
