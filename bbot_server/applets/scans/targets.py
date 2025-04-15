@@ -147,13 +147,25 @@ class TargetsApplet(BaseApplet):
     @api_endpoint("/create", methods=["POST"], summary="Create a new scan target")
     async def create_target(
         self,
-        name: str,
+        name: str = "",
         description: str = "",
         target: list[str] = [],
         whitelist: list[str] = None,
         blacklist: list[str] = None,
+        strict_dns_scope: bool = False,
     ) -> Target:
-        target = Target(name=name, description=description, target=target, whitelist=whitelist, blacklist=blacklist)
+        if not target:
+            raise self.BBOTServerValueError("Must provide at least one target")
+        if not name:
+            name = await self.get_available_target_name()
+        target = Target(
+            name=name,
+            description=description,
+            target=target,
+            whitelist=whitelist,
+            blacklist=blacklist,
+            strict_dns_scope=strict_dns_scope,
+        )
         if await self.target_count() == 0:
             target.default = True
         with self._handle_duplicate_target(target):
@@ -263,6 +275,18 @@ class TargetsApplet(BaseApplet):
             self._target_ids = set(await self.collection.distinct("id"))
             self._target_ids_modified = utc_now()
         return [UUID(target_id) for target_id in self._target_ids]
+
+    async def get_available_target_name(self) -> str:
+        """
+        Returns a target name that's guaranteed to not be in use, such as "Target 1", "Target 2", etc.
+        """
+        # Get all existing target names
+        existing_names = await self.collection.distinct("name")
+        # Start with "Target 1" and increment until we find an unused name
+        counter = 1
+        while f"Target {counter}" in existing_names:
+            counter += 1
+        return f"Target {counter}"
 
     def _check_scope(self, host, resolved_hosts, target, target_id, asset_scope) -> Activity:
         """
@@ -409,7 +433,9 @@ class TargetsApplet(BaseApplet):
         except DuplicateKeyError as e:
             key_value = e.details["keyValue"]
             if "hash" in key_value:
-                raise self.BBOTServerValueError(f"Identical target already exists")
+                raise self.BBOTServerValueError(f"Identical target already exists", detail={"hash": key_value["hash"]})
             elif "name" in key_value:
-                raise self.BBOTServerValueError(f"Target with name {target.name} already exists")
+                raise self.BBOTServerValueError(
+                    f'Target with name "{target.name}" already exists', detail={"name": key_value["name"]}
+                )
             raise self.BBOTServerValueError(f"Error creating target: {e}")

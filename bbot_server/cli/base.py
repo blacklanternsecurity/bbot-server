@@ -36,6 +36,7 @@ class BaseBBCTL:
     from rich.table import Table
     from rich.console import Console
     from bbot_server.cli.themes import COLOR, DARK_COLOR
+    from bbot_server.errors import BBOTServerError, BBOTServerValueError, BBOTServerNotFoundError
 
     stdout = Console(file=sys.stdout, highlight=False)
     stderr = Console(file=sys.stderr, highlight=False)

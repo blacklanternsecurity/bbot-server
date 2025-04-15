@@ -1,9 +1,11 @@
-from uuid import UUID
+import yaml
 from typer import Option
+from pathlib import Path
 from typing import Annotated
 
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
+
 
 class Scans(BaseBBCTL):
     command = "scan"
@@ -38,14 +40,33 @@ class Scans(BaseBBCTL):
     @subcommand(help="Create a new scan")
     def create(
         self,
-        name: Annotated[str, Option("--name", "-n", help="Name of the scan", metavar="NAME")],
-        target: Annotated[str, Option("--target", "-t", help="Target name or id of the scan", metavar="TARGET")],
+        preset: Annotated[
+            Path,
+            Option(
+                "--preset",
+                "-p",
+                help="BBOT preset YAML file to use for the scan. Must include target.",
+                metavar="PRESET",
+            ),
+        ],
+        name: Annotated[str, Option("--name", "-n", help="Name of the scan", metavar="NAME")] = None,
     ):
+        if not preset.resolve().is_file():
+            raise self.BBOTServerNotFoundError(f"Unable to find preset file at {preset}")
+        preset = yaml.safe_load(preset.read_text())
+        targets = preset.pop("targets", [])
+        whitelist = preset.pop("whitelist", [])
+        blacklist = preset.pop("blacklist", [])
+        strict_scope = preset.get("scope", {}).get("strict", False)
         try:
-            target_id = UUID(target)
-        except ValueError:
-            target = self.bbot_server.get_target(name=target)
-            target_id = target.id
-
-        scan = self.bbot_server.create_scan(name=name, target=str(target_id))
+            target = self.bbot_server.create_target(
+                target=targets, whitelist=whitelist, blacklist=blacklist, strict_dns_scope=strict_scope
+            )
+        except self.BBOTServerValueError as e:
+            error = e.detail.get("error", "")
+            if "Identical target already exists" in error:
+                hash = e.detail.get("hash")
+                target = self.bbot_server.get_target(hash=hash)
+            raise
+        scan = self.bbot_server.create_scan(name=name, target=str(target.id))
         self.sys.stdout.buffer.write(self.orjson.dumps(scan.model_dump()))

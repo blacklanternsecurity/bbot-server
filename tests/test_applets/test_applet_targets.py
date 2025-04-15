@@ -60,17 +60,25 @@ async def test_applet_targets(bbot_server):
     assert target_ids[0] == target1.id
 
     # creating a target with the same name should raise an error
-    with pytest.raises(BBOTServerValueError, match="Target with name target1 already exists"):
-        await bbot_server.create_target(name="target1")
+    with pytest.raises(BBOTServerValueError, match='Target with name "target1" already exists'):
+        try:
+            await bbot_server.create_target(name="target1", target=["localhost"])
+        except BBOTServerValueError as e:
+            assert e.detail["name"] == "target1"
+            raise
 
     # creating a target with the same hash should raise an error
     with pytest.raises(BBOTServerValueError, match="Identical target already exists"):
-        await bbot_server.create_target(
-            name="asdgasdgasdf",
-            target=["localhost"],
-            whitelist=["127.0.0.1", "evilcorp.com"],
-            blacklist=["127.0.0.2"],
-        )
+        try:
+            await bbot_server.create_target(
+                name="asdgasdgasdf",
+                target=["localhost"],
+                whitelist=["127.0.0.1", "evilcorp.com"],
+                blacklist=["127.0.0.2"],
+            )
+        except BBOTServerValueError as e:
+            assert e.detail["hash"] == target1.hash
+            raise
 
     # create a second target
     target2 = await bbot_server.create_target(
@@ -198,6 +206,21 @@ async def test_applet_targets(bbot_server):
         await activity_tail_task
 
 
+# test CRUD operations on targets
+async def test_target_default_names(bbot_server):
+    bbot_server = await bbot_server()
+
+    with pytest.raises(BBOTServerValueError, match="Must provide at least one target"):
+        await bbot_server.create_target()
+
+    target1 = await bbot_server.create_target(target=["evilcorp.com"])
+    assert target1.name == "Target 1"
+    target2 = await bbot_server.create_target(target=["evilcorp.org"])
+    assert target2.name == "Target 2"
+    target3 = await bbot_server.create_target(target=["evilcorp.net"])
+    assert target3.name == "Target 3"
+
+
 async def test_scope_checks(bbot_server):
     bbot_server = await bbot_server()
 
@@ -269,6 +292,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         self.target1 = await self.bbot_server.create_target(
             name="evilcorp",
             description="evilcorp target",
+            target=["evilcorp.com"],
             whitelist=["evilcorp.com"],
             blacklist=["www.evilcorp.com"],
         )
@@ -277,6 +301,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         self.target2 = await self.bbot_server.create_target(
             name="www evilcorp",
             description="www evilcorp target",
+            target=["evilcorp.com"],
             whitelist=["www.evilcorp.com", "localhost.evilcorp.com", "127.0.0.1"],
             blacklist=["127.0.0.2"],
         )

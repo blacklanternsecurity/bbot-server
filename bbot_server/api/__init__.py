@@ -45,7 +45,7 @@ def make_app(config=None):
         message = error_message if error_message else exc.default_message
         return ORJSONResponse(
             status_code=status_code,
-            content={"error": message},
+            content={"error": message, "detail": getattr(exc, "detail", {})},
         )
 
     # favicon overrides - not working

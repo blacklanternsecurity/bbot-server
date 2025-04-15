@@ -13,7 +13,9 @@ class Agent(BaseBBCTL):
     def create(
         self,
         name: Annotated[str, Option("--name", "-n", help="Name of the agent", metavar="NAME")],
-        description: Annotated[str, Option("--description", "-d", help="Description of the agent", metavar="DESCRIPTION")] = "",
+        description: Annotated[
+            str, Option("--description", "-d", help="Description of the agent", metavar="DESCRIPTION")
+        ] = "",
     ):
         agent = self.bbot_server.create_agent(name=name, description=description)
         print(agent.model_dump_json())
@@ -52,7 +54,9 @@ class Agent(BaseBBCTL):
     def delete(
         self,
         agent_id: Annotated[str, Option("--id", "-i", help="ID of the agent to delete", metavar="UUID")] = None,
-        agent_name: Annotated[str, Option("--name", "-n", help="Name of the agent to delete", metavar="STRING")] = None,
+        agent_name: Annotated[
+            str, Option("--name", "-n", help="Name of the agent to delete", metavar="STRING")
+        ] = None,
     ):
         if agent_id is None and agent_name is None:
             raise self.BBOTServerValueError("Either --id or --name must be provided")

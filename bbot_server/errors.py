@@ -2,6 +2,10 @@ class BBOTServerError(Exception):
     http_status_code = 500
     default_message = "An error occurred"
 
+    def __init__(self, *args, detail=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.detail = detail or {}
+
 
 class BBOTServerForbiddenError(BBOTServerError):
     http_status_code = 403

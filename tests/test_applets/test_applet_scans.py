@@ -1,5 +1,8 @@
+import pytest
 import asyncio
 import logging
+
+from bbot_server.errors import BBOTServerValueError
 
 log = logging.getLogger("bbot_server.test_applet_scans")
 
@@ -112,3 +115,26 @@ async def test_applet_scans(bbot_server):
         assert False, (
             f"Scan didn't finish properly. Activities: {[a.type for a in activities]}, Events: {[e.type for e in events]}"
         )
+
+
+async def test_scan_auto_naming(bbot_server):
+    bbot_server = await bbot_server()
+
+    target = await bbot_server.create_target(
+        name="target1",
+        description="target1 description",
+        target=["localhost"],
+    )
+
+    scan1 = await bbot_server.create_scan(target=target.id)
+    assert scan1.name == "Scan 1"
+    scan2 = await bbot_server.create_scan(target=target.id)
+    assert scan2.name == "Scan 2"
+    scan3 = await bbot_server.create_scan(target=target.id)
+    assert scan3.name == "Scan 3"
+
+    with pytest.raises(BBOTServerValueError, match='Scan with name "Scan 3" already exists'):
+        await bbot_server.create_scan(name="Scan 3", target=target.id)
+
+    with pytest.raises(BBOTServerValueError, match='Scan with name "Scan 2" already exists'):
+        await bbot_server.update_scan(scan3.id, scan2)

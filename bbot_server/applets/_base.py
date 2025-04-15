@@ -134,11 +134,29 @@ class BaseApplet:
         if self._setup_finished:
             return
 
+        await self._global_setup()
+
+        if self.is_native:
+            await self._native_setup()
+
+        # set up children
+        for child_applet in self.child_applets:
+            await child_applet._setup()
+
+        self._setup_finished = True
+
+    async def _global_setup(self):
+        """
+        This setup always runs, regardless of which interface is being used.
+        """
+        pass
+
+    async def _native_setup(self):
+        """
+        This setup only runs when BBOT server is running natively, e.g. directly connecting to mongo, redis, etc.
+        """
         # inherit config, db, message queue, etc. from parent applet
         if self.parent is not None:
-            self._is_main_server = self.parent._is_main_server
-            self.config = self.parent.config
-
             self.asset_store = self.parent.asset_store
             self.asset_db = self.parent.asset_db
             self.asset_fs = self.parent.asset_fs
@@ -191,12 +209,6 @@ class BaseApplet:
 
         if self.name != "Root Applet":
             await self.setup()
-
-        # set up children
-        for child_applet in self.child_applets:
-            await child_applet._setup()
-
-        self._setup_finished = True
 
     async def build_indexes(self, model):
         if not model:
@@ -333,7 +345,7 @@ class BaseApplet:
 
     @property
     def is_main_server(self):
-        return self._is_main_server
+        return self.root._is_main_server
 
     def _add_custom_routes(self):
         # automatically add API routes for any methods marked with @api_endpoint decorator
@@ -367,6 +379,10 @@ class BaseApplet:
 
                 bbot_server_route = route_class(function, **kwargs)
                 bbot_server_route.add_to_applet(self)
+
+    @property
+    def config(self):
+        return self.root._config
 
     @property
     def tag(self):
@@ -412,36 +428,26 @@ class BaseApplet:
     def interface(self):
         return self.root._interface
 
-    # def __getattribute__(self, attr):
-    #     """
-    #     Allow access to attributes on any of this applet's children, recursively
+    @property
+    def interface_type(self):
+        return self.root._interface_type
 
-    #     This saves you from having to do things like: `bbot_server.assets.scans.runs.get_scan_runs()`.
-    #     Instead, you can just do: `bbot_server.get_scan_runs()`.
-    #     """
-    #     try:
-    #         # first try self
-    #         return super().__getattribute__(attr)
-    #     except AttributeError:
-    #         # then try all the child applets
-    #         for child_applet in super().__getattribute__("child_applets"):
-    #             try:
-    #                 return getattr(child_applet, attr)
-    #             except AttributeError:
-    #                 continue
-    #     raise AttributeError(f'{self.__class__.__name__} has no attribute "{attr}"')
+    @property
+    def is_native(self):
+        """
+        Whether this instance of BBOT server is running natively (e.g. not through the HTTP interface)
+
+        When this is True, we can safely skip any database/message-queue functionality.
+        """
+        return self.interface_type == "python"
 
     def __getattr__(self, name):
-        try:
-            # first try self
-            return super().__getattribute__(name)
-        except AttributeError:
-            # then try all the child applets
-            for child_applet in super().__getattribute__("child_applets"):
-                try:
-                    return getattr(child_applet, name)
-                except AttributeError:
-                    continue
+        # try getting the attribute from all the child applets
+        for child_applet in getattr(self, "child_applets", []):
+            try:
+                return getattr(child_applet, name)
+            except AttributeError:
+                continue
         raise AttributeError(f'{self.__class__.__name__} has no attribute "{name}"')
 
     ### ASYNC UTILS FOR CONVENIENCE ###
