@@ -3,6 +3,8 @@ import asyncio
 import traceback
 from contextlib import suppress
 
+from bbot.core.helpers.names_generator import random_name
+
 from bbot_server.applets._base import BaseApplet, api_endpoint
 from bbot_server.applets.scans.scan_models import ScanRun, ScanDBEntry
 
@@ -76,9 +78,10 @@ class ScanRunsApplet(BaseApplet):
         return scan_runs
 
     def make_run_from_scan(self, scan: ScanDBEntry, agent_id: str = None) -> ScanRun:
+        random_scan_name = random_name()
         return ScanRun(
             id=scan.id,
-            name=scan.name,
+            name=f"{scan.name} ({random_scan_name})",
             target=scan.target,
             parent_scan_id=scan.id,
             preset=scan.preset,

@@ -86,6 +86,7 @@ class ScanRun(BaseBBOTServerModel):
     __user__ = True
 
     id: Annotated[UUID4, "indexed", "unique"] = Field(default_factory=lambda: f"SCAN:{uuid.uuid4()}")
+    name: Annotated[str, "indexed"]
     status: Annotated[str, "indexed"] = "QUEUED"
     target: BaseTarget
     agent_id: Annotated[Union[UUID4, None], "indexed"] = None
