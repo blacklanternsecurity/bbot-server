@@ -21,7 +21,7 @@ class AgentsApplet(BaseApplet):
     async def setup(self):
         # if this is the main server instance,
         if self.root.is_main_server:
-            from bbot_server.applets.agents.connectionmanager import ConnectionManager
+            from bbot_server.connectionmanager import ConnectionManager
 
             # manage incoming agent connections
             self.connection_manager = ConnectionManager()
@@ -136,7 +136,7 @@ class AgentsApplet(BaseApplet):
         await self.emit_activity(
             type="AGENT_CONNECTED",
             detail={"agent_id": str(agent.id)},
-            description=f"Agent [dark_orange]{agent.name}[/dark_orange] connected",
+            description=f"Agent [COLOR]{agent.name}[/COLOR] connected",
         )
 
     async def _on_disconnect(self, agent):
@@ -144,7 +144,7 @@ class AgentsApplet(BaseApplet):
         await self.emit_activity(
             type="AGENT_DISCONNECTED",
             detail={"agent_id": str(agent.id)},
-            description=f"Agent [dark_orange]{agent.name}[/dark_orange] disconnected",
+            description=f"Agent [COLOR]{agent.name}[/COLOR] disconnected",
         )
 
     async def _update_agent_status(self, agent_id: UUID4, status: str, connected: bool):

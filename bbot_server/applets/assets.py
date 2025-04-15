@@ -1,5 +1,3 @@
-from contextlib import suppress
-
 # applets imports
 from bbot_server.applets.risk import Risk
 from bbot_server.applets.emails import EmailsApplet
@@ -9,13 +7,9 @@ from bbot_server.applets.dns_links import DNSLinksApplet
 from bbot_server.applets.open_ports import OpenPortsApplet
 from bbot_server.applets.web_screenshots import WebScreenshotsApplet
 
-from bbot_server.utils.misc import combine_pydantic_models
+from bbot_server.assets import Asset
+from bbot_server.utils.misc import utc_now
 from bbot_server.applets._base import BaseApplet, api_endpoint
-from bbot_server.models.assets import AssetActivity, BaseAssetFacet
-
-
-class Asset(BaseAssetFacet):
-    __tablename__ = "assets"
 
 
 class AssetsApplet(BaseApplet):
@@ -33,41 +27,16 @@ class AssetsApplet(BaseApplet):
 
     model = Asset
 
-    async def setup(self):
-        global Asset
-        asset_field_models = set()
-        for child_applet in self.all_child_applets():
-            asset_field_model = getattr(child_applet, "asset_fields", None)
-            if asset_field_model is not None:
-                await self.build_indexes(asset_field_model)
-                asset_field_models.add(asset_field_model)
-        master_asset_model = combine_pydantic_models(
-            asset_field_models, model_name="Asset", base_model=BaseAssetFacet, make_optional=True
-        )
-
-        self.model = master_asset_model
-        Asset = master_asset_model
-
     @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
     async def get_assets(self):
-        # pipeline = [
-        #     {
-        #         "$group": {
-        #             "_id": "$host",  # Group by the 'category' field
-        #             "documents": {"$push": "$$ROOT"}  # Push the entire document into an array
-        #         }
-        #     }
-        # ]
-        # async for result in self.collection.aggregate(pipeline):
-        #     yield result
-        async for asset in self.collection.find({"type": "asset"}):
+        async for asset in self.collection.find({"type": "Asset"}):
             yield self.model(**asset)
 
     @api_endpoint("/{host}/list", methods=["GET"], summary="List assets by host (including subdomains)")
     async def get_assets_by_host(self, host: str) -> list[Asset]:
         cursor = self.collection.find({"type": "asset", "reverse_host": {"$regex": f"^{host[::-1]}."}})
         assets = await cursor.to_list(length=None)
-        assets = [Asset(**asset) for asset in assets]
+        assets = [self.model(**asset) for asset in assets]
         return assets
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
@@ -75,19 +44,10 @@ class AssetsApplet(BaseApplet):
         asset = await self.collection.find_one({"host": host})
         if not asset:
             raise self.BBOTServerNotFoundError(f"Asset {host} not found")
-        return Asset(**asset)
-
-    @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=AssetActivity)
-    async def tail_assets(self, n: int = 0):
-        agen = self.message_queue.asset_tail(n=n)
-        try:
-            async for activity in agen:
-                yield activity
-        finally:
-            with suppress(BaseException):
-                await agen.aclose()
+        return self.model(**asset)
 
     async def update_asset(self, asset: Asset):
+        asset.modified = utc_now()
         await self.strict_collection.update_one({"host": asset.host}, {"$set": asset.model_dump()}, upsert=True)
 
     async def refresh_assets(self):

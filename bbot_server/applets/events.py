@@ -6,12 +6,17 @@ from bbot_server.applets._base import BaseApplet, api_endpoint, watchdog_task
 
 class EventsApplet(BaseApplet):
     name = "Events"
+    watched_events = ["*"]
     description = "query raw BBOT scan events"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # set up cron job for archiving events
         # self.archive_cron = self.event_store.event_store_config.archive_cron
+
+    async def handle_event(self, event: Event, asset):
+        # write the event to the database
+        await self.event_store.insert_event(event)
 
     @api_endpoint("/", methods=["POST"], summary="Insert a BBOT event into the asset database")
     async def insert_event(self, event: Event):
@@ -24,7 +29,7 @@ class EventsApplet(BaseApplet):
         """
         # publish event to the message queue
         # it will be picked up by the watchdog and ingested
-        await self.root.message_queue.event_publish(event)
+        await self.root.message_queue.publish_event(event)
 
     @api_endpoint("/{uuid}", methods=["GET"], summary="Get an event by its UUID")
     async def get_event(self, uuid: str) -> Event:
@@ -32,7 +37,7 @@ class EventsApplet(BaseApplet):
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)
     async def tail_events(self, n: int = 0):
-        async for event in self.message_queue.event_tail(n=n):
+        async for event in self.message_queue.tail_events(n=n):
             yield event
 
     @api_endpoint("/{uuid}/archive", methods=["GET"], summary="Archive an event")
@@ -72,4 +77,5 @@ class EventsApplet(BaseApplet):
         """
         async for event in event_generator:
             # we use "interface" here because we need it to still work even if we're accessing a remote BBOT server instance
+            # wait what?? TODO
             await self.interface.insert_event(event)

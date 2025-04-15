@@ -15,18 +15,47 @@ class TestAppletAssets(BaseAppletTest):
         assert await self.bbot_server.get_hosts() == []
 
     async def after_scan_1(self):
-        assert await self.bbot_server.get_hosts() == ["www.evilcorp.com", "www2.evilcorp.com"]
+        assert await self.bbot_server.get_hosts() == [
+            "1.2.3.4",
+            "127.0.0.1",
+            "5.6.7.8",
+            "a.com",
+            "api.evilcorp.com",
+            "cname.evilcorp.com",
+            "evilcorp.com",
+            "localhost.evilcorp.com",
+            "www.evilcorp.com",
+            "www2.evilcorp.com",
+        ]
 
     async def after_scan_2(self):
         assert await self.bbot_server.get_hosts() == [
+            "1.2.3.4",
+            "127.0.0.1",
+            "127.0.0.2",
+            "5.6.7.8",
+            "a.com",
             "api.evilcorp.com",
+            "b.com",
+            "cname.evilcorp.com",
+            "evilcorp.com",
+            "localhost.evilcorp.com",
             "www.evilcorp.com",
             "www2.evilcorp.com",
         ]
 
     async def after_archive(self):
         assert await self.bbot_server.get_hosts() == [
+            "1.2.3.4",
+            "127.0.0.1",
+            "127.0.0.2",
+            "5.6.7.8",
+            "a.com",
             "api.evilcorp.com",
+            "b.com",
+            "cname.evilcorp.com",
+            "evilcorp.com",
+            "localhost.evilcorp.com",
             "www.evilcorp.com",
             "www2.evilcorp.com",
         ]

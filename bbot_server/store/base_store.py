@@ -9,3 +9,6 @@ class BaseMongoStore(BaseDB):
         self.client = AsyncIOMotorClient(self.uri)
         self.db = self.client.get_database(self.db_name)
         self.fs = AsyncIOMotorGridFSBucket(self.db)
+
+    async def cleanup(self):
+        self.client.close()

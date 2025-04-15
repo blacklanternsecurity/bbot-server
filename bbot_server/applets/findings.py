@@ -11,7 +11,7 @@ class FindingsApplet(BaseApplet):
         vulnerabilities: list[str] = Field(default_factory=list)
         findings: list[str] = Field(default_factory=list)
 
-    # async def handle_event(self, asset: Asset, event: Event) -> list[AssetActivity]:
+    # async def handle_event(self, asset: Asset, event: Event) -> list[Activity]:
     #     activities = []
     #     vuln_id = event.id
     #     vuln_description = event.data_json["description"]
@@ -22,10 +22,10 @@ class FindingsApplet(BaseApplet):
     #     current_vulns = set(asset.fields.get(fieldname, []))
     #     if vuln_id not in current_vulns:
     #         description = f"New {fieldname}: [{vuln_description}]"
-    #         description_colored = f"New {fieldname}: [[dark_orange]{vuln_description}[/dark_orange]]"
+    #         description_colored = f"New {fieldname}: [[COLOR]{vuln_description}[/COLOR]]"
     #         current_vulns.add(vuln_id)
     #         current_vulns = sorted(current_vulns)
-    #         vuln_activity = AssetActivity.create(
+    #         vuln_activity = Activity.create(
     #             type=f"NEW_{event.type}",
     #             asset=asset,
     #             event=event,

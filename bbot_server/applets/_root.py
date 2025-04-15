@@ -7,14 +7,16 @@ from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.applets.assets import AssetsApplet
 from bbot_server.applets.events import EventsApplet
 from bbot_server.applets.scans.scans import ScansApplet
+from bbot_server.applets.scans.targets import TargetsApplet
+from bbot_server.applets.activity import ActivityApplet
 
 
 class RootApplet(BaseApplet):
-    include_apps = [AssetsApplet, EventsApplet, ScansApplet]
+    include_apps = [AssetsApplet, EventsApplet, ScansApplet, TargetsApplet, ActivityApplet]
 
     name = "Root Applet"
 
-    nested = False
+    _nested = False
 
     _route_prefix = ""
 
@@ -60,6 +62,7 @@ class RootApplet(BaseApplet):
 
     async def cleanup(self):
         await self.asset_store.cleanup()
+        await self.user_store.cleanup()
         await self.event_store.cleanup()
         await self.message_queue.cleanup()
         await self._cleanup()

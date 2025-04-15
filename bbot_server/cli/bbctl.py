@@ -13,9 +13,11 @@ from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG
 
 # subcommand imports
 from bbot_server.cli.agent import Agent
-from bbot_server.cli.scans import Scans
+from bbot_server.cli.assets import Assets
+from bbot_server.cli.scan import Scans
 from bbot_server.cli.server import Server
 from bbot_server.cli.events import Events
+from bbot_server.cli.activity import Activity
 
 
 class BBCTL(BaseBBCTL):
@@ -23,7 +25,7 @@ class BBCTL(BaseBBCTL):
     The root command for the BBCTL CLI
     """
 
-    include = [Scans, Server, Agent, Events]
+    include = [Assets, Scans, Server, Agent, Events, Activity]
 
     def __init__(self):
         super().__init__()

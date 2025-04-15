@@ -12,7 +12,7 @@ async def test_applet_scans(bbot_server):
     events = []
 
     async def tail_activities():
-        async for activity in bbot_server.tail_assets(n=10):
+        async for activity in bbot_server.tail_activities(n=10):
             activities.append(activity)
 
     async def tail_events():
@@ -96,9 +96,19 @@ async def test_applet_scans(bbot_server):
     for _ in range(100):
         activity_types = [a.type for a in activities]
         event_types = [e.type for e in events]
-        if activity_types == ["AGENT_CONNECTED", "SCAN_QUEUED", "SCAN_SENT", "SCAN_STARTED", "SCAN_FINISHED"]:
+        if activity_types == [
+            "AGENT_CONNECTED",
+            "TARGET_CREATED",
+            "TARGET_CREATED",
+            "SCAN_QUEUED",
+            "SCAN_SENT",
+            "SCAN_STARTED",
+            "SCAN_FINISHED",
+        ]:
             if event_types == ["SCAN", "SCAN"]:
                 break
         await asyncio.sleep(0.1)
     else:
-        assert False, f"Scan didn't finish properly. Activities: {[a.type for a in activities]}"
+        assert False, (
+            f"Scan didn't finish properly. Activities: {[a.type for a in activities]}, Events: {[e.type for e in events]}"
+        )

@@ -119,7 +119,7 @@ class HTTPStreamRoute(BaseServerRoute):
             # Call the original async generator function
             async def async_generator():
                 async for item in self.function(*args, **kwargs):
-                    item = smart_encode(item)
+                    item = smart_encode(item) + b"\n"
                     yield item
 
             # Return a StreamingResponse

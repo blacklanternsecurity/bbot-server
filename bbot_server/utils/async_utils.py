@@ -105,13 +105,18 @@ class AsyncToSyncWrapper:
         return future.result()
 
     def shutdown(self):
-        """Properly shut down the background thread and event loop."""
-        loop = getattr(self, "loop", None)
-        if loop is not None and loop.is_running():
-            self.loop.call_soon_threadsafe(self.loop.stop)
-            thread = getattr(self, "thread", None)
-            if thread is not None:
-                thread.join(timeout=5)  # Wait for thread to finish
+        """
+        Properly shut down the background thread and event loop.
+
+        Note: using this atexit is problematic because it executes prematurely when CTRL+C is pressed
+        """
+        pass
+        # loop = getattr(self, "loop", None)
+        # if loop is not None and loop.is_running():
+        #     self.loop.call_soon_threadsafe(self.loop.stop)
+        #     thread = getattr(self, "thread", None)
+        #     if thread is not None:
+        #         thread.join(timeout=5)  # Wait for thread to finish
 
 
 def async_to_sync_class(cls):
@@ -175,20 +180,21 @@ def async_to_sync_class(cls):
 
                     # Create a synchronous generator that yields from the async generator
                     def sync_generator():
-                        try:
-                            while True:
-                                # Get the next item from the async generator
-                                coro = async_gen.__anext__()
-                                try:
-                                    # Run the coroutine synchronously and yield its result
-                                    yield self._wrapper.run_coroutine(coro)
-                                except StopAsyncIteration:
-                                    # This is raised when the async generator is exhausted
-                                    break
-                        finally:
-                            # Ensure the async generator is properly closed
-                            if hasattr(async_gen, "aclose"):
-                                self._wrapper.run_coroutine(async_gen.aclose())
+                        # try:
+                        while True:
+                            # Get the next item from the async generator
+                            coro = async_gen.__anext__()
+                            try:
+                                # Run the coroutine synchronously and yield its result
+                                yield self._wrapper.run_coroutine(coro)
+                            except StopAsyncIteration:
+                                # This is raised when the async generator is exhausted
+                                break
+                        # finally:
+                        #     with suppress(RuntimeError):
+                        #         # Ensure the async generator is properly closed
+                        #         if hasattr(async_gen, "aclose"):
+                        #             self._wrapper.run_coroutine(async_gen.aclose())
 
                     # Return the synchronous generator
                     return sync_generator()
