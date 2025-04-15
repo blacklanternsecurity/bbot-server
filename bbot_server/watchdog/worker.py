@@ -71,7 +71,7 @@ class BBOTWatchdog:
                     asset = self.bbot_server.assets.model(host=event.host)
                     activity = self.bbot_server.assets.make_activity(
                         type="NEW_ASSET",
-                        description=f"New asset: [[dark_orange]{event.host}[/dark_orange]]",
+                        description=f"New asset: [[COLOR]{event.host}[/COLOR]]",
                         event=event,
                     )
                     activities.append(activity)

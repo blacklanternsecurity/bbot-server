@@ -12,11 +12,11 @@ async def test_applet_scans(bbot_server):
     events = []
 
     async def tail_activities():
-        async for activity in bbot_server.tail_assets(n=10):
+        async for activity in bbot_server.tail_activities(n=10):
             activities.append(activity)
 
     async def tail_events():
-        async for event in bbot_server.tail_events(n=10):
+        async for event in bbot_server.tail_activities(n=10):
             events.append(event)
 
     asyncio.create_task(tail_activities())

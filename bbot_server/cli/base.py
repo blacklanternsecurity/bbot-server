@@ -4,6 +4,8 @@ from typer import Typer, Option  # noqa
 from typing import Annotated  # noqa
 from functools import cached_property, wraps
 
+from bbot_server.utils.misc import timestamp_to_human
+
 
 # decorator to register valid agent commands
 def subcommand(**kwargs):
@@ -33,9 +35,10 @@ class BaseBBCTL:
     import orjson
     from rich.table import Table
     from rich.console import Console
+    from bbot_server.cli.themes import COLOR, DARK_COLOR
 
-    stdout = Console(file=sys.stdout)
-    stderr = Console(file=sys.stderr)
+    stdout = Console(file=sys.stdout, highlight=False)
+    stderr = Console(file=sys.stderr, highlight=False)
 
     def __init__(self, parent=None):
         self.log = logging.getLogger(f"bbot_server.cli.bbctl.{self.__class__.__name__.lower()}")
@@ -117,3 +120,6 @@ class BaseBBCTL:
             children.append(child)
             children.extend(child.all_children(include_self=True))
         return children
+
+    def timestamp_to_human(self, timestamp):
+        return timestamp_to_human(timestamp)

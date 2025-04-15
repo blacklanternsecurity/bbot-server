@@ -31,12 +31,12 @@ class ScansApplet(BaseApplet):
             update_op = {"$set": {"finished_at": event.data_json["finished_at"]}}
             activity = "SCAN_FINISHED"
             human_finished_at = timestamp_to_human(event.data_json["finished_at"])
-            description = f"Scan [[dark_orange]{scan_run.name}[/dark_orange]] finished at {human_finished_at}"
+            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] finished at {human_finished_at}"
         else:
             update_op = {"$set": {"started_at": event.data_json["started_at"]}}
             activity = "SCAN_STARTED"
             human_started_at = timestamp_to_human(event.data_json["started_at"])
-            description = f"Scan [[dark_orange]{scan_run.name}[/dark_orange]] started at {human_started_at}"
+            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] started at {human_started_at}"
 
         await self.collection.update_one({"id": scan_id}, update_op)
         activity = Activity(type=activity, description=description)

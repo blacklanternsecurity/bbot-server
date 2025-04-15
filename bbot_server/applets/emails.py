@@ -26,7 +26,7 @@ class EmailsApplet(BaseApplet):
     #     current_emails = set(asset.fields.get("emails", [])) or set()
     #     if email not in current_emails:
     #         description = f"New email: [{email}]"
-    #         description_colored = f"New email: [[dark_orange]{email}[/dark_orange]]"
+    #         description_colored = f"New email: [[COLOR]{email}[/COLOR]]"
     #         current_emails.add(email)
     #         current_emails = sorted(current_emails)
     #         email_activity = Activity.create(

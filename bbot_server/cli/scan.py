@@ -26,7 +26,7 @@ class Scans(BaseBBCTL):
             return
 
         table = self.Table()
-        table.add_column("Name", style="bold dark_orange")
+        table.add_column("Name", style=self.COLOR)
         table.add_column("Targets")
         for scan in scan_list:
             table.add_row(scan.name, ", ".join(scan.target))

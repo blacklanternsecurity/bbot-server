@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 from bbot_server.models.activity import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
@@ -16,3 +18,13 @@ class ActivityApplet(BaseApplet):
     @api_endpoint("/", methods=["GET"], summary="Get all activities")
     async def get_activities(self) -> list[Activity]:
         return await self.collection.find_all()
+
+    @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Activity)
+    async def tail_activities(self, n: int = 0):
+        agen = self.message_queue.tail_activities(n=n)
+        try:
+            async for activity in agen:
+                yield activity
+        finally:
+            with suppress(BaseException):
+                await agen.aclose()

@@ -22,7 +22,7 @@ class FindingsApplet(BaseApplet):
     #     current_vulns = set(asset.fields.get(fieldname, []))
     #     if vuln_id not in current_vulns:
     #         description = f"New {fieldname}: [{vuln_description}]"
-    #         description_colored = f"New {fieldname}: [[dark_orange]{vuln_description}[/dark_orange]]"
+    #         description_colored = f"New {fieldname}: [[COLOR]{vuln_description}[/COLOR]]"
     #         current_vulns.add(vuln_id)
     #         current_vulns = sorted(current_vulns)
     #         vuln_activity = Activity.create(

@@ -130,7 +130,7 @@ class BaseAppletTest:
 
         async def tail_activities():
             try:
-                agen = self.bbot_server.tail_assets(n=10)
+                agen = self.bbot_server.tail_activities(n=10)
                 async for activity in agen:
                     self.log.info(f"{activity.type} - {activity.description}")
                     asset_messages.append(activity)

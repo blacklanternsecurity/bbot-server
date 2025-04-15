@@ -264,7 +264,7 @@ class BaseApplet:
         await self._emit_activity(activity)
 
     async def _emit_activity(self, activity: Activity):
-        await self.root.message_queue.asset_publish(activity)
+        await self.root.message_queue.publish_asset(activity)
 
     def include_app(self, app_class):
         self.log.debug(f"{self.__class__.__name__} including {app_class.__name__}")

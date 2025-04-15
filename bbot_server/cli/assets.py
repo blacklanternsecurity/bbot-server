@@ -26,7 +26,7 @@ class Assets(BaseBBCTL):
             return
 
         table = self.Table()
-        table.add_column("Host", style="bold dark_orange")
+        table.add_column("Host", style=self.color)
         table.add_column("Open Ports")
         for asset in asset_list:
             open_ports = ", ".join(getattr(asset, "open_ports", []))

@@ -23,7 +23,7 @@ class OpenPortsApplet(BaseApplet):
             netloc = make_netloc(asset.host, event.port)
             activity = self.make_activity(
                 type="PORT_OPENED",
-                description=f"New open port: [[dark_orange]{netloc}[/dark_orange]]",
+                description=f"New open port: [[COLOR]{netloc}[/COLOR]]",
                 detail={"port": event.port},
                 event=event,
             )
@@ -60,7 +60,7 @@ class OpenPortsApplet(BaseApplet):
                     netloc=netloc,
                     type="PORT_OPENED",
                     detail={"port": port},
-                    description=f"New open port: [[dark_orange]{netloc}[/dark_orange]]",
+                    description=f"New open port: [[COLOR]{netloc}[/COLOR]]",
                 )
             )
         for port in closed_ports:
@@ -71,7 +71,7 @@ class OpenPortsApplet(BaseApplet):
                     netloc=netloc,
                     type="PORT_CLOSED",
                     detail={"port": port},
-                    description=f"Closed port: [[dark_orange]{netloc}[/dark_orange]]",
+                    description=f"Closed port: [[COLOR]{netloc}[/COLOR]]",
                 )
             )
         return activities

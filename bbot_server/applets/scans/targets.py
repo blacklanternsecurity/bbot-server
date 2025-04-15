@@ -1,6 +1,7 @@
 from pydantic import UUID4
 from typing import Annotated
-
+from contextlib import contextmanager
+from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
@@ -152,12 +153,13 @@ class TargetsApplet(BaseApplet):
         target = Target(name=name, description=description, target=target, whitelist=whitelist, blacklist=blacklist)
         if await self.target_count() == 0:
             target.default = True
-        await self.collection.insert_one(target.model_dump())
+        with self._handle_duplicate_target(target):
+            await self.collection.insert_one(target.model_dump())
         # emit an activity to show the target was created
         await self.emit_activity(
             type="TARGET_CREATED",
-            detail={"target_id": str(target.id)},
-            description=f"Target [dark_orange]{target.name}[/dark_orange] created",
+            detail={"target_id": str(target.id), "hash": target.hash, "scope_hash": target.scope_hash},
+            description=f"Target [COLOR]{target.name}[/COLOR] created",
         )
         # update caches
         self._cache_put(target)
@@ -169,12 +171,13 @@ class TargetsApplet(BaseApplet):
     async def update_target(self, id: UUID4, target: Target) -> Target:
         target.id = id
         target.modified = utc_now()
-        await self.collection.update_one({"id": str(id)}, {"$set": target.model_dump()})
+        with self._handle_duplicate_target(target):
+            await self.collection.update_one({"id": str(id)}, {"$set": target.model_dump()})
         # emit an activity to show the target was updated
         await self.emit_activity(
             type="TARGET_UPDATED",
             detail={"target_id": str(target.id)},
-            description=f"Target [dark_orange]{target.name}[/dark_orange] updated",
+            description=f"Target [COLOR]{target.name}[/COLOR] updated",
         )
         # reset target
         self._cache_put(target)
@@ -301,7 +304,7 @@ class TargetsApplet(BaseApplet):
             # it used to be in-scope, but not anymore
             if scope_after != asset_scope:
                 reason = f"blacklisted host {blacklisted_reason}"
-                description = f"Host [dark_orange]{host}[/dark_orange] became out-of-scope due to {reason}"
+                description = f"Host [COLOR]{host}[/COLOR] became out-of-scope due to {reason}"
                 return self.make_activity(
                     type="ASSET_SCOPE_CHANGED",
                     detail={
@@ -320,7 +323,7 @@ class TargetsApplet(BaseApplet):
             # it wasn't in-scope, but now it is
             if scope_after != asset_scope:
                 reason = f"whitelisted host {whitelisted_reason}"
-                description = f"Host [dark_orange]{host}[/dark_orange] became in-scope due to {reason}"
+                description = f"Host [COLOR]{host}[/COLOR] became in-scope due to {reason}"
                 return self.make_activity(
                     type="NEW_IN_SCOPE_ASSET",
                     detail={
@@ -395,3 +398,15 @@ class TargetsApplet(BaseApplet):
             blacklist=target.blacklist,
             strict_scope=target.strict_dns_scope,
         )
+
+    @contextmanager
+    def _handle_duplicate_target(self, target: Target):
+        try:
+            yield
+        except DuplicateKeyError as e:
+            key_value = e.details["keyValue"]
+            if "hash" in key_value:
+                raise self.BBOTServerValueError(f"Identical target already exists")
+            elif "name" in key_value:
+                raise self.BBOTServerValueError(f"Target with name {target.name} already exists")
+            raise self.BBOTServerValueError(f"Error creating target: {e}")

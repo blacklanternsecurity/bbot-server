@@ -36,7 +36,7 @@ class Agent(BaseBBCTL):
             return
 
         table = self.Table()
-        table.add_column("Name", style="bold dark_orange")
+        table.add_column("Name", style=self.DARK_COLOR)
         table.add_column("Status")
         table.add_column("Last Seen")
         table.add_column("ID")

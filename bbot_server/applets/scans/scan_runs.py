@@ -27,11 +27,11 @@ class ScanRunsApplet(BaseApplet):
     #         description = (
     #             f'Scan [{scan_run.name}] status changed from {existing_scan_run["status"]} to {scan_run.status}'
     #         )
-    #         description_colored = f'Scan [[dark_orange]{scan_run.name}[/dark_orange]] status changed from {existing_scan_run["status"]} to {scan_run.status}'
+    #         description_colored = f'Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_scan_run["status"]} to {scan_run.status}'
     #         await self.collection.update_one({"id": scan_run.id}, {"$set": scan_run.model_dump()})
     #     else:
     #         description = f"Scan [{scan_run.name}] started"
-    #         description_colored = f"Scan [[dark_orange]{scan_run.name}[/dark_orange]] started"
+    #         description_colored = f"Scan [[COLOR]{scan_run.name}[/COLOR]] started"
     #         await self.collection.insert_one(scan_run.model_dump())
 
     #     scan_run_activity = Activity(
@@ -55,10 +55,10 @@ class ScanRunsApplet(BaseApplet):
         scan_run = self.make_run_from_scan(scan, agent_id)
 
         await self.collection.insert_one(scan_run.model_dump())
-        description = f"Scan [[dark_orange]{scan.name}[/dark_orange]] queued"
+        description = f"Scan [[COLOR]{scan.name}[/COLOR]] queued"
         if agent_id is not None:
             agent = await self.parent.get_agent(id=agent_id)
-            description += f" on agent [[dark_orange]{agent.name}[/dark_orange]]"
+            description += f" on agent [[COLOR]{agent.name}[/COLOR]]"
         await self.emit_activity(
             type="SCAN_QUEUED",
             description=description,
@@ -129,7 +129,7 @@ class ScanRunsApplet(BaseApplet):
 
                     await self.emit_activity(
                         type="SCAN_SENT",
-                        description=f"Scan [[dark_orange]{scan.name}[/dark_orange]] sent to agent [[dark_orange]{selected_agent.name}[/dark_orange]]",
+                        description=f"Scan [[COLOR]{scan.name}[/COLOR]] sent to agent [[COLOR]{selected_agent.name}[/COLOR]]",
                         detail={"scan_id": scan.id, "agent_id": str(selected_agent.id)},
                     )
                     # make the scan as sent

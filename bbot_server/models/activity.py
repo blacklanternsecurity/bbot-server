@@ -5,6 +5,7 @@ from functools import cached_property
 from datetime import datetime, timezone
 from typing import Annotated, Any, Union
 
+from bbot_server.cli.themes import COLOR, DARK_COLOR
 from bbot_server.models.base import BaseBBOTServerModel
 
 remove_rich_color_pattern = re.compile(r"\[(\w+)\](.*?)\[/\1\]")
@@ -35,10 +36,11 @@ class Activity(BaseBBOTServerModel):
             raise ValueError("description is required")
         if not "timestamp" in kwargs:
             kwargs["timestamp"] = datetime.now(timezone.utc).timestamp()
-        description = kwargs["description"]
-        # we save the description in two forms - colored and uncolored
-        kwargs["description_colored"] = description
-        kwargs["description"] = remove_rich_color_pattern.sub(r"\2", description)
+        if "description_colored" not in kwargs:
+            description = kwargs["description"]
+            # we save the description in two forms - colored and uncolored
+            kwargs["description_colored"] = description.replace("DARK_COLOR", DARK_COLOR).replace("COLOR", COLOR)
+            kwargs["description"] = remove_rich_color_pattern.sub(r"\2", description)
         event = kwargs.pop("event", None)
         super().__init__(*args, **kwargs)
         if event is not None:

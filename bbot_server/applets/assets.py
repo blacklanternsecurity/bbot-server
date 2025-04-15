@@ -1,5 +1,3 @@
-from contextlib import suppress
-
 # applets imports
 from bbot_server.applets.risk import Risk
 from bbot_server.applets.emails import EmailsApplet
@@ -11,7 +9,6 @@ from bbot_server.applets.web_screenshots import WebScreenshotsApplet
 
 from bbot_server.assets import Asset
 from bbot_server.utils.misc import utc_now
-from bbot_server.models.activity import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
@@ -48,16 +45,6 @@ class AssetsApplet(BaseApplet):
         if not asset:
             raise self.BBOTServerNotFoundError(f"Asset {host} not found")
         return self.model(**asset)
-
-    @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Activity)
-    async def tail_assets(self, n: int = 0):
-        agen = self.message_queue.asset_tail(n=n)
-        try:
-            async for activity in agen:
-                yield activity
-        finally:
-            with suppress(BaseException):
-                await agen.aclose()
 
     async def update_asset(self, asset: Asset):
         asset.modified = utc_now()

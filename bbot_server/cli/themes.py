@@ -1,6 +1,9 @@
 import typer
 from textual.theme import Theme
 
+COLOR = "bold dark_orange"
+DARK_COLOR = "bright_black"
+
 # textual theme
 TEXTUAL_THEME = Theme(
     name="bbot",

@@ -29,7 +29,7 @@ class EventsApplet(BaseApplet):
         """
         # publish event to the message queue
         # it will be picked up by the watchdog and ingested
-        await self.root.message_queue.event_publish(event)
+        await self.root.message_queue.publish_event(event)
 
     @api_endpoint("/{uuid}", methods=["GET"], summary="Get an event by its UUID")
     async def get_event(self, uuid: str) -> Event:
@@ -37,7 +37,7 @@ class EventsApplet(BaseApplet):
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)
     async def tail_events(self, n: int = 0):
-        async for event in self.message_queue.event_tail(n=n):
+        async for event in self.message_queue.tail_events(n=n):
             yield event
 
     @api_endpoint("/{uuid}/archive", methods=["GET"], summary="Archive an event")

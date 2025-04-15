@@ -14,7 +14,7 @@ async def test_applet_targets(bbot_server):
     activities = []
 
     async def handle_activity():
-        async for activity in bbot_server.tail_assets(n=10):
+        async for activity in bbot_server.tail_activities(n=10):
             activities.append(activity)
 
     activity_tail_task = asyncio.create_task(handle_activity())
@@ -59,14 +59,33 @@ async def test_applet_targets(bbot_server):
     assert len(target_ids) == 1
     assert target_ids[0] == target1.id
 
+    # creating a target with the same name should raise an error
+    with pytest.raises(BBOTServerValueError, match="Target with name target1 already exists"):
+        await bbot_server.create_target(name="target1")
+
+    # creating a target with the same hash should raise an error
+    with pytest.raises(BBOTServerValueError, match="Identical target already exists"):
+        await bbot_server.create_target(
+            name="asdgasdgasdf",
+            target=["localhost"],
+            whitelist=["127.0.0.1", "evilcorp.com"],
+            blacklist=["127.0.0.2"],
+        )
+
     # create a second target
     target2 = await bbot_server.create_target(
         name="target2",
         description="target2 description",
         target=["localhost"],
-        whitelist=["127.0.0.1", "evilcorp.com"],
+        whitelist=["127.0.0.1", "evilcorp.com", "localhost2"],
         blacklist=["127.0.0.2"],
     )
+
+    assert target2.whitelist_hash != target1.whitelist_hash
+    assert target2.blacklist_hash == target1.blacklist_hash
+    assert target2.seed_hash == target1.seed_hash
+    assert target2.hash != target1.hash
+    assert target2.scope_hash != target1.scope_hash
 
     targets = await bbot_server.get_targets()
     assert len(targets) == 2
@@ -75,7 +94,7 @@ async def test_applet_targets(bbot_server):
     assert target.id == target2.id
     assert target.description == "target2 description"
     assert target.target == ["localhost"]
-    assert target.whitelist == ["127.0.0.1", "evilcorp.com"]
+    assert target.whitelist == ["127.0.0.1", "evilcorp.com", "localhost2"]
     assert target.blacklist == ["127.0.0.2"]
     assert target.default is False
 
@@ -119,8 +138,8 @@ async def test_applet_targets(bbot_server):
     target3 = await bbot_server.create_target(
         name="target3",
         description="target3 description",
-        target=["localhost"],
-        whitelist=["127.0.0.1", "evilcorp.com"],
+        target=["localhost", "localhost3"],
+        whitelist=["127.0.0.1", "evilcorp.com", "localhost3"],
         blacklist=["127.0.0.2"],
     )
 
@@ -140,7 +159,7 @@ async def test_applet_targets(bbot_server):
         name="target4",
         description="target4 description",
         target=["localhost"],
-        whitelist=["127.0.0.1", "evilcorp.com"],
+        whitelist=["127.0.0.1", "evilcorp.com", "localhost4"],
         blacklist=["127.0.0.2"],
     )
 

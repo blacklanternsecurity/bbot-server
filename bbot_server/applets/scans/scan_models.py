@@ -3,6 +3,7 @@ from pydantic import UUID4, Field
 from typing import Annotated, Any, Optional, Union
 
 from bbot import Preset
+from bbot.scanner.target import BBOTTarget
 from bbot_server.utils.misc import utc_now
 from bbot_server.models.base import BaseBBOTServerModel
 
@@ -16,6 +17,26 @@ class BaseTarget(BaseBBOTServerModel):
     whitelist: Union[list[str], None] = None
     blacklist: Union[list[str], None] = None
     strict_dns_scope: bool = False
+    hash: Annotated[str, "indexed", "unique"] = ""
+    scope_hash: Annotated[str, "indexed"] = ""
+    seed_hash: Annotated[str, "indexed"] = ""
+    whitelist_hash: Annotated[str, "indexed"] = ""
+    blacklist_hash: Annotated[str, "indexed"] = ""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._bbot_target = BBOTTarget(
+            *self.target, whitelist=self.whitelist, blacklist=self.blacklist, strict_scope=self.strict_dns_scope
+        )
+        self.hash = self.bbot_target.hash.hex()
+        self.scope_hash = self.bbot_target.scope_hash.hex()
+        self.seed_hash = self.bbot_target.seeds.hash.hex()
+        self.whitelist_hash = self.bbot_target.whitelist.hash.hex()
+        self.blacklist_hash = self.bbot_target.blacklist.hash.hex()
+
+    @property
+    def bbot_target(self):
+        return self._bbot_target
 
 
 class Target(BaseTarget):
@@ -23,8 +44,8 @@ class Target(BaseTarget):
     __user__ = True
     id: Annotated[UUID4, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
     default: Annotated[bool, "indexed"] = False
-    created: Annotated[Optional[float], "indexed"] = Field(default_factory=utc_now)
-    modified: Annotated[Optional[float], "indexed"] = Field(default_factory=utc_now)
+    created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
+    modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
 
 
 class BaseScan(BaseBBOTServerModel):
