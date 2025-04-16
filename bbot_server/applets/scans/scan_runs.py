@@ -5,8 +5,9 @@ from contextlib import suppress
 
 from bbot.core.helpers.names_generator import random_name
 
+from bbot_server.models.activity_models import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
-from bbot_server.applets.scans.scan_models import ScanRun, ScanDBEntry
+from bbot_server.models.scan_models import ScanRun, ScanDBEntry
 
 
 class ScanRunsApplet(BaseApplet):
@@ -18,31 +19,41 @@ class ScanRunsApplet(BaseApplet):
 
     async def setup(self):
         if self.is_main_server:
+            # this task will start scans when agents are ready
             self.scan_watch_task = self.create_task(self.start_scans_loop())
 
-    # async def handle_event(self, asset, event) -> list[Activity]:
-    #     scan_run = ScanRun(**event.data_json)
-    #     activity_type = f"SCAN_{scan_run.status}"
+    async def handle_event(self, event, asset) -> list[Activity]:
+        scan_run = ScanRun(**event.data_json)
+        scan_run_id = str(scan_run.id)
+        detail = {"scan_id": scan_run_id}
 
-    #     existing_scan_run = await self.collection.find_one({"id": scan_run.id})
-    #     if existing_scan_run:
-    #         description = (
-    #             f'Scan [{scan_run.name}] status changed from {existing_scan_run["status"]} to {scan_run.status}'
-    #         )
-    #         description_colored = f'Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_scan_run["status"]} to {scan_run.status}'
-    #         await self.collection.update_one({"id": scan_run.id}, {"$set": scan_run.model_dump()})
-    #     else:
-    #         description = f"Scan [{scan_run.name}] started"
-    #         description_colored = f"Scan [[COLOR]{scan_run.name}[/COLOR]] started"
-    #         await self.collection.insert_one(scan_run.model_dump())
+        existing_scan_run = await self.collection.find_one({"id": scan_run_id})
+        # if the scan run already exists, update it
+        if existing_scan_run:
+            activity_type = f"SCAN_{scan_run.status}"
+            description = (
+                f'Scan [{scan_run.name}] status changed from {existing_scan_run["status"]} to {scan_run.status}'
+            )
+            description_colored = f'Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_scan_run["status"]} to {scan_run.status}'
+            agent_id = existing_scan_run.get("agent_id", None)
+            if agent_id is not None:
+                detail["agent_id"] = agent_id
+            await self.collection.update_one({"id": scan_run_id}, {"$set": scan_run.model_dump()})
+        # otherwise, assume the scan is starting and create a new run
+        else:
+            activity_type = "SCAN_STARTED"
+            description = f"Scan [{scan_run.name}] started"
+            description_colored = f"Scan [[COLOR]{scan_run.name}[/COLOR]] started"
+            await self.collection.insert_one(scan_run.model_dump())
 
-    #     scan_run_activity = Activity(
-    #         type=activity_type,
-    #         event=event,
-    #         description=description,
-    #         description_colored=description_colored,
-    #     )
-    #     return [scan_run_activity]
+        scan_run_activity = Activity(
+            type=activity_type,
+            event=event,
+            description=description,
+            description_colored=description_colored,
+            detail=detail,
+        )
+        return [scan_run_activity]
 
     @api_endpoint("/queued", methods=["GET"], summary="List queued scans")
     async def get_queued_scans(self) -> list[ScanRun]:
@@ -69,12 +80,11 @@ class ScanRunsApplet(BaseApplet):
         return scan_run
 
     @api_endpoint("/", methods=["GET"], summary="List individual BBOT scan runs")
-    async def get_scan_runs(self) -> list[dict]:
+    async def get_scan_runs(self) -> list[ScanRun]:
         cursor = self.collection.find()
         scan_runs = []
         for run in await cursor.to_list(length=None):
             scan_runs.append(ScanRun(**run))
-
         return scan_runs
 
     def make_run_from_scan(self, scan: ScanDBEntry, agent_id: str = None) -> ScanRun:

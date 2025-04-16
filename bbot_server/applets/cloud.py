@@ -1,4 +1,4 @@
-from bbot_server.models.assets import BaseAssetFacet
+from bbot_server.models.activity_models import BaseAssetFacet
 from bbot_server.applets._base import BaseApplet, api_endpoint, Field
 
 

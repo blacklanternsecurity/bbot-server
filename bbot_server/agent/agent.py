@@ -12,7 +12,7 @@ from bbot import Scanner, Preset
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
-from bbot_server.applets.scans.scan_models import ScanRun
+from bbot_server.models.scan_models import ScanRun
 from bbot_server.utils.async_utils import async_to_sync_class
 from bbot_server.applets.agents.agent_models import AgentResponse
 

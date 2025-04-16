@@ -6,11 +6,15 @@ from typing import Annotated
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
 
+from bbot_server.cli.scanrunsctl import ScanRunsCTL
+
 
 class ScanCTL(BaseBBCTL):
     command = "scan"
     help = "Manage BBOT scans"
     epilog = "Create, start, and monitor BBOT scans"
+
+    include = [ScanRunsCTL]
 
     @subcommand(help="List preconfigured scans")
     def list(
@@ -57,10 +61,10 @@ class ScanCTL(BaseBBCTL):
         targets = preset.pop("targets", [])
         whitelist = preset.pop("whitelist", [])
         blacklist = preset.pop("blacklist", [])
-        strict_scope = preset.get("scope", {}).get("strict", False)
+        strict_dns_scope = preset.get("scope", {}).get("strict_dns", False)
         try:
             target = self.bbot_server.create_target(
-                target=targets, whitelist=whitelist, blacklist=blacklist, strict_dns_scope=strict_scope
+                target=targets, whitelist=whitelist, blacklist=blacklist, strict_dns_scope=strict_dns_scope
             )
         except self.BBOTServerValueError as e:
             error = e.detail.get("error", "")

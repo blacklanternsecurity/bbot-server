@@ -139,6 +139,19 @@ bbctl scan runs list
 bbctl scan runs stop --name "demonic_jimmy"
 ```
 
+## Targets
+
+BBOT server categorizes its assets by target. If you previously created a scan from a preset, a target was automatically created.
+
+You can list targets like so:
+
+```bash
+# List targets
+bbctl target list
+```
+
+You can create a target manually:
+
 ## Custom triggers
 
 TODO

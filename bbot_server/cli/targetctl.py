@@ -41,6 +41,7 @@ class TargetCTL(BaseBBCTL):
             return
 
         table = self.Table()
+        table.add_column("ID", style=self.DARK_COLOR)
         table.add_column("Name", style=self.COLOR)
         table.add_column("Description")
         table.add_column("Seeds")
@@ -50,6 +51,7 @@ class TargetCTL(BaseBBCTL):
         table.add_column("Modified", style=self.DARK_COLOR)
         for target in target_list:
             table.add_row(
+                str(target.id),
                 target.name,
                 target.description,
                 f"{target.seed_size:,}",

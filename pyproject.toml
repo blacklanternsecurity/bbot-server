@@ -23,7 +23,7 @@ ruff = "^0.9.7"
 typer = "^0.15.2"
 redis = "^5.2.1"
 taskiq-redis = "^1.0.3"
-bbot = {git = "https://github.com/blacklanternsecurity/bbot", rev = "3.0"}
+bbot = {git = "https://github.com/blacklanternsecurity/bbot", rev = "strict_dns_scope"}
 
 [tool.poetry.scripts]
 bbctl = 'bbot_server.cli.bbctl:main'

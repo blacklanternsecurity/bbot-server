@@ -1,6 +1,6 @@
 from contextlib import suppress
 
-from bbot_server.models.activity import Activity
+from bbot_server.models.activity_models import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 

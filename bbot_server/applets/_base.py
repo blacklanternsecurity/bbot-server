@@ -10,8 +10,8 @@ from pymongo import WriteConcern, ASCENDING
 from fastapi import APIRouter
 
 from bbot.models.pydantic import Event
-from bbot_server.models.activity import Activity
 from bbot_server.applets._routing import ROUTE_TYPES
+from bbot_server.models.activity_models import Activity
 
 word_regex = re.compile(r"\W+")
 

@@ -6,8 +6,8 @@ from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
-from bbot_server.models.activity import Activity
-from bbot_server.applets.scans.scan_models import Target
+from bbot_server.models.activity_models import Activity
+from bbot_server.models.scan_models import Target
 from bbot_server.applets._base import BaseApplet, api_endpoint
 from bbot_server.assets.custom_fields import CustomAssetFields
 
@@ -423,7 +423,7 @@ class TargetsApplet(BaseApplet):
             *target.target,
             whitelist=target.whitelist,
             blacklist=target.blacklist,
-            strict_scope=target.strict_dns_scope,
+            strict_dns_scope=target.strict_dns_scope,
         )
 
     @contextmanager

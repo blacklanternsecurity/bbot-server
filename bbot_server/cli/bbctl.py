@@ -13,13 +13,13 @@ from bbot_server.cli.base import BaseBBCTL, Annotated, Option
 from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG
 
 # subcommand imports
-from bbot_server.cli.agent import AgentCTL
-from bbot_server.cli.asset import AssetCTL
-from bbot_server.cli.scan import ScanCTL
-from bbot_server.cli.server import ServerCTL
-from bbot_server.cli.event import EventCTL
-from bbot_server.cli.activity import ActivityCTL
-from bbot_server.cli.target import TargetCTL
+from bbot_server.cli.agentctl import AgentCTL
+from bbot_server.cli.assetctl import AssetCTL
+from bbot_server.cli.scanctl import ScanCTL
+from bbot_server.cli.serverctl import ServerCTL
+from bbot_server.cli.eventctl import EventCTL
+from bbot_server.cli.activityctl import ActivityCTL
+from bbot_server.cli.targetctl import TargetCTL
 
 
 class BBCTL(BaseBBCTL):
