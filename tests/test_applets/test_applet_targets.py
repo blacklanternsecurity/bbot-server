@@ -50,7 +50,7 @@ async def test_applet_targets(bbot_server):
     assert target.name == "target1"
     assert target.id == target1.id
     assert target.description == "target1 description"
-    assert target.target == ["localhost"]
+    assert target.seeds == ["localhost"]
     assert target.whitelist == ["127.0.0.1", "evilcorp.com"]
     assert target.blacklist == ["127.0.0.2"]
     assert target.default is True
@@ -101,7 +101,7 @@ async def test_applet_targets(bbot_server):
     assert target.name == "target2"
     assert target.id == target2.id
     assert target.description == "target2 description"
-    assert target.target == ["localhost"]
+    assert target.seeds == ["localhost"]
     assert target.whitelist == ["127.0.0.1", "evilcorp.com", "localhost2"]
     assert target.blacklist == ["127.0.0.2"]
     assert target.default is False
@@ -128,7 +128,7 @@ async def test_applet_targets(bbot_server):
 
     # edit target2
     target2.name = "target2_edited"
-    target2.target = []
+    target2.seeds = []
     target2.whitelist = []
     target2.blacklist = []
     await asyncio.sleep(0.1)
@@ -137,7 +137,7 @@ async def test_applet_targets(bbot_server):
     assert len(targets) == 1
     target = targets[0]
     assert target.name == "target2_edited"
-    assert target.target == []
+    assert target.seeds == []
     assert target.whitelist == []
     assert target.blacklist == []
     assert abs(target.created - target.modified) >= 0.1, "Modified timestamp wasn't updated"
@@ -248,7 +248,7 @@ async def test_scope_checks(bbot_server):
     assert len(targets) == 1
     target = targets[0]
     assert target.name == "target1"
-    assert target.target == ["evilcorp.com"]
+    assert target.seeds == ["evilcorp.com"]
     assert target.whitelist == None
     assert target.blacklist == None
 

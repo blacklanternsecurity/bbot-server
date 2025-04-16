@@ -9,7 +9,7 @@ from bbot_server.models.base import BaseBBOTServerModel
 
 class BaseTarget(BaseBBOTServerModel):
     description: str = ""
-    target: list[str] = []
+    seeds: list[str] = []
     whitelist: Union[list[str], None] = None
     blacklist: Union[list[str], None] = None
     strict_dns_scope: bool = False
@@ -25,7 +25,7 @@ class BaseTarget(BaseBBOTServerModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._bbot_target = BBOTTarget(
-            *self.target, whitelist=self.whitelist, blacklist=self.blacklist, strict_dns_scope=self.strict_dns_scope
+            *self.seeds, whitelist=self.whitelist, blacklist=self.blacklist, strict_dns_scope=self.strict_dns_scope
         )
         self.hash = self.bbot_target.hash.hex()
         self.scope_hash = self.bbot_target.scope_hash.hex()

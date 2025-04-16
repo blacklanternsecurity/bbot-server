@@ -4,7 +4,7 @@ from typer import Typer, Option  # noqa
 from typing import Annotated  # noqa
 from functools import cached_property, wraps
 
-from bbot_server.utils.misc import timestamp_to_human
+from bbot_server.utils.misc import timestamp_to_human, seconds_to_human
 
 
 # decorator to register valid agent commands
@@ -128,3 +128,6 @@ class BaseBBCTL:
 
     def timestamp_to_human(self, timestamp):
         return timestamp_to_human(timestamp)
+
+    def seconds_to_human(self, seconds):
+        return seconds_to_human(seconds)

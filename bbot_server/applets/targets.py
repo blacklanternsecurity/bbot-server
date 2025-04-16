@@ -420,7 +420,7 @@ class TargetsApplet(BaseApplet):
 
     def _bbot_target(self, target: Target) -> BBOTTarget:
         return BBOTTarget(
-            *target.target,
+            *target.seeds,
             whitelist=target.whitelist,
             blacklist=target.blacklist,
             strict_dns_scope=target.strict_dns_scope,
