@@ -8,6 +8,7 @@ from bbot_server.models.target_models import BaseTarget, Target
 
 ### SCANS ###
 
+
 class BaseScan(BaseBBOTServerModel):
     name: Annotated[str, "indexed", "unique"]
     preset: dict[str, Any] = {}
@@ -33,6 +34,7 @@ class ScanResponse(BaseScan):
 
 
 ### SCAN RUNS ###
+
 
 class ScanRun(BaseBBOTServerModel):
     __tablename__ = "scan_runs"

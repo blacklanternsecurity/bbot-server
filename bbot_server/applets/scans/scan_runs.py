@@ -32,9 +32,9 @@ class ScanRunsApplet(BaseApplet):
         if existing_scan_run:
             activity_type = f"SCAN_{scan_run.status}"
             description = (
-                f'Scan [{scan_run.name}] status changed from {existing_scan_run["status"]} to {scan_run.status}'
+                f"Scan [{scan_run.name}] status changed from {existing_scan_run['status']} to {scan_run.status}"
             )
-            description_colored = f'Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_scan_run["status"]} to {scan_run.status}'
+            description_colored = f"Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_scan_run['status']} to {scan_run.status}"
             agent_id = existing_scan_run.get("agent_id", None)
             if agent_id is not None:
                 detail["agent_id"] = agent_id
