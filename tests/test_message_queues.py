@@ -2,6 +2,7 @@ import pytest
 import asyncio
 from contextlib import suppress
 
+from bbot_server import BBOTServer
 from tests.test_applets.base import BaseAppletTest
 
 
@@ -150,9 +151,10 @@ async def _test_historic_subscribe(bbot_server):
 
 
 @pytest.mark.asyncio
-async def test_queues_redis(bbot_server):
-    # Override the message queue URI for this test
-    bbot_server = await bbot_server(config_overrides={"message_queue": {"uri": "redis://localhost:6379"}})
+async def test_queues_redis(bbot_server_config):
+    bbot_server = BBOTServer(config=bbot_server_config)
+    await bbot_server.setup()
+
     await bbot_server.message_queue.clear()
     await _test_fifo_queue(bbot_server)
     await _test_basic_subscribe(bbot_server)
