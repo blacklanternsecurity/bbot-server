@@ -11,8 +11,8 @@ from bbot_server.cli.scanrunsctl import ScanRunsCTL
 
 class ScanCTL(BaseBBCTL):
     command = "scan"
-    help = "Manage BBOT scans"
-    epilog = "Create, start, and monitor BBOT scans"
+    help = "Create, start, and monitor BBOT scans"
+    short_help = "Manage BBOT scans"
 
     include = [ScanRunsCTL]
 

@@ -5,7 +5,7 @@ from bbot_server.cli.base import BaseBBCTL, subcommand
 class ScanRunsCTL(BaseBBCTL):
     command = "runs"
     help = "View individual BBOT scan runs"
-    epilog = "View individual BBOT scan runs"
+    short_help = "View individual BBOT scan runs"
 
     @subcommand(help="List scan runs")
     def list(

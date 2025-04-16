@@ -73,7 +73,10 @@ class ScansApplet(BaseApplet):
 
     @api_endpoint("/{id}", methods=["PATCH"], summary="Update a scan by its id")
     async def update_scan(self, id: UUID4, scan: ScanDBEntry) -> ScanDBEntry:
+        existing_scan = await self.get_scan(id=id)
         scan.id = id
+        scan.created = existing_scan.created
+        scan.modified = self.utc_now()
         with self._handle_duplicate_scan(scan):
             await self.collection.update_one({"id": str(id)}, {"$set": scan.model_dump()})
         return scan
@@ -112,9 +115,7 @@ class ScansApplet(BaseApplet):
             yield
         except DuplicateKeyError as e:
             key_value = e.details["keyValue"]
-            if "hash" in key_value:
-                raise self.BBOTServerValueError(f"Identical target already exists", detail={"hash": key_value["hash"]})
-            elif "name" in key_value:
+            if "name" in key_value:
                 raise self.BBOTServerValueError(
                     f'Scan with name "{scan.name}" already exists', detail={"name": key_value["name"]}
                 )

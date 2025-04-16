@@ -15,7 +15,6 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     # we shouldn't have any events yet
     command = BBCTL_COMMAND + ["event", "list", "--json"]
     process = subprocess.run(command, capture_output=True, text=True)
-    print(" ".join(command))
     assert process.stdout == ""
 
     # ingest bbot events from file

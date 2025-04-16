@@ -7,7 +7,6 @@ from omegaconf import OmegaConf
 from rich.console import Console
 from functools import cached_property
 
-
 from bbot_server.errors import BBOTServerError
 from bbot_server.cli.base import BaseBBCTL, Annotated, Option
 from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG

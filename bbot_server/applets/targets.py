@@ -161,7 +161,7 @@ class TargetsApplet(BaseApplet):
         target = Target(
             name=name,
             description=description,
-            target=seeds,
+            seeds=seeds,
             whitelist=whitelist,
             blacklist=blacklist,
             strict_dns_scope=strict_dns_scope,
@@ -198,17 +198,17 @@ class TargetsApplet(BaseApplet):
         self._cache_put(target)
         return target
 
-    @api_endpoint("/{id}", methods=["DELETE"], summary="Delete a scan target by its id")
-    async def delete_target(self, id: UUID4, new_default_target_id: UUID4 = None) -> None:
-        # TODO: abort if the target is still in use by any scans
+    @api_endpoint("/", methods=["DELETE"], summary="Delete a scan target by its id")
+    async def delete_target(self, id: UUID4 = None, name: str = None, new_default_target_id: UUID4 = None) -> None:
+        target = await self.get_target(id=id, name=name)
+
+        # abort if the target is still in use by any scans
         all_scans = await self.root.scans.get_scans()
-        scans_with_target = [scan for scan in all_scans if scan.target_id == id]
+        scans_with_target = [scan for scan in all_scans if scan.target_id == target.id]
         if scans_with_target:
             raise self.BBOTServerValueError(
                 f"Target is still in use by the following scans: {', '.join([str(scan.name) for scan in scans_with_target])}"
             )
-
-        target = await self.get_target(id=id)
 
         # when we're deleting the default target, we need to set a new one
         if target.default:
@@ -225,7 +225,7 @@ class TargetsApplet(BaseApplet):
                         "Must specify a new default target when deleting the default target."
                     )
 
-        target = await self.get_target(id=id)
+        target = await self.get_target(id=target.id)
         await self.collection.delete_one({"id": str(target.id)})
 
         # set the new default target
@@ -234,13 +234,13 @@ class TargetsApplet(BaseApplet):
 
         # clear scope cache
         if self._scope_cache is not None:
-            self._scope_cache.pop(str(id))
+            self._scope_cache.pop(str(target.id))
 
         # clear target ID
-        self._target_ids.discard(str(id))
+        self._target_ids.discard(str(target.id))
 
         # after deleting the target, also delete it from all the assets
-        target_id_str = str(id)
+        target_id_str = str(target.id)
         # Remove the target ID from all asset
         await self.root.assets.collection.update_many(
             {"scope": target_id_str},  # Find documents that have this target ID in their scope

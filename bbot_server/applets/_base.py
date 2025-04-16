@@ -10,6 +10,7 @@ from pymongo import WriteConcern, ASCENDING
 from fastapi import APIRouter
 
 from bbot.models.pydantic import Event
+from bbot_server.utils.misc import utc_now
 from bbot_server.applets._routing import ROUTE_TYPES
 from bbot_server.models.activity_models import Activity
 
@@ -440,6 +441,9 @@ class BaseApplet:
         When this is True, we can safely skip any database/message-queue functionality.
         """
         return self.interface_type == "python"
+
+    def utc_now(self):
+        return utc_now()
 
     def __getattr__(self, name):
         # try getting the attribute from all the child applets
