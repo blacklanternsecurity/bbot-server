@@ -17,18 +17,45 @@ class ScanRunsCTL(BaseBBCTL):
 
         if json:
             for scan_run in scan_runs:
-                self.sys.stdout.buffer.write(self.orjson.dumps(scan_run.model_dump()))
+                self.sys.stdout.buffer.write(self.orjson.dumps(scan_run.model_dump()) + b"\n")
             return
 
-        # if csv:
-        #     for line in self.json_to_csv(scan_runs, fieldnames=["name", "targets"]):
-        #         self.sys.stdout.buffer.write(line)
-        #     return
+        if csv:
+
+            def iter_scan_runs():
+                for scan_run in scan_runs:
+                    out_json = {}
+                    scan_run_json = scan_run.model_dump()
+                    out_json["name"] = scan_run_json["name"]
+                    out_json["status"] = scan_run_json["status"]
+                    out_json["seeds"] = f"{scan_run_json['target']['seed_size']:,}"
+                    out_json["whitelist"] = f"{scan_run_json['target']['whitelist_size']:,}"
+                    out_json["blacklist"] = f"{scan_run_json['target']['blacklist_size']:,}"
+                    out_json["duration"] = self.seconds_to_human(scan_run_json["duration_seconds"])
+                    out_json["started"] = self.timestamp_to_human(scan_run_json["started_at"])
+                    out_json["finished"] = self.timestamp_to_human(scan_run_json["finished_at"])
+                    yield out_json
+
+            for line in common.json_to_csv(
+                iter_scan_runs(),
+                fieldnames=[
+                    "name",
+                    "status",
+                    "seeds",
+                    "whitelist",
+                    "blacklist",
+                    "duration",
+                    "started",
+                    "finished",
+                ],
+            ):
+                self.sys.stdout.buffer.write(line)
+            return
 
         table = self.Table()
         table.add_column("Name", style=self.COLOR)
         table.add_column("Status", style="bold")
-        table.add_column("Targets")
+        table.add_column("Seeds")
         table.add_column("Whitelist")
         table.add_column("Blacklist")
         table.add_column("Duration")

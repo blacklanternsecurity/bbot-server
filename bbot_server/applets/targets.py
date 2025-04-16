@@ -149,19 +149,19 @@ class TargetsApplet(BaseApplet):
         self,
         name: str = "",
         description: str = "",
-        target: list[str] = [],
+        seeds: list[str] = [],
         whitelist: list[str] = None,
         blacklist: list[str] = None,
         strict_dns_scope: bool = False,
     ) -> Target:
-        if not target:
-            raise self.BBOTServerValueError("Must provide at least one target")
+        if not seeds:
+            raise self.BBOTServerValueError("Must provide at least one seed")
         if not name:
             name = await self.get_available_target_name()
         target = Target(
             name=name,
             description=description,
-            target=target,
+            target=seeds,
             whitelist=whitelist,
             blacklist=blacklist,
             strict_dns_scope=strict_dns_scope,

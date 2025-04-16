@@ -33,7 +33,7 @@ class BaseTarget(BaseBBOTServerModel):
         self.whitelist_hash = self.bbot_target.whitelist.hash.hex()
         self.blacklist_hash = self.bbot_target.blacklist.hash.hex()
         self.seed_size = len(self.bbot_target.seeds)
-        self.whitelist_size = len(self.bbot_target.whitelist)
+        self.whitelist_size = 0 if not self.bbot_target._orig_whitelist else len(self.bbot_target.whitelist)
         self.blacklist_size = len(self.bbot_target.blacklist)
 
     @property
