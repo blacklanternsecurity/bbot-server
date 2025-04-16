@@ -34,11 +34,8 @@ class BaseBBCTL:
     import sys
     import orjson
     from rich.table import Table
-    from rich.console import Console
     from bbot_server.cli.themes import COLOR, DARK_COLOR
-
-    stdout = Console(file=sys.stdout, highlight=False)
-    stderr = Console(file=sys.stderr, highlight=False)
+    from bbot_server.errors import BBOTServerError, BBOTServerValueError, BBOTServerNotFoundError
 
     def __init__(self, parent=None):
         self.log = logging.getLogger(f"bbot_server.cli.bbctl.{self.__class__.__name__.lower()}")
@@ -111,6 +108,14 @@ class BaseBBCTL:
         while getattr(bbctl, "parent", None) is not None:
             bbctl = bbctl.parent
         return bbctl
+
+    @property
+    def stdout(self):
+        return self.root._stdout
+
+    @property
+    def stderr(self):
+        return self.root._stderr
 
     def all_children(self, include_self=False):
         children = []

@@ -13,7 +13,7 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     scan1_events, scan2_events = bbot_events
 
     # we shouldn't have any events yet
-    command = BBCTL_COMMAND + ["events", "list", "--json"]
+    command = BBCTL_COMMAND + ["event", "list", "--json"]
     process = subprocess.run(command, capture_output=True, text=True)
     print(" ".join(command))
     assert process.stdout == ""
@@ -23,9 +23,7 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     with open(json_file, "w") as f:
         f.write(scan1_out_file)
 
-    process = subprocess.run(
-        BBCTL_COMMAND + ["events", "ingest", "-f", str(json_file)], capture_output=True, text=True
-    )
+    process = subprocess.run(BBCTL_COMMAND + ["event", "ingest", "-f", str(json_file)], capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout == ""
     assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n"
@@ -33,14 +31,12 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     sleep(1)
 
     # make sure all the events made it into the database
-    process = subprocess.run(BBCTL_COMMAND + ["events", "list", "--json"], capture_output=True, text=True)
+    process = subprocess.run(BBCTL_COMMAND + ["event", "list", "--json"], capture_output=True, text=True)
     out_events = [Event(**orjson.loads(line)) for line in process.stdout.splitlines()]
     assert out_events and len(out_events) == len(scan1_events)
 
     # ingest the other half from stdin
-    process = subprocess.run(
-        BBCTL_COMMAND + ["events", "ingest"], input=scan2_out_file, capture_output=True, text=True
-    )
+    process = subprocess.run(BBCTL_COMMAND + ["event", "ingest"], input=scan2_out_file, capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout == ""
     assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n"
@@ -48,7 +44,7 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     sleep(1)
 
     # make sure all the events made it into the database
-    process = subprocess.run(BBCTL_COMMAND + ["events", "list", "--json"], capture_output=True, text=True)
+    process = subprocess.run(BBCTL_COMMAND + ["event", "list", "--json"], capture_output=True, text=True)
     out_events = [Event(**orjson.loads(line)) for line in process.stdout.splitlines()]
     assert out_events and len(out_events) == len(scan1_events + scan2_events)
 

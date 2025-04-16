@@ -24,14 +24,16 @@ services:
   bbot-server-agent:
     <<: *bbot-server-base
     command: ["bbctl", "agent", "start"]
+    volumes:
+      - ./bbot_server/default_agent.sh:/app/bbot_server/default_agent.sh
+    entrypoint: ["bash", "/app/bbot_server/default_agent.sh"]
 
   mongodb:
     image: mongo:latest
     restart: always
-    volumes:
-      - ./mongodb:/data/db
+    # volumes:
+    #   - ./mongodb:/data/db
 
-  nats:
-    image: nats
+  redis:
+    image: redis:latest
     restart: always
-    command: ["-js"]

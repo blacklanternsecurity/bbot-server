@@ -9,7 +9,7 @@ from contextlib import suppress
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
-class Server(BaseBBCTL):
+class ServerCTL(BaseBBCTL):
     command = "server"
     help = "Start/stop BBOT server"
     epilog = "Start the main BBOT server via Docker Compose or individual components in standalone mode"

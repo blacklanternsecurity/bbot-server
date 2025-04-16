@@ -13,6 +13,9 @@ class BaseAppletTest:
     needs_agent = False
     needs_watchdog = False
 
+    # if True, don't test the http interface
+    native_only = False
+
     async def setup(self):
         """
         This test is executed before any scans have been run.
@@ -55,6 +58,9 @@ class BaseAppletTest:
             needs_agent=self.needs_agent,
             needs_watchdog=self.needs_watchdog,
         )
+
+        if self.native_only and not self.bbot_server.is_native:
+            return
 
         self.scan1_events = bbot_events[0]
         self.scan2_events = bbot_events[1]

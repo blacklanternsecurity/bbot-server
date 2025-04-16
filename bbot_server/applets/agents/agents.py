@@ -46,6 +46,11 @@ class AgentsApplet(BaseApplet):
             raise self.BBOTServerError(f"Error creating agent {name}: {e}") from e
         return agent
 
+    @api_endpoint("/", methods=["DELETE"], summary="Delete an agent")
+    async def delete_agent(self, id: UUID4 = None, name: str = None):
+        agent = await self.get_agent(id=id, name=name)
+        await self.collection.delete_one({"id": str(agent.id)})
+
     @api_endpoint("/", methods=["GET"], summary="Get an agent by its id")
     async def get_agent(self, id: UUID4 = None, name: str = None) -> Agent:
         if id is None and name is None:

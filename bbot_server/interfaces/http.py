@@ -58,7 +58,6 @@ class http(BaseInterface):
         try:
             response = await self.client.request(url=_url, method=method, json=body)
         except Exception as e:
-            self.log.error(f"Error making {method} request for -> {_url}: {e}")
             raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
         try:
@@ -69,9 +68,9 @@ class http(BaseInterface):
 
         if not response.is_success:
             # detect errors
-            if response_json and list(response_json) == ["error"]:
+            if isinstance(response_json, dict) and "error" in response_json:
                 error_class = HTTP_STATUS_MAPPINGS.get(response.status_code, BBOTServerError)
-                raise error_class(response_json["error"])
+                raise error_class(response_json["error"], detail=response_json.get("detail", {}))
 
             raise BBOTServerError(f"Error making {method} request -> {_url}: {response.status_code} {response.text}")
 

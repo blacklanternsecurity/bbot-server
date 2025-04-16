@@ -46,6 +46,12 @@ class TestAppletAgents(BaseAppletTest):
         assert agent_3.description == new_agent_3.description
         assert agent_3.id == new_agent_3.id
 
+        # delete agent 2
+        await self.bbot_server.delete_agent(name=agent_2.name)
+        agents = await self.bbot_server.get_agents()
+        assert len(agents) == 2
+        assert not any(agent.id == agent_2.id for agent in agents)
+
         self.agent_3 = agent_3
 
     async def after_scan_1(self):

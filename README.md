@@ -31,7 +31,7 @@ pipx install -e .
 
 Note: to update to the latest version, run `git pull` in the `bbot_server` directory.
 
-## Starting the server
+## Start the server
 
 Note: this requires Docker and Docker Compose to be installed.
 
@@ -40,7 +40,18 @@ Note: this requires Docker and Docker Compose to be installed.
 bbctl server start
 ```
 
-## Executing a scan
+## Start a scan (direct from BBOT CLI)
+
+You can output a BBOT scan directly to BBOT server:
+
+Note that this requires BBOT 3.0 or later (install with `pipx install git+https://github.com/blacklanternsecurity/bbot@3.0`)
+
+```bash
+# Start a BBOT scan, sending output to BBOT server
+bbot -t evilcorp.com -p subdomain-enum -om http -c modules.http.url=http://localhost:8807/v1/events/
+```
+
+## Start a scan (through BBOT server)
 
 In BBOT server, scans are stored presets that can be run repeatably.
 
@@ -48,7 +59,7 @@ To create a scan, pass a BBOT preset to `scans create`:
 
 ```bash
 # Create a new scan
-bbctl scans create --name "evilcorp_subdomains" --preset my_preset.yml
+bbctl scan create --name "evilcorp_subdomains" --preset my_preset.yml
 ```
 
 The preset contains your targets, and will look something like this:
@@ -85,7 +96,7 @@ bbctl scan list
 bbctl scan start "evilcorp_subdomains"
 ```
 
-## Monitoring the scan
+## Monitor scan progress
 
 You can monitor the scan's progress in several ways:
 
@@ -104,7 +115,7 @@ If you'd like, you can also tail the raw events as they stream in from the BBOT 
 
 ```bash
 # Monitor raw BBOT events
-bbctl events tail
+bbctl event tail
 ```
 
 **Check scan status**:
@@ -113,7 +124,7 @@ You can monitor or stop an in-progress scan:
 
 ```bash
 # List scan runs
-bbctl scan runs
+bbctl scan runs list
 
 # Stop the scan
 bbctl scan runs stop --name "demonic_jimmy"
@@ -127,7 +138,7 @@ TODO
 
 TODO
 
-## Viewing the data
+## View/export the data
 
 You can query and export the data even while a scan is running.
 
@@ -135,26 +146,35 @@ You can query and export the data even while a scan is running.
 
 ```bash
 # List assets
-bbctl assets list
+bbctl asset list
 
 # Export assets to CSV
-bbctl assets export --csv > assets.csv
+bbctl asset export --csv > assets.csv
 
 # Export assets as JSON
-bbctl assets export --json | jq
+bbctl asset export --json | jq
 ```
 
 **List events**:
 
 ```bash
 # List events
-bbctl events list
+bbctl event list
 
 # Export events to CSV
-bbctl events export --csv > events.csv
+bbctl event export --csv > events.csv
 
 # Export events as JSON
-bbctl events export --json | jq
+bbctl event export --json | jq
+```
+
+## Ingest events from past BBOT scans
+
+If you forgot to output a scan to BBOT server, you can easily ingest it after the fact:
+
+```bash
+# Ingest events from a past scan
+cat ~/.bbot/scans/demonic_jimmy/output.json | bbctl event ingest
 ```
 
 ## Screenshots

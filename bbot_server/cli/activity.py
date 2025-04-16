@@ -3,7 +3,7 @@ from bbot_server.utils.misc import timestamp_to_human
 from bbot_server.cli.base import BaseBBCTL, subcommand
 
 
-class Activity(BaseBBCTL):
+class ActivityCTL(BaseBBCTL):
     command = "activity"
     help = "Query or monitor BBOT activities"
     epilog = "Query or monitor BBOT activities"
@@ -20,4 +20,4 @@ class Activity(BaseBBCTL):
                 continue
 
             timestamp = timestamp_to_human(a.timestamp)
-            self.stdout.print(f"[[bright_black]{timestamp}[/bright_black]] {a.description_colored}")
+            self.stdout.print(f"[[{self.DARK_COLOR}]{timestamp}[/{self.DARK_COLOR}]] {a.description_colored}")

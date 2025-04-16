@@ -2,8 +2,8 @@ from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
 
 
-class Assets(BaseBBCTL):
-    command = "assets"
+class AssetCTL(BaseBBCTL):
+    command = "asset"
     help = "Query, tail, or export BBOT assets"
     epilog = "Query, tail, or export BBOT assets"
 
@@ -26,12 +26,14 @@ class Assets(BaseBBCTL):
             return
 
         table = self.Table()
-        table.add_column("Host", style=self.color)
+        table.add_column("Host", style=self.COLOR)
         table.add_column("Open Ports")
+        table.add_column("Modified", style=self.DARK_COLOR)
         for asset in asset_list:
-            open_ports = ", ".join(getattr(asset, "open_ports", []))
+            open_ports = [str(port) for port in getattr(asset, "open_ports", [])]
             table.add_row(
                 asset.host,
-                open_ports,
+                ",".join(open_ports),
+                self.timestamp_to_human(asset.modified),
             )
         self.stdout.print(table)

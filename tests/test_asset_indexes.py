@@ -1,5 +1,9 @@
-async def test_asset_indexes(bbot_server):
-    bbot_server = await bbot_server()
+from bbot_server import BBOTServer
+
+
+async def test_asset_indexes(bbot_server_config):
+    bbot_server = BBOTServer(config=bbot_server_config)
+    await bbot_server.setup()
 
     assert bbot_server.assets.model.indexed_fields() == {
         "host": "indexed",

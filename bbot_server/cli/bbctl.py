@@ -4,6 +4,7 @@ import logging
 import traceback
 from pathlib import Path
 from omegaconf import OmegaConf
+from rich.console import Console
 from functools import cached_property
 
 
@@ -12,12 +13,13 @@ from bbot_server.cli.base import BaseBBCTL, Annotated, Option
 from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG
 
 # subcommand imports
-from bbot_server.cli.agent import Agent
-from bbot_server.cli.assets import Assets
-from bbot_server.cli.scan import Scans
-from bbot_server.cli.server import Server
-from bbot_server.cli.events import Events
-from bbot_server.cli.activity import Activity
+from bbot_server.cli.agent import AgentCTL
+from bbot_server.cli.asset import AssetCTL
+from bbot_server.cli.scan import ScanCTL
+from bbot_server.cli.server import ServerCTL
+from bbot_server.cli.event import EventCTL
+from bbot_server.cli.activity import ActivityCTL
+from bbot_server.cli.target import TargetCTL
 
 
 class BBCTL(BaseBBCTL):
@@ -25,7 +27,7 @@ class BBCTL(BaseBBCTL):
     The root command for the BBCTL CLI
     """
 
-    include = [Assets, Scans, Server, Agent, Events, Activity]
+    include = [AssetCTL, ScanCTL, TargetCTL, ServerCTL, AgentCTL, EventCTL, ActivityCTL]
 
     def __init__(self):
         super().__init__()
@@ -59,6 +61,9 @@ class BBCTL(BaseBBCTL):
         if server_url != BBOT_SERVER_URL:
             self._config.url = server_url
         self.server_url = self.config.url
+
+        self._stdout = Console(file=sys.stdout, highlight=False, color_system=("auto" if self.color else None))
+        self._stderr = Console(file=sys.stderr, highlight=False, color_system=("auto" if self.color else None))
 
     @cached_property
     def bbot_server(self):
