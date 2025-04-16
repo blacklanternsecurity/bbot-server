@@ -32,7 +32,7 @@ async def test_applet_scans(bbot_server):
     target = await bbot_server.create_target(
         name="target1",
         description="target1 description",
-        target=["localhost"],
+        seeds=["localhost"],
     )
 
     # then create a scan
@@ -73,7 +73,7 @@ async def test_applet_scans(bbot_server):
     target2 = await bbot_server.create_target(
         name="target2",
         description="target2 description",
-        target=["127.0.0.1"],
+        seeds=["127.0.0.1"],
     )
     scan2.name = "scan2_edited"
     scan2.target_id = target2.id
@@ -123,7 +123,7 @@ async def test_scan_auto_naming(bbot_server):
     target = await bbot_server.create_target(
         name="target1",
         description="target1 description",
-        target=["localhost"],
+        seeds=["localhost"],
     )
 
     scan1 = await bbot_server.create_scan(target=target.id)

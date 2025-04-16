@@ -30,7 +30,8 @@ class ScanRunsApplet(BaseApplet):
         existing_scan_run = await self.collection.find_one({"id": scan_run_id})
         # if the scan run already exists, update it
         if existing_scan_run:
-            activity_type = f"SCAN_{scan_run.status}"
+            status = "STARTED" if scan_run.status == "RUNNING" else scan_run.status
+            activity_type = f"SCAN_{status}"
             description = (
                 f"Scan [{scan_run.name}] status changed from {existing_scan_run['status']} to {scan_run.status}"
             )
@@ -38,7 +39,16 @@ class ScanRunsApplet(BaseApplet):
             agent_id = existing_scan_run.get("agent_id", None)
             if agent_id is not None:
                 detail["agent_id"] = agent_id
-            await self.collection.update_one({"id": scan_run_id}, {"$set": scan_run.model_dump()})
+            await self.collection.update_one(
+                {"id": scan_run_id},
+                {
+                    "$set": {
+                        "status": scan_run.status,
+                        "started_at": scan_run.started_at,
+                        "finished_at": scan_run.finished_at,
+                    }
+                },
+            )
         # otherwise, assume the scan is starting and create a new run
         else:
             activity_type = "SCAN_STARTED"
@@ -90,7 +100,7 @@ class ScanRunsApplet(BaseApplet):
     def make_run_from_scan(self, scan: ScanDBEntry, agent_id: str = None) -> ScanRun:
         random_scan_name = random_name()
         return ScanRun(
-            id=scan.id,
+            id=str(scan.id),
             name=f"{scan.name} ({random_scan_name})",
             target=scan.target,
             parent_scan_id=scan.id,

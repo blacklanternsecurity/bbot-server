@@ -3,13 +3,10 @@ from pydantic import UUID4
 from contextlib import contextmanager
 from pymongo.errors import DuplicateKeyError
 
-from bbot_server.utils.misc import timestamp_to_human
-
 from bbot_server.applets.agents import AgentsApplet
 from bbot_server.applets.scans.scan_runs import ScanRunsApplet
 from bbot_server.applets.scans.yara_rules import YaraRulesApplet
 
-from bbot_server.models.activity_models import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
 from bbot_server.models.scan_models import ScanResponse, ScanDBEntry
 
@@ -20,28 +17,6 @@ class ScansApplet(BaseApplet):
     watched_events = ["SCAN"]
     include_apps = [AgentsApplet, ScanRunsApplet, YaraRulesApplet]
     model = ScanDBEntry
-
-    async def handle_event(self, event, asset=None):
-        scan_id = event.data_json["id"]
-        try:
-            scan_run = await self.get_scan(id=scan_id)
-        except self.BBOTServerNotFoundError:
-            return []
-
-        if "finished_at" in event.data_json:
-            update_op = {"$set": {"finished_at": event.data_json["finished_at"]}}
-            activity = "SCAN_FINISHED"
-            human_finished_at = timestamp_to_human(event.data_json["finished_at"])
-            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] finished at {human_finished_at}"
-        else:
-            update_op = {"$set": {"started_at": event.data_json["started_at"]}}
-            activity = "SCAN_STARTED"
-            human_started_at = timestamp_to_human(event.data_json["started_at"])
-            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] started at {human_started_at}"
-
-        await self.collection.update_one({"id": scan_id}, update_op)
-        activity = Activity(type=activity, description=description)
-        return [activity]
 
     @api_endpoint("/", methods=["GET"], summary="Get a single scan by its name")
     async def get_scan(self, name: str = "", id: str = None) -> ScanDBEntry:
