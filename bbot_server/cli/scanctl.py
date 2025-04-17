@@ -72,5 +72,5 @@ class ScanCTL(BaseBBCTL):
                 hash = e.detail.get("hash")
                 target = self.bbot_server.get_target(hash=hash)
             raise
-        scan = self.bbot_server.create_scan(name=name, target=str(target.id))
+        scan = self.bbot_server.create_scan(name=name, target_id=str(target.id))
         self.sys.stdout.buffer.write(self.orjson.dumps(scan.model_dump()))

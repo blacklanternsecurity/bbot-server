@@ -38,7 +38,7 @@ async def test_applet_scans(bbot_server):
     # then create a scan
     scan1 = await bbot_server.create_scan(
         name="scan1",
-        target=target.id,
+        target_id=target.id,
         preset={"config": {"web": {"user_agent": "BBOT User Agent"}}},
     )
 
@@ -51,7 +51,7 @@ async def test_applet_scans(bbot_server):
 
     scan2 = await bbot_server.create_scan(
         name="scan2",
-        target=target.id,
+        target_id=target.id,
         preset={"config": {"web": {"user_agent": "BBOT User Agent 2"}}},
     )
 
@@ -126,15 +126,15 @@ async def test_scan_auto_naming(bbot_server):
         seeds=["localhost"],
     )
 
-    scan1 = await bbot_server.create_scan(target=target.id)
+    scan1 = await bbot_server.create_scan(target_id=target.id)
     assert scan1.name == "Scan 1"
-    scan2 = await bbot_server.create_scan(target=target.id)
+    scan2 = await bbot_server.create_scan(target_id=target.id)
     assert scan2.name == "Scan 2"
-    scan3 = await bbot_server.create_scan(target=target.id)
+    scan3 = await bbot_server.create_scan(target_id=target.id)
     assert scan3.name == "Scan 3"
 
     with pytest.raises(BBOTServerValueError, match='Scan with name "Scan 3" already exists'):
-        await bbot_server.create_scan(name="Scan 3", target=target.id)
+        await bbot_server.create_scan(name="Scan 3", target_id=target.id)
 
     with pytest.raises(BBOTServerValueError, match='Scan with name "Scan 2" already exists'):
         await bbot_server.update_scan(scan3.id, scan2)

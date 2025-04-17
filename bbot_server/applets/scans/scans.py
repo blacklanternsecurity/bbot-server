@@ -36,12 +36,12 @@ class ScansApplet(BaseApplet):
         return ScanResponse(**scan)
 
     @api_endpoint("/create", methods=["POST"], summary="Create a new scan")
-    async def create_scan(self, target: UUID4, name: str = None, preset: dict[str, Any] = {}) -> ScanDBEntry:
-        if await self.root.get_target(id=target) is None:
+    async def create_scan(self, target_id: UUID4, name: str = None, preset: dict[str, Any] = {}) -> ScanDBEntry:
+        if await self.root.get_target(id=target_id) is None:
             raise self.BBOTServerNotFoundError("Target not found")
         if name is None:
             name = await self.get_available_scan_name()
-        scan = ScanDBEntry(name=name, target_id=target, preset=preset)
+        scan = ScanDBEntry(name=name, target_id=target_id, preset=preset)
         with self._handle_duplicate_scan(scan):
             await self.collection.insert_one(scan.model_dump())
         return scan
@@ -58,6 +58,7 @@ class ScansApplet(BaseApplet):
 
     @api_endpoint("/{id}", methods=["DELETE"], summary="Delete a scan by its id")
     async def delete_scan(self, id: UUID4) -> None:
+        # TODO: delete events + refresh assets
         await self.collection.delete_one({"id": str(id)})
 
     @api_endpoint("/list", methods=["GET"], summary="List scans")

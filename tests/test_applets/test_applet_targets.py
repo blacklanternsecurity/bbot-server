@@ -172,7 +172,7 @@ async def test_applet_targets(bbot_server):
     )
 
     # deleting a target that's a part of a scan should not work
-    scan = await bbot_server.create_scan(name="scan", target=target2.id)
+    scan = await bbot_server.create_scan(name="scan", target_id=target2.id)
     with pytest.raises(BBOTServerValueError):
         await bbot_server.delete_target(target2.id)
 

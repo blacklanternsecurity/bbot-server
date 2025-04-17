@@ -39,10 +39,10 @@ class AgentCTL(BaseBBCTL):
             return
 
         table = self.Table()
-        table.add_column("Name", style=self.DARK_COLOR)
+        table.add_column("Name", style=self.COLOR)
         table.add_column("Status")
         table.add_column("Last Seen")
-        table.add_column("ID")
+        table.add_column("ID", style=self.DARK_COLOR)
         for agent in agents:
             last_seen = (
                 datetime.fromtimestamp(agent.last_seen).strftime("%Y-%m-%d %H:%M:%S") if agent.last_seen else "never"

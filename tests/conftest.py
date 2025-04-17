@@ -189,7 +189,23 @@ def bbot_agent(bbot_server_http):
         [*BBCTL_COMMAND, "agent", "start", "--name", agent_name, "--id", agent_id],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        text=True,
     )
+
+    # Start a thread to tail the agent's stderr
+    def tail_stderr():
+        while agent_process.poll() is None:
+            line = agent_process.stderr.readline()
+            if line:
+                log.critical(f"Agent: {line.strip()}")
+            else:
+                time.sleep(0.1)
+
+    import threading
+
+    stderr_thread = threading.Thread(target=tail_stderr, daemon=True)
+    stderr_thread.start()
+
     # give agent a few seconds to start
     time.sleep(3)
     yield agent_process
@@ -206,6 +222,39 @@ def bbot_agent(bbot_server_http):
         if agent_process.poll() is None:
             log.error("Agent process still running, killing forcefully")
             agent_process.kill()
+
+
+@pytest_asyncio.fixture
+async def bbot_agent_infinite(bbot_server_http, bbot_server_config):
+    # a BBOT agent that runs infinite scans (for testing cancellation)
+
+    from bbot_server import BBOTServer
+
+    bbot_server = BBOTServer(interface="http")
+    await bbot_server.setup()
+    agent = await bbot_server.create_agent(name="infinite")
+
+    from bbot.modules.base import BaseModule
+    from bbot_server.agent import BBOTAgent
+
+    # module that pretends to be stuck
+    class InfiniteModule(BaseModule):
+        watched_events = ["*"]
+
+        async def handle_event(self, event):
+            await self.helpers.sleep(99999999)
+
+    class BBOTAgentInfinite(BBOTAgent):
+        def _patch_scan(self, scan):
+            scan.modules["infinite"] = InfiniteModule(scan)
+            return scan
+
+    agent = BBOTAgentInfinite(agent.id, agent.name, bbot_server_config)
+    await agent.start()
+
+    yield agent
+
+    await agent.stop()
 
 
 @pytest_asyncio.fixture
