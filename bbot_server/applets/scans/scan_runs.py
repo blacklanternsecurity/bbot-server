@@ -28,7 +28,7 @@ class ScanRunsApplet(BaseApplet):
         scan_status = activity.detail["scan_status"]
         self.collection.update_one({"id": scan_id}, {"$set": {"status": scan_status}})
 
-    async def handle_scan(self, event) -> list[Activity]:
+    async def handle_event(self, event, asset) -> list[Activity]:
         """
         Whenever we get a new scan event,
         """

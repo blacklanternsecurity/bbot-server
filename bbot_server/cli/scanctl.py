@@ -36,9 +36,20 @@ class ScanCTL(BaseBBCTL):
 
         table = self.Table()
         table.add_column("Name", style=self.COLOR)
-        table.add_column("Targets")
+        table.add_column("Seeds")
+        table.add_column("Whitelist")
+        table.add_column("Blacklist")
+        table.add_column("Created", style=self.DARK_COLOR)
+        table.add_column("Modified", style=self.DARK_COLOR)
         for scan in scan_list:
-            table.add_row(scan.name, ", ".join(scan.target))
+            table.add_row(
+                scan.name,
+                f"{scan.target.seed_size:,}",
+                f"{scan.target.whitelist_size:,}",
+                f"{scan.target.blacklist_size:,}",
+                self.timestamp_to_human(scan.created),
+                self.timestamp_to_human(scan.modified),
+            )
         self.stdout.print(table)
 
     @subcommand(help="Create a new scan")
@@ -64,7 +75,7 @@ class ScanCTL(BaseBBCTL):
         strict_dns_scope = preset.get("scope", {}).get("strict_dns", False)
         try:
             target = self.bbot_server.create_target(
-                target=targets, whitelist=whitelist, blacklist=blacklist, strict_dns_scope=strict_dns_scope
+                seeds=targets, whitelist=whitelist, blacklist=blacklist, strict_dns_scope=strict_dns_scope
             )
         except self.BBOTServerValueError as e:
             error = e.detail.get("error", "")

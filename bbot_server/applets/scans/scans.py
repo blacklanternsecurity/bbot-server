@@ -21,7 +21,7 @@ class ScansApplet(BaseApplet):
     @api_endpoint("/", methods=["GET"], summary="Get a single scan by its name")
     async def get_scan(self, name: str = "", id: str = None) -> ScanDBEntry:
         if (not name) and (not id):
-            raise self.BBOTServerError("Either name or id must be provided")
+            raise self.BBOTServerError("Must provide either a scan name or id")
         query = {}
         if name:
             query["name"] = name
@@ -61,12 +61,10 @@ class ScansApplet(BaseApplet):
         # TODO: delete events + refresh assets
         await self.collection.delete_one({"id": str(id)})
 
-    @api_endpoint("/list", methods=["GET"], summary="List scans")
-    async def get_scans(self) -> list[ScanDBEntry]:
-        cursor = self.collection.find()
-        scans = await cursor.to_list(length=None)
-        scans = [ScanDBEntry(**scan) for scan in scans]
-        return scans
+    @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=ScanResponse, summary="Get all scans")
+    async def get_scans(self):
+        for scan_id in await self.collection.distinct("id"):
+            yield await self.get_scan(id=scan_id)
 
     @api_endpoint("/start/{scan_id}", methods=["POST"], summary="Start a scan")
     async def start_scan(self, scan_id: str, agent_id: str = None) -> None:

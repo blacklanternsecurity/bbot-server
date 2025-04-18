@@ -25,7 +25,7 @@ async def test_applet_scans(bbot_server):
     asyncio.create_task(tail_activities())
     asyncio.create_task(tail_events())
 
-    scans = await bbot_server.get_scans()
+    scans = [s async for s in bbot_server.get_scans()]
     assert scans == []
 
     # first, create a target
@@ -42,7 +42,7 @@ async def test_applet_scans(bbot_server):
         preset={"config": {"web": {"user_agent": "BBOT User Agent"}}},
     )
 
-    scans = await bbot_server.get_scans()
+    scans = [s async for s in bbot_server.get_scans()]
     assert len(scans) == 1
     scan = scans[0]
     assert scan.name == "scan1"
@@ -55,7 +55,7 @@ async def test_applet_scans(bbot_server):
         preset={"config": {"web": {"user_agent": "BBOT User Agent 2"}}},
     )
 
-    scans = await bbot_server.get_scans()
+    scans = [s async for s in bbot_server.get_scans()]
     assert len(scans) == 2
     scan = scans[1]
     assert scan.name == "scan2"
@@ -64,7 +64,7 @@ async def test_applet_scans(bbot_server):
 
     # delete scan1
     await bbot_server.delete_scan(scan1.id)
-    scans = await bbot_server.get_scans()
+    scans = [s async for s in bbot_server.get_scans()]
     assert len(scans) == 1
     scan = scans[0]
     assert scan.name == "scan2"
@@ -79,7 +79,7 @@ async def test_applet_scans(bbot_server):
     scan2.target_id = target2.id
     scan2.preset = {"config": {"web": {"user_agent": "BBOT User Agent 3"}}}
     await bbot_server.update_scan(scan2.id, scan2)
-    scans = await bbot_server.get_scans()
+    scans = [s async for s in bbot_server.get_scans()]
     assert len(scans) == 1
     scan = scans[0]
     assert scan.id == scan2.id

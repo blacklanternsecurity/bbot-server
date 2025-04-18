@@ -56,8 +56,8 @@ class TestAppletAgents(BaseAppletTest):
 
     async def after_scan_1(self):
         # we only run this test if we're using the HTTP interface
-        # if self.bbot_server.interface_type != "http":
-        #     return
+        if self.bbot_server.interface_type != "http":
+            return
 
         # our agent should be offline
         agent_status = await self.bbot_server.get_agent_status(self.agent_3.id)
