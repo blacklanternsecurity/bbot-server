@@ -66,6 +66,14 @@ class ScansApplet(BaseApplet):
         for scan_id in await self.collection.distinct("id"):
             yield await self.get_scan(id=scan_id)
 
+    @api_endpoint("/list_brief", methods=["GET"], summary="Get all scans in a brief format (without target info)")
+    async def get_scans_brief(self, target_id: UUID4 = None):
+        query = {}
+        if target_id is not None:
+            query["target_id"] = str(target_id)
+        scans = await self.collection.find(query).to_list(length=None)
+        return [ScanDBEntry(**scan) for scan in scans]
+
     @api_endpoint("/start/{scan_id}", methods=["POST"], summary="Start a scan")
     async def start_scan(self, scan_id: str, agent_id: str = None) -> None:
         scan_run = await self.runs.new_run(scan_id, agent_id)

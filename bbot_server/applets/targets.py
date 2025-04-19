@@ -203,8 +203,7 @@ class TargetsApplet(BaseApplet):
         target = await self.get_target(id=id, name=name)
 
         # abort if the target is still in use by any scans
-        all_scans = await self.root.scans.get_scans()
-        scans_with_target = [scan for scan in all_scans if scan.target_id == target.id]
+        scans_with_target = await self.parent.scans.get_scans_brief(target_id=target.id)
         if scans_with_target:
             raise self.BBOTServerValueError(
                 f"Target is still in use by the following scans: {', '.join([str(scan.name) for scan in scans_with_target])}"

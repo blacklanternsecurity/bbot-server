@@ -172,12 +172,14 @@ async def test_applet_targets(bbot_server):
     )
 
     # deleting a target that's a part of a scan should not work
-    scan = await bbot_server.create_scan(name="scan", target_id=target2.id)
-    with pytest.raises(BBOTServerValueError):
+    scan = await bbot_server.create_scan(name="scan1", target_id=target2.id)
+    with pytest.raises(BBOTServerValueError, match="Target is still in use by the following scans: scan1"):
         await bbot_server.delete_target(target2.id)
 
     # deleting the default target without specifying a new default target should raise an error
-    with pytest.raises(BBOTServerValueError):
+    with pytest.raises(
+        BBOTServerValueError, match="Must specify a new default target when deleting the default target."
+    ):
         await bbot_server.delete_target(target3.id)
 
     # deleting the default target with a new default target should work
