@@ -114,5 +114,6 @@ class TestAppletAgents(BaseAppletTest):
         await asyncio.sleep(1)
 
         asset_activity_types = [a.type for a in self.asset_messages]
-        assert asset_activity_types.count("AGENT_CONNECTED") == 2
-        assert asset_activity_types.count("AGENT_DISCONNECTED") == 1
+        assert asset_activity_types == ["AGENT_STATUS", "AGENT_STATUS", "AGENT_STATUS", "AGENT_STATUS", "AGENT_STATUS"]
+        agent_statuses = [a.detail["status"] for a in self.asset_messages]
+        assert agent_statuses == ["ONLINE", "READY", "ONLINE", "READY", "OFFLINE"]

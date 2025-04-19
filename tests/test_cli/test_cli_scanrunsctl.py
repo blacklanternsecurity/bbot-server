@@ -6,6 +6,9 @@ from tests.conftest import BBCTL_COMMAND
 from bbot_server.models.scan_models import ScanRun
 
 
+# TODO: test starting the same scan twice (creating two runs back to back from a single scan)
+
+
 def test_cli_scan_runs(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events):
     scan1_out_file, scan2_out_file = bbot_out_file
     scan1_events, scan2_events = bbot_events

@@ -55,22 +55,26 @@ class ScanRunsCTL(BaseBBCTL):
         table = self.Table()
         table.add_column("Name", style=self.COLOR)
         table.add_column("Status", style="bold")
+        table.add_column("Started", style=self.DARK_COLOR)
+        table.add_column("Finished", style=self.DARK_COLOR)
+        table.add_column("Duration")
         table.add_column("Seeds")
         table.add_column("Whitelist")
         table.add_column("Blacklist")
-        table.add_column("Duration")
-        table.add_column("Started", style=self.DARK_COLOR)
-        table.add_column("Finished", style=self.DARK_COLOR)
 
+        # TODO: why is duration None?
         for scan_run in scan_runs:
+            duration = "" if scan_run.duration_seconds is None else self.seconds_to_human(scan_run.duration_seconds)
+            started = "" if scan_run.started_at is None else self.timestamp_to_human(scan_run.started_at)
+            finished = "" if scan_run.finished_at is None else self.timestamp_to_human(scan_run.finished_at)
             table.add_row(
                 scan_run.name,
                 scan_run.status,
+                started,
+                finished,
+                duration,
                 f"{scan_run.target.seed_size:,}",
                 f"{scan_run.target.whitelist_size:,}",
                 f"{scan_run.target.blacklist_size:,}",
-                self.seconds_to_human(scan_run.duration_seconds),
-                self.timestamp_to_human(scan_run.started_at),
-                self.timestamp_to_human(scan_run.finished_at),
             )
         self.stdout.print(table)

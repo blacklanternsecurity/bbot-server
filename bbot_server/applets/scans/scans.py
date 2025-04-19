@@ -19,7 +19,7 @@ class ScansApplet(BaseApplet):
     model = ScanDBEntry
 
     @api_endpoint("/", methods=["GET"], summary="Get a single scan by its name")
-    async def get_scan(self, name: str = "", id: str = None) -> ScanDBEntry:
+    async def get_scan(self, name: str = "", id: str = None) -> ScanResponse:
         if (not name) and (not id):
             raise self.BBOTServerError("Must provide either a scan name or id")
         query = {}

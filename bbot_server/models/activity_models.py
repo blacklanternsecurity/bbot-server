@@ -13,9 +13,11 @@ remove_rich_color_pattern = re.compile(r"\[(\w+)\](.*?)\[/\1\]")
 
 class Activity(BaseBBOTServerModel):
     """
-    An "asset activity" is a record of a change to an asset.
+    An Activity is BBOT server's equivalent of an event.
 
-    E.g., a change to an asset's open ports, technologies, etc.
+    Activities are emitted whenever an agent connects, a scan starts, a new open port is detected, etc.
+
+    They are usually associated with a asset, and can be traced back to a specific BBOT event.
     """
 
     __tablename__ = "history"

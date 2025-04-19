@@ -7,7 +7,7 @@ from bbot.core.helpers.names_generator import random_name
 
 from bbot_server.models.activity_models import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
-from bbot_server.models.scan_models import ScanRun, ScanDBEntry
+from bbot_server.models.scan_models import ScanRun, ScanResponse
 
 
 class ScanRunsApplet(BaseApplet):
@@ -39,12 +39,10 @@ class ScanRunsApplet(BaseApplet):
         existing_scan_run = await self.collection.find_one({"id": scan_run_id})
         # if the scan run already exists, update it
         if existing_scan_run:
-            status = "STARTED" if scan_run.status == "RUNNING" else scan_run.status
-            activity_type = f"SCAN_{status}"
-            description = (
-                f"Scan [{scan_run.name}] status changed from {existing_scan_run['status']} to {scan_run.status}"
-            )
-            description_colored = f"Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_scan_run['status']} to {scan_run.status}"
+            if existing_scan_run["status"] == scan_run.status:
+                return []
+            activity_type = f"SCAN_{scan_run.status}"
+            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_scan_run['status']} to {scan_run.status}"
             agent_id = existing_scan_run.get("agent_id", None)
             if agent_id is not None:
                 detail["agent_id"] = agent_id
@@ -55,21 +53,21 @@ class ScanRunsApplet(BaseApplet):
                         "status": scan_run.status,
                         "started_at": scan_run.started_at,
                         "finished_at": scan_run.finished_at,
+                        "duration": scan_run.duration,
+                        "duration_seconds": scan_run.duration_seconds,
                     }
                 },
             )
         # otherwise, assume the scan is starting and create a new run
         else:
             activity_type = "SCAN_STARTED"
-            description = f"Scan [{scan_run.name}] started"
-            description_colored = f"Scan [[COLOR]{scan_run.name}[/COLOR]] started"
+            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] started"
             await self.collection.insert_one(scan_run.model_dump())
 
         scan_run_activity = Activity(
             type=activity_type,
             event=event,
             description=description,
-            description_colored=description_colored,
             detail=detail,
         )
         return [scan_run_activity]
@@ -107,7 +105,7 @@ class ScanRunsApplet(BaseApplet):
         if scan is None:
             raise self.BBOTServerNotFoundError("Scan not found")
 
-        scan_run = self.make_run_from_scan(scan, agent_id)
+        scan_run = await self.make_run_from_scan(scan, agent_id)
 
         await self.collection.insert_one(scan_run.model_dump())
         description = f"Scan [[COLOR]{scan.name}[/COLOR]] queued"
@@ -136,13 +134,12 @@ class ScanRunsApplet(BaseApplet):
             scan_runs.append(ScanRun(**run))
         return scan_runs
 
-    def make_run_from_scan(self, scan: ScanDBEntry, agent_id: str = None) -> ScanRun:
+    async def make_run_from_scan(self, scan: ScanResponse, agent_id: str = None) -> ScanRun:
         random_scan_name = random_name()
         return ScanRun(
-            id=str(scan.id),
             name=f"{scan.name} ({random_scan_name})",
             target=scan.target,
-            parent_scan_id=scan.id,
+            parent_scan_id=str(scan.id),
             preset=scan.preset,
             agent_id=agent_id,
         )
@@ -196,7 +193,7 @@ class ScanRunsApplet(BaseApplet):
 
                     await self.emit_activity(
                         type="SCAN_SENT",
-                        description=f"Scan [[COLOR]{scan.name}[/COLOR]] sent to agent [[COLOR]{selected_agent.name}[/COLOR]]",
+                        description=f"Scan [[COLOR]{scan.name}[/COLOR]] sent to agent [[bold]{selected_agent.name}[/bold]]",
                         detail={"scan_id": scan.id, "agent_id": str(selected_agent.id)},
                     )
                     # make the scan as sent

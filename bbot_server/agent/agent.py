@@ -252,7 +252,7 @@ class BBOTAgent:
 
                 except websockets.ConnectionClosed:
                     self.log.error("Connection closed, attempting to reconnect...")
-                    asyncio.sleep(1)
+                    await asyncio.sleep(1)
                 except RuntimeError:
                     raise
                 except Exception as e:

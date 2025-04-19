@@ -54,7 +54,7 @@ class AgentsApplet(BaseApplet):
     @api_endpoint("/", methods=["GET"], summary="Get an agent by its id")
     async def get_agent(self, id: UUID4 = None, name: str = None) -> Agent:
         if id is None and name is None:
-            raise ValueError("Either id or name must be provided")
+            raise ValueError("Must provide either a scan name or id")
         query = {}
         if id is not None:
             query["id"] = str(id)
@@ -135,12 +135,12 @@ class AgentsApplet(BaseApplet):
         try:
             async for message in self.connection_manager.loop(agent.id, websocket):
                 try:
-                    self.log.info(f"Server received gratuitous message from agent {agent.name}: {message}")
+                    self.log.debug(f"Server received gratuitous message from agent {agent.name}: {message}")
                     if "agent_status" in message.response:
                         agent_status = message.response["agent_status"]
                         scan_status = message.response["scan_status"]
-                        scan_id = message.response["scan_id"]
-                        scan_name = message.response["scan_name"]
+                        scan_id = message.response.get("scan_id", "")
+                        scan_name = message.response.get("scan_name", "")
                         if scan_name and scan_id:
                             await self.emit_activity(
                                 type="SCAN_STATUS",
@@ -180,7 +180,7 @@ class AgentsApplet(BaseApplet):
                 detail={
                     "agent_id": str(agent_id),
                     "old_status": agent.status,
-                    "new_status": status,
+                    "status": status,
                     "connected": connected,
                 },
                 description=f"Agent [COLOR]{agent.name}[/COLOR] status changed from [bold]{agent.status}[/bold] to [bold]{status}[/bold]",

@@ -85,3 +85,24 @@ class ScanCTL(BaseBBCTL):
             raise
         scan = self.bbot_server.create_scan(name=name, target_id=str(target.id))
         self.sys.stdout.buffer.write(self.orjson.dumps(scan.model_dump()))
+
+    @subcommand(help="Start a scan")
+    def start(
+        self,
+        name: Annotated[str, Option("--name", "-n", help="Name of the scan", metavar="NAME")] = None,
+        id: Annotated[str, Option("--id", "-i", help="ID of the scan", metavar="ID")] = None,
+        agent_name: Annotated[
+            str, Option("--agent-name", "-an", help="Agent name to use for the scan", metavar="AGENT_NAME")
+        ] = None,
+        agent_id: Annotated[
+            str, Option("--agent-id", "-ai", help="Agent ID to use for the scan", metavar="AGENT_ID")
+        ] = None,
+    ):
+        if name is None and id is None:
+            raise self.BBOTServerError("Must provide either a scan name or id")
+        scan = self.bbot_server.get_scan(name=name, id=id)
+        if agent_name or agent_id:
+            agent = self.bbot_server.get_agent(name=agent_name, id=agent_id)
+            agent_id = agent.id
+        self.bbot_server.start_scan(scan.id, agent_id)
+        self.log.info(f"Scan {scan.name} successfully queued")
