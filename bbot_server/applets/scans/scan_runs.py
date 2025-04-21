@@ -34,7 +34,7 @@ class ScanRunsApplet(BaseApplet):
         """
         scan_run = ScanRun(**event.data_json)
         scan_run_id = str(scan_run.id)
-        detail = {"scan_id": scan_run_id}
+        detail = {"scan_id": scan_run_id, "scan_name": scan_run.name, "scan_status": scan_run.status}
 
         existing_scan_run = await self.collection.find_one({"id": scan_run_id})
         # if the scan run already exists, update it
@@ -42,7 +42,6 @@ class ScanRunsApplet(BaseApplet):
             # ignore if existing status is already the same
             if existing_scan_run["status"] == scan_run.status:
                 return []
-            activity_type = f"SCAN_{scan_run.status}"
             description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_scan_run['status']} to {scan_run.status}"
             agent_id = existing_scan_run.get("agent_id", None)
             if agent_id is not None:
@@ -61,12 +60,11 @@ class ScanRunsApplet(BaseApplet):
             )
         # otherwise, assume the scan is starting and create a new run
         else:
-            activity_type = "SCAN_STARTED"
             description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] started"
             await self.collection.insert_one(scan_run.model_dump())
 
         scan_run_activity = Activity(
-            type=activity_type,
+            type="SCAN_STATUS",
             event=event,
             description=description,
             detail=detail,

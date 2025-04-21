@@ -139,25 +139,27 @@ class AgentsApplet(BaseApplet):
                     if "agent_status" in message.response:
                         agent_status = message.response["agent_status"]
                         scan_status = message.response["scan_status"]
-                        scan_id = message.response.get("scan_id", None)
+                        scan_run_id = message.response.get("scan_id", None)
                         scan_name = message.response.get("scan_name", None)
-                        if scan_name and scan_id:
-                            await self.emit_activity(
-                                type="SCAN_STATUS",
-                                detail={
-                                    "agent_id": str(agent.id),
-                                    "agent_status": agent_status,
-                                    "scan_status": scan_status,
-                                    "scan_id": scan_id,
-                                    "scan_name": scan_name,
-                                },
-                                description=f"Scan [COLOR]{scan_name}[/COLOR] status changed to [bold]{scan_status}[/bold]",
-                            )
+                        if scan_name and scan_run_id:
+                            existing_scan = await self.root.get_scan_run(scan_run_id=scan_run_id)
+                            if existing_scan and existing_scan.status != scan_status:
+                                await self.emit_activity(
+                                    type="SCAN_STATUS",
+                                    detail={
+                                        "agent_id": str(agent.id),
+                                        "agent_status": agent_status,
+                                        "scan_status": scan_status,
+                                        "scan_id": scan_run_id,
+                                        "scan_name": scan_name,
+                                    },
+                                    description=f"Scan [COLOR]{scan_name}[/COLOR] status changed to [bold]{scan_status}[/bold]",
+                                )
                         await self._update_agent_status(
                             agent_id=agent.id,
                             status=agent_status,
                             connected=True,
-                            current_scan_id=scan_id,
+                            current_scan_id=scan_run_id,
                         )
                 except Exception as e:
                     self.log.error(f"Error in server-side websocket loop for agent {agent.id}: {e}")

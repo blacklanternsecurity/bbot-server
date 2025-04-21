@@ -52,7 +52,8 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
     scan_run = scan_runs[0]
     assert scan_run.status == "FINISHED"
 
-    assert [a.type for a in activities if a.type.startswith("SCAN_")] == ["SCAN_STARTED", "SCAN_FINISHED"]
+    assert [a.type for a in activities if a.type.startswith("SCAN_")] == ["SCAN_STATUS", "SCAN_STATUS"]
+    assert [a.detail["scan_status"] for a in activities if a.type.startswith("SCAN_")] == ["RUNNING", "FINISHED"]
 
     activity_task.cancel()
     with suppress(asyncio.CancelledError):

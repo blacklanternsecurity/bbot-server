@@ -46,7 +46,7 @@ async def test_applet_scans(bbot_server):
     assert len(scans) == 1
     scan = scans[0]
     assert scan.name == "scan1"
-    assert scan.target_id == target.id
+    assert scan.target.id == target.id
     assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent"}}}
 
     scan2 = await bbot_server.create_scan(
@@ -57,9 +57,11 @@ async def test_applet_scans(bbot_server):
 
     scans = [s async for s in bbot_server.get_scans()]
     assert len(scans) == 2
-    scan = scans[1]
+    scan = [s for s in scans if s.id == scan1.id][0]
+    assert scan.name == "scan1"
+    assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent"}}}
+    scan = [s for s in scans if s.id == scan2.id][0]
     assert scan.name == "scan2"
-    assert scan.target_id == target.id
     assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent 2"}}}
 
     # delete scan1
@@ -84,7 +86,7 @@ async def test_applet_scans(bbot_server):
     scan = scans[0]
     assert scan.id == scan2.id
     assert scan.name == "scan2_edited"
-    assert scan.target_id == target2.id
+    assert scan.target.id == target2.id
     assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent 3"}}}
 
     # make sure an agent is running
@@ -99,14 +101,21 @@ async def test_applet_scans(bbot_server):
     for _ in range(100):
         activity_types = [a.type for a in activities]
         event_types = [e.type for e in events]
+        scan_statuses = [a.detail["scan_status"] for a in activities if a.type == "SCAN_STATUS"]
+        assert scan_statuses == ["STARTING", "RUNNING", "FINISHING", "FINISHED"]
         if activity_types == [
-            "AGENT_CONNECTED",
+            "AGENT_STATUS",  # ONLINE
+            "AGENT_STATUS",  # READY
             "TARGET_CREATED",
             "TARGET_CREATED",
             "SCAN_QUEUED",
             "SCAN_SENT",
-            "SCAN_STARTED",
-            "SCAN_FINISHED",
+            "AGENT_STATUS",  # READY -> BUSY
+            "SCAN_STATUS",  # STARTING
+            "SCAN_STATUS",  # STARTED
+            "SCAN_STATUS",  # FINISHING
+            "SCAN_STATUS",  # FINISHED
+            "AGENT_STATUS",  # BUSY -> READY
         ]:
             if event_types == ["SCAN", "SCAN"]:
                 break
