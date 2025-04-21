@@ -134,12 +134,13 @@ def async_to_sync_class(cls):
         # Extract synchronous parameter if present
         synchronous = kwargs.pop("synchronous", False)
 
-        # Create the instance normally using the original __new__
-        # This maintains proper inheritance
-        instance = original_new(cls)
-
-        # Initialize the instance without the synchronous parameter
-        instance.__init__(*args, **kwargs)
+        # Create the instance using the original __new__ and initialize it
+        if original_new is object.__new__:
+            instance = original_new(cls)
+            instance.__init__(*args, **kwargs)
+        else:
+            # If __new__ is overridden, let it handle initialization
+            instance = original_new(cls, *args, **kwargs)
 
         # If synchronous mode is requested, wrap the instance
         if synchronous:

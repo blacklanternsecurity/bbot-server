@@ -17,7 +17,6 @@ from contextlib import suppress
 from bbot_server.config import BBOT_SERVER_CONFIG
 from .gen_scan_data import *
 
-
 log = logging.getLogger(__name__)
 
 PROJ_ROOT = Path(__file__).parent.parent
@@ -222,39 +221,6 @@ def bbot_agent(bbot_server_http):
         if agent_process.poll() is None:
             log.error("Agent process still running, killing forcefully")
             agent_process.kill()
-
-
-@pytest_asyncio.fixture
-async def bbot_agent_infinite(bbot_server_http, bbot_server_config):
-    # a BBOT agent that runs infinite scans (for testing cancellation)
-
-    from bbot_server import BBOTServer
-
-    bbot_server = BBOTServer(interface="http")
-    await bbot_server.setup()
-    agent = await bbot_server.create_agent(name="infinite")
-
-    from bbot.modules.base import BaseModule
-    from bbot_server.agent import BBOTAgent
-
-    # module that pretends to be stuck
-    class InfiniteModule(BaseModule):
-        watched_events = ["*"]
-
-        async def handle_event(self, event):
-            await self.helpers.sleep(99999999)
-
-    class BBOTAgentInfinite(BBOTAgent):
-        def _patch_scan(self, scan):
-            scan.modules["infinite"] = InfiniteModule(scan)
-            return scan
-
-    agent = BBOTAgentInfinite(agent.id, agent.name, bbot_server_config)
-    await agent.start()
-
-    yield agent
-
-    await agent.stop()
 
 
 @pytest_asyncio.fixture

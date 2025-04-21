@@ -1,5 +1,10 @@
+import pytest
 import asyncio
+from pathlib import Path
 from contextlib import suppress
+
+from bbot_server import BBOTServer
+from bbot_server.errors import BBOTServerNotFoundError
 
 
 # make sure ad-hoc ingestion of a BBOT scan creates an associated scan run in the database
@@ -82,24 +87,20 @@ async def test_basic_scan_run(bbot_server):
     else:
         raise Exception("Scan run did not finish")
 
-    activities = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
-    assert all(a.type == "SCAN_STATUS" for a in activities)
-    scan_statuses = [a.detail["scan_status"] for a in activities]
+    scan_statuses = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
+    assert all(a.type == "SCAN_STATUS" for a in scan_statuses)
+    scan_statuses = [(a.detail["agent_status"], a.detail["scan_status"]) for a in scan_statuses]
     assert scan_statuses == [
-        "STARTING",
-        "RUNNING",
-        "FINISHING",
-        "CLEANING_UP",
-        "FINISHED",
+        ("BUSY", "STARTING"),
+        ("BUSY", "RUNNING"),
+        ("BUSY", "FINISHING"),
+        ("BUSY", "FINISHED"),
     ]
-    agent_statuses = [a.detail["agent_status"] for a in activities]
-    assert agent_statuses == [
-        "BUSY",
-        "BUSY",
-        "BUSY",
-        "BUSY",
-        "READY",
-    ]
+
+    agent_statuses = [a async for a in bbot_server.get_activities(type="AGENT_STATUS")]
+    assert all(a.type == "AGENT_STATUS" for a in agent_statuses)
+    agent_statuses = [a.detail["status"] for a in agent_statuses]
+    assert agent_statuses == ["ONLINE", "READY", "BUSY", "READY"]
 
     # agent should be ready again
     agents = await bbot_server.get_agents()
@@ -130,17 +131,22 @@ async def test_queued_scan_cancellation(bbot_server):
     assert scan_runs[0].status == "CANCELLED"
 
 
-async def test_running_scan_cancellation(bbot_server, bbot_agent_infinite):
+async def test_running_scan_cancellation(bbot_server_config, bbot_agent, bbot_watchdog):
     """
     Here we start a scan with an agent, so we have a running scan
 
     Then we cancel the scan, and make sure the cleanup etc. happens properly
     """
-    bbot_server = await bbot_server(needs_api=True)
+    # we have to use the HTTP interface here because we can only cancel a scan through the REST API
+    bbot_server = BBOTServer(interface="http", config=bbot_server_config)
+    await bbot_server.setup()
+
+    infinite_module_dir = Path(__file__).parent.parent / "bbot_modules"
+    preset = {"modules": ["infinite"], "module_dirs": [str(infinite_module_dir)]}
 
     # start scan
     target = await bbot_server.create_target(name="target1", seeds=["evilcorp.com"])
-    scan = await bbot_server.create_scan(name="scan1", target_id=target.id)
+    scan = await bbot_server.create_scan(name="scan1", target_id=target.id, preset=preset)
     await bbot_server.start_scan(scan_id=scan.id)
 
     # wait for agent to pick it up
@@ -169,7 +175,11 @@ async def test_running_scan_cancellation(bbot_server, bbot_agent_infinite):
     # make sure the scan is cancelled
     scan_runs = await bbot_server.get_scan_runs()
     assert len(scan_runs) == 1
-    assert scan_runs[0].status == "CANCELLED"
+    assert scan_runs[0].status == "ABORTED"
+
+    # cancelling the scan again should raise an error
+    with pytest.raises(BBOTServerNotFoundError, match="Scan isn't running on agent"):
+        await bbot_server.cancel_scan(scan_run_id=scan_runs[0].id)
 
     # make sure the agent is still running and ready to pick up the next scan
     agents = await bbot_server.get_agents()

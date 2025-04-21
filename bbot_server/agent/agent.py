@@ -14,7 +14,7 @@ from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
 from bbot_server.models.scan_models import ScanRun
 from bbot_server.utils.async_utils import async_to_sync_class
-from bbot_server.applets.agents.agent_models import AgentResponse
+from bbot_server.models.agent_models import AgentResponse
 
 default_server_url = BBOT_SERVER_CONFIG.get("url", "http://localhost:8807/v1/")
 default_bbot_preset = BBOT_SERVER_CONFIG.get("agent", {}).get("base_preset", {})
@@ -93,10 +93,11 @@ class BBOTAgent:
         self._agent_task = asyncio.create_task(self.loop())
 
     async def stop(self):
-        if self._agent_task is not None:
-            self._agent_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await self._agent_task
+        if self._agent_task is None:
+            return
+        self._agent_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await self._agent_task
 
     async def handle_message(self, message):
         command = message["command"]
@@ -125,47 +126,38 @@ class BBOTAgent:
 
     @command
     async def cancel_scan(self, force: bool = False):
-        self.log.critical(f"Cancelling scan {self.scan.id} on agent {self.id}")
+        self.log.info(f"Cancelling scan with force={force}")
         if self.scan_task is None or self.scan_task.done() or self.scan_task.cancelled() or not self.scan:
-            return
+            return {"status": "error", "message": "Scan not running"}
         if force:
             self.scan_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await self.scan_task
+            # with suppress(asyncio.CancelledError):
+            #     await self.scan_task
+            return {"status": "success"}
         else:
             try:
-                await self.scan.stop()
+                self.scan.stop()
             except Exception as e:
                 self.log.error(f"Error stopping scan: {e}")
                 self.log.error(traceback.format_exc())
+            return {"status": "success"}
 
     async def _start_scan_task(self, scan):
         self.status = "BUSY"
-        success = False
-        cancelled = False
+        self.scan = scan
+        await self.gratuitous_status_update()
         try:
-            self.scan = scan
             await scan.async_start_without_generator()
-            success = True
         except asyncio.CancelledError:
-            cancelled = True
             self.log.warning("Scan cancelled")
         except BaseException as e:
             self.log.error(f"Error running scan: {e}")
             self.log.error(traceback.format_exc())
         finally:
             self.scan = None
-            if success:
-                scan_status = getattr(scan, "status", "FINISHED")
-            elif cancelled:
-                scan_status = "CANCELLED"
-            else:
-                scan_status = "ERRORED"
-            if not success:
-                await self.gratuitous_status_update(scan_status=scan_status)
-            self.scan = None
             self.scan_task = None
             self.status = "READY"
+            await self.gratuitous_status_update()
 
     @command
     async def get_agent_status(self, detailed: bool = False):

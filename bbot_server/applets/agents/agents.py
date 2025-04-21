@@ -5,7 +5,7 @@ from pydantic import UUID4
 from fastapi import WebSocket
 from contextlib import suppress
 from datetime import datetime, timezone
-from bbot_server.applets.agents.agent_models import Agent
+from bbot_server.models.agent_models import Agent
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
@@ -139,8 +139,8 @@ class AgentsApplet(BaseApplet):
                     if "agent_status" in message.response:
                         agent_status = message.response["agent_status"]
                         scan_status = message.response["scan_status"]
-                        scan_id = message.response.get("scan_id", "")
-                        scan_name = message.response.get("scan_name", "")
+                        scan_id = message.response.get("scan_id", None)
+                        scan_name = message.response.get("scan_name", None)
                         if scan_name and scan_id:
                             await self.emit_activity(
                                 type="SCAN_STATUS",
@@ -153,7 +153,12 @@ class AgentsApplet(BaseApplet):
                                 },
                                 description=f"Scan [COLOR]{scan_name}[/COLOR] status changed to [bold]{scan_status}[/bold]",
                             )
-                        await self._update_agent_status(agent.id, agent_status, True)
+                        await self._update_agent_status(
+                            agent_id=agent.id,
+                            status=agent_status,
+                            connected=True,
+                            current_scan_id=scan_id,
+                        )
                 except Exception as e:
                     self.log.error(f"Error in server-side websocket loop for agent {agent.id}: {e}")
                     self.log.error(traceback.format_exc())
@@ -172,7 +177,7 @@ class AgentsApplet(BaseApplet):
     async def _on_disconnect(self, agent):
         await self._update_agent_status(agent.id, "OFFLINE", False)
 
-    async def _update_agent_status(self, agent_id: UUID4, status: str, connected: bool):
+    async def _update_agent_status(self, agent_id: UUID4, status: str, connected: bool, current_scan_id: str = None):
         agent = await self.get_agent(id=str(agent_id))
         if agent.status != status:
             await self.emit_activity(
@@ -182,6 +187,7 @@ class AgentsApplet(BaseApplet):
                     "old_status": agent.status,
                     "status": status,
                     "connected": connected,
+                    "current_scan_id": current_scan_id,
                 },
                 description=f"Agent [COLOR]{agent.name}[/COLOR] status changed from [bold]{agent.status}[/bold] to [bold]{status}[/bold]",
             )
@@ -193,6 +199,7 @@ class AgentsApplet(BaseApplet):
                     "status": status,
                     "connected": connected,
                     "last_seen": now,
+                    "current_scan_id": current_scan_id,
                 }
             },
         )

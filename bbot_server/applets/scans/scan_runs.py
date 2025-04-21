@@ -39,6 +39,7 @@ class ScanRunsApplet(BaseApplet):
         existing_scan_run = await self.collection.find_one({"id": scan_run_id})
         # if the scan run already exists, update it
         if existing_scan_run:
+            # ignore if existing status is already the same
             if existing_scan_run["status"] == scan_run.status:
                 return []
             activity_type = f"SCAN_{scan_run.status}"
@@ -79,6 +80,7 @@ class ScanRunsApplet(BaseApplet):
 
     @api_endpoint("/cancel/{id}", methods=["POST"], summary="Cancel a scan run by its id")
     async def cancel_scan(self, scan_run_id: str, force: bool = False):
+        # get the scan run
         scan_run = await self.collection.find_one({"id": str(scan_run_id)}, {"id": 1, "agent_id": 1, "name": 1})
         if scan_run is None:
             raise self.BBOTServerNotFoundError("Scan run not found")
@@ -87,7 +89,13 @@ class ScanRunsApplet(BaseApplet):
         if agent_id is None:
             await self.collection.update_one({"id": str(scan_run_id)}, {"$set": {"status": "CANCELLED"}})
         else:
-            await self.root.cancel_scan(agent_id, "cancel_scan", scan_run_id=scan_run_id, force=force)
+            # otherwise, we make sure the agent is actually running our scan
+            agent = await self.parent.get_agent(id=agent_id)
+            if str(agent.current_scan_id) != scan_run_id:
+                raise self.BBOTServerNotFoundError(
+                    f"Scan isn't running on agent (current_scan_id={agent.current_scan_id})"
+                )
+            await self.root.scans.agents.execute_command(agent_id, "cancel_scan", force=force)
             if force:
                 await self.emit_activity(
                     type="SCAN_STATUS",
@@ -132,6 +140,7 @@ class ScanRunsApplet(BaseApplet):
         scan_runs = []
         for run in await cursor.to_list(length=None):
             scan_runs.append(ScanRun(**run))
+        print(f"RUNS: {scan_runs}")
         return scan_runs
 
     async def make_run_from_scan(self, scan: ScanResponse, agent_id: str = None) -> ScanRun:

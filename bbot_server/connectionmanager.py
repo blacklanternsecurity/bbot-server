@@ -8,7 +8,7 @@ from contextlib import suppress
 from starlette.websockets import WebSocketDisconnect, WebSocket
 
 from bbot_server.agent import VALID_AGENT_COMMANDS
-from bbot_server.applets.agents.agent_models import AgentCommand, AgentResponse
+from bbot_server.models.agent_models import AgentCommand, AgentResponse
 
 
 class ConnectionManager:
