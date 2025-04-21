@@ -38,7 +38,8 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
     assert scan_run.status == "RUNNING"
     assert scan_run.name == "scan1"
 
-    assert [a.type for a in activities] == ["SCAN_STARTED"]
+    assert [a.type for a in activities] == ["SCAN_STATUS"]
+    assert activities[0].detail["scan_status"] == "RUNNING"
 
     # insert the rest of the events
     for event in scan1_events[1:]:
