@@ -15,6 +15,7 @@ class ServerCTL(BaseBBCTL):
     short_help = "Start the main BBOT server via Docker Compose or individual components in standalone mode"
 
     def setup(self):
+        self._docker_command = None
         self.docker_compose_dir = Path(__file__).parent.parent
         self.docker_compose_file = self.docker_compose_dir / "compose.yml"
 
