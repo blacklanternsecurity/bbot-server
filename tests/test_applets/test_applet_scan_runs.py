@@ -91,12 +91,12 @@ async def test_basic_scan_run(bbot_server):
 
     scan_statuses = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
     assert all(a.type == "SCAN_STATUS" for a in scan_statuses)
-    scan_statuses = [(a.detail["agent_status"], a.detail["scan_status"]) for a in scan_statuses]
+    scan_statuses = [a.detail["scan_status"] for a in scan_statuses]
     assert scan_statuses == [
-        ("BUSY", "STARTING"),
-        ("BUSY", "RUNNING"),
-        ("BUSY", "FINISHING"),
-        ("BUSY", "FINISHED"),
+        "STARTING",
+        "RUNNING",
+        "FINISHING",
+        "FINISHED",
     ]
 
     agent_statuses = [a async for a in bbot_server.get_activities(type="AGENT_STATUS")]

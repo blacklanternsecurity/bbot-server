@@ -102,8 +102,8 @@ async def test_applet_scans(bbot_server):
         activity_types = [a.type for a in activities]
         event_types = [e.type for e in events]
         scan_statuses = [a.detail["scan_status"] for a in activities if a.type == "SCAN_STATUS"]
-        assert scan_statuses == ["STARTING", "RUNNING", "FINISHING", "FINISHED"]
-        if activity_types == [
+        scan_status_match = scan_statuses == ["STARTING", "RUNNING", "FINISHING", "FINISHED"]
+        activity_types_match = activity_types == [
             "AGENT_STATUS",  # ONLINE
             "AGENT_STATUS",  # READY
             "TARGET_CREATED",
@@ -116,13 +116,14 @@ async def test_applet_scans(bbot_server):
             "SCAN_STATUS",  # FINISHING
             "SCAN_STATUS",  # FINISHED
             "AGENT_STATUS",  # BUSY -> READY
-        ]:
-            if event_types == ["SCAN", "SCAN"]:
-                break
+        ]
+        event_types_match = event_types == ["SCAN", "SCAN"]
+        if activity_types_match and event_types_match and scan_status_match:
+            break
         await asyncio.sleep(0.1)
     else:
         assert False, (
-            f"Scan didn't finish properly. Activities: {[a.type for a in activities]}, Events: {[e.type for e in events]}"
+            f"Scan didn't finish properly. Activities: {[a.type for a in activities]}, Events: {[e.type for e in events]}, Scan statuses: {scan_statuses}"
         )
 
 
