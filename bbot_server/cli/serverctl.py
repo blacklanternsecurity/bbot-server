@@ -70,26 +70,26 @@ class ServerCTL(BaseBBCTL):
             asyncio.run(run_watchdog())
 
         else:
-            self.ensure_docker_compose()
             # docker compose command with env vars
-            docker_compose_command = ["docker-compose", "up", "-d"]
             env = os.environ.copy()
             env["BBOT_HOST"] = "0.0.0.0"
             env["BBOT_PORT"] = str(port)
-            run(docker_compose_command, check=False, cwd=self.docker_compose_dir, env=env)
+            self._run_docker_compose(["up", "-d"], check=False, cwd=self.docker_compose_dir, env=env)
 
     @subcommand(help="Stop BBOT server")
     def stop(self):
-        self.ensure_docker_compose()
-        run(["docker-compose", "down"], check=False, cwd=self.docker_compose_dir)
+        self._run_docker_compose(["down"], check=False, cwd=self.docker_compose_dir)
 
-    def ensure_docker_compose(self):
-        # make sure docker compose is installed
-        commands = [["docker", "compose", "version"], ["docker-compose", "--version"]]
-        for command in commands:
-            try:
-                if run(command, check=False):
-                    return True
-            except FileNotFoundError:
-                continue
-        raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
+    def _run_docker_compose(self, args, **kwargs):
+        if self._docker_command is None:
+            for command in [["docker", "compose", "version"], ["docker-compose", "--version"]]:
+                try:
+                    run(command, **kwargs)
+                    self._docker_command = command
+                    break
+                except FileNotFoundError:
+                    continue
+            if self._docker_command is None:
+                raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
+
+        return run(self._docker_command + args, **kwargs)
