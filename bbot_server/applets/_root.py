@@ -30,6 +30,7 @@ class RootApplet(BaseApplet):
         else:
             self._config = BBOT_SERVER_CONFIG
         self._interface_type = "python"
+        self._mcp = None
 
     async def setup(self):
         # don't try to set up database/message queues if we're connected to a remote instance

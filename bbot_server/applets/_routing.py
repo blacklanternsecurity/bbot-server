@@ -8,10 +8,10 @@ from contextlib import suppress
 from fastapi.responses import StreamingResponse
 from starlette.websockets import WebSocketDisconnect
 
+from bbot_server.api.mcp import MCP_ENDPOINTS
 from bbot_server.utils.misc import smart_encode
 
 log = logging.getLogger("bbot_server.applets.routing")
-
 
 ROUTE_TYPES = {}
 
@@ -55,6 +55,9 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
         self.function_signature = inspect.signature(function)
         self.kwargs = dict(getattr(function, "_kwargs", {}))
         self.kwargs.pop("type", "")
+        self.mcp = self.kwargs.pop("mcp", False)
+        if self.mcp:
+            MCP_ENDPOINTS[self.function.__name__] = self.function
         self.tags = tags
 
     def add_to_applet(self, applet):
@@ -87,7 +90,7 @@ class HTTPRoute(BaseServerRoute):
         self.kwargs["tags"] = self.tags
 
     def add_to_router(self, router):
-        router.add_api_route(self.endpoint, self.function, **self.kwargs)
+        router.add_api_route(self.endpoint, self.function, operation_id=self.function.__name__, **self.kwargs)
 
     def setup(self):
         self.response_model = self.fastapi_route.response_model
@@ -128,7 +131,7 @@ class HTTPStreamRoute(BaseServerRoute):
         # Set the wrapper's signature to match the original function
         wrapper.__signature__ = sig
 
-        router.add_api_route(self.endpoint, wrapper, **self.kwargs)
+        router.add_api_route(self.endpoint, wrapper, operation_id=self.function.__name__, **self.kwargs)
 
 
 class WebsocketRoute(BaseServerRoute):

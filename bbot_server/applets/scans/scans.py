@@ -61,7 +61,9 @@ class ScansApplet(BaseApplet):
         # TODO: delete events + refresh assets
         await self.collection.delete_one({"id": str(id)})
 
-    @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=ScanResponse, summary="Get all scans")
+    @api_endpoint(
+        "/list", methods=["GET"], type="http_stream", response_model=ScanResponse, summary="Get all scans", mcp=True
+    )
     async def get_scans(self):
         for scan_id in await self.collection.distinct("id"):
             yield await self.get_scan(id=scan_id)
