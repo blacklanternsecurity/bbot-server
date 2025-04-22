@@ -1,10 +1,7 @@
 import sys
-
-# import importlib
 from pathlib import Path
 
 from bbot_server.preloader import APPLETS
-# from tests.test_applets.base import BaseAppletTest
 
 
 applet_tests_dir = Path(__file__).parent / "test_applets"

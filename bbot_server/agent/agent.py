@@ -12,9 +12,9 @@ from bbot import Scanner, Preset
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
-from bbot_server.applets.scans.scan_models import ScanRun
+from bbot_server.models.scan_models import ScanRun
 from bbot_server.utils.async_utils import async_to_sync_class
-from bbot_server.applets.agents.agent_models import AgentResponse
+from bbot_server.models.agent_models import AgentResponse
 
 default_server_url = BBOT_SERVER_CONFIG.get("url", "http://localhost:8807/v1/")
 default_bbot_preset = BBOT_SERVER_CONFIG.get("agent", {}).get("base_preset", {})
@@ -34,6 +34,18 @@ def command(fn: Callable) -> Callable:
     VALID_AGENT_COMMANDS[fn.__name__] = fn
     fn._agent_command = True
     return fn
+
+
+from bbot.scanner.dispatcher import Dispatcher
+
+
+class AgentDispatcher(Dispatcher):
+    def __init__(self, agent, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.agent = agent
+
+    async def on_status(self, status, scan_id):
+        await self.agent.gratuitous_status_update(scan=self.scan, scan_status=status)
 
 
 @async_to_sync_class
@@ -68,20 +80,24 @@ class BBOTAgent:
         self.scan_output_url = urljoin(self.websocket_base_url, "events/")
         self.websocket_dock_url = urljoin(self.websocket_base_url, f"scans/agents/dock/{self.id}")
         self.websocket = None
-        self._status = "READY"
-        self._scan = None
+        self.scan_task = None
+        self.status = "READY"
+        self.scan = None
         self._agent_preset = None
         self._agent_task = None
+
+        self.dispatcher = AgentDispatcher(self)
 
     async def start(self):
         self.log.info(f"Starting agent {self.name} ({self.id})")
         self._agent_task = asyncio.create_task(self.loop())
 
     async def stop(self):
-        if self._agent_task is not None:
-            self._agent_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await self._agent_task
+        if self._agent_task is None:
+            return
+        self._agent_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await self._agent_task
 
     async def handle_message(self, message):
         command = message["command"]
@@ -97,35 +113,65 @@ class BBOTAgent:
 
     @command
     async def start_scan(self, scan_run: dict[str, Any]):
-        if self._scan is not None:
+        if self.scan is not None:
             return {"status": "error", "message": "Scan already running"}
         scan_run = ScanRun(**scan_run)
         preset = self.make_agent_preset()
         preset.merge(Preset.from_dict(scan_run.preset))
 
-        scan = Scanner(preset=preset, scan_id=scan_run.id)
-        scan = self._patch_scan(scan)
-        self.scan_task = asyncio.create_task(scan.async_start_without_generator())
+        scan = Scanner(preset=preset, scan_id=scan_run.id, dispatcher=self.dispatcher)
+        self._patch_scan(scan)
+        self.scan_task = asyncio.create_task(self._start_scan_task(scan))
         return {"scan_id": scan.id, "scan_status": scan.status, "status": "success"}
 
     @command
-    async def status(self):
-        return {"status": self.agent_status}
+    async def cancel_scan(self, force: bool = False):
+        self.log.info(f"Cancelling scan with force={force}")
+        if self.scan_task is None or self.scan_task.done() or self.scan_task.cancelled() or not self.scan:
+            return {"status": "error", "message": "Scan not running"}
+        if force:
+            self.scan_task.cancel()
+            # with suppress(asyncio.CancelledError):
+            #     await self.scan_task
+            return {"status": "success"}
+        else:
+            try:
+                self.scan.stop()
+            except Exception as e:
+                self.log.error(f"Error stopping scan: {e}")
+                self.log.error(traceback.format_exc())
+            return {"status": "success"}
+
+    async def _start_scan_task(self, scan):
+        self.status = "BUSY"
+        self.scan = scan
+        await self.gratuitous_status_update()
+        try:
+            await scan.async_start_without_generator()
+        except asyncio.CancelledError:
+            self.log.warning("Scan cancelled")
+        except BaseException as e:
+            self.log.error(f"Error running scan: {e}")
+            self.log.error(traceback.format_exc())
+        finally:
+            self.scan = None
+            self.scan_task = None
+            self.status = "READY"
+            await self.gratuitous_status_update()
+
+    @command
+    async def get_agent_status(self, detailed: bool = False):
+        ret = {"agent_status": self.status, "scan_status": getattr(self.scan, "status", "NOT_RUNNING")}
+        if detailed and self.scan is not None:
+            ret["scan_status_detail"] = self.scan.modules_status(detailed=detailed)
+        return ret
 
     @command
     async def finish_scan(self):
         pass
 
     @command
-    async def stop_scan(self):
-        pass
-
-    @command
     async def kill_module(self):
-        pass
-
-    @command
-    async def scan_status(self):
         pass
 
     @command
@@ -151,21 +197,6 @@ class BBOTAgent:
         default_preset.merge(agent_preset)
         return default_preset
 
-    @property
-    def agent_status(self):
-        """
-        If there's an active scan, return its status.
-        Otherwise, return the agent's status.
-        """
-        try:
-            return self._scan.status
-        except Exception:
-            return self._status
-
-    @property
-    def scan(self):
-        return self._scan
-
     async def loop(self):
         try:
             self.log.info(f"Agent {self.name} connecting to {self.websocket_dock_url}...")
@@ -176,8 +207,7 @@ class BBOTAgent:
                 self.websocket = websocket
                 try:
                     # gratuitous status update on first connection
-                    agent_status = AgentResponse(response={"status": self.agent_status})
-                    await websocket.send(orjson.dumps(agent_status.model_dump()))
+                    await self.gratuitous_status_update()
 
                     async for message in websocket:
                         message = orjson.loads(message)
@@ -214,6 +244,7 @@ class BBOTAgent:
 
                 except websockets.ConnectionClosed:
                     self.log.error("Connection closed, attempting to reconnect...")
+                    await asyncio.sleep(1)
                 except RuntimeError:
                     raise
                 except Exception as e:
@@ -230,8 +261,27 @@ class BBOTAgent:
             self.log.error(traceback.format_exc())
             raise
 
+    async def gratuitous_status_update(self, scan=None, scan_status=None):
+        scan_id = getattr(scan, "id", None)
+        scan_name = getattr(scan, "name", None)
+        scan_status = scan_status or getattr(scan, "status", "NOT_RUNNING")
+        status = {
+            "agent_status": self.status,
+            "scan_status": scan_status,
+            "scan_id": scan_id,
+            "scan_name": scan_name,
+        }
+        if scan_id:
+            try:
+                status["scan_status_detail"] = scan.modules_status(detailed=True)
+            except Exception as e:
+                self.log.error(f"Error getting scan status detail: {e}")
+                self.log.error(traceback.format_exc())
+        agent_status = AgentResponse(response=status)
+        await self.websocket.send(orjson.dumps(agent_status.model_dump()))
+
     def _patch_scan(self, scan):
         """
         Used by tests to patch the scan with DNS mocks, etc.
         """
-        return scan
+        pass

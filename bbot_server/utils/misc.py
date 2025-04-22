@@ -1,13 +1,47 @@
 import orjson
 import logging
-from datetime import datetime, timezone
 from pydantic import BaseModel, create_model
+from datetime import datetime, timezone, timedelta
 
 log = logging.getLogger("bbot_server.utils.misc")
 
 
 def utc_now() -> float:
     return datetime.now(timezone.utc).timestamp()
+
+
+def seconds_to_human(seconds: float) -> str:
+    """
+    Convert seconds to a human-friendly string representation using timedelta.
+    Only includes time units that are non-zero, from largest to smallest.
+
+    Args:
+        seconds: Number of seconds to convert
+
+    Returns:
+        Human-readable string like "2 days, 5 hours, 30 minutes"
+    """
+    # Convert seconds to timedelta
+    delta = timedelta(seconds=seconds)
+
+    # Extract components
+    days = delta.days
+    hours, remainder = divmod(delta.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    # Build the string parts
+    parts = []
+    if days > 0:
+        parts.append(f"{days} day{'s' if days != 1 else ''}")
+    if hours > 0:
+        parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+    if minutes > 0:
+        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    if seconds > 0 or not parts:  # Include seconds if non-zero or if all other units are zero
+        parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+
+    # Join the parts with commas
+    return ", ".join(parts)
 
 
 def timestamp_to_human(timestamp: float) -> str:

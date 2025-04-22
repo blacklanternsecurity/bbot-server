@@ -1,7 +1,7 @@
 import pytest
 from typing import Any, Dict, List
 from pydantic import BaseModel, Field
-from bbot_server.utils.misc import combine_pydantic_models
+from bbot_server.utils.misc import combine_pydantic_models, seconds_to_human
 
 
 class ModelA(BaseModel):
@@ -101,3 +101,32 @@ def test_json_to_csv():
         b'test,1,"[{""a"":2}]"\r\n',
         b'test2,2,"[{""a"":[1,2]}]"\r\n',
     ]
+
+
+def test_seconds_to_human():
+    # Test various time intervals
+    assert seconds_to_human(0) == "0 seconds"
+    assert seconds_to_human(1) == "1 second"
+    assert seconds_to_human(45) == "45 seconds"
+
+    # Test minutes
+    assert seconds_to_human(60) == "1 minute"
+    assert seconds_to_human(65) == "1 minute, 5 seconds"
+    assert seconds_to_human(3600 - 1) == "59 minutes, 59 seconds"
+
+    # Test hours
+    assert seconds_to_human(3600) == "1 hour"
+    assert seconds_to_human(3600 + 65) == "1 hour, 1 minute, 5 seconds"
+    assert seconds_to_human(3600 * 2) == "2 hours"
+
+    # Test days
+    assert seconds_to_human(86400) == "1 day"
+    assert seconds_to_human(86400 + 3600 + 60 + 1) == "1 day, 1 hour, 1 minute, 1 second"
+    assert seconds_to_human(86400 * 2 + 3600 * 5) == "2 days, 5 hours"
+
+    # Test omitting zero values
+    assert seconds_to_human(86400 + 1) == "1 day, 1 second"  # No hours or minutes
+    assert seconds_to_human(3600 + 1) == "1 hour, 1 second"  # No minutes
+
+    # Test with float input
+    assert seconds_to_human(1.5) == "1 second"  # Should truncate to int

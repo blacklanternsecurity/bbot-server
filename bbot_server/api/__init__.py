@@ -8,7 +8,7 @@ from bbot_server.errors import BBOTServerError
 
 app_kwargs = {
     "title": "BBOT Server",
-    "description": "A central command center for all your nefarious BBOT activities 🧡",
+    "description": "A central database for all your BBOT activities 🧡",
     "debug": True,
 }
 

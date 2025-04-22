@@ -51,6 +51,15 @@ Note that this requires BBOT 3.0 or later (install with `pipx install git+https:
 bbot -t evilcorp.com -p subdomain-enum -om http -c modules.http.url=http://localhost:8807/v1/events/
 ```
 
+## Ingest events from past BBOT scans
+
+If you forgot to output a scan to BBOT server, you can easily ingest it after the fact:
+
+```bash
+# Ingest events from a past scan
+cat ~/.bbot/scans/demonic_jimmy/output.json | bbctl event ingest
+```
+
 ## Start a scan (through BBOT server)
 
 In BBOT server, scans are stored presets that can be run repeatably.
@@ -130,6 +139,19 @@ bbctl scan runs list
 bbctl scan runs stop --name "demonic_jimmy"
 ```
 
+## Targets
+
+BBOT server categorizes its assets by target.
+
+You can list targets like so:
+
+```bash
+# List targets
+bbctl target list
+```
+
+You can create a target manually:
+
 ## Custom triggers
 
 TODO
@@ -166,15 +188,6 @@ bbctl event export --csv > events.csv
 
 # Export events as JSON
 bbctl event export --json | jq
-```
-
-## Ingest events from past BBOT scans
-
-If you forgot to output a scan to BBOT server, you can easily ingest it after the fact:
-
-```bash
-# Ingest events from a past scan
-cat ~/.bbot/scans/demonic_jimmy/output.json | bbctl event ingest
 ```
 
 ## Screenshots

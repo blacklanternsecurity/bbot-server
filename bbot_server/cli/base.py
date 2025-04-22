@@ -4,7 +4,7 @@ from typer import Typer, Option  # noqa
 from typing import Annotated  # noqa
 from functools import cached_property, wraps
 
-from bbot_server.utils.misc import timestamp_to_human
+from bbot_server.utils.misc import timestamp_to_human, seconds_to_human
 
 
 # decorator to register valid agent commands
@@ -22,9 +22,11 @@ class BaseBBCTL:
     """
 
     command = ""
-    # short description listed alongside command in the parent's --help
+    # longer description listed above the command's --help
     help = ""
-    # longer description listed in the command's --help
+    # short description listed alongside command in the parent's --help
+    short_help = ""
+    # optional description listed below the command's --help
     epilog = ""
 
     # optionally include other BBCTL classes
@@ -43,7 +45,7 @@ class BaseBBCTL:
         self.children = {}
 
         # initialize typer
-        self.typer = Typer(short_help=self.help)
+        self.typer = Typer(help=self.help, short_help=self.short_help, epilog=self.epilog)
 
         # register main method
         decorator = self.typer.callback()
@@ -68,7 +70,7 @@ class BaseBBCTL:
             self.log.debug(f"Including {bbctl.__name__}")
             if not issubclass(bbctl, BaseBBCTL):
                 raise ValueError(f"{bbctl.__name__} must be a subclass of BaseBBCTL")
-            for required_attr in ("command", "help", "epilog"):
+            for required_attr in ("command", "help", "short_help"):
                 val = getattr(bbctl, required_attr, "")
                 if not val:
                     raise ValueError(f"BBCTL {bbctl.__name__} must define {required_attr}")
@@ -76,12 +78,9 @@ class BaseBBCTL:
             self.children[child.command] = child
             self.typer.add_typer(child.typer, name=child.command)
 
+    # main method, for when the command is executed without any subcommands
+    # override this method in subclasses
     def main(self):
-        """
-        The main method for the BBCTL CLI
-
-        Override this method in subclasses
-        """
         pass
 
     def setup(self):
@@ -126,5 +125,23 @@ class BaseBBCTL:
             children.extend(child.all_children(include_self=True))
         return children
 
+    @property
+    def json_highlighter(self):
+        return self.root._json_highlighter
+
+    def highlight_json(self, data, **kwargs):
+        """
+        Highlight a JSON string with rich
+        """
+        from rich.json import JSON
+
+        return JSON.from_data(data, **kwargs)
+
+    def print_json(self, data, **kwargs):
+        self.stdout.print(self.highlight_json(data, **kwargs))
+
     def timestamp_to_human(self, timestamp):
         return timestamp_to_human(timestamp)
+
+    def seconds_to_human(self, seconds):
+        return seconds_to_human(seconds)

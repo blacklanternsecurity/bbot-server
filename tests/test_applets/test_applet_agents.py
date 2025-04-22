@@ -4,7 +4,7 @@ import traceback
 import websockets
 from contextlib import suppress
 from tests.test_applets.base import BaseAppletTest
-from bbot_server.applets.agents.agent_models import AgentCommand, AgentResponse
+from bbot_server.models.agent_models import AgentCommand, AgentResponse
 
 
 class TestAppletAgents(BaseAppletTest):
@@ -61,7 +61,7 @@ class TestAppletAgents(BaseAppletTest):
 
         # our agent should be offline
         agent_status = await self.bbot_server.get_agent_status(self.agent_3.id)
-        assert agent_status == {"status": "OFFLINE"}
+        assert agent_status == {"agent_status": "OFFLINE", "scan_status": "UNKNOWN"}
 
         connected_agents = await self.bbot_server.get_online_agents()
         assert len(connected_agents) == 1
@@ -72,7 +72,7 @@ class TestAppletAgents(BaseAppletTest):
             agent_url = f"ws://localhost:8807/v1/scans/agents/dock/{self.agent_3.id}"
             try:
                 async for websocket in websockets.connect(agent_url):
-                    gratuitous_status = AgentResponse(response={"status": "READY"})
+                    gratuitous_status = AgentResponse(response={"agent_status": "READY", "scan_status": "NOT_RUNNING"})
                     await websocket.send(orjson.dumps(gratuitous_status.model_dump()))
 
                     while True:
@@ -81,11 +81,14 @@ class TestAppletAgents(BaseAppletTest):
                         status_command = orjson.loads(status_command)
                         status_command = AgentCommand(**status_command)
 
-                        assert status_command.command == "status"
-                        assert status_command.kwargs == {}
+                        assert status_command.command == "get_agent_status"
+                        assert status_command.kwargs == {"detailed": False}
                         assert status_command.request_id
 
-                        response = AgentResponse(request_id=status_command.request_id, response={"status": "READY"})
+                        response = AgentResponse(
+                            request_id=status_command.request_id,
+                            response={"agent_status": "READY", "scan_status": "NOT_RUNNING"},
+                        )
                         await websocket.send(orjson.dumps(response.model_dump()))
             except (asyncio.CancelledError, RuntimeError):
                 pass
@@ -101,7 +104,7 @@ class TestAppletAgents(BaseAppletTest):
         assert any(agent.id == self.agent_3.id for agent in connected_agents)
 
         agent_status = await self.bbot_server.get_agent_status(self.agent_3.id)
-        assert agent_status == {"status": "READY"}
+        assert agent_status == {"agent_status": "READY", "scan_status": "NOT_RUNNING"}
 
         # stop the agent dummy
         agent_dummy_task.cancel()
@@ -111,5 +114,6 @@ class TestAppletAgents(BaseAppletTest):
         await asyncio.sleep(1)
 
         asset_activity_types = [a.type for a in self.asset_messages]
-        assert asset_activity_types.count("AGENT_CONNECTED") == 2
-        assert asset_activity_types.count("AGENT_DISCONNECTED") == 1
+        assert asset_activity_types == ["AGENT_STATUS", "AGENT_STATUS", "AGENT_STATUS", "AGENT_STATUS", "AGENT_STATUS"]
+        agent_statuses = [a.detail["status"] for a in self.asset_messages]
+        assert agent_statuses == ["ONLINE", "READY", "ONLINE", "READY", "OFFLINE"]

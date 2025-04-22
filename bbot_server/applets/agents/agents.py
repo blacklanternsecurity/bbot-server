@@ -5,7 +5,7 @@ from pydantic import UUID4
 from fastapi import WebSocket
 from contextlib import suppress
 from datetime import datetime, timezone
-from bbot_server.applets.agents.agent_models import Agent
+from bbot_server.models.agent_models import Agent
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
@@ -54,7 +54,7 @@ class AgentsApplet(BaseApplet):
     @api_endpoint("/", methods=["GET"], summary="Get an agent by its id")
     async def get_agent(self, id: UUID4 = None, name: str = None) -> Agent:
         if id is None and name is None:
-            raise ValueError("Either id or name must be provided")
+            raise ValueError("Must provide either a scan name or id")
         query = {}
         if id is not None:
             query["id"] = str(id)
@@ -66,25 +66,35 @@ class AgentsApplet(BaseApplet):
         return await self._make_agent(agent)
 
     @api_endpoint("/status", methods=["GET"], summary="Get the status of an agent")
-    async def get_agent_status(self, id: UUID4) -> dict[str, str]:
+    async def get_agent_status(self, id: UUID4, detailed: bool = False) -> dict[str, str]:
         start_time = time.time()
         try:
-            command_response = await self.connection_manager.execute_command(str(id), "status", timeout=10)
+            command_response = await self.connection_manager.execute_command(
+                str(id), "get_agent_status", timeout=10, detailed=detailed
+            )
             if command_response.error:
                 raise self.BBOTServerValueError(command_response.error)
             agent_status = command_response.response
         except TimeoutError:
             end_time = time.time()
             self.log.error(f"Timed out after {end_time - start_time:.2f}s getting agent status for {id}")
-            agent_status = {"status": "TIMEOUT"}
+            agent_status = {"agent_status": "TIMEOUT", "scan_status": "UNKNOWN"}
         except (KeyError, self.BBOTServerValueError) as e:
             self.log.error(f"Failed to get agent status for {id}: {e}")
-            agent_status = {"status": "OFFLINE"}
+            agent_status = {"agent_status": "OFFLINE", "scan_status": "UNKNOWN"}
         return agent_status
+
+    @api_endpoint("/scan_status", methods=["GET"], summary="Get the status of an agent's scan")
+    async def get_scan_status(self, id: UUID4, detailed: bool = False) -> dict[str, str]:
+        command_response = await self.connection_manager.execute_command(
+            str(id), "get_scan_status", timeout=10, detailed=detailed
+        )
+        if command_response.error:
+            raise self.BBOTServerValueError(command_response.error)
+        return command_response.response
 
     @api_endpoint("/online", methods=["GET"], summary="Get all online agents")
     async def get_online_agents(self, status: str = "READY") -> list[Agent]:
-        agents = []
         agents = await self.collection.find({"status": status}).to_list(length=None)
         agents = [Agent(**agent) for agent in agents]
         return agents
@@ -124,9 +134,36 @@ class AgentsApplet(BaseApplet):
         # this loop handles gratuitous messages from the agent (i.e. messages that are not responses to commands)
         try:
             async for message in self.connection_manager.loop(agent.id, websocket):
-                self.log.info(f"Server received gratuitous message from agent {agent.name}: {message}")
-                if list(message.response) == ["status"]:
-                    await self._update_agent_status(agent.id, message.response["status"], True)
+                try:
+                    self.log.debug(f"Server received gratuitous message from agent {agent.name}: {message}")
+                    if "agent_status" in message.response:
+                        agent_status = message.response["agent_status"]
+                        scan_status = message.response["scan_status"]
+                        scan_run_id = message.response.get("scan_id", None)
+                        scan_name = message.response.get("scan_name", None)
+                        if scan_name and scan_run_id:
+                            existing_scan = await self.root.get_scan_run(scan_run_id=scan_run_id)
+                            if existing_scan and existing_scan.status != scan_status:
+                                await self.emit_activity(
+                                    type="SCAN_STATUS",
+                                    detail={
+                                        "agent_id": str(agent.id),
+                                        "agent_status": agent_status,
+                                        "scan_status": scan_status,
+                                        "scan_id": scan_run_id,
+                                        "scan_name": scan_name,
+                                    },
+                                    description=f"Scan [COLOR]{scan_name}[/COLOR] status changed to [bold]{scan_status}[/bold]",
+                                )
+                        await self._update_agent_status(
+                            agent_id=agent.id,
+                            status=agent_status,
+                            connected=True,
+                            current_scan_id=scan_run_id,
+                        )
+                except Exception as e:
+                    self.log.error(f"Error in server-side websocket loop for agent {agent.id}: {e}")
+                    self.log.error(traceback.format_exc())
 
         except Exception as e:
             self.log.error(f"Error in server-side websocket loop for agent {agent.id}: {e}")
@@ -138,21 +175,24 @@ class AgentsApplet(BaseApplet):
 
     async def _on_connect(self, agent):
         await self._update_agent_status(agent.id, "ONLINE", True)
-        await self.emit_activity(
-            type="AGENT_CONNECTED",
-            detail={"agent_id": str(agent.id)},
-            description=f"Agent [COLOR]{agent.name}[/COLOR] connected",
-        )
 
     async def _on_disconnect(self, agent):
         await self._update_agent_status(agent.id, "OFFLINE", False)
-        await self.emit_activity(
-            type="AGENT_DISCONNECTED",
-            detail={"agent_id": str(agent.id)},
-            description=f"Agent [COLOR]{agent.name}[/COLOR] disconnected",
-        )
 
-    async def _update_agent_status(self, agent_id: UUID4, status: str, connected: bool):
+    async def _update_agent_status(self, agent_id: UUID4, status: str, connected: bool, current_scan_id: str = None):
+        agent = await self.get_agent(id=str(agent_id))
+        if agent.status != status:
+            await self.emit_activity(
+                type="AGENT_STATUS",
+                detail={
+                    "agent_id": str(agent_id),
+                    "old_status": agent.status,
+                    "status": status,
+                    "connected": connected,
+                    "current_scan_id": current_scan_id,
+                },
+                description=f"Agent [COLOR]{agent.name}[/COLOR] status changed from [bold]{agent.status}[/bold] to [bold]{status}[/bold]",
+            )
         now = datetime.now(timezone.utc).timestamp()
         await self.collection.update_one(
             {"id": str(agent_id)},
@@ -161,6 +201,7 @@ class AgentsApplet(BaseApplet):
                     "status": status,
                     "connected": connected,
                     "last_seen": now,
+                    "current_scan_id": current_scan_id,
                 }
             },
         )

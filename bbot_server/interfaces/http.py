@@ -255,7 +255,7 @@ class http(BaseInterface):
         _wrap is used here to allow the coroutine to be called synchronously
         """
         # if the attribute is a route, prepare the request
-        applet = getattr(self, "applet")
+        applet = self.__getattribute__("applet")
         try:
             route = applet.route_maps[attr]
             url = f"{self.base_url}{route.full_path}"

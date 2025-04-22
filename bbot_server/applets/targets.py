@@ -6,8 +6,8 @@ from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
-from bbot_server.models.activity import Activity
-from bbot_server.applets.scans.scan_models import Target
+from bbot_server.models.activity_models import Activity
+from bbot_server.models.scan_models import Target
 from bbot_server.applets._base import BaseApplet, api_endpoint
 from bbot_server.assets.custom_fields import CustomAssetFields
 
@@ -149,19 +149,19 @@ class TargetsApplet(BaseApplet):
         self,
         name: str = "",
         description: str = "",
-        target: list[str] = [],
+        seeds: list[str] = [],
         whitelist: list[str] = None,
         blacklist: list[str] = None,
         strict_dns_scope: bool = False,
     ) -> Target:
-        if not target:
-            raise self.BBOTServerValueError("Must provide at least one target")
+        if not seeds:
+            raise self.BBOTServerValueError("Must provide at least one seed")
         if not name:
             name = await self.get_available_target_name()
         target = Target(
             name=name,
             description=description,
-            target=target,
+            seeds=seeds,
             whitelist=whitelist,
             blacklist=blacklist,
             strict_dns_scope=strict_dns_scope,
@@ -198,17 +198,16 @@ class TargetsApplet(BaseApplet):
         self._cache_put(target)
         return target
 
-    @api_endpoint("/{id}", methods=["DELETE"], summary="Delete a scan target by its id")
-    async def delete_target(self, id: UUID4, new_default_target_id: UUID4 = None) -> None:
-        # TODO: abort if the target is still in use by any scans
-        all_scans = await self.root.scans.get_scans()
-        scans_with_target = [scan for scan in all_scans if scan.target_id == id]
+    @api_endpoint("/", methods=["DELETE"], summary="Delete a scan target by its id")
+    async def delete_target(self, id: UUID4 = None, name: str = None, new_default_target_id: UUID4 = None) -> None:
+        target = await self.get_target(id=id, name=name)
+
+        # abort if the target is still in use by any scans
+        scans_with_target = await self.parent.scans.get_scans_brief(target_id=target.id)
         if scans_with_target:
             raise self.BBOTServerValueError(
                 f"Target is still in use by the following scans: {', '.join([str(scan.name) for scan in scans_with_target])}"
             )
-
-        target = await self.get_target(id=id)
 
         # when we're deleting the default target, we need to set a new one
         if target.default:
@@ -225,7 +224,7 @@ class TargetsApplet(BaseApplet):
                         "Must specify a new default target when deleting the default target."
                     )
 
-        target = await self.get_target(id=id)
+        target = await self.get_target(id=target.id)
         await self.collection.delete_one({"id": str(target.id)})
 
         # set the new default target
@@ -234,13 +233,13 @@ class TargetsApplet(BaseApplet):
 
         # clear scope cache
         if self._scope_cache is not None:
-            self._scope_cache.pop(str(id))
+            self._scope_cache.pop(str(target.id))
 
         # clear target ID
-        self._target_ids.discard(str(id))
+        self._target_ids.discard(str(target.id))
 
         # after deleting the target, also delete it from all the assets
-        target_id_str = str(id)
+        target_id_str = str(target.id)
         # Remove the target ID from all asset
         await self.root.assets.collection.update_many(
             {"scope": target_id_str},  # Find documents that have this target ID in their scope
@@ -420,10 +419,10 @@ class TargetsApplet(BaseApplet):
 
     def _bbot_target(self, target: Target) -> BBOTTarget:
         return BBOTTarget(
-            *target.target,
+            *target.seeds,
             whitelist=target.whitelist,
             blacklist=target.blacklist,
-            strict_scope=target.strict_dns_scope,
+            strict_dns_scope=target.strict_dns_scope,
         )
 
     @contextmanager

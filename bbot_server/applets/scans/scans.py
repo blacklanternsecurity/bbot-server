@@ -3,15 +3,12 @@ from pydantic import UUID4
 from contextlib import contextmanager
 from pymongo.errors import DuplicateKeyError
 
-from bbot_server.utils.misc import timestamp_to_human
-
 from bbot_server.applets.agents import AgentsApplet
 from bbot_server.applets.scans.scan_runs import ScanRunsApplet
 from bbot_server.applets.scans.yara_rules import YaraRulesApplet
 
-from bbot_server.models.activity import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
-from bbot_server.applets.scans.scan_models import ScanResponse, ScanDBEntry
+from bbot_server.models.scan_models import ScanResponse, ScanDBEntry
 
 
 class ScansApplet(BaseApplet):
@@ -21,32 +18,10 @@ class ScansApplet(BaseApplet):
     include_apps = [AgentsApplet, ScanRunsApplet, YaraRulesApplet]
     model = ScanDBEntry
 
-    async def handle_event(self, event, asset=None):
-        scan_id = event.data_json["id"]
-        try:
-            scan_run = await self.get_scan(id=scan_id)
-        except self.BBOTServerNotFoundError:
-            return []
-
-        if "finished_at" in event.data_json:
-            update_op = {"$set": {"finished_at": event.data_json["finished_at"]}}
-            activity = "SCAN_FINISHED"
-            human_finished_at = timestamp_to_human(event.data_json["finished_at"])
-            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] finished at {human_finished_at}"
-        else:
-            update_op = {"$set": {"started_at": event.data_json["started_at"]}}
-            activity = "SCAN_STARTED"
-            human_started_at = timestamp_to_human(event.data_json["started_at"])
-            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] started at {human_started_at}"
-
-        await self.collection.update_one({"id": scan_id}, update_op)
-        activity = Activity(type=activity, description=description)
-        return [activity]
-
     @api_endpoint("/", methods=["GET"], summary="Get a single scan by its name")
-    async def get_scan(self, name: str = "", id: str = None) -> ScanDBEntry:
+    async def get_scan(self, name: str = "", id: str = None) -> ScanResponse:
         if (not name) and (not id):
-            raise self.BBOTServerError("Either name or id must be provided")
+            raise self.BBOTServerError("Must provide either a scan name or id")
         query = {}
         if name:
             query["name"] = name
@@ -61,33 +36,43 @@ class ScansApplet(BaseApplet):
         return ScanResponse(**scan)
 
     @api_endpoint("/create", methods=["POST"], summary="Create a new scan")
-    async def create_scan(self, target: UUID4, name: str = None, preset: dict[str, Any] = {}) -> ScanDBEntry:
-        if await self.root.get_target(id=target) is None:
+    async def create_scan(self, target_id: UUID4, name: str = None, preset: dict[str, Any] = {}) -> ScanDBEntry:
+        if await self.root.get_target(id=target_id) is None:
             raise self.BBOTServerNotFoundError("Target not found")
         if name is None:
             name = await self.get_available_scan_name()
-        scan = ScanDBEntry(name=name, target_id=target, preset=preset)
+        scan = ScanDBEntry(name=name, target_id=target_id, preset=preset)
         with self._handle_duplicate_scan(scan):
             await self.collection.insert_one(scan.model_dump())
         return scan
 
     @api_endpoint("/{id}", methods=["PATCH"], summary="Update a scan by its id")
     async def update_scan(self, id: UUID4, scan: ScanDBEntry) -> ScanDBEntry:
+        existing_scan = await self.get_scan(id=id)
         scan.id = id
+        scan.created = existing_scan.created
+        scan.modified = self.utc_now()
         with self._handle_duplicate_scan(scan):
             await self.collection.update_one({"id": str(id)}, {"$set": scan.model_dump()})
         return scan
 
     @api_endpoint("/{id}", methods=["DELETE"], summary="Delete a scan by its id")
     async def delete_scan(self, id: UUID4) -> None:
+        # TODO: delete events + refresh assets
         await self.collection.delete_one({"id": str(id)})
 
-    @api_endpoint("/list", methods=["GET"], summary="List scans")
-    async def get_scans(self) -> list[ScanDBEntry]:
-        cursor = self.collection.find()
-        scans = await cursor.to_list(length=None)
-        scans = [ScanDBEntry(**scan) for scan in scans]
-        return scans
+    @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=ScanResponse, summary="Get all scans")
+    async def get_scans(self):
+        for scan_id in await self.collection.distinct("id"):
+            yield await self.get_scan(id=scan_id)
+
+    @api_endpoint("/list_brief", methods=["GET"], summary="Get all scans in a brief format (without target info)")
+    async def get_scans_brief(self, target_id: UUID4 = None):
+        query = {}
+        if target_id is not None:
+            query["target_id"] = str(target_id)
+        scans = await self.collection.find(query).to_list(length=None)
+        return [ScanDBEntry(**scan) for scan in scans]
 
     @api_endpoint("/start/{scan_id}", methods=["POST"], summary="Start a scan")
     async def start_scan(self, scan_id: str, agent_id: str = None) -> None:
@@ -112,9 +97,7 @@ class ScansApplet(BaseApplet):
             yield
         except DuplicateKeyError as e:
             key_value = e.details["keyValue"]
-            if "hash" in key_value:
-                raise self.BBOTServerValueError(f"Identical target already exists", detail={"hash": key_value["hash"]})
-            elif "name" in key_value:
+            if "name" in key_value:
                 raise self.BBOTServerValueError(
                     f'Scan with name "{scan.name}" already exists', detail={"name": key_value["name"]}
                 )

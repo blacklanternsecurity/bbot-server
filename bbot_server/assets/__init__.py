@@ -62,7 +62,7 @@ for applet_name, applet_file in APPLETS.items():
 
 # now we merge all the custom asset fields into the master asset model
 
-from .facet import BaseAssetFacet
+from ..models.asset_models import BaseAssetFacet
 from bbot_server.utils.misc import combine_pydantic_models
 
 

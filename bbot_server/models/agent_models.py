@@ -11,6 +11,7 @@ class Agent(BaseBBOTServerModel):
     description: str
     connected: Annotated[bool, "indexed"] = False
     status: Annotated[str, "indexed"] = "OFFLINE"
+    current_scan_id: Annotated[Union[str, None], "indexed"] = None
     last_seen: Annotated[Union[float, None], "indexed"] = None
 
 

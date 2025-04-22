@@ -17,7 +17,6 @@ from contextlib import suppress
 from bbot_server.config import BBOT_SERVER_CONFIG
 from .gen_scan_data import *
 
-
 log = logging.getLogger(__name__)
 
 PROJ_ROOT = Path(__file__).parent.parent
@@ -189,7 +188,23 @@ def bbot_agent(bbot_server_http):
         [*BBCTL_COMMAND, "agent", "start", "--name", agent_name, "--id", agent_id],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        text=True,
     )
+
+    # Start a thread to tail the agent's stderr
+    def tail_stderr():
+        while agent_process.poll() is None:
+            line = agent_process.stderr.readline()
+            if line:
+                log.critical(f"Agent: {line.strip()}")
+            else:
+                time.sleep(0.1)
+
+    import threading
+
+    stderr_thread = threading.Thread(target=tail_stderr, daemon=True)
+    stderr_thread.start()
+
     # give agent a few seconds to start
     time.sleep(3)
     yield agent_process

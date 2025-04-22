@@ -30,7 +30,7 @@ async def test_applet_targets(bbot_server):
     target1 = await bbot_server.create_target(
         name="target1",
         description="target1 description",
-        target=["localhost"],
+        seeds=["localhost"],
         whitelist=["127.0.0.1", "evilcorp.com"],
         blacklist=["127.0.0.2"],
     )
@@ -50,7 +50,7 @@ async def test_applet_targets(bbot_server):
     assert target.name == "target1"
     assert target.id == target1.id
     assert target.description == "target1 description"
-    assert target.target == ["localhost"]
+    assert target.seeds == ["localhost"]
     assert target.whitelist == ["127.0.0.1", "evilcorp.com"]
     assert target.blacklist == ["127.0.0.2"]
     assert target.default is True
@@ -62,7 +62,7 @@ async def test_applet_targets(bbot_server):
     # creating a target with the same name should raise an error
     with pytest.raises(BBOTServerValueError, match='Target with name "target1" already exists'):
         try:
-            await bbot_server.create_target(name="target1", target=["localhost"])
+            await bbot_server.create_target(name="target1", seeds=["localhost"])
         except BBOTServerValueError as e:
             assert e.detail["name"] == "target1"
             raise
@@ -72,7 +72,7 @@ async def test_applet_targets(bbot_server):
         try:
             await bbot_server.create_target(
                 name="asdgasdgasdf",
-                target=["localhost"],
+                seeds=["localhost"],
                 whitelist=["127.0.0.1", "evilcorp.com"],
                 blacklist=["127.0.0.2"],
             )
@@ -84,7 +84,7 @@ async def test_applet_targets(bbot_server):
     target2 = await bbot_server.create_target(
         name="target2",
         description="target2 description",
-        target=["localhost"],
+        seeds=["localhost"],
         whitelist=["127.0.0.1", "evilcorp.com", "localhost2"],
         blacklist=["127.0.0.2"],
     )
@@ -101,7 +101,7 @@ async def test_applet_targets(bbot_server):
     assert target.name == "target2"
     assert target.id == target2.id
     assert target.description == "target2 description"
-    assert target.target == ["localhost"]
+    assert target.seeds == ["localhost"]
     assert target.whitelist == ["127.0.0.1", "evilcorp.com", "localhost2"]
     assert target.blacklist == ["127.0.0.2"]
     assert target.default is False
@@ -128,7 +128,7 @@ async def test_applet_targets(bbot_server):
 
     # edit target2
     target2.name = "target2_edited"
-    target2.target = []
+    target2.seeds = []
     target2.whitelist = []
     target2.blacklist = []
     await asyncio.sleep(0.1)
@@ -137,7 +137,7 @@ async def test_applet_targets(bbot_server):
     assert len(targets) == 1
     target = targets[0]
     assert target.name == "target2_edited"
-    assert target.target == []
+    assert target.seeds == []
     assert target.whitelist == []
     assert target.blacklist == []
     assert abs(target.created - target.modified) >= 0.1, "Modified timestamp wasn't updated"
@@ -146,7 +146,7 @@ async def test_applet_targets(bbot_server):
     target3 = await bbot_server.create_target(
         name="target3",
         description="target3 description",
-        target=["localhost", "localhost3"],
+        seeds=["localhost", "localhost3"],
         whitelist=["127.0.0.1", "evilcorp.com", "localhost3"],
         blacklist=["127.0.0.2"],
     )
@@ -166,18 +166,20 @@ async def test_applet_targets(bbot_server):
     await bbot_server.create_target(
         name="target4",
         description="target4 description",
-        target=["localhost"],
+        seeds=["localhost"],
         whitelist=["127.0.0.1", "evilcorp.com", "localhost4"],
         blacklist=["127.0.0.2"],
     )
 
     # deleting a target that's a part of a scan should not work
-    scan = await bbot_server.create_scan(name="scan", target=target2.id)
-    with pytest.raises(BBOTServerValueError):
+    scan = await bbot_server.create_scan(name="scan1", target_id=target2.id)
+    with pytest.raises(BBOTServerValueError, match="Target is still in use by the following scans: scan1"):
         await bbot_server.delete_target(target2.id)
 
     # deleting the default target without specifying a new default target should raise an error
-    with pytest.raises(BBOTServerValueError):
+    with pytest.raises(
+        BBOTServerValueError, match="Must specify a new default target when deleting the default target."
+    ):
         await bbot_server.delete_target(target3.id)
 
     # deleting the default target with a new default target should work
@@ -210,14 +212,14 @@ async def test_applet_targets(bbot_server):
 async def test_target_default_names(bbot_server):
     bbot_server = await bbot_server()
 
-    with pytest.raises(BBOTServerValueError, match="Must provide at least one target"):
+    with pytest.raises(BBOTServerValueError, match="Must provide at least one seed"):
         await bbot_server.create_target()
 
-    target1 = await bbot_server.create_target(target=["evilcorp.com"])
+    target1 = await bbot_server.create_target(seeds=["evilcorp.com"])
     assert target1.name == "Target 1"
-    target2 = await bbot_server.create_target(target=["evilcorp.org"])
+    target2 = await bbot_server.create_target(seeds=["evilcorp.org"])
     assert target2.name == "Target 2"
-    target3 = await bbot_server.create_target(target=["evilcorp.net"])
+    target3 = await bbot_server.create_target(seeds=["evilcorp.net"])
     assert target3.name == "Target 3"
 
 
@@ -225,7 +227,7 @@ async def test_target_size(bbot_server):
     bbot_server = await bbot_server()
 
     target = await bbot_server.create_target(
-        target=["evilcorp.com", "1.2.3.4/30"],
+        seeds=["evilcorp.com", "1.2.3.4/30"],
         whitelist=["evilcorp.com", "1.2.3.4/29"],
         blacklist=["www.evilcorp.com", "test.evilcorp.com", "1.2.3.5/28"],
     )
@@ -241,14 +243,14 @@ async def test_scope_checks(bbot_server):
     await bbot_server.create_target(
         name="target1",
         description="target1 description",
-        target=["evilcorp.com"],
+        seeds=["evilcorp.com"],
     )
 
     targets = await bbot_server.get_targets()
     assert len(targets) == 1
     target = targets[0]
     assert target.name == "target1"
-    assert target.target == ["evilcorp.com"]
+    assert target.seeds == ["evilcorp.com"]
     assert target.whitelist == None
     assert target.blacklist == None
 
@@ -263,7 +265,7 @@ async def test_scope_checks(bbot_server):
     target2 = await bbot_server.create_target(
         name="target2",
         description="target2 description",
-        target=["evilcorp.org"],
+        seeds=["evilcorp.org"],
         whitelist=["127.0.0.1/24", "external.evilcorp.org"],
         blacklist=["127.0.0.2", "test.external.evilcorp.org", "RE:plumbus"],
     )
@@ -305,7 +307,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         self.target1 = await self.bbot_server.create_target(
             name="evilcorp",
             description="evilcorp target",
-            target=["evilcorp.com"],
+            seeds=["evilcorp.com"],
             whitelist=["evilcorp.com"],
             blacklist=["www.evilcorp.com"],
         )
@@ -314,7 +316,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         self.target2 = await self.bbot_server.create_target(
             name="www evilcorp",
             description="www evilcorp target",
-            target=["evilcorp.com"],
+            seeds=["evilcorp.com"],
             whitelist=["www.evilcorp.com", "localhost.evilcorp.com", "127.0.0.1"],
             blacklist=["127.0.0.2"],
         )

@@ -12,9 +12,10 @@ from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 class ServerCTL(BaseBBCTL):
     command = "server"
     help = "Start/stop BBOT server"
-    epilog = "Start the main BBOT server via Docker Compose or individual components in standalone mode"
+    short_help = "Start the main BBOT server via Docker Compose or individual components in standalone mode"
 
     def setup(self):
+        self._docker_command = None
         self.docker_compose_dir = Path(__file__).parent.parent
         self.docker_compose_file = self.docker_compose_dir / "compose.yml"
 
@@ -70,26 +71,26 @@ class ServerCTL(BaseBBCTL):
             asyncio.run(run_watchdog())
 
         else:
-            self.ensure_docker_compose()
             # docker compose command with env vars
-            docker_compose_command = ["docker-compose", "up", "-d"]
             env = os.environ.copy()
             env["BBOT_HOST"] = "0.0.0.0"
             env["BBOT_PORT"] = str(port)
-            run(docker_compose_command, check=False, cwd=self.docker_compose_dir, env=env)
+            self._run_docker_compose(["up", "-d"], check=False, cwd=self.docker_compose_dir, env=env)
 
     @subcommand(help="Stop BBOT server")
     def stop(self):
-        self.ensure_docker_compose()
-        run(["docker-compose", "down"], check=False, cwd=self.docker_compose_dir)
+        self._run_docker_compose(["down"], check=False, cwd=self.docker_compose_dir)
 
-    def ensure_docker_compose(self):
-        # make sure docker compose is installed
-        commands = [["docker", "compose", "version"], ["docker-compose", "--version"]]
-        for command in commands:
+    def _run_docker_compose(self, args, **kwargs):
+        if self._docker_command is None:
             try:
-                if run(command, check=False):
-                    return True
+                run(["docker", "compose", "version"], **kwargs)
+                self._docker_command = ["docker", "compose"]
             except FileNotFoundError:
-                continue
-        raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
+                try:
+                    run(["docker-compose", "--version"], **kwargs)
+                    self._docker_command = ["docker-compose"]
+                except FileNotFoundError:
+                    raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
+
+        return run(self._docker_command + args, **kwargs)

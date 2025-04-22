@@ -120,29 +120,38 @@ class AsyncToSyncWrapper:
 
 
 def async_to_sync_class(cls):
-    """Decorator that allows async class methods to be called synchronously."""
+    """
+    Decorator that allows async class methods to be called synchronously.
 
-    # Store the original __new__ method
-    orig_new = cls.__new__
+    When a class is instantiated with synchronous=True, it returns a wrapper
+    that makes all async methods callable synchronously.
+    """
+    # Store the original __new__
+    original_new = cls.__new__
 
-    # Define a new __new__ method that handles the synchronous parameter
-    def __new__(mcs, *args, synchronous=False, **kwargs):
-        # Create the instance using the original __new__
-        instance = orig_new(cls)  # Only create the instance, don't pass args yet
+    @staticmethod
+    def new_new(cls, *args, **kwargs):
+        # Extract synchronous parameter if present
+        synchronous = kwargs.pop("synchronous", False)
+
+        # Create the instance using the original __new__ and initialize it
+        if original_new is object.__new__:
+            instance = original_new(cls)
+            instance.__init__(*args, **kwargs)
+        else:
+            # If __new__ is overridden, let it handle initialization
+            instance = original_new(cls, *args, **kwargs)
 
         # If synchronous mode is requested, wrap the instance
         if synchronous:
-            wrapper = _SyncWrapper(instance)
-            # Initialize the original instance
-            instance.__init__(*args, **kwargs)
-            return wrapper
+            return _SyncWrapper(instance)
 
         return instance
 
-    # Replace the __new__ method
-    cls.__new__ = __new__
+    # Replace __new__
+    cls.__new__ = new_new
 
-    # Define the wrapper class in the closure
+    # Define the wrapper class
     class _SyncWrapper:
         def __init__(self, instance):
             self._instance = instance

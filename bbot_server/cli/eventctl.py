@@ -10,7 +10,7 @@ from bbot_server.cli.base import BaseBBCTL, subcommand
 class EventCTL(BaseBBCTL):
     command = "event"
     help = "Query, tail, or ingest BBOT events"
-    epilog = "Query, tail, or ingest BBOT events"
+    short_help = "Query, tail, or ingest BBOT events"
 
     @subcommand(help="List BBOT events")
     def list(

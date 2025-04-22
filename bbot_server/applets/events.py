@@ -48,11 +48,11 @@ class EventsApplet(BaseApplet):
     async def archive_old_events(self, older_than=None):
         await self.archive_events_task.kiq()
 
+    # TODO: run this whenever a scan finishes
     @watchdog_task(
-        # by default, run every day at midnight
-        cron="0 0 * * *",
-        # allow for config override
-        cron_config_key="event_store.archive_cron",
+        # # run every day at midnight
+        # cron="0 0 * * *",
+        # cron_config_key="event_store.archive_cron",
     )
     async def archive_events_task(self):
         archive_after = (datetime.now(timezone.utc) - timedelta(days=self.event_store.archive_after_days)).timestamp()

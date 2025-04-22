@@ -6,7 +6,7 @@ from bbot_server.cli.base import BaseBBCTL, subcommand
 class ActivityCTL(BaseBBCTL):
     command = "activity"
     help = "Query or monitor BBOT activities"
-    epilog = "Query or monitor BBOT activities"
+    short_help = "Query or monitor BBOT activities"
 
     @subcommand(help="Tail BBOT server activity")
     def tail(
