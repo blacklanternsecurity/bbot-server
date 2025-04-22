@@ -99,6 +99,8 @@ async def test_basic_scan_run(bbot_server):
         "FINISHED",
     ]
 
+    await asyncio.sleep(1)
+
     agent_statuses = [a async for a in bbot_server.get_activities(type="AGENT_STATUS")]
     assert all(a.type == "AGENT_STATUS" for a in agent_statuses)
     agent_statuses = [a.detail["status"] for a in agent_statuses]
