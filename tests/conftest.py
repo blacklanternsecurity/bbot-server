@@ -99,11 +99,10 @@ def bbot_watchdog(mongo_cleanup, redis_cleanup):
         ready = False
         for _ in range(50):  # 10 second timeout (50 * 0.2)
             line = watchdog_process.stderr.readline()
-            log.critical(f"Watchdog: {line}")
+            log.critical(f"Watchdog: {line.strip()}")
             if "[INFO] Subscribed to bbot:stream:events" in line:
                 ready = True
                 break
-            time.sleep(0.2)
 
         if not ready:
             raise Exception("Watchdog failed to start and subscribe to events")
@@ -114,8 +113,6 @@ def bbot_watchdog(mongo_cleanup, redis_cleanup):
                 line = watchdog_process.stderr.readline()
                 if line:
                     log.critical(f"Watchdog: {line.strip()}")
-                else:
-                    time.sleep(0.1)
 
         import threading
 

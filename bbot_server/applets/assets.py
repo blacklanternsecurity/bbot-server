@@ -28,7 +28,7 @@ class AssetsApplet(BaseApplet):
     model = Asset
 
     @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
-    async def get_assets(self):
+    async def get_assets(self, target_id: str = None):
         async for asset in self.collection.find({"type": "Asset"}):
             yield self.model(**asset)
 
