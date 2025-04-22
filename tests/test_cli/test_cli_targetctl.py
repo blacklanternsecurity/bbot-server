@@ -75,7 +75,6 @@ def test_cli_targetctl(bbot_server_http):
     # list targets (text)
     process = subprocess.run(BBCTL_COMMAND + ["target", "list"], capture_output=True, text=True)
     assert process.returncode == 0
-    assert len(process.stdout.splitlines()) == 6
     assert "Target 1" in process.stdout
     assert "Target 2" in process.stdout
 

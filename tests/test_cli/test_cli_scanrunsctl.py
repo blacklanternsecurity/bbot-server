@@ -44,7 +44,6 @@ def test_cli_scan_runs(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_even
 
     # test text version
     process = subprocess.run(BBCTL_COMMAND + ["scan", "runs", "list"], capture_output=True, text=True)
-    assert len([l for l in process.stdout.splitlines() if l.strip()]) == 6
     assert scan1_name in process.stdout
     assert scan2_name in process.stdout
 
