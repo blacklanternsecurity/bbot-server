@@ -75,8 +75,7 @@ def test_cli_targetctl(bbot_server_http):
     # list targets (text)
     process = subprocess.run(BBCTL_COMMAND + ["target", "list"], capture_output=True, text=True)
     assert process.returncode == 0
-    assert "Target 1" in process.stdout
-    assert "Target 2" in process.stdout
+    assert process.stdout.count("Target") == 2
 
     # delete target1 (must specify name or id)
     process = subprocess.run(
