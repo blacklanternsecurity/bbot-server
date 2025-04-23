@@ -133,6 +133,7 @@ class DummyScan2(DummyScan):
         "api.evilcorp.com",
         "cname.evilcorp.com",
         "localhost.evilcorp.com",
+        "testevilcorp.com",
     ]
     dns = {
         "evilcorp.com": {
