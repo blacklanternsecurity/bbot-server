@@ -30,7 +30,9 @@ class ScanRunsApplet(BaseApplet):
 
     async def handle_event(self, event, asset) -> list[Activity]:
         """
-        Whenever we get a new scan event,
+        Create a new scan run if needed, whenever we get a new SCAN event.
+
+        This helps when ingesting ad-hoc scans from sources other than BBOT server.
         """
         scan_run = ScanRun(**event.data_json)
         scan_run_id = str(scan_run.id)

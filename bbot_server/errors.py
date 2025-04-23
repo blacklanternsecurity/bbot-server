@@ -35,3 +35,20 @@ def gather_status_codes(cls):
 
 # Start with the base error class
 gather_status_codes(BBOTServerError)
+
+
+from fastapi import Request
+from fastapi.responses import ORJSONResponse
+
+
+def handle_bbot_server_error(request: Request, exc: Exception):
+    """
+    Catch BBOTServerErrors and transform them into appropriate FastAPI responses
+    """
+    status_code = exc.http_status_code
+    error_message = str(exc)
+    message = error_message if error_message else exc.default_message
+    return ORJSONResponse(
+        status_code=status_code,
+        content={"error": message, "detail": getattr(exc, "detail", {})},
+    )

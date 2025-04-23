@@ -28,16 +28,16 @@ class AssetsApplet(BaseApplet):
     model = Asset
 
     @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
-    async def get_assets(self, target_id: str = None):
-        async for asset in self.collection.find({"type": "Asset"}):
-            yield self.model(**asset)
+    async def get_assets(self, domain: str = None, target_id: str = None):
+        """
+        Stream all assets.
 
-    @api_endpoint("/{host}/list", methods=["GET"], summary="List assets by host (including subdomains)")
-    async def get_assets_by_host(self, host: str) -> list[Asset]:
-        cursor = self.collection.find({"type": "asset", "reverse_host": {"$regex": f"^{host[::-1]}."}})
-        assets = await cursor.to_list(length=None)
-        assets = [self.model(**asset) for asset in assets]
-        return assets
+        Args:
+            domain: Filter assets by domain or subdomain
+            target_id: Filter assets by target ID or name
+        """
+        async for asset in self._get_assets(host=domain, target_id=target_id):
+            yield self.model(**asset)
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: str) -> Asset:
@@ -77,9 +77,52 @@ class AssetsApplet(BaseApplet):
             # update the asset with any changes made by the child applets
             await self.update_asset(asset)
 
-    @api_endpoint("/hosts", methods=["GET"], summary="List all hosts")
-    async def get_hosts(self) -> list[str]:
-        cursor = self.collection.find({"archived": False, "ignored": False})
-        hosts = await cursor.distinct("host")
-        hosts.sort()
-        return hosts
+    @api_endpoint("/hosts", methods=["GET"], summary="List hosts")
+    async def get_hosts(self, host: str = None, target_id: str = None) -> list[str]:
+        """
+        List all hosts.
+
+        Args:
+            host: Return all hosts matching this host (including subdomains)
+            target_id: Only return hosts belonging to this target (can be either name or ID)
+        """
+        hosts = []
+        async for asset in self._get_assets(host=host, target_id=target_id, fields=["host"]):
+            host = asset.get("host", None)
+            if host is not None:
+                hosts.append(host)
+        return sorted(hosts)
+
+    async def _get_assets(
+        self,
+        host: str = None,
+        target_id: str = None,
+        archived: bool = False,
+        ignored: bool = False,
+        fields: list[str] = None,
+    ):
+        query = {
+            "archived": archived,
+            "ignored": ignored,
+        }
+        if host is not None:
+            reversed_host = host[::-1]
+            # Match exact domain or subdomains (with dot separator)
+            query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
+        if target_id is not None:
+            target_query_kwargs = {}
+            if target_id != "DEFAULT":
+                target_query_kwargs["id"] = target_id
+            target = await self.root.targets._get_target(**target_query_kwargs, fields=["id"])
+            query["scope"] = target["id"]
+        async for asset in self._query_assets(query, fields):
+            yield asset
+
+    async def _query_assets(self, query: dict, fields: list[str] = None):
+        self.log.debug(f"Querying assets: query={query} / fields={fields}")
+        fields = {f: 1 for f in fields} if fields else None
+        query = dict(query)
+        query["type"] = "Asset"
+        cursor = self.collection.find(query, fields)
+        async for asset in cursor:
+            yield asset

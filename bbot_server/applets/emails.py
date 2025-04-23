@@ -14,7 +14,7 @@ class EmailsApplet(BaseApplet):
 
     @api_endpoint("/emails/{domain}", methods=["GET"], summary="Get emails by domain")
     async def get_emails(self, domain: str) -> list[str]:
-        matching_assets = await self.root.assets.get_assets_by_host(domain)
+        matching_assets = await self.root.assets.get_assets(host=domain)
         emails = set()
         for asset in matching_assets:
             emails.update(asset.fields.get("emails", []))

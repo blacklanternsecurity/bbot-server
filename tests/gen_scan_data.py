@@ -71,6 +71,7 @@ class DummyScan1(DummyScan):
         "api.evilcorp.com",
         "cname.evilcorp.com",
         "localhost.evilcorp.com",
+        "testevilcorp.com",  # this exists as a canary to make sure unwanted domains aren't matched in searches
     ]
     dns = {
         "evilcorp.com": {
@@ -97,6 +98,9 @@ class DummyScan1(DummyScan):
         },
         "b.com": {
             "A": ["127.0.0.4"],
+        },
+        "testevilcorp.com": {
+            "AAAA": ["dead::beef"],
         },
     }
 

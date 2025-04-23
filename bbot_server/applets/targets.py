@@ -117,25 +117,6 @@ class TargetsApplet(BaseApplet):
         target = await self._get_target(id=id, hash=hash)
         return Target(**target)
 
-    async def _get_target(self, id: str = None, hash: str = None, fields: dict[str, Any] = None) -> dict:
-        query = {}
-        # if neither id nor hash is provided, try to get the default target
-        if id is None and hash is None:
-            query["default"] = True
-        elif hash is not None:
-            query["hash"] = hash
-        elif id is not None:
-            id = str(id)
-            try:
-                query["id"] = str(UUID(id))
-            except Exception:
-                query["name"] = id
-        fields = {f: 1 for f in fields} if fields else None
-        result = await self.collection.find_one(query, fields)
-        if result is None:
-            raise self.BBOTServerNotFoundError(f"Target not found.")
-        return result
-
     @api_endpoint("/count", methods=["GET"], summary="Get the number of scan targets")
     async def target_count(self) -> int:
         return await self.collection.count_documents({})
@@ -162,8 +143,8 @@ class TargetsApplet(BaseApplet):
         blacklist: list[str] = None,
         strict_dns_scope: bool = False,
     ) -> Target:
-        if not seeds:
-            raise self.BBOTServerValueError("Must provide at least one seed")
+        if not whitelist and not seeds:
+            raise self.BBOTServerValueError("Must provide at least one seed or whitelist entry")
         if not name:
             name = await self.get_available_target_name()
         target = Target(
@@ -440,3 +421,22 @@ class TargetsApplet(BaseApplet):
                     f'Target with name "{target.name}" already exists', detail={"name": key_value["name"]}
                 )
             raise self.BBOTServerValueError(f"Error creating target: {e}")
+
+    async def _get_target(self, id: str = None, hash: str = None, fields: dict[str, Any] = None) -> dict:
+        query = {}
+        # if neither id nor hash is provided, try to get the default target
+        if id is None and hash is None:
+            query["default"] = True
+        elif hash is not None:
+            query["hash"] = hash
+        elif id is not None:
+            id = str(id)
+            try:
+                query["id"] = str(UUID(id))
+            except Exception:
+                query["name"] = id
+        fields = {f: 1 for f in fields} if fields else None
+        result = await self.collection.find_one(query, fields)
+        if result is None:
+            raise self.BBOTServerNotFoundError(f"Target not found.")
+        return result

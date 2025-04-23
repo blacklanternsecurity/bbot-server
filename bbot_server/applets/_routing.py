@@ -119,18 +119,27 @@ class HTTPStreamRoute(BaseServerRoute):
 
         # Define a new async function that wraps the original function
         async def wrapper(*args, **kwargs):
-            # Call the original async generator function
-            async def async_generator():
-                async for item in self.function(*args, **kwargs):
-                    item = smart_encode(item) + b"\n"
-                    yield item
+            generator = self.function(*args, **kwargs)
 
-            # Return a StreamingResponse
+            try:
+                # Trigger execution by getting the first item
+                # This is necessary for error handling
+                first_item = await anext(generator)
+            except StopAsyncIteration:
+                # Empty generator is fine
+                return StreamingResponse(iter([]))
+
+            async def async_generator():
+                yield smart_encode(first_item) + b"\n"
+                async for item in generator:
+                    yield smart_encode(item) + b"\n"
+
             return StreamingResponse(async_generator())
 
         # Set the wrapper's signature to match the original function
         wrapper.__signature__ = sig
 
+        # Add the route
         router.add_api_route(self.endpoint, wrapper, operation_id=self.function.__name__, **self.kwargs)
 
 
