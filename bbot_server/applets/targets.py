@@ -188,7 +188,7 @@ class TargetsApplet(BaseApplet):
         return target
 
     @api_endpoint("/", methods=["DELETE"], summary="Delete a scan target by its id")
-    async def delete_target(self, id: str, new_default_target_id: str = None) -> None:
+    async def delete_target(self, id: str = None, new_default_target_id: str = None) -> None:
         target = await self._get_target(id=id, fields=["id", "default"])
         target_id = str(target["id"])
         target_is_default = target["default"]

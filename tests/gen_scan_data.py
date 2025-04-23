@@ -160,6 +160,9 @@ class DummyScan2(DummyScan):
         "b.com": {
             "A": ["127.0.0.4"],
         },
+        "testevilcorp.com": {
+            "AAAA": ["dead::beef"],
+        },
     }
 
     class DummyModule(BaseModule):

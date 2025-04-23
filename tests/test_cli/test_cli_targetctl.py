@@ -52,6 +52,8 @@ def test_cli_targetctl(bbot_server_http):
     assert target2["name"] == "Target 2"
     assert set(target2["seeds"]) == {"evilcorp.org"}
 
+    seeds_file.unlink()
+
     # list targets (json)
     process = subprocess.run(BBCTL_COMMAND + ["target", "list", "--json"], capture_output=True, text=True)
     assert process.returncode == 0
@@ -88,8 +90,8 @@ def test_cli_targetctl(bbot_server_http):
         capture_output=True,
         text=True,
     )
-    assert "Must provide either a target name or ID" in process.stderr
-    assert process.returncode == 1
+    assert "Missing option '--name' / '-n' / '--id' / '-i'" in process.stderr
+    assert process.returncode == 2
 
     # delete the target (by name)
     process = subprocess.run(

@@ -50,12 +50,9 @@ class TargetCTL(BaseBBCTL):
     @subcommand(help="Delete a target")
     def delete(
         self,
-        name: Annotated[str, Option("--name", "-n", help="Target name")] = None,
-        id: Annotated[str, Option("--id", "-i", help="Target ID")] = None,
+        id: Annotated[str, Option("--name", "-n", "--id", "-i", help="Target name or ID")],
     ):
-        if name is None and id is None:
-            raise self.BBOTServerValueError("Must provide either a target name or ID")
-        self.bbot_server.delete_target(name=name, id=id)
+        self.bbot_server.delete_target(id=id)
         self.log.info(f"Target deleted successfully")
 
     @subcommand(help="List preconfigured targets")
