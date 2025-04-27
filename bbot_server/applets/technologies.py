@@ -1,3 +1,4 @@
+from typing import Any
 from bbot_server.models.technology_models import Technology
 from bbot_server.assets.custom_fields import CustomAssetFields
 from bbot_server.applets._base import BaseApplet, api_endpoint, Annotated
@@ -22,9 +23,27 @@ class TechnologiesApplet(BaseApplet):
             yield Technology(**technology)
 
     @api_endpoint("/list/{host}", methods=["GET"], summary="Get all the technologies on a given host")
-    async def get_technologies_by_host(self, host: str) -> list[Technology]:
+    async def get_technologies_for_host(self, host: str) -> list[Technology]:
         technologies = await self.collection.find({"type": "Technology", "host": host}).to_list(length=None)
         return [Technology(**t) for t in technologies]
+
+    @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database")
+    async def get_technologies_summary(self) -> dict[str, dict[str, Any]]:
+        technologies = {}
+        async for t in self.collection.find({"type": "Technology"}, {"technology": 1, "host": 1, "last_seen": 1}):
+            technology = t["technology"]
+            host = t["host"]
+            last_seen = t["last_seen"]
+            try:
+                existing = technologies[technology]
+                existing["last_seen"] = max(last_seen, existing["last_seen"])
+                existing["hosts"].add(host)
+            except KeyError:
+                technologies[technology] = {"last_seen": last_seen, "hosts": {host}}
+        # sort hosts
+        for technology in technologies.values():
+            technology["hosts"] = sorted(technology["hosts"])
+        return technologies
 
     @api_endpoint(
         "/list_brief",

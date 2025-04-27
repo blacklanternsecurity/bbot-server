@@ -1,11 +1,14 @@
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
+from bbot_server.cli.technology_ctl import TechnologyCTL
+
 
 class AssetCTL(BaseBBCTL):
     command = "asset"
     help = "Query, tail, or export BBOT assets"
     short_help = "Query, tail, or export BBOT assets"
+    include = [TechnologyCTL]
 
     @subcommand(help="List BBOT assets")
     def list(
