@@ -1,5 +1,9 @@
 import ast
+import logging
 from bbot_server.preloader import APPLETS
+
+log = logging.getLogger("bbot_server.assets")
+
 
 # Here, we search the current directory for applets and do some preloading on each one.
 # We use AST to parse the files and look for classes that inherit from BaseAssetFields.
@@ -57,7 +61,7 @@ for applet_name, applet_file in APPLETS.items():
 
     except Exception as e:
         # Log error but continue with other applets
-        print(f"Error loading asset fields from {applet_file}: {e}")
+        log.error(f"Error loading asset fields from {applet_file}: {e}")
 
 
 # now we merge all the custom asset fields into the master asset model

@@ -62,8 +62,8 @@ class EventsApplet(BaseApplet):
         await self.root.assets.refresh_assets()
 
     @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Event, summary="Stream all events")
-    async def get_events(self, type: str = None, archived: bool = False, active: bool = True):
-        async for event in self.event_store.get_events(type=type, archived=archived, active=active):
+    async def get_events(self, type: str = None, host: str = None, archived: bool = False, active: bool = True):
+        async for event in self.event_store.get_events(type=type, host=host, archived=archived, active=active):
             yield event
 
     @api_endpoint(

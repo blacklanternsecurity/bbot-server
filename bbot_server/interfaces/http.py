@@ -45,7 +45,8 @@ class http(BaseInterface):
                 raise ValueError("When using the HTTP interface, url is required in the config")
             url = self.config["url"]
         self.base_url = url.strip("/")
-        self.client = httpx.AsyncClient()
+        self._http_timeout = self.config.get("cli", {}).get("http_timeout", 15)
+        self.client = httpx.AsyncClient(timeout=self._http_timeout)
 
     async def _http_request(self, _url, _route, *args, **kwargs):
         """
@@ -119,6 +120,8 @@ class http(BaseInterface):
                         self.log.error(f"Error decoding final chunk: {buffer}")
                         raise BBOTServerError(f"Error decoding final chunk: {buffer}") from e
 
+        except httpx.HTTPError as e:
+            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
         except BBOTServerError:
             raise
         except Exception as e:

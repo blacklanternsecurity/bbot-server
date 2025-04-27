@@ -3,7 +3,7 @@ from hashlib import sha1
 from pydantic import Field
 from functools import cached_property
 from datetime import datetime, timezone
-from typing import Annotated, Any, Union
+from typing import Annotated, Any, Optional
 
 from bbot_server.cli.themes import COLOR, DARK_COLOR
 from bbot_server.models.base import BaseBBOTServerModel
@@ -17,27 +17,33 @@ class Activity(BaseBBOTServerModel):
 
     Activities are emitted whenever an agent connects, a scan starts, a new open port is detected, etc.
 
-    They are usually associated with a asset, and can be traced back to a specific BBOT event.
+    They are usually associated with an asset, and can be traced back to a specific BBOT event.
     """
 
     __tablename__ = "history"
-    type: str
-    timestamp: float
-    description: str
+    type: Annotated[str, "indexed"]
+    timestamp: Annotated[float, "indexed"]
+    description: Annotated[str, "indexed"]
     description_colored: str = Field(default="")
     detail: dict[str, Any] = {}
-    host: Union[str, None] = None
-    netloc: Union[str, None] = None
-    reverse_host: Annotated[Union[str, None], "indexed"] = None
-    module: Union[str, None] = None
-    event_uuid: Union[str, None] = None
-    event_id: Union[str, None] = None
+    host: Annotated[Optional[str], "indexed"] = None
+    reverse_host: Annotated[Optional[str], "indexed"] = None
+    port: Annotated[Optional[int], "indexed"] = None
+    netloc: Annotated[Optional[str], "indexed"] = None
+    url: Annotated[Optional[str], "indexed"] = None
+    module: Annotated[Optional[str], "indexed"] = None
+    event_uuid: Annotated[Optional[str], "indexed"] = None
+    event_id: Annotated[Optional[str], "indexed"] = None
+    scan_run_id: Annotated[Optional[str], "indexed"] = None
 
     def __init__(self, *args, **kwargs):
+        # must have a description
         if not "description" in kwargs:
             raise ValueError("description is required")
+        # default timestamp is now
         if not "timestamp" in kwargs:
             kwargs["timestamp"] = datetime.now(timezone.utc).timestamp()
+        # make a non-colored version of the description
         if "description_colored" not in kwargs:
             description = kwargs["description"]
             # we save the description in two forms - colored and uncolored
@@ -49,14 +55,27 @@ class Activity(BaseBBOTServerModel):
             self.set_event(event)
 
     def set_event(self, event):
+        """
+        Copy data from a BBOT event into the activity
+        """
         self.event_id = event.id
         self.event_uuid = event.uuid
         self.module = event.module
         self.timestamp = event.timestamp
-        if not self.host:
-            self.host = event.host
-        if not self.netloc:
+        self.scan_run_id = event.scan
+        if event.host and not self.host:
+            self.host = str(event.host)
+            self.reverse_host = self.host[::-1]
+        if event.port and not self.port:
+            self.port = event.port
+        if event.netloc and not self.netloc:
             self.netloc = event.netloc
+        # handle url
+        event_data_json = getattr(event, "data_json", None)
+        if event_data_json is not None:
+            url = event_data_json.get("url", None)
+            if url is not None:
+                self.url = url
 
     @cached_property
     def id(self):

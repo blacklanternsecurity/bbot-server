@@ -6,6 +6,7 @@ from bbot_server.applets.findings import FindingsApplet
 from bbot_server.applets.dns_links import DNSLinksApplet
 from bbot_server.applets.open_ports import OpenPortsApplet
 from bbot_server.applets.web_screenshots import WebScreenshotsApplet
+from bbot_server.applets.technologies import TechnologiesApplet
 
 from bbot_server.assets import Asset
 from bbot_server.utils.misc import utc_now
@@ -23,6 +24,7 @@ class AssetsApplet(BaseApplet):
         WebScreenshotsApplet,
         ExportApplet,
         Risk,
+        TechnologiesApplet,
     ]
 
     model = Asset
@@ -36,7 +38,7 @@ class AssetsApplet(BaseApplet):
             domain: Filter assets by domain or subdomain
             target_id: Filter assets by target ID or name
         """
-        async for asset in self._get_assets(host=domain, target_id=target_id):
+        async for asset in self._get_assets(domain=domain, target_id=target_id):
             yield self.model(**asset)
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
@@ -78,16 +80,16 @@ class AssetsApplet(BaseApplet):
             await self.update_asset(asset)
 
     @api_endpoint("/hosts", methods=["GET"], summary="List hosts")
-    async def get_hosts(self, host: str = None, target_id: str = None) -> list[str]:
+    async def get_hosts(self, domain: str = None, target_id: str = None) -> list[str]:
         """
         List all hosts.
 
         Args:
-            host: Return all hosts matching this host (including subdomains)
+            domain: Return all hosts matching this domain (including subdomains)
             target_id: Only return hosts belonging to this target (can be either name or ID)
         """
         hosts = []
-        async for asset in self._get_assets(host=host, target_id=target_id, fields=["host"]):
+        async for asset in self._get_assets(domain=domain, target_id=target_id, fields=["host"]):
             host = asset.get("host", None)
             if host is not None:
                 hosts.append(host)
@@ -95,18 +97,18 @@ class AssetsApplet(BaseApplet):
 
     async def _get_assets(
         self,
-        host: str = None,
+        query: dict = None,
+        domain: str = None,
         target_id: str = None,
         archived: bool = False,
         ignored: bool = False,
         fields: list[str] = None,
     ):
-        query = {
-            "archived": archived,
-            "ignored": ignored,
-        }
-        if host is not None:
-            reversed_host = host[::-1]
+        query = dict(query or {})
+        query["archived"] = archived
+        query["ignored"] = ignored
+        if domain is not None:
+            reversed_host = domain[::-1]
             # Match exact domain or subdomains (with dot separator)
             query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
         if target_id is not None:
@@ -117,6 +119,17 @@ class AssetsApplet(BaseApplet):
             query["scope"] = target["id"]
         async for asset in self._query_assets(query, fields):
             yield asset
+
+    async def _get_asset(
+        self,
+        query: dict = None,
+        host: str = None,
+        fields: list[str] = None,
+    ):
+        query = dict(query or {})
+        if host is not None:
+            query["host"] = host
+        return await self.collection.find_one(query, fields)
 
     async def _query_assets(self, query: dict, fields: list[str] = None):
         self.log.debug(f"Querying assets: query={query} / fields={fields}")

@@ -401,6 +401,9 @@ class TargetsApplet(BaseApplet):
             self._cache_put(target)
 
     def _bbot_target(self, target: Target) -> BBOTTarget:
+        """
+        Given a target pydantic instance, return a BBOTTarget instance capable of fast host lookups
+        """
         return BBOTTarget(
             *target.seeds,
             whitelist=target.whitelist,

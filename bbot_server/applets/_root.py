@@ -9,10 +9,11 @@ from bbot_server.applets.events import EventsApplet
 from bbot_server.applets.scans.scans import ScansApplet
 from bbot_server.applets.targets import TargetsApplet
 from bbot_server.applets.activity import ActivityApplet
+from bbot_server.applets.stats import StatsApplet
 
 
 class RootApplet(BaseApplet):
-    include_apps = [AssetsApplet, EventsApplet, ScansApplet, TargetsApplet, ActivityApplet]
+    include_apps = [AssetsApplet, EventsApplet, ScansApplet, TargetsApplet, ActivityApplet, StatsApplet]
 
     name = "Root Applet"
 

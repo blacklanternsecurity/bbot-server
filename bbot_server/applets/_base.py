@@ -2,16 +2,18 @@ import re
 import asyncio
 import inspect
 import logging
+from fastapi import APIRouter
 from omegaconf import OmegaConf
 from typing import Annotated, Any  # noqa
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
 from pymongo import WriteConcern, ASCENDING
-from fastapi import APIRouter
+from pymongo.errors import OperationFailure
 
 from bbot.models.pydantic import Event
-from bbot_server.utils.misc import utc_now
+from bbot.core.helpers import misc as bbot_misc
 from bbot_server.applets._routing import ROUTE_TYPES
+from bbot_server.utils import misc as bbot_server_misc
 from bbot_server.models.activity_models import Activity
 
 word_regex = re.compile(r"\W+")
@@ -81,6 +83,10 @@ class BaseApplet:
 
     # optionally override route prefix
     _route_prefix = None
+
+    # BBOT helpers
+    helpers = bbot_server_misc
+    bbot_helpers = bbot_misc
 
     def __init__(self, parent=None):
         # TODO: we need to collect all the child applets before doing any fastapi setup
@@ -212,14 +218,57 @@ class BaseApplet:
             await self.setup()
 
     async def build_indexes(self, model):
+        """
+        Builds MongoDB indexes for the given model.
+
+        Pydantic annotations on the model determine the type of indexes.
+        """
         if not model:
             return
         for fieldname, field in model.model_fields.items():
+            unique = "unique" in field.metadata
+            # normal indexes
             if "indexed" in field.metadata:
-                unique = "unique" in field.metadata
-                await self.collection.create_index([(fieldname, ASCENDING)], unique=unique)
-            elif "indexed_text" in field.metadata:
-                await self.collection.create_index([(fieldname, "text")])
+                index = [(fieldname, ASCENDING)]
+                self.log.debug(f"Creating index: {index}")
+                await self.collection.create_index(index, unique=unique)
+            # text indexes
+            elif "indexed-text" in field.metadata:
+                index = [(fieldname, "text")]
+                self.log.debug(f"Creating text index: {index}")
+                try:
+                    await self.collection.create_index(index)
+                except OperationFailure as e:
+                    if "index already exists" in str(e):
+                        # Get existing text index
+                        existing_indexes = await self.collection.list_indexes().to_list()
+                        text_index = next((idx for idx in existing_indexes if "text" in idx["key"].values()), None)
+                        if text_index:
+                            self.log.debug(f"Found existing text index: {text_index}")
+                            # Drop the existing text index
+                            index_name = text_index["name"]
+                            self.log.debug(f"Dropping existing text index {index_name}")
+                            await self.collection.drop_index(index_name)
+
+                            # Create new index with all fields from weights
+                            existing_fields = [(f, "text") for f in text_index["weights"].keys()]
+                            self.log.debug(f"Existing fields from weights: {existing_fields}")
+                            new_index = existing_fields + [(fieldname, "text")]
+                            self.log.debug(f"Creating new text index with fields: {new_index}")
+                            await self.collection.create_index(new_index)
+                        else:
+                            self.log.error(f"Failed to find existing text index: {e}")
+                    else:
+                        self.log.error(f"Error creating text index: {e}")
+            # compound indexes
+            for metadata in field.metadata:
+                if isinstance(metadata, str) and metadata.startswith("indexed-compound:"):
+                    # create a compound index
+                    fields = metadata.split(":")[-1].split(",")
+                    fields = [fieldname] + fields
+                    index = [(fieldname, ASCENDING) for fieldname in fields]
+                    self.log.debug(f"Creating compound index: {index}")
+                    await self.collection.create_index(index, unique=unique)
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks
@@ -344,6 +393,9 @@ class BaseApplet:
             return True
         return activity_type in self.watched_activities
 
+    async def compute_stats(self, asset, stats):
+        pass
+
     @property
     def is_main_server(self):
         return self.root._is_main_server
@@ -441,9 +493,6 @@ class BaseApplet:
         When this is True, we can safely skip any database/message-queue functionality.
         """
         return self.interface_type == "python"
-
-    def utc_now(self):
-        return utc_now()
 
     def __getattr__(self, name):
         # try getting the attribute from all the child applets

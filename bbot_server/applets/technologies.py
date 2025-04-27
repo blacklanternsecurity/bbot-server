@@ -1,39 +1,155 @@
-from bbot_server.applets._base import BaseApplet, api_endpoint, BaseModel, Field
+from bbot_server.models.technology_models import Technology
+from bbot_server.assets.custom_fields import CustomAssetFields
+from bbot_server.applets._base import BaseApplet, api_endpoint, Annotated
 
 
-class Technologies(BaseApplet):
+# add one field: 'technologies' to the main asset model
+class TechnologiesFields(CustomAssetFields):
+    technologies: Annotated[list[str], "indexed-text"] = []  # noqa: F821
+
+
+class TechnologiesApplet(BaseApplet):
     name = "Technologies"
     watched_events = ["TECHNOLOGY"]
     description = "technologies discovered during scans"
-    route_prefix = ""
+    model = Technology
 
-    class AssetFields(BaseModel):
-        technologies: list[str] = Field(default_factory=list)
+    @api_endpoint(
+        "/list", methods=["GET"], type="http_stream", response_model=Technology, summary="List all technologies"
+    )
+    async def get_technologies(self, domain: str = None, target_id: str = None):
+        async for technology in self.collection.find({"type": "Technology", "domain": domain, "target_id": target_id}):
+            yield Technology(**technology)
 
-    # async def handle_event(self, asset: Asset, event: Event) -> list[Activity]:
-    #     activities = []
-    #     technology = event.data["technology"]
-    #     current_technologies = self._get_technologies(asset)
-    #     if technology not in current_technologies:
-    #         description = f"New technology: [{technology}]"
-    #         description_colored = f"New technology: [[COLOR]{technology}[/COLOR]]"
-    #         current_technologies.add(technology)
-    #         current_technologies = sorted(current_technologies)
-    #         technology_activity = Activity.create(
-    #             type="NEW_TECHNOLOGY",
-    #             asset=asset,
-    #             event=event,
-    #             fieldname="technologies",
-    #             value=current_technologies,
-    #             description=description,
-    #             description_colored=description_colored,
-    #         )
-    #         activities.append(technology_activity)
-    #     return activities
+    @api_endpoint("/list/{host}", methods=["GET"], summary="Get all the technologies on a given host")
+    async def get_technologies_by_host(self, host: str) -> list[Technology]:
+        technologies = await self.collection.find({"type": "Technology", "host": host}).to_list(length=None)
+        return [Technology(**t) for t in technologies]
 
-    def _get_technologies(self, asset) -> set[str]:
-        return set(asset.fields.get("technologies", [])) or set()
+    @api_endpoint(
+        "/list_brief",
+        methods=["GET"],
+        summary="Get all the active technologies for a given domain or target",
+        mcp=True,
+    )
+    async def get_technologies_brief(self, domain: str = None, target_id: str = None) -> dict[str, int]:
+        technologies = {}
+        async for asset in self.parent._get_assets(
+            domain=domain, target_id=target_id, fields=["technologies", "host"]
+        ):
+            self.log.critical(asset)
+            for technology in asset.get("technologies", []):
+                try:
+                    technologies[technology] += 1
+                except KeyError:
+                    technologies[technology] = 1
+        return technologies
 
-    @api_endpoint("/{host}/technologies", methods=["GET"], summary="Get all the technologies for a host")
-    async def get_technologies(self, host: str) -> list[str]:
-        print("GETTING TECHNOLOGIES", host)
+    @api_endpoint(
+        "/search/{technology}",
+        methods=["GET"],
+        type="http_stream",
+        response_model=Technology,
+        summary="Search for a technology",
+    )
+    async def search_technology(self, technology: str):
+        async for technology in self.collection.find(
+            {
+                "type": "Technology",
+                "$text": {
+                    "$search": technology,
+                },
+            }
+        ).sort(
+            [
+                ("last_seen", -1),
+            ]
+        ):
+            yield Technology(**technology)
+
+    async def handle_event(self, event, asset):
+        """
+        When a new TECHNOLOGY event comes in, we check if it's been seen before. if not, we raise an activity.
+        """
+        activities = []
+        # get our fields from the asset
+        old_technologies = set(getattr(asset, "technologies", []))
+        t = Technology(
+            technology=event.data_json["technology"],
+            host=event.host,
+            port=event.port,
+            netloc=event.netloc,
+        )
+        # insert the technology into the database
+        await self._update_or_insert_technology(t)
+        # make an activity if the technology is new
+        if t.technology not in old_technologies:
+            asset.technologies = sorted(old_technologies | {t.technology})
+            detail = {"technology": t.technology, "host": t.host}
+            activity = self.make_activity(
+                type="NEW_TECHNOLOGY",
+                description=f"New technology discovered on [bold]{event.host}[/bold]: [[COLOR]{t.technology}[/COLOR]]",
+                detail=detail,
+                event=event,
+            )
+            activities.append(activity)
+        return activities
+
+    async def compute_stats(self, asset, statistics):
+        technologies = getattr(asset, "technologies", [])
+        technology_stats = {}
+        for technology in technologies:
+            try:
+                technology_stats[technology] += 1
+            except KeyError:
+                technology_stats[technology] = 1
+        statistics["technologies"] = technology_stats
+
+    async def refresh(self, asset, events_by_type):
+        """
+        Refresh technologies for an asset (typically run after an archive)
+        """
+        technologies = set()
+        for event in events_by_type.get("TECHNOLOGY", []):
+            technologies.add(event.data_json["technology"])
+
+        old_technologies = set(getattr(asset, "technologies", []))
+        new_technologies = set(technologies)
+        discovered_technologies = new_technologies - old_technologies
+        removed_technologies = old_technologies - new_technologies
+        asset.technologies = sorted(new_technologies)
+
+        activities = []
+        for technology in discovered_technologies:
+            activities.append(
+                self.make_activity(
+                    host=asset.host,
+                    type="NEW_TECHNOLOGY",
+                    detail={"technology": technology},
+                    description=f"New technology discovered on [bold]{asset.host}[/bold]: [[COLOR]{technology}[/COLOR]",
+                )
+            )
+        for technology in removed_technologies:
+            activities.append(
+                self.make_activity(
+                    host=asset.host,
+                    type="TECHNOLOGY_REMOVED",
+                    detail={"technology": technology},
+                    description=f"Technology no longer detected on [bold]{asset.host}[/bold]: [[COLOR]{technology}[/COLOR]",
+                )
+            )
+            if asset.host:
+                # delete technologies from the database
+                await self.collection.delete_many({"type": "Technology", "technology": technology, "host": asset.host})
+        return activities
+
+    async def _update_or_insert_technology(self, t: Technology):
+        query = {"type": "Technology", "technology": t.technology, "host": t.host, "port": t.port}
+        # check if the technology already exists
+        existing_technology = await self.collection.find_one(query)
+        if existing_technology:
+            # if it exists, update the last_seen field
+            await self.collection.update_one(query, {"$set": {"last_seen": self.helpers.utc_now()}})
+        else:
+            # if it doesn't exist, insert it
+            await self.collection.insert_one(t.model_dump())

@@ -34,3 +34,6 @@ agent:
         - DNS_NAME_UNRESOLVED
         - RAW_TEXT
         - WEB_PARAMETER
+
+cli:
+  http_timeout: 15

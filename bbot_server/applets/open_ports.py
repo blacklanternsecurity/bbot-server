@@ -1,4 +1,3 @@
-from bbot.core.helpers.misc import make_netloc
 from bbot_server.assets.custom_fields import CustomAssetFields
 from bbot_server.applets._base import BaseApplet, api_endpoint, Annotated
 
@@ -11,16 +10,20 @@ class OpenPortsFields(CustomAssetFields):
 class OpenPortsApplet(BaseApplet):
     name = "Open Ports"
     watched_events = ["OPEN_TCP_PORT"]
+    watched_activities = ["PORT_OPENED", "PORT_CLOSED"]
     description = "open ports discovered during scans"
     route_prefix = ""
 
     async def handle_event(self, event, asset):
+        """
+        When a new OPEN_TCP_PORT event comes in, we check if it's already open, and raise an activity if it's new.
+        """
         activities = []
         # get our fields from the asset
         old_open_ports = set(getattr(asset, "open_ports", []))
         if event.port not in old_open_ports:
             asset.open_ports = sorted(old_open_ports | {event.port})
-            netloc = make_netloc(asset.host, event.port)
+            netloc = self.bbot_helpers.make_netloc(asset.host, event.port)
             activity = self.make_activity(
                 type="PORT_OPENED",
                 description=f"New open port: [[COLOR]{netloc}[/COLOR]]",
@@ -30,12 +33,31 @@ class OpenPortsApplet(BaseApplet):
             activities.append(activity)
         return activities
 
-    @api_endpoint("/{host}/open_ports", methods=["GET"], summary="Get all the open ports for a host")
+    async def compute_stats(self, asset, statistics):
+        open_ports = getattr(asset, "open_ports", [])
+        open_ports_stats = statistics.get("open_ports", {})
+        for port in open_ports:
+            try:
+                open_ports_stats[port] += 1
+            except KeyError:
+                open_ports_stats[port] = 1
+        statistics["open_ports"] = open_ports_stats
+
+    @api_endpoint("/open_ports/{host}", methods=["GET"], summary="Get all the open ports for a host")
     async def get_open_ports(self, host: str) -> list[int]:
         asset = await self.collection.find_one({"host": str(host), "type": "Asset"}, {"open_ports": 1})
         if asset is None:
             return []
         return asset.get("open_ports", [])
+
+    @api_endpoint(
+        "/open_ports/search/{port}", methods=["POST"], summary="Search for assets with a given open port", mcp=True
+    )
+    async def search_by_open_port(self, port: int, target_id: str = None) -> list[str]:
+        assets = [
+            a async for a in self.parent._get_assets(query={"open_ports": port}, target_id=target_id, fields=["host"])
+        ]
+        return [a.get("host") for a in assets]
 
     async def refresh(self, asset, events_by_type):
         """
@@ -53,7 +75,7 @@ class OpenPortsApplet(BaseApplet):
 
         activities = []
         for port in opened_ports:
-            netloc = make_netloc(asset.host, port)
+            netloc = self.bbot_helpers.make_netloc(asset.host, port)
             activities.append(
                 self.make_activity(
                     host=asset.host,
@@ -64,7 +86,7 @@ class OpenPortsApplet(BaseApplet):
                 )
             )
         for port in closed_ports:
-            netloc = make_netloc(asset.host, port)
+            netloc = self.bbot_helpers.make_netloc(asset.host, port)
             activities.append(
                 self.make_activity(
                     host=asset.host,

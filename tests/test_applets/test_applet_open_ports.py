@@ -59,6 +59,10 @@ class TestAppletOpenPorts(BaseAppletTest):
         api = await self.bbot_server.get_asset("api.evilcorp.com")
         assert api.open_ports == [443]
 
+        # test stats
+        stats = await self.bbot_server.get_stats()
+        assert stats.value == {"open_ports": {80: 2, 443: 1}}
+
     async def after_archive(self):
         # after archiving, the first open port should be gone
         assert await self.bbot_server.get_open_ports("www.evilcorp.com") == []

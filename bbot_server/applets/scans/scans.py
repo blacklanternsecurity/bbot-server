@@ -51,7 +51,7 @@ class ScansApplet(BaseApplet):
         existing_scan = await self.get_scan(id=id)
         scan.id = id
         scan.created = existing_scan.created
-        scan.modified = self.utc_now()
+        scan.modified = self.helpers.utc_now()
         with self._handle_duplicate_scan(scan):
             await self.collection.update_one({"id": str(id)}, {"$set": scan.model_dump()})
         return scan

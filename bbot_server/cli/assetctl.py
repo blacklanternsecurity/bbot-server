@@ -62,3 +62,12 @@ class AssetCTL(BaseBBCTL):
     def get(self, host: str):
         asset = self.bbot_server.get_asset(host)
         self.sys.stdout.buffer.write(self.orjson.dumps(asset.model_dump()) + b"\n")
+
+    @subcommand(help="Get stats for a given domain or target")
+    def stats(
+        self,
+        domain: Annotated[str, Option("--domain", "-d", help="Filter stats by domain or subdomain")] = None,
+        target: Annotated[str, Option("--target", "-t", help="Filter stats by target ID or name")] = None,
+    ):
+        stats = self.bbot_server.get_stats(domain=domain, target_id=target)
+        self.sys.stdout.buffer.write(self.orjson.dumps(stats) + b"\n")

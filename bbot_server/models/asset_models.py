@@ -18,10 +18,11 @@ class BaseAssetFacet(BaseBBOTServerModel):
     A facet typically corresponds to an applet.
     """
 
-    host: Annotated[str, "indexed"]
     type: Annotated[Optional[str], "indexed"] = None
+    host: Annotated[str, "indexed"]
+    port: Annotated[Optional[int], "indexed"] = None
+    netloc: Annotated[Optional[str], "indexed"] = None
     reverse_host: Annotated[Optional[Union[str, None]], "indexed"] = None
-    netloc: Annotated[Optional[Union[str, None]], "indexed"] = None
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     ignored: bool = False

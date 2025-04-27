@@ -26,11 +26,11 @@ Below is a list of the events and how they change between the two scans.
     api.evilcorp.com            Open ports: None -> 443               open_ports
     cname.evilcorp.com          CNAME: a.com -> b.com
     localhost.evilcorp.com      A record: 127.0.0.1 -> 127.0.0.2      DNS + scope
+    tech1.evilcorp.com          Technology: apache -> None            technologies
+    tech2.evilcorp.com          Technology: IIS -> apache             technologies
 
     a.com                       None
     b.com                       None
-
-
 
 """
 
@@ -71,6 +71,8 @@ class DummyScan1(DummyScan):
         "api.evilcorp.com",
         "cname.evilcorp.com",
         "localhost.evilcorp.com",
+        "tech1.evilcorp.com",
+        "tech2.evilcorp.com",
         "testevilcorp.com",  # this exists as a canary to make sure unwanted domains aren't matched in searches
     ]
     dns = {
@@ -93,6 +95,12 @@ class DummyScan1(DummyScan):
         "cname.evilcorp.com": {
             "CNAME": ["a.com"],
         },
+        "tech1.evilcorp.com": {
+            "A": ["192.168.1.1"],
+        },
+        "tech2.evilcorp.com": {
+            "A": ["192.168.1.2"],
+        },
         "a.com": {
             "A": ["127.0.0.3"],
         },
@@ -108,16 +116,42 @@ class DummyScan1(DummyScan):
         watched_events = ["OPEN_TCP_PORT"]
 
         async def handle_event(self, event):
-            if str(event.host) in ("www.evilcorp.com", "www2.evilcorp.com"):
-                if event.type == "OPEN_TCP_PORT" and event.port == 80:
+            # Open ports + vulns
+            if event.type == "OPEN_TCP_PORT":
+                if str(event.host) in ("www.evilcorp.com", "www2.evilcorp.com"):
+                    if event.port == 80:
+                        await self.emit_event(
+                            {
+                                "severity": "HIGH",
+                                "description": "That's a paddlin'",
+                                "host": event.host,
+                                "url": f"https://{event.host}",
+                            },
+                            "VULNERABILITY",
+                            parent=event,
+                        )
+
+                # Technology
+                if str(event.host) == "tech1.evilcorp.com":
+                    scheme = "https" if event.port == 443 else "http"
                     await self.emit_event(
                         {
-                            "severity": "HIGH",
-                            "description": "That's a paddlin'",
+                            "url": f"{scheme}://{event.host}",
                             "host": event.host,
-                            "url": f"https://{event.host}",
+                            "technology": "cpe:/a:apache:http_server:2.4.12",
                         },
-                        "VULNERABILITY",
+                        "TECHNOLOGY",
+                        parent=event,
+                    )
+                elif str(event.host) == "tech2.evilcorp.com" and event.port == 443:
+                    scheme = "https" if event.port == 443 else "http"
+                    await self.emit_event(
+                        {
+                            "url": f"{scheme}://{event.host}",
+                            "host": event.host,
+                            "technology": "cpe:/a:microsoft:internet_information_services",
+                        },
+                        "TECHNOLOGY",
                         parent=event,
                     )
 
@@ -133,6 +167,8 @@ class DummyScan2(DummyScan):
         "api.evilcorp.com",
         "cname.evilcorp.com",
         "localhost.evilcorp.com",
+        "tech1.evilcorp.com",
+        "tech2.evilcorp.com",
         "testevilcorp.com",
     ]
     dns = {
@@ -155,6 +191,12 @@ class DummyScan2(DummyScan):
         "cname.evilcorp.com": {
             "CNAME": ["b.com"],
         },
+        "tech1.evilcorp.com": {
+            "A": ["192.168.1.1"],
+        },
+        "tech2.evilcorp.com": {
+            "A": ["192.168.1.2"],
+        },
         "a.com": {
             "A": ["127.0.0.3"],
         },
@@ -170,22 +212,36 @@ class DummyScan2(DummyScan):
         watched_events = ["OPEN_TCP_PORT"]
 
         async def handle_event(self, event):
-            if event.type == "OPEN_TCP_PORT" and (
-                str(event.host) == "www2.evilcorp.com"
-                and event.port == 80
-                or str(event.host) == "api.evilcorp.com"
-                and event.port == 443
-            ):
-                await self.emit_event(
-                    {
-                        "severity": "HIGH",
-                        "description": "That's a paddlin'",
-                        "host": event.host,
-                        "url": f"http://{event.host}",
-                    },
-                    "VULNERABILITY",
-                    parent=event,
-                )
+            if event.type == "OPEN_TCP_PORT":
+                if (
+                    str(event.host) == "www2.evilcorp.com"
+                    and event.port == 80
+                    or str(event.host) == "api.evilcorp.com"
+                    and event.port == 443
+                ):
+                    await self.emit_event(
+                        {
+                            "severity": "HIGH",
+                            "description": "That's a paddlin'",
+                            "host": event.host,
+                            "url": f"http://{event.host}",
+                        },
+                        "VULNERABILITY",
+                        parent=event,
+                    )
+
+                # Technology
+                if str(event.host) == "tech2.evilcorp.com" and event.port == 443:
+                    scheme = "https" if event.port == 443 else "http"
+                    await self.emit_event(
+                        {
+                            "url": f"{scheme}://{event.host}",
+                            "host": event.host,
+                            "technology": "cpe:/a:apache:http_server:2.4.12",
+                        },
+                        "TECHNOLOGY",
+                        parent=event,
+                    )
 
     dummy_modules = [DummyModule]
 
