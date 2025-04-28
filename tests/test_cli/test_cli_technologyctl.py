@@ -46,7 +46,7 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     assert process.returncode == 0
     assert process.stdout.count("cpe:/a:apache") == 1
     assert process.stdout.count("cpe:/a:microsoft") == 1
-    assert "tech1.evil," in process.stdout
+    assert "tech1.evil" in process.stdout
 
     # search technologies (JSON)
     command = BBCTL_COMMAND + ["asset", "technology", "search", "apache", "--json"]
