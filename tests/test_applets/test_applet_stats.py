@@ -24,14 +24,18 @@ async def test_applet_stats(bbot_server, bbot_events):
     # 443: api.evilcorp.com
     assert stats == {
         "dns_links": {
-            "A": 11,
+            "A": 13,
             "AAAA": 1,
             "CNAME": 1,
-            "TXT": 6,
+            "TXT": 8,
         },
         "open_ports": {
-            80: 2,
-            443: 1,
+            "80": 3,
+            "443": 3,
+        },
+        "technologies": {
+            "cpe:/a:apache:http_server:2.4.12": 2,
+            "cpe:/a:microsoft:internet_information_services": 1,
         },
     }
 
@@ -39,13 +43,17 @@ async def test_applet_stats(bbot_server, bbot_events):
     stats = await bbot_server.get_stats(target_id=target1.id)
     assert stats == {
         "dns_links": {
-            "A": 7,
+            "A": 9,
             "CNAME": 1,
-            "TXT": 6,
+            "TXT": 8,
         },
         "open_ports": {
-            80: 1,
-            443: 1,
+            "80": 2,
+            "443": 3,
+        },
+        "technologies": {
+            "cpe:/a:apache:http_server:2.4.12": 2,
+            "cpe:/a:microsoft:internet_information_services": 1,
         },
     }
 
@@ -56,6 +64,7 @@ async def test_applet_stats(bbot_server, bbot_events):
             "A": 2,
         },
         "open_ports": {
-            80: 1,
+            "80": 1,
         },
+        "technologies": {},
     }

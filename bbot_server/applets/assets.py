@@ -126,7 +126,8 @@ class AssetsApplet(BaseApplet):
         query = dict(query or {})
         query["archived"] = archived
         query["ignored"] = ignored
-        query["type"] = type
+        if type is not None:
+            query["type"] = type
         if host is not None:
             query["host"] = host
         if domain is not None:
@@ -152,7 +153,8 @@ class AssetsApplet(BaseApplet):
         fields: list[str] = None,
     ):
         query = dict(query or {})
-        query["type"] = type
+        if type is not None:
+            query["type"] = type
         if host is not None:
             query["host"] = host
         return await self.collection.find_one(query, fields)

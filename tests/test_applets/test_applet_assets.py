@@ -20,6 +20,8 @@ class TestAppletAssets(BaseAppletTest):
         assert set(await self.bbot_server.get_hosts()) == {
             "1.2.3.4",
             "127.0.0.1",
+            "192.168.1.1",
+            "192.168.1.2",
             "5.6.7.8",
             "a.com",
             "api.evilcorp.com",
@@ -28,6 +30,8 @@ class TestAppletAssets(BaseAppletTest):
             "localhost.evilcorp.com",
             "www.evilcorp.com",
             "www2.evilcorp.com",
+            "tech1.evilcorp.com",
+            "tech2.evilcorp.com",
             "testevilcorp.com",
         }
 
@@ -36,6 +40,8 @@ class TestAppletAssets(BaseAppletTest):
             "1.2.3.4",
             "127.0.0.1",
             "127.0.0.2",
+            "192.168.1.1",
+            "192.168.1.2",
             "5.6.7.8",
             "a.com",
             "api.evilcorp.com",
@@ -45,6 +51,8 @@ class TestAppletAssets(BaseAppletTest):
             "localhost.evilcorp.com",
             "www.evilcorp.com",
             "www2.evilcorp.com",
+            "tech1.evilcorp.com",
+            "tech2.evilcorp.com",
             "testevilcorp.com",
         }
 
@@ -53,6 +61,8 @@ class TestAppletAssets(BaseAppletTest):
             "1.2.3.4",
             "127.0.0.1",
             "127.0.0.2",
+            "192.168.1.1",
+            "192.168.1.2",
             "5.6.7.8",
             "a.com",
             "api.evilcorp.com",
@@ -62,16 +72,20 @@ class TestAppletAssets(BaseAppletTest):
             "localhost.evilcorp.com",
             "www.evilcorp.com",
             "www2.evilcorp.com",
+            "tech1.evilcorp.com",
+            "tech2.evilcorp.com",
             "testevilcorp.com",
         }
 
-        assert set(await self.bbot_server.get_hosts(host="evilcorp.com")) == {
+        assert set(await self.bbot_server.get_hosts(domain="evilcorp.com")) == {
             "evilcorp.com",
             "api.evilcorp.com",
             "cname.evilcorp.com",
             "www.evilcorp.com",
             "www2.evilcorp.com",
             "localhost.evilcorp.com",
+            "tech1.evilcorp.com",
+            "tech2.evilcorp.com",
         }
 
 
@@ -96,6 +110,8 @@ async def test_applet_target_filter(bbot_server, bbot_events):
         "evilcorp.com",
         "1.2.3.4",
         "5.6.7.8",
+        "192.168.1.1",
+        "192.168.1.2",
         "www2.evilcorp.com",
         "api.evilcorp.com",
         "localhost.evilcorp.com",
@@ -104,6 +120,8 @@ async def test_applet_target_filter(bbot_server, bbot_events):
         "127.0.0.1",
         "a.com",
         "testevilcorp.com",
+        "tech1.evilcorp.com",
+        "tech2.evilcorp.com",
     }
 
     all_hosts_target1 = {
@@ -114,6 +132,8 @@ async def test_applet_target_filter(bbot_server, bbot_events):
         "cname.evilcorp.com",
         "www.evilcorp.com",
         "a.com",  # this one resolves to 127.0.0.3 so it matches
+        "tech1.evilcorp.com",
+        "tech2.evilcorp.com",
     }
 
     all_hosts_target2 = {

@@ -116,7 +116,7 @@ class TechnologiesApplet(BaseApplet):
 
     async def compute_stats(self, asset, statistics):
         technologies = getattr(asset, "technologies", [])
-        technology_stats = {}
+        technology_stats = statistics.get("technologies", {})
         for technology in technologies:
             try:
                 technology_stats[technology] += 1

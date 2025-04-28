@@ -1,3 +1,5 @@
+from typing import Any
+
 from bbot_server.models.stats_models import BBOTStats
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
@@ -26,7 +28,7 @@ class StatsApplet(BaseApplet):
     model = BBOTStats
 
     @api_endpoint("/stats", methods=["GET"], summary="Get statistics for a given target or domain")
-    async def get_stats(self, domain: str = None, target_id: str = None):
+    async def get_stats(self, domain: str = None, target_id: str = None) -> dict[str, Any]:
         assets = self.root.assets.get_assets(domain=domain, target_id=target_id)
         stats = {}
         async for asset in assets:

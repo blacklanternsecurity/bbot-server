@@ -37,6 +37,8 @@ class OpenPortsApplet(BaseApplet):
         open_ports = getattr(asset, "open_ports", [])
         open_ports_stats = statistics.get("open_ports", {})
         for port in open_ports:
+            # we convert to a string here, since JSON doesn't technically support int keys
+            port = str(port)
             try:
                 open_ports_stats[port] += 1
             except KeyError:
