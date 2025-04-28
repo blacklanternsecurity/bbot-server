@@ -6,8 +6,8 @@ class TestAppletTechnologies(BaseAppletTest):
 
     async def setup(self):
         # at the beginning, everything should be empty
-        assert await self.bbot_server.get_technologies_by_host("tech1.evilcorp.com") == []
-        assert await self.bbot_server.get_technologies_by_host("tech2.evilcorp.com") == []
+        assert await self.bbot_server.get_technologies_for_host("tech1.evilcorp.com") == []
+        assert await self.bbot_server.get_technologies_for_host("tech2.evilcorp.com") == []
         assert [t async for t in self.bbot_server.get_technologies()] == []
 
         technology_events = [a async for a in self.bbot_server.get_events(type="TECHNOLOGY")]
@@ -17,7 +17,7 @@ class TestAppletTechnologies(BaseAppletTest):
 
     async def after_scan_1(self):
         # tech1 should have the same technology twice, once on port 80 and the other on 443
-        tech1 = await self.bbot_server.get_technologies_by_host("tech1.evilcorp.com")
+        tech1 = await self.bbot_server.get_technologies_for_host("tech1.evilcorp.com")
         assert len(tech1) == 2
         assert {(t.netloc, t.technology) for t in tech1} == {
             ("tech1.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
@@ -25,7 +25,7 @@ class TestAppletTechnologies(BaseAppletTest):
         }
 
         # tech2 should have only one technology
-        tech2 = await self.bbot_server.get_technologies_by_host("tech2.evilcorp.com")
+        tech2 = await self.bbot_server.get_technologies_for_host("tech2.evilcorp.com")
         assert len(tech2) == 1
         assert {(t.netloc, t.technology) for t in tech2} == {
             ("tech2.evilcorp.com:443", "cpe:/a:microsoft:internet_information_services"),
@@ -42,7 +42,7 @@ class TestAppletTechnologies(BaseAppletTest):
 
     async def after_scan_2(self):
         # nothing new has been discovered on tech1
-        tech1 = await self.bbot_server.get_technologies_by_host("tech1.evilcorp.com")
+        tech1 = await self.bbot_server.get_technologies_for_host("tech1.evilcorp.com")
         assert len(tech1) == 2
         assert {(t.netloc, t.technology) for t in tech1} == {
             ("tech1.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
@@ -50,7 +50,7 @@ class TestAppletTechnologies(BaseAppletTest):
         }
 
         # but we found apache on tech2
-        tech2 = await self.bbot_server.get_technologies_by_host("tech2.evilcorp.com")
+        tech2 = await self.bbot_server.get_technologies_for_host("tech2.evilcorp.com")
         assert len(tech2) == 2
         assert {(t.netloc, t.technology) for t in tech2} == {
             ("tech2.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
@@ -80,11 +80,11 @@ class TestAppletTechnologies(BaseAppletTest):
 
     async def after_archive(self):
         # after archiving, tech1 loses all its technologies
-        tech1 = await self.bbot_server.get_technologies_by_host("tech1.evilcorp.com")
+        tech1 = await self.bbot_server.get_technologies_for_host("tech1.evilcorp.com")
         assert len(tech1) == 0
 
         # tech2 has only apache
-        tech2 = await self.bbot_server.get_technologies_by_host("tech2.evilcorp.com")
+        tech2 = await self.bbot_server.get_technologies_for_host("tech2.evilcorp.com")
         assert len(tech2) == 1
         assert {(t.netloc, t.technology) for t in tech2} == {
             ("tech2.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),

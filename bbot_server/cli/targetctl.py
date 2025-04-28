@@ -65,7 +65,7 @@ class TargetCTL(BaseBBCTL):
 
         if json:
             for target in target_list:
-                self.sys.stdout.buffer.write(self.orjson.dumps(target.model_dump()) + b"\n")
+                self.print_pydantic_json(target)
             return
 
         if csv:

@@ -98,15 +98,37 @@ class AssetsApplet(BaseApplet):
     async def _get_assets(
         self,
         query: dict = None,
+        search: str = None,
+        host: str = None,
         domain: str = None,
+        type: str = "Asset",
         target_id: str = None,
         archived: bool = False,
         ignored: bool = False,
         fields: list[str] = None,
+        sort: list[tuple[str, int]] = None,
     ):
+        """
+        Multipurpose async generator for getting assets from the database.
+
+        Args:
+            query: Additional query parameters (mongo)
+            search: Search using mongo's text index
+            host: Filter assets by host (exact match only)
+            domain: Filter assets by domain (subdomains allowed)
+            type: Filter assets by type (Asset, Technology, Vulnerability, etc.)
+            target_id: Filter assets by target ID
+            archived: Filter archived assets
+            ignored: Filter ignored assets
+            fields: List of fields to return
+            sort: Fields and direction to sort by, e.g. sort=[("last_seen", -1)]
+        """
         query = dict(query or {})
         query["archived"] = archived
         query["ignored"] = ignored
+        query["type"] = type
+        if host is not None:
+            query["host"] = host
         if domain is not None:
             reversed_host = domain[::-1]
             # Match exact domain or subdomains (with dot separator)
@@ -117,25 +139,37 @@ class AssetsApplet(BaseApplet):
                 target_query_kwargs["id"] = target_id
             target = await self.root.targets._get_target(**target_query_kwargs, fields=["id"])
             query["scope"] = target["id"]
-        async for asset in self._query_assets(query, fields):
+        if search is not None:
+            query["$text"] = {"$search": search}
+        async for asset in self._query_assets(query, fields, sort):
             yield asset
 
     async def _get_asset(
         self,
         query: dict = None,
         host: str = None,
+        type: str = "Asset",
         fields: list[str] = None,
     ):
         query = dict(query or {})
+        query["type"] = type
         if host is not None:
             query["host"] = host
         return await self.collection.find_one(query, fields)
 
-    async def _query_assets(self, query: dict, fields: list[str] = None):
+    async def _query_assets(self, query: dict, fields: list[str] = None, sort: list[tuple[str, int]] = None):
+        """
+        Lowest-level query function for getting assets from the database.
+
+        Args:
+            query: Additional query parameters (mongo)
+            fields: List of fields to return
+            sort: Fields and direction to sort by, e.g. sort=[("last_seen", -1)]
+        """
         self.log.debug(f"Querying assets: query={query} / fields={fields}")
         fields = {f: 1 for f in fields} if fields else None
-        query = dict(query)
-        query["type"] = "Asset"
         cursor = self.collection.find(query, fields)
+        if sort:
+            cursor = cursor.sort(sort)
         async for asset in cursor:
             yield asset

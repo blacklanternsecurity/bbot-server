@@ -15,7 +15,7 @@ class ActivityCTL(BaseBBCTL):
     ):
         for a in self.bbot_server.tail_activities(n=n):
             if json:
-                self.sys.stdout.buffer.write(self.orjson.dumps(a.model_dump()) + b"\n")
+                self.print_pydantic_json(a)
                 continue
 
             timestamp = self.timestamp_to_human(a.timestamp)

@@ -1,7 +1,7 @@
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
-from bbot_server.cli.technology_ctl import TechnologyCTL
+from bbot_server.cli.technologyctl import TechnologyCTL
 
 
 class AssetCTL(BaseBBCTL):
@@ -27,7 +27,7 @@ class AssetCTL(BaseBBCTL):
 
         if json:
             for asset in asset_list:
-                self.sys.stdout.buffer.write(self.orjson.dumps(asset.model_dump()) + b"\n")
+                self.print_pydantic_json(asset)
             return
 
         if csv:
@@ -64,7 +64,7 @@ class AssetCTL(BaseBBCTL):
     @subcommand(help="Get a single asset by its host")
     def get(self, host: str):
         asset = self.bbot_server.get_asset(host)
-        self.sys.stdout.buffer.write(self.orjson.dumps(asset.model_dump()) + b"\n")
+        self.print_pydantic_json(asset)
 
     @subcommand(help="Get stats for a given domain or target")
     def stats(
@@ -73,4 +73,4 @@ class AssetCTL(BaseBBCTL):
         target: Annotated[str, Option("--target", "-t", help="Filter stats by target ID or name")] = None,
     ):
         stats = self.bbot_server.get_stats(domain=domain, target_id=target)
-        self.sys.stdout.buffer.write(self.orjson.dumps(stats) + b"\n")
+        self.print_raw_line(self.orjson.dumps(stats))

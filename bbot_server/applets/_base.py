@@ -221,7 +221,11 @@ class BaseApplet:
         """
         Builds MongoDB indexes for the given model.
 
-        Pydantic annotations on the model determine the type of indexes.
+        Pydantic annotations on the model determine the type of indexes:
+
+        - indexed - basic ascending index
+        - indexed-text - text index (for quick searching of partial strings - ideal for technology/vuln descriptions etc.)
+        - indexed-compound:field1,field2 - compound index on multiple fields (useful for preventing duplicates)
         """
         if not model:
             return
@@ -233,18 +237,27 @@ class BaseApplet:
                 self.log.debug(f"Creating index: {index}")
                 await self.collection.create_index(index, unique=unique)
             # text indexes
-            elif "indexed-text" in field.metadata:
+            if "indexed-text" in field.metadata:
                 index = [(fieldname, "text")]
                 self.log.debug(f"Creating text index: {index}")
                 try:
                     await self.collection.create_index(index)
                 except OperationFailure as e:
+                    # the only purpose of the below code is to add fields to an existing text index
+                    # if there's an easier way to do this, please delete this mess
+                    # ideally we should not have to delete and recreate the index
                     if "index already exists" in str(e):
                         # Get existing text index
                         existing_indexes = await self.collection.list_indexes().to_list()
                         text_index = next((idx for idx in existing_indexes if "text" in idx["key"].values()), None)
                         if text_index:
                             self.log.debug(f"Found existing text index: {text_index}")
+                            # Check if the field is already in the index
+                            existing_fields = text_index["weights"].keys()
+                            if fieldname in existing_fields:
+                                self.log.debug(f"Field {fieldname} already exists in text index, skipping")
+                                continue
+
                             # Drop the existing text index
                             index_name = text_index["name"]
                             self.log.debug(f"Dropping existing text index {index_name}")

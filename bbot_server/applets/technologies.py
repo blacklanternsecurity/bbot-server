@@ -19,18 +19,19 @@ class TechnologiesApplet(BaseApplet):
         "/list", methods=["GET"], type="http_stream", response_model=Technology, summary="List all technologies"
     )
     async def get_technologies(self, domain: str = None, target_id: str = None):
-        async for technology in self.collection.find({"type": "Technology", "domain": domain, "target_id": target_id}):
+        async for technology in self.root._get_assets(type="Technology", domain=domain, target_id=target_id):
             yield Technology(**technology)
 
     @api_endpoint("/list/{host}", methods=["GET"], summary="Get all the technologies on a given host")
     async def get_technologies_for_host(self, host: str) -> list[Technology]:
-        technologies = await self.collection.find({"type": "Technology", "host": host}).to_list(length=None)
-        return [Technology(**t) for t in technologies]
+        return [Technology(**t) async for t in self.root._get_assets(type="Technology", host=host)]
 
     @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database")
-    async def get_technologies_summary(self) -> list[dict[str, Any]]:
+    async def get_technologies_summary(self, domain: str = None, target_id: str = None) -> list[dict[str, Any]]:
         technologies = {}
-        async for t in self.collection.find({"type": "Technology"}, {"technology": 1, "host": 1, "last_seen": 1}):
+        async for t in self.root._get_assets(
+            type="Technology", domain=domain, target_id=target_id, fields=["technology", "host", "last_seen"]
+        ):
             technology = t["technology"]
             host = t["host"]
             last_seen = t["last_seen"]
@@ -59,7 +60,6 @@ class TechnologiesApplet(BaseApplet):
         async for asset in self.parent._get_assets(
             domain=domain, target_id=target_id, fields=["technologies", "host"]
         ):
-            self.log.critical(asset)
             for technology in asset.get("technologies", []):
                 try:
                     technologies[technology] += 1
@@ -74,18 +74,13 @@ class TechnologiesApplet(BaseApplet):
         response_model=Technology,
         summary="Search for a technology",
     )
-    async def search_technology(self, technology: str):
-        async for technology in self.collection.find(
-            {
-                "type": "Technology",
-                "$text": {
-                    "$search": technology,
-                },
-            }
-        ).sort(
-            [
-                ("last_seen", -1),
-            ]
+    async def search_technology(self, technology: str, domain: str = None, target_id: str = None):
+        async for technology in self.root._get_assets(
+            type="Technology",
+            search=technology,
+            domain=domain,
+            target_id=target_id,
+            sort=[("last_seen", -1)],
         ):
             yield Technology(**technology)
 
@@ -103,6 +98,7 @@ class TechnologiesApplet(BaseApplet):
             netloc=event.netloc,
             last_seen=event.timestamp,
         )
+        print(t)
         # insert the technology into the database
         await self._update_or_insert_technology(t)
         # make an activity if the technology is new
@@ -162,8 +158,11 @@ class TechnologiesApplet(BaseApplet):
                 )
             )
             if asset.host:
-                # delete technologies from the database
-                await self.collection.delete_many({"type": "Technology", "technology": technology, "host": asset.host})
+                # archive the technologies
+                await self.collection.update_many(
+                    {"type": "Technology", "technology": technology, "host": asset.host},
+                    {"$set": {"archived": True}},
+                )
         return activities
 
     async def _update_or_insert_technology(self, t: Technology):
@@ -173,7 +172,7 @@ class TechnologiesApplet(BaseApplet):
         if existing_technology:
             last_seen = max(existing_technology["last_seen"], t.last_seen)
             # if it exists, update the last_seen field
-            await self.collection.update_one(query, {"$set": {"last_seen": last_seen}})
+            await self.collection.update_one(query, {"$set": {"last_seen": last_seen, "archived": False}})
         else:
             # if it doesn't exist, insert it
             await self.collection.insert_one(t.model_dump())

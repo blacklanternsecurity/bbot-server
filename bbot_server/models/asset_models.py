@@ -2,6 +2,7 @@ from pydantic import Field
 from typing import Optional, Union, Annotated
 
 from bbot_server.utils.misc import utc_now
+from bbot.core.helpers.misc import make_netloc
 from bbot_server.models.base import BaseBBOTServerModel
 
 
@@ -31,6 +32,8 @@ class BaseAssetFacet(BaseBBOTServerModel):
     def __init__(self, *args, **kwargs):
         kwargs["type"] = self.__class__.__name__
         super().__init__(*args, **kwargs)
+        if self.host and self.port:
+            self.netloc = make_netloc(self.host, self.port)
 
     # def _ingest_event(self, event) -> list[Activity]:
     #     self_before = self.__class__.model_validate(self)
