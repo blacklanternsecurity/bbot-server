@@ -28,7 +28,7 @@ class TechnologiesApplet(BaseApplet):
         return [Technology(**t) for t in technologies]
 
     @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database")
-    async def get_technologies_summary(self) -> dict[str, dict[str, Any]]:
+    async def get_technologies_summary(self) -> list[dict[str, Any]]:
         technologies = {}
         async for t in self.collection.find({"type": "Technology"}, {"technology": 1, "host": 1, "last_seen": 1}):
             technology = t["technology"]
@@ -40,9 +40,9 @@ class TechnologiesApplet(BaseApplet):
                 existing["hosts"].add(host)
             except KeyError:
                 technologies[technology] = {"last_seen": last_seen, "hosts": {host}}
-        # sort hosts
-        for technology in technologies.values():
-            technology["hosts"] = sorted(technology["hosts"])
+        technologies = [{"technology": t, "last_seen": v["last_seen"], "hosts": sorted(v["hosts"])} for t, v in technologies.items()]
+        # sort technologies by number of hosts, in reverse order
+        technologies.sort(key=lambda x: len(x["hosts"]), reverse=True)
         return technologies
 
     @api_endpoint(
@@ -98,6 +98,7 @@ class TechnologiesApplet(BaseApplet):
             host=event.host,
             port=event.port,
             netloc=event.netloc,
+            last_seen=event.timestamp,
         )
         # insert the technology into the database
         await self._update_or_insert_technology(t)
@@ -165,10 +166,11 @@ class TechnologiesApplet(BaseApplet):
     async def _update_or_insert_technology(self, t: Technology):
         query = {"type": "Technology", "technology": t.technology, "host": t.host, "port": t.port}
         # check if the technology already exists
-        existing_technology = await self.collection.find_one(query)
+        existing_technology = await self.collection.find_one(query, {"last_seen": 1})
         if existing_technology:
+            last_seen = max(existing_technology["last_seen"], t.last_seen)
             # if it exists, update the last_seen field
-            await self.collection.update_one(query, {"$set": {"last_seen": self.helpers.utc_now()}})
+            await self.collection.update_one(query, {"$set": {"last_seen": last_seen}})
         else:
             # if it doesn't exist, insert it
             await self.collection.insert_one(t.model_dump())

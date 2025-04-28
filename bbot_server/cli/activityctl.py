@@ -1,5 +1,4 @@
 from bbot_server.cli import common
-from bbot_server.utils.misc import timestamp_to_human
 from bbot_server.cli.base import BaseBBCTL, subcommand
 
 
@@ -19,5 +18,5 @@ class ActivityCTL(BaseBBCTL):
                 self.sys.stdout.buffer.write(self.orjson.dumps(a.model_dump()) + b"\n")
                 continue
 
-            timestamp = timestamp_to_human(a.timestamp)
+            timestamp = self.timestamp_to_human(a.timestamp)
             self.stdout.print(f"[[{self.DARK_COLOR}]{timestamp}[/{self.DARK_COLOR}]] {a.description_colored}")

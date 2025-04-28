@@ -1,5 +1,4 @@
 from bbot_server.cli import common
-from bbot_server.utils.misc import timestamp_to_human
 from bbot_server.cli.base import BaseBBCTL, subcommand
 
 
@@ -23,13 +22,11 @@ class TechnologyCTL(BaseBBCTL):
         table.add_column("Last Seen", style=self.DARK_COLOR)
         table.add_column("Number of Hosts")
         table.add_column("Hosts", style="bold")
-        for technology, stats in self.bbot_server.get_technologies_summary().items():
-            last_seen = stats["last_seen"]
-            hosts = stats["hosts"]
+        for t in self.bbot_server.get_technologies_summary():
             table.add_row(
-                technology,
-                self.timestamp_to_human(last_seen),
-                f"{len(hosts):,}",
-                ", ".join(hosts),
+                t["technology"],
+                self.timestamp_to_human(t["last_seen"]),
+                f"{len(t['hosts']):,}",
+                ", ".join(t["hosts"]),
             )
         self.stdout.print(table)
