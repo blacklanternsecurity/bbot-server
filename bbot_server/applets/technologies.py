@@ -40,7 +40,10 @@ class TechnologiesApplet(BaseApplet):
                 existing["hosts"].add(host)
             except KeyError:
                 technologies[technology] = {"last_seen": last_seen, "hosts": {host}}
-        technologies = [{"technology": t, "last_seen": v["last_seen"], "hosts": sorted(v["hosts"])} for t, v in technologies.items()]
+        technologies = [
+            {"technology": t, "last_seen": v["last_seen"], "hosts": sorted(v["hosts"])}
+            for t, v in technologies.items()
+        ]
         # sort technologies by number of hosts, in reverse order
         technologies.sort(key=lambda x: len(x["hosts"]), reverse=True)
         return technologies
