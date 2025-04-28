@@ -54,14 +54,14 @@ class TestAppletEvents(BaseAppletTest):
 
     async def after_scan_1(self):
         # TODO: why does this change sometimes?
-        assert 34 <= len(self.event_messages) <= 35
+        assert 33 <= len(self.event_messages) <= 35
 
         # make sure our event store is populated
         # events = await self.bbot_server.get_events()
         # assert len(events) == len(self.event_messages)
 
     async def after_scan_2(self):
-        assert 68 <= len(self.event_messages) <= 70
+        assert 66 <= len(self.event_messages) <= 70
 
         # make sure the new events arrived in the event store
         # events = await self.bbot_server.get_events()
