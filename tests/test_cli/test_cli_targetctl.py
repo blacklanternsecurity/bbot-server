@@ -14,6 +14,7 @@ def test_cli_targetctl(bbot_server_http):
 
     # create a target (nonexistent file should fail)
     seeds_file = BBOT_SERVER_TEST_DIR / "seeds.txt"
+    seeds_file.unlink(missing_ok=True)
     process = subprocess.run(
         BBCTL_COMMAND + ["--no-color", "target", "create", "--seeds", str(seeds_file)], capture_output=True, text=True
     )
