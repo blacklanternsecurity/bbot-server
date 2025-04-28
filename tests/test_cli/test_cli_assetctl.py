@@ -15,9 +15,13 @@ scan1_expected_hosts = {
     "api.evilcorp.com",
     "5.6.7.8",
     "1.2.3.4",
+    "192.168.1.1",
+    "192.168.1.2",
     "evilcorp.com",
     "localhost.evilcorp.com",
     "testevilcorp.com",
+    "tech1.evilcorp.com",
+    "tech2.evilcorp.com",
 }
 
 scan2_expected_hosts = {
@@ -27,6 +31,8 @@ scan2_expected_hosts = {
     "cname.evilcorp.com",
     "127.0.0.1",
     "127.0.0.2",
+    "192.168.1.1",
+    "192.168.1.2",
     "www2.evilcorp.com",
     "api.evilcorp.com",
     "5.6.7.8",
@@ -34,6 +40,8 @@ scan2_expected_hosts = {
     "evilcorp.com",
     "localhost.evilcorp.com",
     "testevilcorp.com",
+    "tech1.evilcorp.com",
+    "tech2.evilcorp.com",
 }
 
 
@@ -139,6 +147,8 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
         "api.evilcorp.com",
         "cname.evilcorp.com",
         "www.evilcorp.com",
+        "tech1.evilcorp.com",
+        "tech2.evilcorp.com",
         "a.com",  # this one resolves to 127.0.0.3 so it matches
         # localhost.evilcorp.com is blacklisted
     }

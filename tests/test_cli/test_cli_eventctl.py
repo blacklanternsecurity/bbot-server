@@ -25,7 +25,7 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     process = subprocess.run(BBCTL_COMMAND + ["event", "ingest", "-f", str(json_file)], capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout == ""
-    assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n"
+    assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n[INFO] Ingested 30 events\n"
 
     sleep(1)
 
@@ -38,7 +38,7 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     process = subprocess.run(BBCTL_COMMAND + ["event", "ingest"], input=scan2_out_file, capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout == ""
-    assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n"
+    assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n[INFO] Ingested 30 events\n"
 
     sleep(1)
 

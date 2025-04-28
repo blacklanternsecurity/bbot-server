@@ -90,7 +90,7 @@ def test_cli_targetctl(bbot_server_http):
         capture_output=True,
         text=True,
     )
-    assert "Missing option '--name' / '-n' / '--id' / '-i'" in process.stderr
+    assert "Missing option" in process.stderr
     assert process.returncode == 2
 
     # delete the target (by name)

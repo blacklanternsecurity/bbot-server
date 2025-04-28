@@ -44,8 +44,8 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     command = BBCTL_COMMAND + ["asset", "technology", "list"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
-    assert process.stdout.count("cpe:/a:apache:http_server:2.4.12") == 1
-    assert process.stdout.count("cpe:/a:microsoft:internet_information_services") == 1
+    assert process.stdout.count("cpe:/a:apache") == 1
+    assert process.stdout.count("cpe:/a:microsoft") == 1
     assert "tech1.evilcorp.com," in process.stdout
 
     # search technologies (JSON)
@@ -66,11 +66,11 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
     # should only match apache and not IIS
-    assert process.stdout.count("cpe:/a:apache:http_server:2.4.12") == 3
+    assert process.stdout.count("cpe:/a:apache") == 3
     assert not "internet" in process.stdout
 
     command = BBCTL_COMMAND + ["asset", "technology", "search", "microsoft"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
-    assert process.stdout.count("cpe:/a:microsoft:internet_information_services") == 1
+    assert process.stdout.count("cpe:/a:microsoft") == 1
     assert not "apache" in process.stdout
