@@ -45,8 +45,20 @@ class OpenPortsApplet(BaseApplet):
                 open_ports_stats[port] = 1
         statistics["open_ports"] = open_ports_stats
 
+    @api_endpoint("/open_ports", methods=["GET"], summary="Get all the open ports for all hosts")
+    async def get_open_ports(self, domain: str = None, target_id: str = None) -> dict[str, list[int]]:
+        open_ports = {}
+        async for asset in self.parent._get_assets(
+            # search for all assets with open ports
+            query={"open_ports": {"$exists": True, "$ne": []}},
+            target_id=target_id,
+            fields=["host", "open_ports"],
+        ):
+            open_ports[asset["host"]] = asset["open_ports"]
+        return open_ports
+
     @api_endpoint("/open_ports/{host}", methods=["GET"], summary="Get all the open ports for a host")
-    async def get_open_ports(self, host: str) -> list[int]:
+    async def get_open_ports_by_host(self, host: str) -> list[int]:
         asset = await self.collection.find_one({"host": str(host), "type": "Asset"}, {"open_ports": 1})
         if asset is None:
             return []
