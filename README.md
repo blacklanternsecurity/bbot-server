@@ -1,23 +1,26 @@
-![bbot-server](https://github.com/user-attachments/assets/3041001f-5135-4f69-a585-fea30341d803)
+![bbot-server](https://github.com/user-attachments/assets/9b369f72-4f0e-4740-8d19-2ea3acd147f9)
 
-# BBOT Server
+# BBOT Server [BETA]
 
-<!-- ![bbot-server](https://github.com/user-attachments/assets/f97648ad-fc72-4fbf-8f85-3896b9f8f02c) -->
+***NOTE**: This is an early-access preview of **BBOT Server**. Basic features are documented below. Expect updates as development progresses, including blog posts and documentation describing the full range of features.*
 
-BBOT Server is a central database and multiplayer hub for all your [BBOT](https://github.com/blacklanternsecurity/bbot) scanning activities!
+---
 
+BBOT Server is a database and multiplayer hub for all your [BBOT](https://github.com/blacklanternsecurity/bbot) activities!
+
+- [x] **Asset Tracking and Alerting**
+    - [x] Get detailed history for each individual asset
+    - [ ] Instantly alert on new vulnerabilities, open ports, etc.
 - [x] **Scan Management**
     - [x] Kick off concurrent scans on remote servers
     - [x] Monitor scan progress, statistics
-- [x] **Asset Tracking and Alerting**
-    - [x] Detailed history for each individual asset
-    - [ ] Instant alerting on new vulnerabilities, open ports, etc.
 - [x] **Collaboration**
     - [x] Multi-user CLI
     - [x] Multiple concurrent scans
 - [x] **Advanced Querying**
     - [x] REST API
     - [x] Python SDK
+    - [x] Export to JSON/CSV
 
 ## Installation
 
