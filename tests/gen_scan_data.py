@@ -18,19 +18,19 @@ Since archival by default happens every 90 days, the first scan will be archived
 
 Below is a list of the events and how they change between the two scans.
 
-    Host                        Change                                Reason
-    ----                        ------                                ------
+    Host                        Change                                                  Reason
+    ----                        ------                                                  ------
     evilcorp.com
-    www.evilcorp.com            Open ports: 80 -> None                open_ports
-    www2.evilcorp.com           Open ports: 80 -> 80                  open_ports
-    api.evilcorp.com            Open ports: None -> 443               open_ports
-    cname.evilcorp.com          CNAME: evilcorp.azure.com -> evilcorp.amazonaws.com         cloud
-    localhost.evilcorp.com      A record: 127.0.0.1 -> 127.0.0.2      DNS + scope
-    tech1.evilcorp.com          Technology: apache -> None            technologies
-    tech2.evilcorp.com          Technology: IIS -> apache             technologies
+    www.evilcorp.com            Open ports: 80 -> None                                  open_ports
+    www2.evilcorp.com           Open ports: 80 -> 80                                    open_ports
+    api.evilcorp.com            Open ports: None -> 443                                 open_ports
+    cname.evilcorp.com          CNAME: evilcorp.azure.com -> evilcorp.amazonaws.com     cloud
+    localhost.evilcorp.com      A record: 127.0.0.1 -> 127.0.0.2                        DNS + scope
+    tech1.evilcorp.com          Technology: apache -> None                              technologies
+    tech2.evilcorp.com          Technology: IIS -> apache                               technologies
 
-    evilcorp.azure.com                   None
-    evilcorp.amazonaws.com                   None
+    evilcorp.azure.com          None
+    evilcorp.amazonaws.com      None
 
 """
 
