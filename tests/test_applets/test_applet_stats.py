@@ -37,6 +37,10 @@ async def test_applet_stats(bbot_server, bbot_events):
             "cpe:/a:apache:http_server:2.4.12": 2,
             "cpe:/a:microsoft:internet_information_services": 1,
         },
+        "cloud_providers": {
+            "Azure": 1,
+            "Amazon": 2,
+        },
     }
 
     # by target
@@ -55,6 +59,9 @@ async def test_applet_stats(bbot_server, bbot_events):
             "cpe:/a:apache:http_server:2.4.12": 2,
             "cpe:/a:microsoft:internet_information_services": 1,
         },
+        "cloud_providers": {
+            "Amazon": 1,
+        },
     }
 
     # by domain
@@ -67,4 +74,5 @@ async def test_applet_stats(bbot_server, bbot_events):
             "80": 1,
         },
         "technologies": {},
+        "cloud_providers": {},
     }

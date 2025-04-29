@@ -24,13 +24,13 @@ Below is a list of the events and how they change between the two scans.
     www.evilcorp.com            Open ports: 80 -> None                open_ports
     www2.evilcorp.com           Open ports: 80 -> 80                  open_ports
     api.evilcorp.com            Open ports: None -> 443               open_ports
-    cname.evilcorp.com          CNAME: a.com -> b.com
+    cname.evilcorp.com          CNAME: evilcorp.azure.com -> evilcorp.amazonaws.com         cloud
     localhost.evilcorp.com      A record: 127.0.0.1 -> 127.0.0.2      DNS + scope
     tech1.evilcorp.com          Technology: apache -> None            technologies
     tech2.evilcorp.com          Technology: IIS -> apache             technologies
 
-    a.com                       None
-    b.com                       None
+    evilcorp.azure.com                   None
+    evilcorp.amazonaws.com                   None
 
 """
 
@@ -93,7 +93,7 @@ class DummyScan1(DummyScan):
             "A": ["127.0.0.1"],
         },
         "cname.evilcorp.com": {
-            "CNAME": ["a.com"],
+            "CNAME": ["evilcorp.azure.com"],
         },
         "tech1.evilcorp.com": {
             "A": ["192.168.1.1"],
@@ -101,10 +101,10 @@ class DummyScan1(DummyScan):
         "tech2.evilcorp.com": {
             "A": ["192.168.1.2"],
         },
-        "a.com": {
+        "evilcorp.azure.com": {
             "A": ["127.0.0.3"],
         },
-        "b.com": {
+        "evilcorp.amazonaws.com": {
             "A": ["127.0.0.4"],
         },
         "testevilcorp.com": {
@@ -189,7 +189,7 @@ class DummyScan2(DummyScan):
             "A": ["127.0.0.2"],
         },
         "cname.evilcorp.com": {
-            "CNAME": ["b.com"],
+            "CNAME": ["evilcorp.amazonaws.com"],
         },
         "tech1.evilcorp.com": {
             "A": ["192.168.1.1"],
@@ -197,10 +197,10 @@ class DummyScan2(DummyScan):
         "tech2.evilcorp.com": {
             "A": ["192.168.1.2"],
         },
-        "a.com": {
+        "evilcorp.azure.com": {
             "A": ["127.0.0.3"],
         },
-        "b.com": {
+        "evilcorp.amazonaws.com": {
             "A": ["127.0.0.4"],
         },
         "testevilcorp.com": {

@@ -7,7 +7,7 @@ from bbot_server.assets import Asset
 
 
 scan1_expected_hosts = {
-    "a.com",
+    "evilcorp.azure.com",
     "www.evilcorp.com",
     "cname.evilcorp.com",
     "127.0.0.1",
@@ -25,8 +25,8 @@ scan1_expected_hosts = {
 }
 
 scan2_expected_hosts = {
-    "a.com",
-    "b.com",
+    "evilcorp.azure.com",
+    "evilcorp.amazonaws.com",
     "www.evilcorp.com",
     "cname.evilcorp.com",
     "127.0.0.1",
@@ -149,7 +149,7 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
         "www.evilcorp.com",
         "tech1.evilcorp.com",
         "tech2.evilcorp.com",
-        "a.com",  # this one resolves to 127.0.0.3 so it matches
+        "evilcorp.azure.com",  # this one resolves to 127.0.0.3 so it matches
         # localhost.evilcorp.com is blacklisted
     }
     assert proc1_hosts == proc2_hosts

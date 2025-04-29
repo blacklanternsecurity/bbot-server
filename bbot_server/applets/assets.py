@@ -7,6 +7,7 @@ from bbot_server.applets.dns_links import DNSLinksApplet
 from bbot_server.applets.open_ports import OpenPortsApplet
 from bbot_server.applets.web_screenshots import WebScreenshotsApplet
 from bbot_server.applets.technologies import TechnologiesApplet
+from bbot_server.applets.cloud import CloudApplet
 
 from bbot_server.assets import Asset
 from bbot_server.utils.misc import utc_now
@@ -25,6 +26,7 @@ class AssetsApplet(BaseApplet):
         ExportApplet,
         Risk,
         TechnologiesApplet,
+        CloudApplet,
     ]
 
     model = Asset
@@ -175,3 +177,6 @@ class AssetsApplet(BaseApplet):
             cursor = cursor.sort(sort)
         async for asset in cursor:
             yield asset
+
+    async def _update_asset(self, host: str, update: dict):
+        await self.collection.update_one({"host": host}, {"$set": update})
