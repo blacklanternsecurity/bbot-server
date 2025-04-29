@@ -134,7 +134,7 @@ class ScanRunsApplet(BaseApplet):
             raise self.BBOTServerNotFoundError("Scan run not found")
         return ScanRun(**scan_run)
 
-    @api_endpoint("/", methods=["GET"], summary="List individual BBOT scan runs", mcp=True)
+    @api_endpoint("/", methods=["GET"], summary="List BBOT scan runs", mcp=True)
     async def get_scan_runs(self) -> list[ScanRun]:
         cursor = self.collection.find()
         scan_runs = []

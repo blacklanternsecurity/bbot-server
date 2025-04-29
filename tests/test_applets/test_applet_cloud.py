@@ -30,6 +30,15 @@ class TestAppletCloud(BaseAppletTest):
             }
         ]
 
+        # stats
+        assert await self.bbot_server.cloud_providers_stats() == {
+            "Azure": 1,
+            "Amazon": 2,
+        }
+        assert await self.bbot_server.cloud_providers_stats(domain="evilcorp.com") == {
+            "Amazon": 1,
+        }
+
         activities = [a async for a in self.bbot_server.get_activities(type="CLOUD_PROVIDER_CHANGE")]
         assert len(activities) == 4
         activity1, activity2, activity3, activity4 = activities

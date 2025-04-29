@@ -24,19 +24,40 @@ class CloudApplet(BaseApplet):
         "/list/{host}",
         methods=["GET"],
         summary="List the cloud providers for a given asset (includes child DNS records)",
+        mcp=True,
     )
     async def get_cloud_providers_for_asset(self, host: str) -> list[dict[str, str]]:
         # courteously, we trigger an update of the asset's cloud providers.
         return await self._refresh_cloud_providers(host)
 
     @api_endpoint(
-        "/check/{host}", methods=["GET"], summary="Check a hostname or IP address against the cloud provider database"
+        "/check/{host}",
+        methods=["GET"],
+        summary="Check a hostname or IP address against the cloud provider database",
     )
     async def cloudcheck(self, host: str) -> list[dict[str, str]]:
         result = []
         for provider, provider_type, parent in self._cloudcheck.check(host):
             result.append({"provider": provider, "provider_type": provider_type, "belongs_to": str(parent)})
         return result
+
+    @api_endpoint("/stats", methods=["GET"], summary="Statistics about cloud providers", mcp=True)
+    async def cloud_providers_stats(
+        self,
+        domain: str = None,
+        target_id: str = None,
+    ) -> dict[str, int]:
+        stats = {}
+        async for asset in self.root._get_assets(domain=domain, target_id=target_id, fields=["cloud_providers"]):
+            cloud_providers = asset.get("cloud_providers", [])
+            for provider in cloud_providers:
+                try:
+                    stats[provider] += 1
+                except KeyError:
+                    stats[provider] = 1
+        # sort by number of assets, descending
+        stats = sorted(stats.items(), key=lambda x: x[1], reverse=True)
+        return dict(stats)
 
     async def handle_activity(self, activity):
         """
@@ -55,6 +76,11 @@ class CloudApplet(BaseApplet):
         statistics["cloud_providers"] = cloud_providers_stats
 
     async def _refresh_cloud_providers(self, host: str, parent_activity: Activity = None):
+        """
+        Given a host, go get its associated asset, and update its cloud providers.
+
+        Return the full details of the cloud provider results.
+        """
         asset = await self.root._get_asset(host=host, fields=["dns_links", "cloud_providers"])
         if not asset:
             return []
