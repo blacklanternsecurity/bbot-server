@@ -1,7 +1,7 @@
 import pytest_asyncio
 from datetime import datetime, timedelta, timezone
 
-from bbot import Scanner
+from bbot.scanner import Scanner
 from bbot.models.pydantic import Event
 from bbot.modules.base import BaseModule
 
