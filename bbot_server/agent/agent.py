@@ -9,6 +9,7 @@ from typing import Callable, Any
 from urllib.parse import urlparse, urlunparse, urljoin
 
 from bbot.scanner import Scanner, Preset
+from bbot.scanner.dispatcher import Dispatcher
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
@@ -34,9 +35,6 @@ def command(fn: Callable) -> Callable:
     VALID_AGENT_COMMANDS[fn.__name__] = fn
     fn._agent_command = True
     return fn
-
-
-from bbot.scanner.dispatcher import Dispatcher
 
 
 class AgentDispatcher(Dispatcher):

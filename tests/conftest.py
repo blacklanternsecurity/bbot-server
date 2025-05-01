@@ -203,7 +203,7 @@ def bbot_agent(bbot_server_http):
     stderr_thread.start()
 
     # give agent a few seconds to start
-    time.sleep(3)
+    time.sleep(4)
     yield agent_process
     agent_process.send_signal(signal.SIGINT)
     try:
