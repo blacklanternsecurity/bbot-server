@@ -18,7 +18,6 @@ class AssetsApplet(BaseApplet):
     name = "Assets"
     description = "hostnames and IP addresses discovered during scans"
     include_apps = [
-        FindingsApplet,
         OpenPortsApplet,
         DNSLinksApplet,
         EmailsApplet,
@@ -27,6 +26,7 @@ class AssetsApplet(BaseApplet):
         Risk,
         TechnologiesApplet,
         CloudApplet,
+        FindingsApplet,
     ]
 
     model = Asset
@@ -155,7 +155,7 @@ class AssetsApplet(BaseApplet):
         fields: list[str] = None,
     ):
         query = dict(query or {})
-        if type is not None:
+        if type is not None and "type" not in query:
             query["type"] = type
         if host is not None:
             query["host"] = host

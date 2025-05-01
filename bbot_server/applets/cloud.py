@@ -135,7 +135,7 @@ class CloudApplet(BaseApplet):
                         "rdtype": rdtype,
                         "provider": provider,
                         "provider_type": provider_type,
-                        "belongs_to": belongs_to,
+                        "belongs_to": str(belongs_to),
                     }
                 )
         return results

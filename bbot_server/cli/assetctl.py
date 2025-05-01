@@ -1,20 +1,17 @@
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
-from bbot_server.cli.technologyctl import TechnologyCTL
-
 
 class AssetCTL(BaseBBCTL):
     command = "asset"
     help = "Query, tail, or export BBOT assets"
     short_help = "Query, tail, or export BBOT assets"
-    include = [TechnologyCTL]
 
     @subcommand(help="List BBOT assets")
     def list(
         self,
-        domain: Annotated[str, Option("--domain", "-d", help="Filter assets by domain or subdomain")] = None,
-        target: Annotated[str, Option("--target", "-t", help="Filter assets by target ID or name")] = None,
+        domain: Annotated[str, Option("--domain", "-d", help="Filter by domain or subdomain")] = None,
+        target: Annotated[str, Option("--target", "-t", help="Filter by target ID or name")] = None,
         in_scope_only: Annotated[
             bool, Option("--in-scope-only", "-i", help="Only return in-scope assets (assets in your default target)")
         ] = False,

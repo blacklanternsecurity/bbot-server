@@ -15,6 +15,10 @@ class TechnologiesApplet(BaseApplet):
     description = "technologies discovered during scans"
     model = Technology
 
+    @api_endpoint("/get/{id}", methods=["GET"], summary="Get a technology by ID")
+    async def get_technology(self, id: str) -> Technology:
+        return Technology(**(await self.root._get_asset(type="Technology", id=id)))
+
     @api_endpoint(
         "/list", methods=["GET"], type="http_stream", response_model=Technology, summary="List all technologies"
     )
@@ -65,6 +69,7 @@ class TechnologiesApplet(BaseApplet):
                     technologies[technology] += 1
                 except KeyError:
                     technologies[technology] = 1
+        technologies = sorted(technologies.items(), key=lambda x: x[1], reverse=True)
         return technologies
 
     @api_endpoint(

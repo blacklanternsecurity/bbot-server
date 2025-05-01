@@ -1,7 +1,7 @@
 import pytest_asyncio
 from datetime import datetime, timedelta, timezone
 
-from bbot import Scanner
+from bbot.scanner import Scanner
 from bbot.models.pydantic import Event
 from bbot.modules.base import BaseModule
 
@@ -120,12 +120,14 @@ class DummyScan1(DummyScan):
             if event.type == "OPEN_TCP_PORT":
                 if str(event.host) in ("www.evilcorp.com", "www2.evilcorp.com"):
                     if event.port == 80:
+                        scheme = "https" if event.port == 443 else "http"
                         await self.emit_event(
                             {
+                                "name": "CVE-2024-12345",
                                 "severity": "HIGH",
                                 "description": "That's a paddlin'",
                                 "host": event.host,
-                                "url": f"https://{event.host}",
+                                "url": f"{scheme}://{event.host}",
                             },
                             "VULNERABILITY",
                             parent=event,
@@ -219,12 +221,14 @@ class DummyScan2(DummyScan):
                     or str(event.host) == "api.evilcorp.com"
                     and event.port == 443
                 ):
+                    scheme = "https" if event.port == 443 else "http"
                     await self.emit_event(
                         {
-                            "severity": "HIGH",
-                            "description": "That's a paddlin'",
+                            "name": "CVE-2025-54321",
+                            "severity": "CRITICAL",
+                            "description": "That's a whippin'",
                             "host": event.host,
-                            "url": f"http://{event.host}",
+                            "url": f"{scheme}://{event.host}",
                         },
                         "VULNERABILITY",
                         parent=event,

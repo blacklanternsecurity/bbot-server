@@ -8,7 +8,7 @@ from contextlib import suppress
 from typing import Callable, Any
 from urllib.parse import urlparse, urlunparse, urljoin
 
-from bbot import Scanner, Preset
+from bbot.scanner import Scanner, Preset
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
@@ -271,7 +271,7 @@ class BBOTAgent:
             "scan_id": scan_id,
             "scan_name": scan_name,
         }
-        if scan_id:
+        if scan_id and scan is not None:
             try:
                 status["scan_status_detail"] = scan.modules_status(detailed=True)
             except Exception as e:
