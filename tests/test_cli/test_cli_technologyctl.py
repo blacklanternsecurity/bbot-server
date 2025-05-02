@@ -8,7 +8,7 @@ from bbot_server.models.technology_models import Technology
 
 def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     # we shouldn't have any technologies yet
-    command = BBCTL_COMMAND + ["asset", "technology", "list", "--json"]
+    command = BBCTL_COMMAND + ["technology", "list", "--json"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout == ""
@@ -27,7 +27,7 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     sleep(1)
 
     # list technologies (JSON)
-    command = BBCTL_COMMAND + ["asset", "technology", "list", "--json"]
+    command = BBCTL_COMMAND + ["technology", "list", "--json"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
     assert len(process.stdout.splitlines()) == 4
@@ -41,7 +41,7 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     }
 
     # list technologies (text)
-    command = BBCTL_COMMAND + ["asset", "technology", "list"]
+    command = BBCTL_COMMAND + ["technology", "list"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout.count("cpe:/a:apache") == 1
@@ -49,7 +49,7 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     assert "tech1.evil" in process.stdout
 
     # search technologies (JSON)
-    command = BBCTL_COMMAND + ["asset", "technology", "search", "apache", "--json"]
+    command = BBCTL_COMMAND + ["technology", "search", "apache", "--json"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
     assert len(process.stdout.splitlines()) == 3
@@ -62,14 +62,14 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     }
 
     # search technologies (text)
-    command = BBCTL_COMMAND + ["asset", "technology", "search", "apache"]
+    command = BBCTL_COMMAND + ["technology", "search", "apache"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
     # should only match apache and not IIS
     assert process.stdout.count("cpe:/a:apache") == 3
     assert not "internet" in process.stdout
 
-    command = BBCTL_COMMAND + ["asset", "technology", "search", "microsoft"]
+    command = BBCTL_COMMAND + ["technology", "search", "microsoft"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout.count("cpe:/a:microsoft") == 1

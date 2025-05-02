@@ -149,8 +149,8 @@ class BaseBBCTL:
         """
         self.sys.stdout.buffer.write(line + b"\n")
 
-    def timestamp_to_human(self, timestamp):
-        return timestamp_to_human(timestamp)
+    def timestamp_to_human(self, *args, **kwargs):
+        return timestamp_to_human(*args, **kwargs)
 
-    def seconds_to_human(self, seconds):
-        return seconds_to_human(seconds)
+    def seconds_to_human(self, *args, **kwargs):
+        return seconds_to_human(*args, **kwargs)

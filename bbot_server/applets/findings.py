@@ -131,7 +131,7 @@ class FindingsApplet(BaseApplet):
         asset.findings = sorted(findings)
         return await self._insert_or_update_finding(finding, event)
 
-    def compute_stats(self, asset, stats):
+    async def compute_stats(self, asset, stats):
         vulns = getattr(asset, "findings", [])
         vuln_stats = stats.get("findings", {})
         for v in vulns:
@@ -139,6 +139,7 @@ class FindingsApplet(BaseApplet):
                 vuln_stats[v] += 1
             except KeyError:
                 vuln_stats[v] = 1
+        vuln_stats = dict(sorted(vuln_stats.items(), key=lambda x: x[1], reverse=True))
         stats["vulnerabilities"] = vuln_stats
         return stats
 

@@ -74,6 +74,7 @@ class DNSLinksApplet(BaseApplet):
                 dns_link_stats[rdtype] += len(links)
             except KeyError:
                 dns_link_stats[rdtype] = len(links)
+        dns_link_stats = dict(sorted(dns_link_stats.items(), key=lambda x: x[1], reverse=True))
         stats["dns_links"] = dns_link_stats
         return stats
 

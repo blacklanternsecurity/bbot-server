@@ -46,15 +46,17 @@ class AssetCTL(BaseBBCTL):
         table = self.Table()
         table.add_column("Host", style=self.COLOR)
         table.add_column("Open Ports")
-        table.add_column("Created", style=self.DARK_COLOR)
-        table.add_column("Modified", style=self.DARK_COLOR)
+        table.add_column("Technologies")
+        table.add_column("Cloud Providers")
+        table.add_column("Findings")
         for asset in asset_list:
             open_ports = [str(port) for port in sorted(getattr(asset, "open_ports", []))]
             table.add_row(
                 asset.host,
-                ",".join(open_ports),
-                self.timestamp_to_human(asset.created),
-                self.timestamp_to_human(asset.modified),
+                ", ".join(open_ports),
+                ", ".join(getattr(asset, "technologies", [])),
+                ", ".join(getattr(asset, "cloud_providers", [])),
+                ", ".join(getattr(asset, "findings", [])),
             )
         self.stdout.print(table)
 

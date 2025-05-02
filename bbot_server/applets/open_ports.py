@@ -43,6 +43,7 @@ class OpenPortsApplet(BaseApplet):
                 open_ports_stats[port] += 1
             except KeyError:
                 open_ports_stats[port] = 1
+        open_ports_stats = dict(sorted(open_ports_stats.items(), key=lambda x: x[1], reverse=True))
         statistics["open_ports"] = open_ports_stats
 
     @api_endpoint("/open_ports", methods=["GET"], summary="Get all the open ports for all hosts")

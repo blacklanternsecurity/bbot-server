@@ -73,6 +73,7 @@ class CloudApplet(BaseApplet):
                 cloud_providers_stats[provider] += 1
             except KeyError:
                 cloud_providers_stats[provider] = 1
+        cloud_providers_stats = dict(sorted(cloud_providers_stats.items(), key=lambda x: x[1], reverse=True))
         statistics["cloud_providers"] = cloud_providers_stats
 
     async def _refresh_cloud_providers(self, host: str, parent_activity: Activity = None):
@@ -97,11 +98,13 @@ class CloudApplet(BaseApplet):
         if cloud_providers_added or cloud_providers_removed:
             cloud_providers_added = sorted(cloud_providers_added)
             cloud_providers_removed = sorted(cloud_providers_removed)
-            description = f"Cloud providers changed on [bold]{host}[/bold],"
+            description = f"Change in cloud providers on [bold]{host}[/bold]: "
             if cloud_providers_added:
-                description += f" Added: [[COLOR]{','.join(cloud_providers_added)}[/COLOR]]"
+                description += f"Added [[COLOR]{','.join(cloud_providers_added)}[/COLOR]]"
+                if cloud_providers_removed:
+                    description += ", "
             if cloud_providers_removed:
-                description += f" Removed: [[COLOR]{','.join(cloud_providers_removed)}[/COLOR]]"
+                description += f"Removed [[COLOR]{','.join(cloud_providers_removed)}[/COLOR]]"
             await self.emit_activity(
                 type="CLOUD_PROVIDER_CHANGE",
                 host=host,

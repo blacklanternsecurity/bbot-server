@@ -6,7 +6,7 @@ from bbot_server.applets._base import BaseApplet, api_endpoint, Annotated
 
 # add one field: 'technologies' to the main asset model
 class TechnologiesFields(CustomAssetFields):
-    technologies: Annotated[list[str], "indexed-text"] = []  # noqa: F821
+    technologies: Annotated[list[str], "indexed", "indexed-text"] = []  # noqa: F821
 
 
 class TechnologiesApplet(BaseApplet):
@@ -69,7 +69,7 @@ class TechnologiesApplet(BaseApplet):
                     technologies[technology] += 1
                 except KeyError:
                     technologies[technology] = 1
-        technologies = sorted(technologies.items(), key=lambda x: x[1], reverse=True)
+        technologies = dict(sorted(technologies.items(), key=lambda x: x[1], reverse=True))
         return technologies
 
     @api_endpoint(
@@ -103,7 +103,6 @@ class TechnologiesApplet(BaseApplet):
             netloc=event.netloc,
             last_seen=event.timestamp,
         )
-        print(t)
         # insert the technology into the database
         await self._update_or_insert_technology(t)
         # make an activity if the technology is new
@@ -127,6 +126,7 @@ class TechnologiesApplet(BaseApplet):
                 technology_stats[technology] += 1
             except KeyError:
                 technology_stats[technology] = 1
+        technology_stats = dict(sorted(technology_stats.items(), key=lambda x: x[1], reverse=True))
         statistics["technologies"] = technology_stats
 
     async def refresh(self, asset, events_by_type):
