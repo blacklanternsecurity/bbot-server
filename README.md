@@ -220,7 +220,8 @@ bbctl technology list --domain evilcorp.com
 # List findings
 bbctl finding list
 
-# Search findings for a certain 
+# Search findings for a certain string
+bbctl finding list --search "IIS"
 ```
 
 ### Statistics
