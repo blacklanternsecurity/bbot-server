@@ -104,7 +104,7 @@ async def test_applet_target_filter(bbot_server, bbot_events):
         await bbot_server.insert_event(e)
 
     # wait for events to be processed
-    await asyncio.sleep(1)
+    await asyncio.sleep(2.0)
 
     all_hosts = {
         "evilcorp.com",

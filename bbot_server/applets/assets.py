@@ -1,5 +1,4 @@
 # applets imports
-from bbot_server.applets.risk import Risk
 from bbot_server.applets.emails import EmailsApplet
 from bbot_server.applets.export import ExportApplet
 from bbot_server.applets.findings import FindingsApplet
@@ -23,7 +22,6 @@ class AssetsApplet(BaseApplet):
         EmailsApplet,
         WebScreenshotsApplet,
         ExportApplet,
-        Risk,
         TechnologiesApplet,
         CloudApplet,
         FindingsApplet,

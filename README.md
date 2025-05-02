@@ -21,6 +21,7 @@ BBOT Server is a database and multiplayer hub for all your [BBOT](https://github
     - [x] REST API
     - [x] Python SDK
     - [x] Export to JSON/CSV
+- [x] AI interaction via MCP
 
 ## Installation
 
@@ -157,7 +158,16 @@ You can create a target manually:
 
 ## Custom triggers
 
-TODO
+You can set up custom triggers. When a certain activity happens, you can kick off a custom command or bash script.
+
+```bash
+# Trigger a custom command whenever a new open port is discovered
+bbctl activity tail --json | jq -r 'select(.type == "PORT_OPENED") | .netloc' | while read netloc
+do
+  echo "New open port at $netloc"
+  ./custom_script.sh "$netloc"
+done
+```
 
 ## Alerting
 
@@ -167,7 +177,7 @@ TODO
 
 You can query and export the data even while a scan is running.
 
-**List assets**:
+### Assets
 
 ```bash
 # List assets
@@ -180,7 +190,7 @@ bbctl asset export --csv > assets.csv
 bbctl asset export --json | jq
 ```
 
-**List events**:
+### Events
 
 ```bash
 # List events
@@ -193,11 +203,38 @@ bbctl event export --csv > events.csv
 bbctl event export --json | jq
 ```
 
+### Technologies
+
+```bash
+# List technologies
+bbctl technology list
+
+# List technologies by specific domain
+bbctl technology list --domain evilcorp.com
+```
+
+### Findings
+
+```bash
+# List findings
+bbctl finding list
+
+# Search findings for a certain 
+```
+
+### Statistics
+
+Overarching statistics are stored for all assets, and can be queried by target or domain.
+
+```bash
+# List stats for all assets
+bbctl asset stats | jq
+
+# List stats for specific domain
+bbctl asset stats --domain evilcorp.com | jq
+```
+
 ## Screenshots
-
-*Scan editor (terminal UI)*
-
-![scan-editor](https://github.com/user-attachments/assets/9c31d2ef-f4f0-4d65-bd45-263a8d16bd7f)
 
 *Launch and monitor concurrent scans*
 

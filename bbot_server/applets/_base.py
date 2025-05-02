@@ -235,7 +235,13 @@ class BaseApplet:
             if "indexed" in field.metadata:
                 index = [(fieldname, ASCENDING)]
                 self.log.debug(f"Creating index: {index}")
-                await self.collection.create_index(index, unique=unique)
+                try:
+                    await self.collection.create_index(index, unique=unique)
+                except OperationFailure as e:
+                    if "existing index has the same name" in str(e):
+                        self.log.debug(f"Index {index} already exists, skipping")
+                    else:
+                        raise
             # text indexes
             if "indexed-text" in field.metadata:
                 index = [(fieldname, "text")]

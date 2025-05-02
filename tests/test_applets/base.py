@@ -82,7 +82,7 @@ class BaseAppletTest:
             with self.handle_errors("inserting data from first scan"):
                 for event in self.scan1_events:
                     await self.bbot_server.insert_event(event)
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(4.0)
 
             # run the first test after scan #1 has been ingested
             with self.handle_errors("running tests after first scan"):
@@ -92,7 +92,7 @@ class BaseAppletTest:
             with self.handle_errors("inserting data from second scan"):
                 for event in self.scan2_events:
                     await self.bbot_server.insert_event(event)
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(4.0)
 
             # run test after scan #2 has been ingested
             with self.handle_errors("running tests after second scan"):
