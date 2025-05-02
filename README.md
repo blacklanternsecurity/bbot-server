@@ -261,6 +261,10 @@ After connecting your AI client to BBOT Server, you can ask it sensible question
 
 ![activity-tail](https://github.com/user-attachments/assets/8188f32c-45bc-4f81-bf98-c59adfbdc5df)
 
+*AI Chat interaction via MCP*
+
+![mcp](https://github.com/user-attachments/assets/3997b534-2ed8-4e04-b8c3-a7b42daf4106)
+
 *Scans*
 
 ![scan-run-list](https://github.com/user-attachments/assets/d6ffb6e5-06d7-4439-936a-3d2b1a6306ee)
