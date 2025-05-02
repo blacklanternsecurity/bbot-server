@@ -150,7 +150,7 @@ class TechnologiesApplet(BaseApplet):
                     host=asset.host,
                     type="NEW_TECHNOLOGY",
                     detail={"technology": technology},
-                    description=f"New technology discovered on [bold]{asset.host}[/bold]: [[COLOR]{technology}[/COLOR]",
+                    description=f"New technology discovered on [bold]{asset.host}[/bold]: [[COLOR]{technology}[/COLOR]]",
                 )
             )
         for technology in removed_technologies:
@@ -159,7 +159,7 @@ class TechnologiesApplet(BaseApplet):
                     host=asset.host,
                     type="TECHNOLOGY_REMOVED",
                     detail={"technology": technology},
-                    description=f"Technology no longer detected on [bold]{asset.host}[/bold]: [[COLOR]{technology}[/COLOR]",
+                    description=f"Technology no longer detected on [bold]{asset.host}[/bold]: [[COLOR]{technology}[/COLOR]]",
                 )
             )
             if asset.host:

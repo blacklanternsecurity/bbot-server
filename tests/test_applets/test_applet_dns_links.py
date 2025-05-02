@@ -28,4 +28,4 @@ class TestAppletDNSLinks(BaseAppletTest):
         assert "DNS link removed: localhost.evilcorp.com -(A)-> [127.0.0.1]" in activity_descriptions
         assert "New DNS link: localhost.evilcorp.com -(A)-> [127.0.0.2]" in activity_descriptions
         assert "DNS link removed: cname.evilcorp.com -(CNAME)-> [evilcorp.azure.com]" in activity_descriptions
-        assert "New DNS link: cname.evilcorp.com -(CNAME)-> [b.com]" in activity_descriptions
+        assert "New DNS link: cname.evilcorp.com -(CNAME)-> [evilcorp.amazonaws.com]" in activity_descriptions
