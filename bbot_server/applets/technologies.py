@@ -56,19 +56,19 @@ class TechnologiesApplet(BaseApplet):
     @api_endpoint(
         "/list_brief",
         methods=["GET"],
-        summary="Get all the active technologies for a given domain or target",
+        summary="Get all active technologies by domain or target id.",
         mcp=True,
     )
-    async def get_technologies_brief(self, domain: str = None, target_id: str = None) -> dict[str, int]:
+    async def get_technologies_brief(self, domain: str = "", target_id: str = "") -> dict[str, int]:
+        # AI like to pass empty strings for some godforsaken reason
+        domain = domain or None
+        target_id = target_id or None
         technologies = {}
         async for asset in self.parent._get_assets(
             domain=domain, target_id=target_id, fields=["technologies", "host"]
         ):
             for technology in asset.get("technologies", []):
-                try:
-                    technologies[technology] += 1
-                except KeyError:
-                    technologies[technology] = 1
+                technologies[technology] = technologies.get(technology, 0) + 1
         technologies = dict(sorted(technologies.items(), key=lambda x: x[1], reverse=True))
         return technologies
 

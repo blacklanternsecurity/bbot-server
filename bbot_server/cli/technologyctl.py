@@ -27,14 +27,14 @@ class TechnologyCTL(BaseBBCTL):
             return
 
         table = self.Table()
-        table.add_column("Technology", style=self.COLOR)
         table.add_column("Last Seen", style=self.DARK_COLOR)
+        table.add_column("Technology", style=self.COLOR)
         table.add_column("Number of Hosts")
         table.add_column("Hosts", style="bold")
         for t in self.bbot_server.get_technologies_summary(domain=domain, target_id=target_id):
             table.add_row(
-                t["technology"],
                 self.timestamp_to_human(t["last_seen"]),
+                t["technology"],
                 f"{len(t['hosts']):,}",
                 ", ".join(t["hosts"]),
             )

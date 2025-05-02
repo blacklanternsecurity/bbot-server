@@ -21,7 +21,7 @@ BBOT Server is a database and multiplayer hub for all your [BBOT](https://github
     - [x] REST API
     - [x] Python SDK
     - [x] Export to JSON/CSV
-- [x] AI interaction via MCP
+- [x] [AI interaction via MCP](#MCP)
 
 ## Installation
 
@@ -113,7 +113,7 @@ bbctl scan start "evilcorp_subdomains"
 
 You can monitor the scan's progress in several ways:
 
-**Tail asset activity**:
+### Tail asset activity:
 
 This will output an activity whenever a change is detected to an asset, e.g. a change in DNS, new open port, vulnerability, or technology.
 
@@ -122,7 +122,7 @@ This will output an activity whenever a change is detected to an asset, e.g. a c
 bbctl activity tail
 ```
 
-**Tail raw events**:
+### Tail raw events:
 
 If you'd like, you can also tail the raw events as they stream in from the BBOT scan.
 
@@ -131,7 +131,7 @@ If you'd like, you can also tail the raw events as they stream in from the BBOT 
 bbctl event tail
 ```
 
-**Check scan status**:
+### Check scan status:
 
 You can monitor or stop an in-progress scan:
 
@@ -152,13 +152,16 @@ You can list targets like so:
 ```bash
 # List targets
 bbctl target list
+
+# Create a new target
+bbctl target create --seeds seeds.txt --blacklist blacklist.txt
 ```
 
 You can create a target manually:
 
 ## Custom triggers
 
-You can set up custom triggers. When a certain activity happens, you can kick off a custom command or bash script.
+You can kick off a custom command or bash script whenever a certain activity happens, such as when a new technology or open port is discovered.
 
 ```bash
 # Trigger a custom command whenever a new open port is discovered
@@ -173,7 +176,7 @@ done
 
 TODO
 
-## View/export the data
+## Query and Export Data
 
 You can query and export the data even while a scan is running.
 
@@ -234,15 +237,42 @@ bbctl asset stats | jq
 bbctl asset stats --domain evilcorp.com | jq
 ```
 
+### MCP
+
+BBOT Server supports chat-based AI interaction via MCP (Model Context Protocol).
+
+The SSE server listens at `http://localhost:8807/v1/mcp/`
+
+`mcp.json` (cursor / vs code):
+```json
+{
+    "mcpServers": {
+        "bbot": {
+            "url": "http://localhost:8807/v1/mcp/"
+        }
+    }
+}
+```
+
+After connecting your AI client to BBOT Server, you can ask it sensible questions like, "Use MCP to get all the bbot findings", "what are the top open ports?", "what else can you do with BBOT MCP?", etc.
+
 ## Screenshots
 
-*Launch and monitor concurrent scans*
+*Tailing activities in real time*
 
-![scans](https://github.com/user-attachments/assets/7644809f-e111-49f8-b627-c0c77a65110a)
+![activity-tail](https://github.com/user-attachments/assets/8188f32c-45bc-4f81-bf98-c59adfbdc5df)
 
-*Realtime asset monitoring*
+*Scans*
 
-![monitor-assets](https://github.com/user-attachments/assets/ed7ac9f2-34e8-4770-a971-49fdf7f77bea)
+![scan-run-list](https://github.com/user-attachments/assets/d6ffb6e5-06d7-4439-936a-3d2b1a6306ee)
+
+*Technologies*
+
+![technology-list](https://github.com/user-attachments/assets/7b662858-8c08-4bb9-a520-6381d2964dde)
+
+*Findings*
+
+![finding-list](https://github.com/user-attachments/assets/3fcbb977-6d47-4dc1-81b7-a26e8e3bc292)
 
 *REST API*
 

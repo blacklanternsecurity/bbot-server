@@ -224,7 +224,7 @@ class FindingsApplet(BaseApplet):
         return [
             self.make_activity(
                 type="NEW_FINDING",
-                description=f"New finding (severity {finding.severity}): [[bold {severity_color}]{finding.name}[/bold {severity_color}]] on [bold]{finding.host}[/bold]",
+                description=f"New finding with severity [bold {severity_color}]{finding.severity}[/bold {severity_color}]: [[bold {severity_color}]{finding.name}[/bold {severity_color}]] on [bold]{finding.host}[/bold]",
                 event=event,
                 detail=finding.model_dump(),
             )
