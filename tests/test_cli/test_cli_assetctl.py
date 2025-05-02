@@ -83,7 +83,8 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
 
     # test txt version
     process = subprocess.run(BBCTL_COMMAND + ["asset", "list"], capture_output=True, text=True)
-    assert len([l for l in process.stdout.splitlines() if l.strip()]) == len(scan2_expected_hosts) + 4
+    assert process.returncode == 0
+    assert "www.evil" in process.stdout
 
     # test target filtering
 

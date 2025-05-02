@@ -1,13 +1,15 @@
 import re
 import uuid
+from hashlib import sha1
 from pydantic import Field
+from functools import cached_property
 from datetime import datetime, timezone
 from typing import Annotated, Any, Optional
 
 from bbot_server.cli.themes import COLOR, DARK_COLOR
 from bbot_server.models.base import BaseBBOTServerModel
 
-remove_rich_color_pattern = re.compile(r"\[(\w+)\](.*?)\[/\1\]")
+remove_rich_color_pattern = re.compile(r"\[([\w ]+)\](.*?)\[/\1\]")
 
 
 class Activity(BaseBBOTServerModel):
@@ -21,7 +23,7 @@ class Activity(BaseBBOTServerModel):
 
     __tablename__ = "history"
     # id is a UUID
-    id: Annotated[str, "indexed"] = Field(default_factory=lambda: str(uuid.uuid4()))
+    id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Annotated[str, "indexed"]
     timestamp: Annotated[float, "indexed"]
     description: Annotated[str, "indexed"]
@@ -108,9 +110,9 @@ class Activity(BaseBBOTServerModel):
     # def id(self):
     #     return f"{self.type}:{self.host}:{self.description}"
 
-    # @cached_property
-    # def hash(self):
-    #     return sha1(self.id.encode()).hexdigest()
+    @cached_property
+    def hash(self):
+        return sha1(f"{self.type}:{self.netloc}:{self.description}".encode()).hexdigest()
 
     def __eq__(self, other):
         return self.hash == other.hash

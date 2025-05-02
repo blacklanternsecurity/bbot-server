@@ -58,6 +58,7 @@ class TestAppletFindings(BaseAppletTest):
         assert finding_by_id.severity_score == 5
         assert finding_by_id.confidence == 1
         assert finding_by_id.url == "https://api.evilcorp.com/"
+        assert finding_by_id.description == "That's a whippin'"
 
         # search for a string in the description
         findings = [f async for f in self.bbot_server.get_findings(search="whippin")]
@@ -68,3 +69,12 @@ class TestAppletFindings(BaseAppletTest):
         assert len(findings) == 2
         assert {f.name for f in findings} == {"CVE-2024-12345"}
         assert {f.host for f in findings} == {"www.evilcorp.com", "www2.evilcorp.com"}
+
+        # activities
+        activities = [a async for a in self.bbot_server.get_activities() if a.type == "NEW_FINDING"]
+        www_activity = [a for a in activities if a.host == "www.evilcorp.com"][0]
+        assert www_activity.description == "New finding (severity HIGH): [CVE-2024-12345] on www.evilcorp.com"
+        assert (
+            www_activity.description_colored
+            == "New finding (severity HIGH): [[bold bright_red]CVE-2024-12345[/bold bright_red]] on [bold]www.evilcorp.com[/bold]"
+        )
