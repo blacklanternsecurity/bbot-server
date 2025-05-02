@@ -157,8 +157,6 @@ bbctl target list
 bbctl target create --seeds seeds.txt --blacklist blacklist.txt
 ```
 
-You can create a target manually:
-
 ## Custom triggers
 
 You can kick off a custom command or bash script whenever a certain activity happens, such as when a new technology or open port is discovered.
