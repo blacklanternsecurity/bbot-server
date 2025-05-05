@@ -17,7 +17,6 @@ from contextlib import suppress
 from bbot_server.config import BBOT_SERVER_CONFIG
 from .gen_scan_data import *
 
-
 # how long to wait for new events to be ingested
 # this can take a long time on CI because of the tiny instance size
 INGEST_PROCESSING_DELAY = 6.0
