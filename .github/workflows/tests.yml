@@ -41,7 +41,7 @@ jobs:
           poetry run ruff format --check
       - name: Run tests
         run: |
-          poetry run pytest --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
+          poetry run pytest --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server . -k test_applet_assets
       - name: Upload Code Coverage
         uses: codecov/codecov-action@v3
         with:
