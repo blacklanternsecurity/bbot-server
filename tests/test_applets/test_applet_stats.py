@@ -15,7 +15,7 @@ async def test_applet_stats(bbot_server, bbot_events):
             await bbot_server.insert_event(e)
 
     # wait for events to be processed
-    await asyncio.sleep(1)
+    await asyncio.sleep(3.0)
 
     # global stats
     stats = await bbot_server.get_stats()

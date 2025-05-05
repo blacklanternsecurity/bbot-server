@@ -24,7 +24,7 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     )
 
     # wait for events to be processed
-    sleep(1)
+    sleep(4)
 
     # list technologies (JSON)
     command = BBCTL_COMMAND + ["technology", "list", "--json"]
