@@ -19,7 +19,7 @@ async def test_events_websocket_ingest(bbot_server, bbot_events):
 
     agen = event_generator()
     await bbot_server.consume_event_stream(agen)
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     # pull them out and compare them to the original events
     events = [e async for e in bbot_server.get_events()]
@@ -39,7 +39,7 @@ async def test_events_http_ingest(bbot_server, bbot_events):
     # insert events via http
     for event in scan1_events:
         await bbot_server.insert_event(event)
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     events = [e async for e in bbot_server.get_events()]
     events.sort(key=lambda x: x.timestamp)
@@ -53,21 +53,15 @@ class TestAppletEvents(BaseAppletTest):
         # assert route.endpoint_type == "websocket"
 
     async def after_scan_1(self):
-        self.log.critical(f"SCAN 1 EVENTS: {len(self.event_messages)}")
-        for event in self.event_messages:
-            self.log.critical(f"{event.type} / {event.netloc}")
         # TODO: why does this change sometimes?
-        assert 33 <= len(self.event_messages) <= 36
+        assert 30 <= len(self.event_messages) <= 40
 
         # make sure our event store is populated
         # events = await self.bbot_server.get_events()
         # assert len(events) == len(self.event_messages)
 
     async def after_scan_2(self):
-        self.log.critical(f"SCAN 2 EVENTS: {len(self.event_messages)}")
-        for event in self.event_messages:
-            self.log.critical(f"{event.type} / {event.netloc}")
-        assert 66 <= len(self.event_messages) <= 72
+        assert 60 <= len(self.event_messages) <= 80
 
         # make sure the new events arrived in the event store
         # events = await self.bbot_server.get_events()

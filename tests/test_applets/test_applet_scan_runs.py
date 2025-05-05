@@ -6,6 +6,8 @@ from contextlib import suppress
 from bbot_server import BBOTServer
 from bbot_server.errors import BBOTServerNotFoundError
 
+from ..conftest import INGEST_PROCESSING_DELAY
+
 
 # make sure ad-hoc ingestion of a BBOT scan creates an associated scan run in the database
 async def test_scan_run_adhoc(bbot_server, bbot_events):
@@ -30,7 +32,7 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
         await bbot_server.insert_event(event)
 
     # wait for events to be processed
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     scan_runs = await bbot_server.get_scan_runs()
     assert len(scan_runs) == 1
@@ -46,7 +48,7 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
         await bbot_server.insert_event(event)
 
     # wait for events to be processed
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     scan_runs = await bbot_server.get_scan_runs()
     assert len(scan_runs) == 1

@@ -1,6 +1,7 @@
 import asyncio
 
 from tests.test_applets.base import BaseAppletTest
+from ..conftest import INGEST_PROCESSING_DELAY
 
 
 class TestAppletAssets(BaseAppletTest):
@@ -104,7 +105,7 @@ async def test_applet_target_filter(bbot_server, bbot_events):
         await bbot_server.insert_event(e)
 
     # wait for events to be processed
-    await asyncio.sleep(2.0)
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     all_hosts = {
         "evilcorp.com",

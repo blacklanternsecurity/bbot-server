@@ -19,8 +19,6 @@ async def test_watchdog(bbot_events, bbot_server_config):
     await watchdog.start()
 
     try:
-        # allow some time for the startup to complete
-        await asyncio.sleep(1)
 
         @watchdog.broker.task
         async def insert_event(

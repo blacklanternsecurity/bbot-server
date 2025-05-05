@@ -1,4 +1,5 @@
 import os
+import sys
 import typer
 import asyncio
 from pathlib import Path
@@ -105,3 +106,13 @@ class ServerCTL(BaseBBCTL):
                     raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
 
         return run(self._docker_command + args, **kwargs)
+
+    @subcommand(
+        help="Run a command with docker compose",
+        epilog="Example: bbctl server run-docker-compose exec server bash",
+    )
+    def run_docker_compose(self, args: list[str]):
+        # we take sys.argv after "run-docker-compose"
+        docker_compose_index = sys.argv.index("run-docker-compose")
+        docker_compose_args = sys.argv[docker_compose_index + 1 :]
+        return self._run_docker_compose(docker_compose_args)

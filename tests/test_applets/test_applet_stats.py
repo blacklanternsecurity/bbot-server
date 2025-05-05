@@ -1,5 +1,7 @@
 import asyncio
 
+from ..conftest import INGEST_PROCESSING_DELAY
+
 
 async def test_applet_stats(bbot_server, bbot_events):
     bbot_server = await bbot_server(needs_watchdog=True)
@@ -15,7 +17,7 @@ async def test_applet_stats(bbot_server, bbot_events):
             await bbot_server.insert_event(e)
 
     # wait for events to be processed
-    await asyncio.sleep(3.0)
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     # global stats
     stats = await bbot_server.get_stats()
