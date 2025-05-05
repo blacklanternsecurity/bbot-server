@@ -36,6 +36,8 @@ class CloudApplet(BaseApplet):
         summary="Check a hostname or IP address against the cloud provider database",
     )
     async def cloudcheck(self, host: str) -> list[dict[str, str]]:
+        # update the cloudcheck database
+        await self._cloudcheck.update(cache_hrs=24)
         result = []
         for provider, provider_type, parent in self._cloudcheck.check(host):
             result.append({"provider": provider, "provider_type": provider_type, "belongs_to": str(parent)})
@@ -122,8 +124,6 @@ class CloudApplet(BaseApplet):
         return cloud_providers_detail
 
     async def _dns_links_to_cloud_providers(self, host, dns_links: dict[str, list[str]]) -> list[dict[str, str]]:
-        # update the cloudcheck database
-        await self._cloudcheck.update(cache_hrs=24)
         results = []
         to_check = {("SELF", host)}
         for rdtype, records in dns_links.items():
