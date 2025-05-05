@@ -34,6 +34,9 @@ class ServerCTL(BaseBBCTL):
         ] = False,
         listen: Annotated[str, Option("--listen", "-l", help="Listen address", metavar="IP_ADDRESS")] = "127.0.0.1",
         port: Annotated[int, Option("--port", "-p", help="Port to run the server on", metavar="PORT")] = 8807,
+        reload: Annotated[
+            bool, Option("--reload", "-r", help="Reload the server when the code changes (for development)")
+        ] = False,
     ):
         if api_only:
             print("Starting BBOT server API")
@@ -42,8 +45,16 @@ class ServerCTL(BaseBBCTL):
                 os.environ["BBOT_SERVER_CONFIG"] = str(self.root.config_path)
             import uvicorn
 
+            if reload:
+                app = "bbot_server.api.app:server_app"
+            else:
+                from functools import partial
+                from bbot_server.api import make_server_app
+
+                app = partial(make_server_app, config=self.config)
+
             # TODO: increase workers after adding websocket channels
-            uvicorn.run("bbot_server.api.app:server_app", host=listen, port=port, reload=True, workers=1)
+            uvicorn.run(app, host=listen, port=port, reload=reload, workers=1)
 
         elif watchdog_only:
             print("Starting watchdog")

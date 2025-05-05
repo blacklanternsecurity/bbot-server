@@ -17,6 +17,12 @@ from contextlib import suppress
 from bbot_server.config import BBOT_SERVER_CONFIG
 from .gen_scan_data import *
 
+
+# how long to wait for new events to be ingested
+# this can take a long time on CI because of the tiny instance size
+INGEST_PROCESSING_DELAY = 10.0
+
+
 log = logging.getLogger(__name__)
 
 PROJ_ROOT = Path(__file__).parent.parent
@@ -36,7 +42,7 @@ def bbot_server_config():
 
 
 @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
-# @pytest_asyncio.fixture
+# @pytest_asyncio.fixture(params=[{"interface": "http"}])
 async def bbot_server(request, mongo_cleanup, redis_cleanup, bbot_server_config):
     from bbot_server import BBOTServer
     from bbot_server.message_queue import MessageQueue
@@ -136,12 +142,26 @@ def bbot_server_http(mongo_cleanup, redis_cleanup):
 
     # Start process in its own process group
     for _ in range(20):
-        server_process = subprocess.Popen(command, preexec_fn=os.setsid)
+        server_process = subprocess.Popen(command, preexec_fn=os.setsid, stderr=subprocess.PIPE, text=True)
         time.sleep(2)
         if server_process.poll() is None:
             break
         else:
+            server_stderr = server_process.stderr.read()
             log.error(f"Failed to start server: return code: {server_process.returncode}")
+            log.error(f"Server stderr: {server_stderr}")
+
+    # start thread to tail the server's stderr
+    def tail_stderr():
+        while server_process.poll() is None:
+            line = server_process.stderr.readline()
+            if line:
+                log.critical(f"Server: {line.strip()}")
+
+    import threading
+
+    stderr_thread = threading.Thread(target=tail_stderr, daemon=True)
+    stderr_thread.start()
 
     try:
         success = False
@@ -236,7 +256,7 @@ async def mongo_cleanup():
 
     await clear_everything()
     yield
-    # await clear_everything()
+    await clear_everything()
 
 
 @pytest_asyncio.fixture

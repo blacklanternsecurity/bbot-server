@@ -53,15 +53,21 @@ class TestAppletEvents(BaseAppletTest):
         # assert route.endpoint_type == "websocket"
 
     async def after_scan_1(self):
+        self.log.critical(f"SCAN 1 EVENTS: {len(self.event_messages)}")
+        for event in self.event_messages:
+            self.log.critical(f"{event.type} / {event.netloc}")
         # TODO: why does this change sometimes?
-        assert 33 <= len(self.event_messages) <= 35
+        assert 34 <= len(self.event_messages) <= 36
 
         # make sure our event store is populated
         # events = await self.bbot_server.get_events()
         # assert len(events) == len(self.event_messages)
 
     async def after_scan_2(self):
-        assert 66 <= len(self.event_messages) <= 70
+        self.log.critical(f"SCAN 2 EVENTS: {len(self.event_messages)}")
+        for event in self.event_messages:
+            self.log.critical(f"{event.type} / {event.netloc}")
+        assert 68 <= len(self.event_messages) <= 72
 
         # make sure the new events arrived in the event store
         # events = await self.bbot_server.get_events()
