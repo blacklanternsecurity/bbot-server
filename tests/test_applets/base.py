@@ -76,7 +76,7 @@ class BaseAppletTest:
             # before any scans start
             with self.handle_errors("running pre-scan tests"):
                 await self.setup()
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(10.0)
 
             # insert events from the first scan
             with self.handle_errors("inserting data from first scan"):
@@ -84,7 +84,7 @@ class BaseAppletTest:
                     await self.bbot_server.insert_event(event)
             # we sleep for a long time here because runners are slow
             # especially when running mongodb + redis inside a tiny CI instance
-            await asyncio.sleep(5.0)
+            await asyncio.sleep(10.0)
 
             # run the first test after scan #1 has been ingested
             with self.handle_errors("running tests after first scan"):
@@ -94,7 +94,7 @@ class BaseAppletTest:
             with self.handle_errors("inserting data from second scan"):
                 for event in self.scan2_events:
                     await self.bbot_server.insert_event(event)
-            await asyncio.sleep(5.0)
+            await asyncio.sleep(10.0)
 
             # run test after scan #2 has been ingested
             with self.handle_errors("running tests after second scan"):
