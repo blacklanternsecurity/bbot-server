@@ -15,7 +15,6 @@ class BaseMessageQueue:
 
     def __init__(self, uri, config):
         self.log = logging.getLogger(__name__)
-        self.log.critical(f"LKGASLDKGJSDF Setting up message queue at {uri}")
         self.uri = uri
         self.config = config
 

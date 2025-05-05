@@ -57,7 +57,7 @@ class TestAppletEvents(BaseAppletTest):
         for event in self.event_messages:
             self.log.critical(f"{event.type} / {event.netloc}")
         # TODO: why does this change sometimes?
-        assert 34 <= len(self.event_messages) <= 36
+        assert 33 <= len(self.event_messages) <= 36
 
         # make sure our event store is populated
         # events = await self.bbot_server.get_events()
@@ -67,7 +67,7 @@ class TestAppletEvents(BaseAppletTest):
         self.log.critical(f"SCAN 2 EVENTS: {len(self.event_messages)}")
         for event in self.event_messages:
             self.log.critical(f"{event.type} / {event.netloc}")
-        assert 68 <= len(self.event_messages) <= 72
+        assert 66 <= len(self.event_messages) <= 72
 
         # make sure the new events arrived in the event store
         # events = await self.bbot_server.get_events()

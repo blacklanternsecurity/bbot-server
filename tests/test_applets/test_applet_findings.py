@@ -76,5 +76,5 @@ class TestAppletFindings(BaseAppletTest):
         assert www_activity.description == "New finding with severity HIGH: [CVE-2024-12345] on www.evilcorp.com"
         assert (
             www_activity.description_colored
-            == "New finding with severity HIGH: [[bold bright_red]CVE-2024-12345[/bold bright_red]] on [bold]www.evilcorp.com[/bold]"
+            == "New finding with severity [bold bright_red]HIGH[/bold bright_red]: [[bold bright_red]CVE-2024-12345[/bold bright_red]] on [bold]www.evilcorp.com[/bold]"
         )
