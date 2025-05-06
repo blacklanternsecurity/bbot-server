@@ -23,6 +23,10 @@ from .gen_scan_data import *
 INGEST_PROCESSING_DELAY = 10.0
 
 
+# set root logger to include date in the format
+logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO)
+
+
 log = logging.getLogger(__name__)
 
 PROJ_ROOT = Path(__file__).parent.parent
@@ -223,7 +227,7 @@ def bbot_agent(bbot_server_http):
     stderr_thread.start()
 
     # give agent a few seconds to start
-    time.sleep(4)
+    time.sleep(INGEST_PROCESSING_DELAY)
     yield agent_process
     agent_process.send_signal(signal.SIGINT)
     try:

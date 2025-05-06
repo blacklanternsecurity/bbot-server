@@ -1,14 +1,17 @@
-import logging
 import os
-import gzip
-from logging.handlers import RotatingFileHandler
+import logging
 from pathlib import Path
+from logging.handlers import RotatingFileHandler
 
 # Define the format for console logs
-FORMAT = "[%(levelname)s] %(message)s"
+# If we're inside tests, we include the date in the format
+if os.environ.get("BBOT_TESTING", "False") == "True":
+    FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
+else:
+    FORMAT = "[%(levelname)s] %(message)s"
 
 # Define the format for file logs (including line numbers)
-FILE_FORMAT = "[%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
+FILE_FORMAT = "%(asctime)s [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 
 # Create logger
 logger = logging.getLogger("bbot_server")
@@ -26,40 +29,46 @@ log_file = log_dir / "debug.log.gz"
 
 
 class GzipRotatingFileHandler(RotatingFileHandler):
+    """
+    A rotating file handler that compresses rotated files with gzip.
+    Checks file size only periodically to improve performance.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._check_count = 0
-        self._check_interval = 1000  # Check file size every 1000 log messages
+        self._msg_count = 0
+        self._check_interval = 1000  # Check size every 1000 messages
 
-    def _open(self):
-        # Just override the file opening mechanism to use gzip
-        return gzip.open(f"{self.baseFilename}.gz", mode="at", encoding=self.encoding)
-
-    def shouldRollover(self, record):
+    def rotation_filename(self, default_name):
         """
-        Override shouldRollover to handle gzip files which don't support seek from end
-        Only check file size every 1000 log messages to improve performance
+        Modify the rotated filename to include .gz extension
         """
-        if self.maxBytes <= 0:
-            return False
+        return default_name + ".gz"
 
-        # Increment counter and check if we should evaluate file size
-        self._check_count = (self._check_count + 1) % self._check_interval
+    def rotate(self, source, dest):
+        """
+        Compress the source file and move it to the destination.
+        """
+        import gzip
 
-        # Only check file size when counter is 0 (every _check_interval messages)
-        if self._check_count == 0:
-            if self.stream:
-                self.stream.flush()
-                # Get current file size without seeking
-                current_size = os.path.getsize(self.baseFilename)
+        with open(source, "rb") as f_in:
+            with gzip.open(dest, "wb") as f_out:
+                f_out.writelines(f_in)
+        os.remove(source)
 
-                # Check if this record would push us over the limit
-                msg = self.format(record)
-                # Conservatively estimate the size increase
-                estimated_msg_size = len(msg) + 1  # +1 for the newline
-                return current_size + estimated_msg_size >= self.maxBytes
+    def emit(self, record):
+        """
+        Emit a record, checking for rollover only periodically using modulo.
+        """
+        self._msg_count += 1
 
-        return False
+        # Only check for rollover periodically to save compute
+        if self._msg_count % self._check_interval == 0:
+            if self.shouldRollover(record):
+                self.doRollover()
+
+        # Continue with normal emit process
+        super().emit(record)
 
 
 # Create gzip file handler with line numbers in the format
