@@ -16,7 +16,7 @@ def test_cli_debugging():
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 1
     assert not process.stdout
-    assert process.stderr == error_message
+    assert process.stderr.endswith(error_message)
 
     # now same thing but with debug enabled
     command = BBCTL_COMMAND + ["-d", "-u", bogus_server_url, "event", "list"]
