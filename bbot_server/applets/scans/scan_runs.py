@@ -44,15 +44,21 @@ class ScanRunsApplet(BaseApplet):
             "scan_status_code": scan_run.status_code,
         }
 
-        existing_scan_run = await self.collection.find_one({"id": scan_run_id})
-        existing_status_code = existing_scan_run.get("status_code", SCAN_STATUS_QUEUED)
+        try:
+            existing_scan_run = await self.get_scan_run(scan_run_id)
+        except self.BBOTServerNotFoundError:
+            existing_scan_run = None
+        existing_status_code = getattr(existing_scan_run, "status_code", SCAN_STATUS_QUEUED)
         # if the scan run already exists, update it
         if existing_scan_run:
             # ignore if the new status is at or behind the existing one
             if scan_run.status_code <= existing_status_code:
                 return []
-            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_scan_run['status']} to {scan_run.status}"
-            agent_id = existing_scan_run.get("agent_id", None)
+            existing_status = get_scan_status_name(existing_status_code)
+            description = (
+                f"Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_status} to {scan_run.status}"
+            )
+            agent_id = getattr(existing_scan_run, "agent_id", None)
             if agent_id is not None:
                 detail["agent_id"] = agent_id
             await self.collection.update_one(
