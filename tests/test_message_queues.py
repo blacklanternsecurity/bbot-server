@@ -4,6 +4,7 @@ from contextlib import suppress
 
 from bbot_server import BBOTServer
 from tests.test_applets.base import BaseAppletTest
+from .conftest import INGEST_PROCESSING_DELAY
 
 
 async def _test_fifo_queue(bbot_server):
@@ -141,7 +142,7 @@ async def _test_historic_subscribe(bbot_server):
     for message in to_send:
         await bbot_server.message_queue.publish(message, "test_channel")
     # why do we have to wait so long here?
-    await asyncio.sleep(5.0)
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     sub = await bbot_server.message_queue.subscribe("test_channel", callback, historic=5)
     await asyncio.sleep(1.0)

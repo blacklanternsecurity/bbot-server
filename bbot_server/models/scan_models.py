@@ -53,5 +53,5 @@ class ScanRun(BaseBBOTServerModel):
 
     @computed_field
     @property
-    def status(self) -> int:
+    def status(self) -> str:
         return get_scan_status_name(self.status_code)

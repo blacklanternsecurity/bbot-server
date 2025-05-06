@@ -3,8 +3,8 @@ import asyncio
 import traceback
 from contextlib import suppress
 
-from bbot.constants import get_scan_status_code, get_scan_status_name, SCAN_STATUS_QUEUED
 from bbot.core.helpers.names_generator import random_name
+from bbot.constants import get_scan_status_code, get_scan_status_name, SCAN_STATUS_QUEUED, SCAN_STATUS_ABORTED
 
 from bbot_server.models.activity_models import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
@@ -101,8 +101,10 @@ class ScanRunsApplet(BaseApplet):
         agent_id = scan_run.get("agent_id", None)
         # if we don't have an agent id, it's a queued scan
         if agent_id is None:
-            await self.collection.update_one({"id": str(scan_run_id)}, {"$set": {"status": "CANCELLED"}})
+            self.log.info(f"Cancelling queued scan run {scan_run_id}")
+            await self.collection.update_one({"id": str(scan_run_id)}, {"$set": {"status": "ABORTED", "status_code": SCAN_STATUS_ABORTED}})
         else:
+            self.log.info(f"Scan run {scan_run_id} is running on agent {agent_id}, sending cancel command")
             # otherwise, we make sure the agent is actually running our scan
             agent = await self.parent.get_agent(id=agent_id)
             if str(agent.current_scan_id) != scan_run_id:
@@ -117,7 +119,8 @@ class ScanRunsApplet(BaseApplet):
                     detail={
                         "scan_id": scan_run_id,
                         "scan_name": scan_run.name,
-                        "scan_status": "CANCELLED",
+                        "scan_status": "ABORTED",
+                        "scan_status_code": SCAN_STATUS_ABORTED,
                         "agent_id": agent_id,
                     },
                 )

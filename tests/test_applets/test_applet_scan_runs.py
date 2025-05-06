@@ -134,7 +134,7 @@ async def test_queued_scan_cancellation(bbot_server):
 
     scan_runs = await bbot_server.get_scan_runs()
     assert len(scan_runs) == 1
-    assert scan_runs[0].status == "CANCELLED"
+    assert scan_runs[0].status == "ABORTED"
 
 
 async def test_running_scan_cancellation(bbot_server_config, bbot_agent, bbot_watchdog):

@@ -19,6 +19,7 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
 
     # ingest bbot events from file
     json_file = Path("/tmp/.bbot_server_test/events.json")
+    json_file.unlink(missing_ok=True)
     with open(json_file, "w") as f:
         f.write(scan1_out_file)
 
