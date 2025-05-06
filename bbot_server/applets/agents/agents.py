@@ -141,7 +141,8 @@ class AgentsApplet(BaseApplet):
                     self.log.debug(f"Server received gratuitous message from agent {agent.name}: {message}")
                     if "agent_status" in message.response:
                         agent_status = message.response["agent_status"]
-                        scan_status_code = get_scan_status_code(message.response["scan_status_code"])
+                        scan_status_code = message.response.get("scan_status_code", SCAN_STATUS_QUEUED)
+                        scan_status_code = get_scan_status_code(scan_status_code)
                         scan_status = get_scan_status_name(scan_status_code)
                         scan_run_id = message.response.get("scan_id", None)
                         scan_name = message.response.get("scan_name", None)
