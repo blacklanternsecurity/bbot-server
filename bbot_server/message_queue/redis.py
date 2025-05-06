@@ -77,6 +77,7 @@ class RedisMessageQueue(BaseMessageQueue):
     async def publish(self, message, subject: str):
         stream_key = f"bbot:stream:{subject}"
         message_data = smart_encode(message)
+        self.log.info(f"Publishing {message_data} to {stream_key}")
         await self.redis.xadd(stream_key, {"data": message_data}, maxlen=10000, approximate=True)
 
     async def subscribe(self, subject: str, callback, durable: str = None, historic=0):
@@ -108,6 +109,8 @@ class RedisMessageQueue(BaseMessageQueue):
                             if durable:
                                 for message_id, _ in messages:
                                     await self.redis.xack(stream_key, group_name, message_id)
+                            for message in messages:
+                                self.log.info(f"Received message: {message}")
                             await self._callback(callback, *messages)
                 except redis.ResponseError as e:
                     self.log.debug(f"Error reading from stream {stream_key}: {e}")

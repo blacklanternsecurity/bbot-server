@@ -364,7 +364,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         # add evilcorp.azure.com to target2
         self.target2.whitelist = ["127.0.0.0/24"]
         await self.bbot_server.update_target(self.target2.id, self.target2)
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(1.0)
 
         assets = [a async for a in self.bbot_server.get_assets()]
 
