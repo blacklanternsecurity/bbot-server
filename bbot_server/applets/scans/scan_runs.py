@@ -102,7 +102,9 @@ class ScanRunsApplet(BaseApplet):
         # if we don't have an agent id, it's a queued scan
         if agent_id is None:
             self.log.info(f"Cancelling queued scan run {scan_run_id}")
-            await self.collection.update_one({"id": str(scan_run_id)}, {"$set": {"status": "ABORTED", "status_code": SCAN_STATUS_ABORTED}})
+            await self.collection.update_one(
+                {"id": str(scan_run_id)}, {"$set": {"status": "ABORTED", "status_code": SCAN_STATUS_ABORTED}}
+            )
         else:
             self.log.info(f"Scan run {scan_run_id} is running on agent {agent_id}, sending cancel command")
             # otherwise, we make sure the agent is actually running our scan
