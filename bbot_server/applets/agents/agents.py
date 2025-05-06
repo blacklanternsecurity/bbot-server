@@ -5,6 +5,9 @@ from pydantic import UUID4
 from fastapi import WebSocket
 from contextlib import suppress
 from datetime import datetime, timezone
+
+from bbot.constants import get_scan_status_code, get_scan_status_name, SCAN_STATUS_QUEUED
+
 from bbot_server.models.agent_models import Agent
 from bbot_server.applets._base import BaseApplet, api_endpoint
 
@@ -138,12 +141,21 @@ class AgentsApplet(BaseApplet):
                     self.log.debug(f"Server received gratuitous message from agent {agent.name}: {message}")
                     if "agent_status" in message.response:
                         agent_status = message.response["agent_status"]
-                        scan_status = message.response["scan_status"]
+                        scan_status_code = get_scan_status_code(message.response["scan_status_code"])
+                        scan_status = get_scan_status_name(scan_status_code)
                         scan_run_id = message.response.get("scan_id", None)
                         scan_name = message.response.get("scan_name", None)
                         if scan_name and scan_run_id:
-                            existing_scan = await self.root.get_scan_run(scan_run_id=scan_run_id)
-                            if existing_scan and existing_scan.status != scan_status:
+                            try:
+                                existing_scan = await self.root.get_scan_run(scan_run_id=scan_run_id)
+                            except self.BBOTServerNotFoundError as e:
+                                self.log.error(f"Error getting scan run {scan_run_id}: {e}")
+                                existing_scan = None
+                            existing_scan_status_code = getattr(existing_scan, "status_code", SCAN_STATUS_QUEUED)
+                            if scan_status_code > existing_scan_status_code:
+                                await self.root.update_scan_run_status(
+                                    scan_run_id=scan_run_id, status_code=scan_status_code
+                                )
                                 await self.emit_activity(
                                     type="SCAN_STATUS",
                                     detail={
@@ -166,7 +178,7 @@ class AgentsApplet(BaseApplet):
                     self.log.error(traceback.format_exc())
 
         except Exception as e:
-            self.log.error(f"Error in server-side websocket loop for agent {agent.id}: {e}")
+            self.log.error(f"Error in server-side websocket for agent {agent.id}: {e}")
             self.log.error(traceback.format_exc())
 
         finally:

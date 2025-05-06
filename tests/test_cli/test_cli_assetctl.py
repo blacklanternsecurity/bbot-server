@@ -2,7 +2,7 @@ import orjson
 import subprocess
 from time import sleep
 
-from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR
+from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR, INGEST_PROCESSING_DELAY
 from bbot_server.assets import Asset
 
 
@@ -57,7 +57,7 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
     # ingest the first half from stdin
     subprocess.run(BBCTL_COMMAND + ["event", "ingest"], input=scan1_out_file, capture_output=True, text=True)
 
-    sleep(1)
+    sleep(INGEST_PROCESSING_DELAY)
 
     # make sure the assets were created
     process = subprocess.run(BBCTL_COMMAND + ["asset", "list", "--json"], capture_output=True, text=True)
@@ -68,7 +68,7 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
     # ingest the other half from stdin
     subprocess.run(BBCTL_COMMAND + ["event", "ingest"], input=scan2_out_file, capture_output=True, text=True)
 
-    sleep(1)
+    sleep(INGEST_PROCESSING_DELAY)
 
     # make sure the assets were created
     process = subprocess.run(BBCTL_COMMAND + ["asset", "list", "--json"], capture_output=True, text=True)

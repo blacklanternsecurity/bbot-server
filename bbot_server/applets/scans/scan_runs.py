@@ -3,6 +3,7 @@ import asyncio
 import traceback
 from contextlib import suppress
 
+from bbot.constants import get_scan_status_code, get_scan_status_name, SCAN_STATUS_QUEUED
 from bbot.core.helpers.names_generator import random_name
 
 from bbot_server.models.activity_models import Activity
@@ -36,13 +37,19 @@ class ScanRunsApplet(BaseApplet):
         """
         scan_run = ScanRun(**event.data_json)
         scan_run_id = str(scan_run.id)
-        detail = {"scan_id": scan_run_id, "scan_name": scan_run.name, "scan_status": scan_run.status}
+        detail = {
+            "scan_id": scan_run_id,
+            "scan_name": scan_run.name,
+            "scan_status": scan_run.status,
+            "scan_status_code": scan_run.status_code,
+        }
 
         existing_scan_run = await self.collection.find_one({"id": scan_run_id})
+        existing_status_code = existing_scan_run.get("status_code", SCAN_STATUS_QUEUED)
         # if the scan run already exists, update it
         if existing_scan_run:
-            # ignore if existing status is already the same
-            if existing_scan_run["status"] == scan_run.status:
+            # ignore if the new status is at or behind the existing one
+            if scan_run.status_code <= existing_status_code:
                 return []
             description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_scan_run['status']} to {scan_run.status}"
             agent_id = existing_scan_run.get("agent_id", None)
@@ -53,6 +60,7 @@ class ScanRunsApplet(BaseApplet):
                 {
                     "$set": {
                         "status": scan_run.status,
+                        "status_code": scan_run.status_code,
                         "started_at": scan_run.started_at,
                         "finished_at": scan_run.finished_at,
                         "duration": scan_run.duration,
@@ -141,6 +149,19 @@ class ScanRunsApplet(BaseApplet):
         for run in await cursor.to_list(length=None):
             scan_runs.append(ScanRun(**run))
         return scan_runs
+
+    async def update_scan_run_status(self, scan_run_id: str, status_code: int):
+        status_code = get_scan_status_code(status_code)
+        status = get_scan_status_name(status_code)
+        await self.collection.update_one(
+            {"id": str(scan_run_id)},
+            {
+                "$set": {
+                    "status_code": status_code,
+                    "status": status,
+                }
+            },
+        )
 
     async def make_run_from_scan(self, scan: ScanResponse, agent_id: str = None) -> ScanRun:
         random_scan_name = random_name()

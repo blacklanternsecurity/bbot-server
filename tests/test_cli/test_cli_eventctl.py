@@ -5,7 +5,7 @@ from pathlib import Path
 
 from bbot.models.pydantic import Event
 
-from tests.conftest import BBCTL_COMMAND
+from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY
 
 
 def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events):
@@ -27,7 +27,7 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     assert process.stdout == ""
     assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n[INFO] Ingested 30 events\n"
 
-    sleep(1)
+    sleep(INGEST_PROCESSING_DELAY)
 
     # make sure all the events made it into the database
     process = subprocess.run(BBCTL_COMMAND + ["event", "list", "--json"], capture_output=True, text=True)
@@ -40,7 +40,7 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     assert process.stdout == ""
     assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n[INFO] Ingested 30 events\n"
 
-    sleep(1)
+    sleep(INGEST_PROCESSING_DELAY)
 
     # make sure all the events made it into the database
     process = subprocess.run(BBCTL_COMMAND + ["event", "list", "--json"], capture_output=True, text=True)

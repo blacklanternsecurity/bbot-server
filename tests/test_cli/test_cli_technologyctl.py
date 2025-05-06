@@ -2,7 +2,7 @@ import orjson
 import subprocess
 from time import sleep
 
-from tests.conftest import BBCTL_COMMAND
+from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY
 from bbot_server.models.technology_models import Technology
 
 
@@ -24,7 +24,7 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     )
 
     # wait for events to be processed
-    sleep(4)
+    sleep(INGEST_PROCESSING_DELAY * 2)
 
     # list technologies (JSON)
     command = BBCTL_COMMAND + ["technology", "list", "--json"]

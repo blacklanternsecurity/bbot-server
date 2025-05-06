@@ -1,6 +1,8 @@
 import uuid
-from pydantic import UUID4, Field
+from pydantic import UUID4, Field, computed_field
 from typing import Annotated, Any, Optional, Union
+
+from bbot.constants import get_scan_status_name, SCAN_STATUS_CODES
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.models.base import BaseBBOTServerModel
@@ -38,7 +40,7 @@ class ScanRun(BaseBBOTServerModel):
 
     id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: f"SCAN:{uuid.uuid4()}")
     name: Annotated[str, "indexed"]
-    status: Annotated[str, "indexed"] = "QUEUED"
+    status_code: Annotated[int, "indexed", Field(ge=min(SCAN_STATUS_CODES), le=max(SCAN_STATUS_CODES))] = 0
     target: BaseTarget
     agent_id: Annotated[Union[UUID4, None], "indexed"] = None
     parent_scan_id: Annotated[Optional[UUID4], "indexed"] = None
@@ -48,3 +50,8 @@ class ScanRun(BaseBBOTServerModel):
     finished_at: Annotated[Optional[float], "indexed"] = None
     duration_seconds: Optional[float] = None
     duration: Optional[str] = None
+
+    @computed_field
+    @property
+    def status(self) -> int:
+        return get_scan_status_name(self.status_code)

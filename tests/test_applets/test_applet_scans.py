@@ -104,18 +104,7 @@ async def test_applet_scans(bbot_server):
         scan_statuses = [a.detail["scan_status"] for a in activities if a.type == "SCAN_STATUS"]
         scan_status_match = scan_statuses == ["STARTING", "RUNNING", "FINISHING", "FINISHED"]
         # [
-        # 'AGENT_STATUS',
-        # 'AGENT_STATUS',
-        # 'TARGET_CREATED',
-        # 'SCAN_QUEUED',
-        # 'SCAN_SENT',
-        # 'AGENT_STATUS',
-        # 'SCAN_STATUS',
-        # 'SCAN_STATUS',
-        # 'SCAN_STATUS',
-        # 'SCAN_STATUS',
-        # 'AGENT_STATUS'
-        # ]
+        # 'AGENT_STATUS', 'AGENT_STATUS', 'TARGET_CREATED', 'TARGET_CREATED', 'SCAN_QUEUED', 'SCAN_SENT', 'AGENT_STATUS', 'SCAN_STATUS', 'SCAN_STATUS', 'SCAN_STATUS', 'SCAN_STATUS', 'SCAN_STATUS', 'AGENT_STATUS'], Events: ['SCAN', 'SCAN'], Scan statuses: ['STARTING', 'RUNNING', 'FINISHING', 'RUNNING', 'FINISHED']
         activity_types_match = activity_types == [
             "AGENT_STATUS",  # ONLINE
             "AGENT_STATUS",  # READY
