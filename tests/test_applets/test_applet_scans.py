@@ -25,6 +25,9 @@ async def test_applet_scans(bbot_server):
     asyncio.create_task(tail_activities())
     asyncio.create_task(tail_events())
 
+    # wait for tasks to start
+    await asyncio.sleep(0.5)
+
     scans = [s async for s in bbot_server.get_scans()]
     assert scans == []
 

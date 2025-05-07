@@ -153,7 +153,8 @@ class BaseAppletTest:
         event_tail_task = asyncio.create_task(tail_events())
         asset_tail_task = asyncio.create_task(tail_activities())
 
-        await asyncio.sleep(0.2)
+        # wait for the tasks to start
+        await asyncio.sleep(0.5)
 
         return event_tail_task, asset_tail_task
 
