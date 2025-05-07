@@ -36,6 +36,13 @@ class ServerCTL(BaseBBCTL):
             bool, Option("--reload", "-r", help="Reload the server when the code changes (for development)")
         ] = False,
     ):
+        # initialize the config if not already
+        if not self.config.get("valid_secrets", {}):
+            self.log.info("First run detected. Adding a new API key...")
+            self.children["user"].setup()
+            self.children["user"].add()
+            self.root._refresh_config()
+
         if api_only:
             print("Starting BBOT server API")
             if self.root.config_path is not None:
@@ -83,7 +90,7 @@ class ServerCTL(BaseBBCTL):
         else:
             # docker compose command with env vars
             env = os.environ.copy()
-            env["BBOT_HOST"] = "0.0.0.0"
+            env["BBOT_LISTEN_ADDRESS"] = listen
             env["BBOT_PORT"] = str(port)
             self._run_docker_compose(["up", "-d"], env=env)
 

@@ -76,15 +76,6 @@ class BBCTL(BaseBBCTL):
             self.print_yaml(OmegaConf.to_yaml(self.config))
             return
 
-        if not self.config.get("valid_secrets", {}):
-            self.log.info("First run detected. Adding a new API key...")
-            self.children["user"].setup()
-            self.children["user"].add()
-            # refresh config
-            self._config = OmegaConf.merge(self._config, OmegaConf.load(self.config_path))
-        else:
-            self.log.info("BBOT server already initialized. Skipping API key setup...")
-
         self._api_key = self.config.get("api_key", None)
         if not self._api_key:
             raise BBOTServerError(f"No API key found. Please set `api_key` in your config file at {self.config_path}")
@@ -100,6 +91,10 @@ class BBCTL(BaseBBCTL):
         bbot_server = BBOTServer(interface="http", url=self.server_url, synchronous=True, **bbot_server_kwargs)
         bbot_server.setup()
         return bbot_server
+
+    def _refresh_config(self):
+        # refresh config
+        self._config = OmegaConf.merge(self._config, OmegaConf.load(self.config_path))
 
 
 log = logging.getLogger("bbot_server.bbctl")

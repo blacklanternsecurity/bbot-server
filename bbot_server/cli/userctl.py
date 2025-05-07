@@ -19,8 +19,9 @@ class UserCTL(BaseBBCTL):
         valid_secrets = self.existing_config.get("valid_secrets", {})
         table = self.Table()
         table.add_column("Secret ID", style=self.COLOR)
+        table.add_column("Secret Key")
         for secret_id in valid_secrets:
-            table.add_row(secret_id)
+            table.add_row(secret_id, "********")
         self.stdout.print(table)
 
     @subcommand(help="Add a new user to BBOT server")
@@ -37,14 +38,15 @@ class UserCTL(BaseBBCTL):
 
         # load the existing config and insert the new API key
         existing_config = self.existing_config.copy()
-        self.log.info(f"New secret added:")
+        self.log.info(f"New secret added. Please restart the server for the new key to be recognized:")
         self.log.info(f"    - ID: {secret_id}")
         self.log.info(f"    - Key: {secret_key}")
         # if no API key is set, set it to the new secret
         if existing_config.get("api_key", ""):
             self.log.warning(
-                f"You already have a different API key in your config file at {self.root.config_path}. It will not be overwritten. Please make sure to save this in a secure location!"
+                f"You already have a different API key in your config file at {self.root.config_path}. It will not be overwritten."
             )
+            self.log.warning("Please make sure to save this in a secure location!")
         else:
             existing_config.api_key = f"{secret_id}:{secret_key}"
             self.log.info(
@@ -57,7 +59,7 @@ class UserCTL(BaseBBCTL):
         except Exception as e:
             raise self.BBOTServerError(f"Error saving config file at {self.root.config_path}: {e}") from e
 
-    @subcommand(help="Revoke a secret by its ID")
+    @subcommand(help="Revoke a user by their secret ID")
     def delete(self, secret_id: UUID4):
         secret_id = str(secret_id)
         valid_secrets = self.existing_config.get("valid_secrets", {})

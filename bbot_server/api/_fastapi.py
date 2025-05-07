@@ -33,18 +33,22 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
         1) The plaintext is a 128-bit UUID, which isn't really guessable
         2) It needs to be fast since it's calculated for every request
 
-    Because we're using a fast hashing algorithm, we enforce the UUID format in case
-    anyone gets the clever idea of trying to monkeypatch in a weak key.
+    To discourage manually inserting a weak key, we enforce the UUID format for both the secret_id and secret_key.
     """
     if not api_key:
         raise HTTPException(status_code=403, detail="API Key is required")
+    try:
+        secret_id, secret_key = api_key.split(":")
+    except ValueError:
+        raise HTTPException(status_code=403, detail="API Key must be in the format <secret_id>:<secret_key>")
     # Must be a UUID
     try:
-        api_key = str(UUID(api_key))
+        secret_id = str(UUID(secret_id))
+        secret_key = str(UUID(secret_key))
     except ValueError:
-        raise HTTPException(status_code=403, detail="API Key must be a valid UUID")
-    hashed_api_key = blake2s(api_key.encode()).hexdigest()
-    if not api_key or hashed_api_key not in API_KEYS:
+        raise HTTPException(status_code=403, detail="Both secret_id and secret_key must be valid UUIDs")
+    hashed_secret = blake2s(secret_key.encode()).hexdigest()
+    if not API_KEYS.get(secret_id, "") == hashed_secret:
         raise HTTPException(status_code=403, detail="Invalid API key")
     return api_key
 
