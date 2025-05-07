@@ -23,7 +23,7 @@ if not BBOT_SERVER_CONFIG_PATH.exists():
         with open(BBOT_SERVER_CONFIG_PATH, "w") as f:
             yaml_str = OmegaConf.to_yaml(BBOT_SERVER_DEFAULTS)
             commented_yaml = "\n".join([f"# {line}" for line in yaml_str.split("\n")])
-            f.write(f"# NOTICE: This file is commented out by default. Uncomment it to make changes.\n")
+            f.write(f"# NOTICE: This file is commented by default. Uncomment it to make changes.\n")
             f.write(commented_yaml)
     except Exception as e:
         log.error(f"Error creating config file at {BBOT_SERVER_CONFIG_PATH}: {e}")

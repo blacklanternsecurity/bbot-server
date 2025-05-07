@@ -77,11 +77,13 @@ class BBCTL(BaseBBCTL):
             return
 
         if not self.config.get("valid_secrets", {}):
-            self.log.info("First-time run detected. Adding a new API key...")
-            self.children["server"].setup()
-            self.children["server"].add_user()
+            self.log.info("First run detected. Adding a new API key...")
+            self.children["user"].setup()
+            self.children["user"].add()
             # refresh config
             self._config = OmegaConf.merge(self._config, OmegaConf.load(self.config_path))
+        else:
+            self.log.info("BBOT server already initialized. Skipping API key setup...")
 
         self._api_key = self.config.get("api_key", None)
         if not self._api_key:
