@@ -4,6 +4,7 @@ import traceback
 from contextlib import suppress
 
 from bbot.core.helpers.names_generator import random_name
+from bbot.constants import get_scan_status_code, get_scan_status_name, SCAN_STATUS_QUEUED, SCAN_STATUS_ABORTED
 
 from bbot_server.models.activity_models import Activity
 from bbot_server.applets._base import BaseApplet, api_endpoint
@@ -36,16 +37,28 @@ class ScanRunsApplet(BaseApplet):
         """
         scan_run = ScanRun(**event.data_json)
         scan_run_id = str(scan_run.id)
-        detail = {"scan_id": scan_run_id, "scan_name": scan_run.name, "scan_status": scan_run.status}
+        detail = {
+            "scan_id": scan_run_id,
+            "scan_name": scan_run.name,
+            "scan_status": scan_run.status,
+            "scan_status_code": scan_run.status_code,
+        }
 
-        existing_scan_run = await self.collection.find_one({"id": scan_run_id})
+        try:
+            existing_scan_run = await self.get_scan_run(scan_run_id)
+        except self.BBOTServerNotFoundError:
+            existing_scan_run = None
+        existing_status_code = getattr(existing_scan_run, "status_code", SCAN_STATUS_QUEUED)
         # if the scan run already exists, update it
         if existing_scan_run:
-            # ignore if existing status is already the same
-            if existing_scan_run["status"] == scan_run.status:
+            # ignore if the new status is at or behind the existing one
+            if scan_run.status_code <= existing_status_code:
                 return []
-            description = f"Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_scan_run['status']} to {scan_run.status}"
-            agent_id = existing_scan_run.get("agent_id", None)
+            existing_status = get_scan_status_name(existing_status_code)
+            description = (
+                f"Scan [[COLOR]{scan_run.name}[/COLOR]] status changed from {existing_status} to {scan_run.status}"
+            )
+            agent_id = getattr(existing_scan_run, "agent_id", None)
             if agent_id is not None:
                 detail["agent_id"] = agent_id
             await self.collection.update_one(
@@ -53,6 +66,7 @@ class ScanRunsApplet(BaseApplet):
                 {
                     "$set": {
                         "status": scan_run.status,
+                        "status_code": scan_run.status_code,
                         "started_at": scan_run.started_at,
                         "finished_at": scan_run.finished_at,
                         "duration": scan_run.duration,
@@ -87,8 +101,12 @@ class ScanRunsApplet(BaseApplet):
         agent_id = scan_run.get("agent_id", None)
         # if we don't have an agent id, it's a queued scan
         if agent_id is None:
-            await self.collection.update_one({"id": str(scan_run_id)}, {"$set": {"status": "CANCELLED"}})
+            self.log.info(f"Cancelling queued scan run {scan_run_id}")
+            await self.collection.update_one(
+                {"id": str(scan_run_id)}, {"$set": {"status": "ABORTED", "status_code": SCAN_STATUS_ABORTED}}
+            )
         else:
+            self.log.info(f"Scan run {scan_run_id} is running on agent {agent_id}, sending cancel command")
             # otherwise, we make sure the agent is actually running our scan
             agent = await self.parent.get_agent(id=agent_id)
             if str(agent.current_scan_id) != scan_run_id:
@@ -103,7 +121,8 @@ class ScanRunsApplet(BaseApplet):
                     detail={
                         "scan_id": scan_run_id,
                         "scan_name": scan_run.name,
-                        "scan_status": "CANCELLED",
+                        "scan_status": "ABORTED",
+                        "scan_status_code": SCAN_STATUS_ABORTED,
                         "agent_id": agent_id,
                     },
                 )
@@ -134,13 +153,26 @@ class ScanRunsApplet(BaseApplet):
             raise self.BBOTServerNotFoundError("Scan run not found")
         return ScanRun(**scan_run)
 
-    @api_endpoint("/", methods=["GET"], summary="List individual BBOT scan runs", mcp=True)
+    @api_endpoint("/", methods=["GET"], summary="List BBOT scan runs", mcp=True)
     async def get_scan_runs(self) -> list[ScanRun]:
         cursor = self.collection.find()
         scan_runs = []
         for run in await cursor.to_list(length=None):
             scan_runs.append(ScanRun(**run))
         return scan_runs
+
+    async def update_scan_run_status(self, scan_run_id: str, status_code: int):
+        status_code = get_scan_status_code(status_code)
+        status = get_scan_status_name(status_code)
+        await self.collection.update_one(
+            {"id": str(scan_run_id)},
+            {
+                "$set": {
+                    "status_code": status_code,
+                    "status": status,
+                }
+            },
+        )
 
     async def make_run_from_scan(self, scan: ScanResponse, agent_id: str = None) -> ScanRun:
         random_scan_name = random_name()

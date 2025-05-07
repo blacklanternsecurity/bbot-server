@@ -10,6 +10,7 @@ from urllib.parse import urlparse, urlunparse, urljoin
 
 from bbot.scanner import Scanner, Preset
 from bbot.scanner.dispatcher import Dispatcher
+from bbot.constants import get_scan_status_name, SCAN_STATUS_NOT_STARTED
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
@@ -20,6 +21,7 @@ from bbot_server.models.agent_models import AgentResponse
 default_server_url = BBOT_SERVER_CONFIG.get("url", "http://localhost:8807/v1/")
 default_bbot_preset = BBOT_SERVER_CONFIG.get("agent", {}).get("base_preset", {})
 
+log = logging.getLogger("bbot_server.agent")
 
 VALID_AGENT_COMMANDS = {}
 
@@ -120,7 +122,12 @@ class BBOTAgent:
         scan = Scanner(preset=preset, scan_id=scan_run.id, dispatcher=self.dispatcher)
         self._patch_scan(scan)
         self.scan_task = asyncio.create_task(self._start_scan_task(scan))
-        return {"scan_id": scan.id, "scan_status": scan.status, "status": "success"}
+        return {
+            "scan_id": scan.id,
+            "scan_status": scan.status,
+            "scan_status_code": scan._status_code,
+            "status": "success",
+        }
 
     @command
     async def cancel_scan(self, force: bool = False):
@@ -159,7 +166,13 @@ class BBOTAgent:
 
     @command
     async def get_agent_status(self, detailed: bool = False):
-        ret = {"agent_status": self.status, "scan_status": getattr(self.scan, "status", "NOT_RUNNING")}
+        scan_status_code = getattr(self.scan, "_status_code", SCAN_STATUS_NOT_STARTED)
+        scan_status = get_scan_status_name(scan_status_code)
+        ret = {
+            "agent_status": self.status,
+            "scan_status": scan_status,
+            "scan_status_code": scan_status_code,
+        }
         if detailed and self.scan is not None:
             ret["scan_status_detail"] = self.scan.modules_status(detailed=detailed)
         return ret
@@ -262,14 +275,16 @@ class BBOTAgent:
     async def gratuitous_status_update(self, scan=None, scan_status=None):
         scan_id = getattr(scan, "id", None)
         scan_name = getattr(scan, "name", None)
-        scan_status = scan_status or getattr(scan, "status", "NOT_RUNNING")
+        scan_status_code = getattr(scan, "_status_code", SCAN_STATUS_NOT_STARTED)
+        scan_status = get_scan_status_name(scan_status_code)
         status = {
             "agent_status": self.status,
             "scan_status": scan_status,
+            "scan_status_code": scan_status_code,
             "scan_id": scan_id,
             "scan_name": scan_name,
         }
-        if scan_id:
+        if scan_id and scan is not None:
             try:
                 status["scan_status_detail"] = scan.modules_status(detailed=True)
             except Exception as e:

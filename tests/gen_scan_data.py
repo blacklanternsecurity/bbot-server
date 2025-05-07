@@ -1,4 +1,6 @@
+import shutil
 import pytest_asyncio
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 from bbot.scanner import Scanner
@@ -18,19 +20,19 @@ Since archival by default happens every 90 days, the first scan will be archived
 
 Below is a list of the events and how they change between the two scans.
 
-    Host                        Change                                Reason
-    ----                        ------                                ------
+    Host                        Change                                                  Reason
+    ----                        ------                                                  ------
     evilcorp.com
-    www.evilcorp.com            Open ports: 80 -> None                open_ports
-    www2.evilcorp.com           Open ports: 80 -> 80                  open_ports
-    api.evilcorp.com            Open ports: None -> 443               open_ports
-    cname.evilcorp.com          CNAME: a.com -> b.com
-    localhost.evilcorp.com      A record: 127.0.0.1 -> 127.0.0.2      DNS + scope
-    tech1.evilcorp.com          Technology: apache -> None            technologies
-    tech2.evilcorp.com          Technology: IIS -> apache             technologies
+    www.evilcorp.com            Open ports: 80 -> None                                  open_ports
+    www2.evilcorp.com           Open ports: 80 -> 80                                    open_ports
+    api.evilcorp.com            Open ports: None -> 443                                 open_ports
+    cname.evilcorp.com          CNAME: evilcorp.azure.com -> evilcorp.amazonaws.com     cloud
+    localhost.evilcorp.com      A record: 127.0.0.1 -> 127.0.0.2                        DNS + scope
+    tech1.evilcorp.com          Technology: apache -> None                              technologies
+    tech2.evilcorp.com          Technology: IIS -> apache                               technologies
 
-    a.com                       None
-    b.com                       None
+    evilcorp.azure.com          None
+    evilcorp.amazonaws.com      None
 
 """
 
@@ -43,11 +45,13 @@ class DummyScan:
             "report_distance": 100,
         }
     }
-    output_dir = "/tmp/.bbot_server_test"
+    output_dir = Path("/tmp/.bbot_server_test")
 
     @classmethod
     async def run(cls):
-        scan = Scanner(scan_name=cls.name, output_dir=cls.output_dir, *cls.targets, config=cls.config)
+        # first, clean up the existing output dir
+        shutil.rmtree(cls.output_dir / cls.name, ignore_errors=True)
+        scan = Scanner(scan_name=cls.name, output_dir=str(cls.output_dir), *cls.targets, config=cls.config)
         await scan.helpers.dns._mock_dns(cls.dns)
         for i, dummy_module in enumerate(cls.dummy_modules):
             dummy_module = dummy_module(scan)
@@ -93,7 +97,7 @@ class DummyScan1(DummyScan):
             "A": ["127.0.0.1"],
         },
         "cname.evilcorp.com": {
-            "CNAME": ["a.com"],
+            "CNAME": ["evilcorp.azure.com"],
         },
         "tech1.evilcorp.com": {
             "A": ["192.168.1.1"],
@@ -101,10 +105,10 @@ class DummyScan1(DummyScan):
         "tech2.evilcorp.com": {
             "A": ["192.168.1.2"],
         },
-        "a.com": {
+        "evilcorp.azure.com": {
             "A": ["127.0.0.3"],
         },
-        "b.com": {
+        "evilcorp.amazonaws.com": {
             "A": ["127.0.0.4"],
         },
         "testevilcorp.com": {
@@ -120,12 +124,14 @@ class DummyScan1(DummyScan):
             if event.type == "OPEN_TCP_PORT":
                 if str(event.host) in ("www.evilcorp.com", "www2.evilcorp.com"):
                     if event.port == 80:
+                        scheme = "https" if event.port == 443 else "http"
                         await self.emit_event(
                             {
+                                "name": "CVE-2024-12345",
                                 "severity": "HIGH",
                                 "description": "That's a paddlin'",
                                 "host": event.host,
-                                "url": f"https://{event.host}",
+                                "url": f"{scheme}://{event.host}",
                             },
                             "VULNERABILITY",
                             parent=event,
@@ -189,7 +195,7 @@ class DummyScan2(DummyScan):
             "A": ["127.0.0.2"],
         },
         "cname.evilcorp.com": {
-            "CNAME": ["b.com"],
+            "CNAME": ["evilcorp.amazonaws.com"],
         },
         "tech1.evilcorp.com": {
             "A": ["192.168.1.1"],
@@ -197,10 +203,10 @@ class DummyScan2(DummyScan):
         "tech2.evilcorp.com": {
             "A": ["192.168.1.2"],
         },
-        "a.com": {
+        "evilcorp.azure.com": {
             "A": ["127.0.0.3"],
         },
-        "b.com": {
+        "evilcorp.amazonaws.com": {
             "A": ["127.0.0.4"],
         },
         "testevilcorp.com": {
@@ -219,12 +225,14 @@ class DummyScan2(DummyScan):
                     or str(event.host) == "api.evilcorp.com"
                     and event.port == 443
                 ):
+                    scheme = "https" if event.port == 443 else "http"
                     await self.emit_event(
                         {
-                            "severity": "HIGH",
-                            "description": "That's a paddlin'",
+                            "name": "CVE-2025-54321",
+                            "severity": "CRITICAL",
+                            "description": "That's a whippin'",
                             "host": event.host,
-                            "url": f"http://{event.host}",
+                            "url": f"{scheme}://{event.host}",
                         },
                         "VULNERABILITY",
                         parent=event,

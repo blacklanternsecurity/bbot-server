@@ -7,8 +7,8 @@ from bbot_server.cli.base import BaseBBCTL, subcommand
 
 class TechnologyCTL(BaseBBCTL):
     command = "technology"
-    help = "Query or monitor BBOT technologies"
-    short_help = "Query or monitor BBOT technologies"
+    help = "Query BBOT technologies"
+    short_help = "Query BBOT technologies"
 
     @subcommand(help="List all technologies")
     def list(
@@ -28,15 +28,15 @@ class TechnologyCTL(BaseBBCTL):
 
         table = self.Table()
         table.add_column("Technology", style=self.COLOR)
-        table.add_column("Last Seen", style=self.DARK_COLOR)
         table.add_column("Number of Hosts")
         table.add_column("Hosts", style="bold")
+        table.add_column("Last Seen", style=self.DARK_COLOR)
         for t in self.bbot_server.get_technologies_summary(domain=domain, target_id=target_id):
             table.add_row(
                 t["technology"],
-                self.timestamp_to_human(t["last_seen"]),
                 f"{len(t['hosts']):,}",
                 ", ".join(t["hosts"]),
+                self.timestamp_to_human(t["last_seen"]),
             )
         self.stdout.print(table)
 
@@ -59,12 +59,12 @@ class TechnologyCTL(BaseBBCTL):
 
         table = self.Table()
         table.add_column("Technology", style=self.COLOR)
-        table.add_column("Last Seen", style=self.DARK_COLOR)
         table.add_column("Host and Port", style="bold")
+        table.add_column("Last Seen", style=self.DARK_COLOR)
         for technology in self.bbot_server.search_technology(technology, domain=domain, target_id=target_id):
             table.add_row(
                 technology.technology,
-                self.timestamp_to_human(technology.last_seen),
                 technology.netloc,
+                self.timestamp_to_human(technology.last_seen),
             )
         self.stdout.print(table)

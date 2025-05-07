@@ -8,6 +8,8 @@ from bbot_server import BBOTServer
 from bbot.models.pydantic import Event
 from bbot_server.watchdog import BBOTWatchdog
 
+from .conftest import INGEST_PROCESSING_DELAY
+
 
 @pytest.mark.asyncio
 async def test_watchdog(bbot_events, bbot_server_config):
@@ -17,8 +19,6 @@ async def test_watchdog(bbot_events, bbot_server_config):
     await watchdog.start()
 
     try:
-        # allow some time for the startup to complete
-        await asyncio.sleep(1)
 
         @watchdog.broker.task
         async def insert_event(
@@ -36,7 +36,7 @@ async def test_watchdog(bbot_events, bbot_server_config):
         for event in scan1_events:
             await insert_event.kiq(event)
 
-        await asyncio.sleep(3)
+        await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
         db_events = [e async for e in bbot_server.get_events()]
         assert db_events

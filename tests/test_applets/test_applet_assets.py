@@ -1,6 +1,7 @@
 import asyncio
 
 from tests.test_applets.base import BaseAppletTest
+from ..conftest import INGEST_PROCESSING_DELAY
 
 
 class TestAppletAssets(BaseAppletTest):
@@ -23,7 +24,7 @@ class TestAppletAssets(BaseAppletTest):
             "192.168.1.1",
             "192.168.1.2",
             "5.6.7.8",
-            "a.com",
+            "evilcorp.azure.com",
             "api.evilcorp.com",
             "cname.evilcorp.com",
             "evilcorp.com",
@@ -43,9 +44,9 @@ class TestAppletAssets(BaseAppletTest):
             "192.168.1.1",
             "192.168.1.2",
             "5.6.7.8",
-            "a.com",
+            "evilcorp.azure.com",
             "api.evilcorp.com",
-            "b.com",
+            "evilcorp.amazonaws.com",
             "cname.evilcorp.com",
             "evilcorp.com",
             "localhost.evilcorp.com",
@@ -64,9 +65,9 @@ class TestAppletAssets(BaseAppletTest):
             "192.168.1.1",
             "192.168.1.2",
             "5.6.7.8",
-            "a.com",
+            "evilcorp.azure.com",
             "api.evilcorp.com",
-            "b.com",
+            "evilcorp.amazonaws.com",
             "cname.evilcorp.com",
             "evilcorp.com",
             "localhost.evilcorp.com",
@@ -104,7 +105,7 @@ async def test_applet_target_filter(bbot_server, bbot_events):
         await bbot_server.insert_event(e)
 
     # wait for events to be processed
-    await asyncio.sleep(1)
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     all_hosts = {
         "evilcorp.com",
@@ -118,7 +119,7 @@ async def test_applet_target_filter(bbot_server, bbot_events):
         "cname.evilcorp.com",
         "www.evilcorp.com",
         "127.0.0.1",
-        "a.com",
+        "evilcorp.azure.com",
         "testevilcorp.com",
         "tech1.evilcorp.com",
         "tech2.evilcorp.com",
@@ -131,7 +132,7 @@ async def test_applet_target_filter(bbot_server, bbot_events):
         "api.evilcorp.com",
         "cname.evilcorp.com",
         "www.evilcorp.com",
-        "a.com",  # this one resolves to 127.0.0.3 so it matches
+        "evilcorp.azure.com",  # this one resolves to 127.0.0.3 so it matches
         "tech1.evilcorp.com",
         "tech2.evilcorp.com",
     }

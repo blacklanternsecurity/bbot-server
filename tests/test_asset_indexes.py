@@ -16,7 +16,12 @@ async def test_asset_indexes(bbot_server_config):
         "reverse_host": ["indexed"],
         "type": ["indexed"],
         "port": ["indexed"],
-        "technologies": ["indexed-text"],
+        "technologies": ["indexed", "indexed-text"],
+        "url": ["indexed"],
+        "cloud_providers": ["indexed"],
+        "findings": ["indexed", "indexed-text"],
+        "finding_max_severity_score": ["indexed"],
+        "finding_severities": ["indexed"],
     }
     for applet in bbot_server.all_child_applets(include_self=True):
         if applet.model is not None:

@@ -1,5 +1,4 @@
 # applets imports
-from bbot_server.applets.risk import Risk
 from bbot_server.applets.emails import EmailsApplet
 from bbot_server.applets.export import ExportApplet
 from bbot_server.applets.findings import FindingsApplet
@@ -7,6 +6,7 @@ from bbot_server.applets.dns_links import DNSLinksApplet
 from bbot_server.applets.open_ports import OpenPortsApplet
 from bbot_server.applets.web_screenshots import WebScreenshotsApplet
 from bbot_server.applets.technologies import TechnologiesApplet
+from bbot_server.applets.cloud import CloudApplet
 
 from bbot_server.assets import Asset
 from bbot_server.utils.misc import utc_now
@@ -17,14 +17,14 @@ class AssetsApplet(BaseApplet):
     name = "Assets"
     description = "hostnames and IP addresses discovered during scans"
     include_apps = [
-        FindingsApplet,
         OpenPortsApplet,
         DNSLinksApplet,
         EmailsApplet,
         WebScreenshotsApplet,
         ExportApplet,
-        Risk,
         TechnologiesApplet,
+        CloudApplet,
+        FindingsApplet,
     ]
 
     model = Asset
@@ -153,7 +153,7 @@ class AssetsApplet(BaseApplet):
         fields: list[str] = None,
     ):
         query = dict(query or {})
-        if type is not None:
+        if type is not None and "type" not in query:
             query["type"] = type
         if host is not None:
             query["host"] = host
@@ -175,3 +175,6 @@ class AssetsApplet(BaseApplet):
             cursor = cursor.sort(sort)
         async for asset in cursor:
             yield asset
+
+    async def _update_asset(self, host: str, update: dict):
+        await self.collection.update_one({"host": host}, {"$set": update})

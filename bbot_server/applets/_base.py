@@ -235,7 +235,13 @@ class BaseApplet:
             if "indexed" in field.metadata:
                 index = [(fieldname, ASCENDING)]
                 self.log.debug(f"Creating index: {index}")
-                await self.collection.create_index(index, unique=unique)
+                try:
+                    await self.collection.create_index(index, unique=unique)
+                except OperationFailure as e:
+                    if "existing index has the same name" in str(e):
+                        self.log.debug(f"Index {index} already exists, skipping")
+                    else:
+                        raise
             # text indexes
             if "indexed-text" in field.metadata:
                 index = [(fieldname, "text")]
@@ -281,7 +287,7 @@ class BaseApplet:
                     fields = [fieldname] + fields
                     index = [(fieldname, ASCENDING) for fieldname in fields]
                     self.log.debug(f"Creating compound index: {index}")
-                    await self.collection.create_index(index, unique=unique)
+                    await self.collection.create_index(index, unique=True)
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks
@@ -339,6 +345,7 @@ class BaseApplet:
         await self._emit_activity(activity)
 
     async def _emit_activity(self, activity: Activity):
+        self.log.info(f"Emitting activity: {activity.type} - {activity.description}")
         await self.root.message_queue.publish_asset(activity)
 
     def include_app(self, app_class):

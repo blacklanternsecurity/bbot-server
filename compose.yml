@@ -8,7 +8,7 @@ x-bbot-server-base: &bbot-server-base
     - .:/app
 
 services:
-  bbot-server:
+  server:
     <<: *bbot-server-base
     ports:
       - "8807:8807"
@@ -17,11 +17,11 @@ services:
       - BBOT_PORT
     command: ["bbctl", "server", "start", "--api-only", "--listen", "0.0.0.0"]
 
-  bbot-server-watchdog:
+  watchdog:
     <<: *bbot-server-base
     command: ["bbctl", "server", "start", "--watchdog-only"]
 
-  bbot-server-agent:
+  agent:
     <<: *bbot-server-base
     command: ["bbctl", "agent", "start"]
     volumes:

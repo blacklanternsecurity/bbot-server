@@ -361,16 +361,16 @@ class TestTargetScopeMaintenance(BaseAppletTest):
             "127.0.0.1",
         }
 
-        # add a.com to target2
+        # add evilcorp.azure.com to target2
         self.target2.whitelist = ["127.0.0.0/24"]
         await self.bbot_server.update_target(self.target2.id, self.target2)
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(1.0)
 
         assets = [a async for a in self.bbot_server.get_assets()]
 
-        # a.com (127.0.0.3) and b.com (127.0.0.4) are now part of the target
+        # evilcorp.azure.com (127.0.0.3) and b.com (127.0.0.4) are now part of the target
         target_2_assets = {a.host for a in assets if self.target2.id in a.scope}
-        assert target_2_assets == {"a.com", "b.com", "www.evilcorp.com", "127.0.0.1"}
+        assert target_2_assets == {"evilcorp.azure.com", "evilcorp.amazonaws.com", "www.evilcorp.com", "127.0.0.1"}
 
     async def after_archive(self):
         pass

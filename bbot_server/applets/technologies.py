@@ -6,7 +6,7 @@ from bbot_server.applets._base import BaseApplet, api_endpoint, Annotated
 
 # add one field: 'technologies' to the main asset model
 class TechnologiesFields(CustomAssetFields):
-    technologies: Annotated[list[str], "indexed-text"] = []  # noqa: F821
+    technologies: Annotated[list[str], "indexed", "indexed-text"] = []  # noqa: F821
 
 
 class TechnologiesApplet(BaseApplet):
@@ -14,6 +14,10 @@ class TechnologiesApplet(BaseApplet):
     watched_events = ["TECHNOLOGY"]
     description = "technologies discovered during scans"
     model = Technology
+
+    @api_endpoint("/get/{id}", methods=["GET"], summary="Get a technology by ID")
+    async def get_technology(self, id: str) -> Technology:
+        return Technology(**(await self.root._get_asset(type="Technology", id=id)))
 
     @api_endpoint(
         "/list", methods=["GET"], type="http_stream", response_model=Technology, summary="List all technologies"
@@ -52,19 +56,20 @@ class TechnologiesApplet(BaseApplet):
     @api_endpoint(
         "/list_brief",
         methods=["GET"],
-        summary="Get all the active technologies for a given domain or target",
+        summary="Get all active technologies by domain or target id.",
         mcp=True,
     )
-    async def get_technologies_brief(self, domain: str = None, target_id: str = None) -> dict[str, int]:
+    async def get_technologies_brief(self, domain: str = "", target_id: str = "") -> dict[str, int]:
+        # AI like to pass empty strings for some godforsaken reason
+        domain = domain or None
+        target_id = target_id or None
         technologies = {}
         async for asset in self.parent._get_assets(
             domain=domain, target_id=target_id, fields=["technologies", "host"]
         ):
             for technology in asset.get("technologies", []):
-                try:
-                    technologies[technology] += 1
-                except KeyError:
-                    technologies[technology] = 1
+                technologies[technology] = technologies.get(technology, 0) + 1
+        technologies = dict(sorted(technologies.items(), key=lambda x: x[1], reverse=True))
         return technologies
 
     @api_endpoint(
@@ -98,7 +103,6 @@ class TechnologiesApplet(BaseApplet):
             netloc=event.netloc,
             last_seen=event.timestamp,
         )
-        print(t)
         # insert the technology into the database
         await self._update_or_insert_technology(t)
         # make an activity if the technology is new
@@ -122,6 +126,7 @@ class TechnologiesApplet(BaseApplet):
                 technology_stats[technology] += 1
             except KeyError:
                 technology_stats[technology] = 1
+        technology_stats = dict(sorted(technology_stats.items(), key=lambda x: x[1], reverse=True))
         statistics["technologies"] = technology_stats
 
     async def refresh(self, asset, events_by_type):
@@ -145,7 +150,7 @@ class TechnologiesApplet(BaseApplet):
                     host=asset.host,
                     type="NEW_TECHNOLOGY",
                     detail={"technology": technology},
-                    description=f"New technology discovered on [bold]{asset.host}[/bold]: [[COLOR]{technology}[/COLOR]",
+                    description=f"New technology discovered on [bold]{asset.host}[/bold]: [[COLOR]{technology}[/COLOR]]",
                 )
             )
         for technology in removed_technologies:
@@ -154,7 +159,7 @@ class TechnologiesApplet(BaseApplet):
                     host=asset.host,
                     type="TECHNOLOGY_REMOVED",
                     detail={"technology": technology},
-                    description=f"Technology no longer detected on [bold]{asset.host}[/bold]: [[COLOR]{technology}[/COLOR]",
+                    description=f"Technology no longer detected on [bold]{asset.host}[/bold]: [[COLOR]{technology}[/COLOR]]",
                 )
             )
             if asset.host:
