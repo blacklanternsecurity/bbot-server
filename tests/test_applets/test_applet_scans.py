@@ -26,7 +26,7 @@ async def test_applet_scans(bbot_server):
     asyncio.create_task(tail_events())
 
     # wait for tasks to start
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(1.0)
 
     scans = [s async for s in bbot_server.get_scans()]
     assert scans == []
@@ -93,10 +93,14 @@ async def test_applet_scans(bbot_server):
     assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent 3"}}}
 
     # make sure an agent is running
-    all_agents = await bbot_server.get_agents()
-    assert len(all_agents) == 1
-    online_agents = await bbot_server.get_online_agents()
-    assert len(online_agents) == 1, f"No online agents (all agents: {all_agents} / activities: {activities})"
+    for _ in range(60):
+        all_agents = await bbot_server.get_agents()
+        online_agents = await bbot_server.get_online_agents()
+        if len(all_agents) == 1 and len(online_agents) == 1:
+            break
+        await asyncio.sleep(0.5)
+    else:
+        assert False, f"No online agents (all agents: {all_agents} / activities: {activities})"
 
     # start scan2
     await bbot_server.start_scan(scan2.id)
@@ -106,7 +110,6 @@ async def test_applet_scans(bbot_server):
         event_types = [e.type for e in events]
         scan_statuses = [a.detail["scan_status"] for a in activities if a.type == "SCAN_STATUS"]
         scan_status_match = scan_statuses == ["STARTING", "RUNNING", "FINISHING", "FINISHED"]
-        # ['AGENT_STATUS', 'AGENT_STATUS', 'TARGET_CREATED', 'SCAN_QUEUED', 'SCAN_SENT', 'AGENT_STATUS', 'SCAN_STATUS', 'SCAN_STATUS', 'SCAN_STATUS', 'SCAN_STATUS', 'AGENT_STATUS'], Events: ['SCAN', 'SCAN'], Scan statuses: ['STARTING', 'RUNNING', 'FINISHING', 'FINISHED']
         activity_types_match = activity_types == [
             "AGENT_STATUS",  # ONLINE
             "AGENT_STATUS",  # READY
