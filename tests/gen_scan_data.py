@@ -50,7 +50,6 @@ class DummyScan:
     @classmethod
     async def run(cls):
         # first, clean up the existing output dir
-        print(f"CLEANING UP {cls.output_dir / cls.name}")
         shutil.rmtree(cls.output_dir / cls.name, ignore_errors=True)
         scan = Scanner(scan_name=cls.name, output_dir=str(cls.output_dir), *cls.targets, config=cls.config)
         await scan.helpers.dns._mock_dns(cls.dns)
