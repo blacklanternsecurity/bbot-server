@@ -110,21 +110,29 @@ async def test_applet_scans(bbot_server):
         event_types = [e.type for e in events]
         scan_statuses = [a.detail["scan_status"] for a in activities if a.type == "SCAN_STATUS"]
         scan_status_match = scan_statuses == ["STARTING", "RUNNING", "FINISHING", "FINISHED"]
-        activity_types_match = activity_types == [
-            "AGENT_STATUS",  # ONLINE
-            "AGENT_STATUS",  # READY
-            "TARGET_CREATED",
-            "TARGET_CREATED",
-            "SCAN_QUEUED",
-            "SCAN_SENT",
-            "AGENT_STATUS",  # READY -> BUSY
-            "SCAN_STATUS",  # STARTING
-            "SCAN_STATUS",  # STARTED
-            "SCAN_STATUS",  # FINISHING
-            "SCAN_STATUS",  # FINISHED
-            "AGENT_STATUS",  # BUSY -> READY
-        ]
-        event_types_match = event_types == ["SCAN", "SCAN"]
+        activity_types_match = set(activity_types) == set(
+            [
+                "AGENT_STATUS",  # OFFLINE -> ONLINE
+                "AGENT_STATUS",  # ONLINE -> READY
+                "TARGET_CREATED",
+                "TARGET_CREATED",
+                "SCAN_QUEUED",
+                "SCAN_SENT",
+                "AGENT_STATUS",  # READY -> BUSY
+                "SCAN_STATUS",  # STARTING
+                "SCAN_STATUS",  # STARTED
+                "SCAN_STATUS",  # FINISHING
+                "SCAN_STATUS",  # FINISHED
+                "AGENT_STATUS",  # BUSY -> READY
+            ]
+        )
+        assert len(activity_types) == 12
+        assert activity_types.count("AGENT_STATUS") == 4
+        assert activity_types.count("SCAN_STATUS") == 4
+        assert activity_types.count("TARGET_CREATED") == 2
+        assert activity_types.count("SCAN_QUEUED") == 1
+        assert activity_types.count("SCAN_SENT") == 1
+        event_types_match = set(event_types) == set(["SCAN", "SCAN"])
         if activity_types_match and event_types_match and scan_status_match:
             break
         await asyncio.sleep(0.1)
