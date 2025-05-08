@@ -140,8 +140,17 @@ class BaseBBCTL:
     def print_json(self, data, **kwargs):
         self.stdout.print(self.highlight_json(data, **kwargs))
 
-    def timestamp_to_human(self, timestamp):
-        return timestamp_to_human(timestamp)
+    def print_pydantic_json(self, model):
+        self.print_raw_line(self.orjson.dumps(model.model_dump()))
 
-    def seconds_to_human(self, seconds):
-        return seconds_to_human(seconds)
+    def print_raw_line(self, line):
+        """
+        Write a line of raw bytes to stdout
+        """
+        self.sys.stdout.buffer.write(line + b"\n")
+
+    def timestamp_to_human(self, *args, **kwargs):
+        return timestamp_to_human(*args, **kwargs)
+
+    def seconds_to_human(self, *args, **kwargs):
+        return seconds_to_human(*args, **kwargs)

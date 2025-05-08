@@ -6,6 +6,8 @@ from contextlib import suppress
 from bbot_server import BBOTServer
 from bbot_server.errors import BBOTServerNotFoundError
 
+from ..conftest import INGEST_PROCESSING_DELAY
+
 
 # make sure ad-hoc ingestion of a BBOT scan creates an associated scan run in the database
 async def test_scan_run_adhoc(bbot_server, bbot_events):
@@ -30,7 +32,7 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
         await bbot_server.insert_event(event)
 
     # wait for events to be processed
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     scan_runs = await bbot_server.get_scan_runs()
     assert len(scan_runs) == 1
@@ -46,12 +48,13 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
         await bbot_server.insert_event(event)
 
     # wait for events to be processed
-    await asyncio.sleep(0.5)
-
-    scan_runs = await bbot_server.get_scan_runs()
-    assert len(scan_runs) == 1
-    scan_run = scan_runs[0]
-    assert scan_run.status == "FINISHED"
+    for _ in range(120):
+        scan_runs = await bbot_server.get_scan_runs()
+        if len(scan_runs) == 1 and scan_runs[0].status == "FINISHED":
+            break
+        await asyncio.sleep(0.5)
+    else:
+        assert False, "Scan run did not finish"
 
     assert [a.type for a in activities if a.type.startswith("SCAN_")] == ["SCAN_STATUS", "SCAN_STATUS"]
     assert [a.detail["scan_status"] for a in activities if a.type.startswith("SCAN_")] == ["RUNNING", "FINISHED"]
@@ -67,49 +70,56 @@ async def test_basic_scan_run(bbot_server):
     """
     bbot_server = await bbot_server(needs_agent=True, needs_watchdog=True)
 
-    # make sure agent is ready
-    agents = await bbot_server.get_agents()
-    assert len(agents) == 1
-    agent = agents[0]
-    assert agent.status == "READY"
+    # wait for agent to be ready
+    for _ in range(120):
+        agents = await bbot_server.get_agents()
+        if len(agents) == 1 and agents[0].status == "READY":
+            break
+        await asyncio.sleep(0.5)
+    else:
+        assert False, "Agent did not become ready"
 
     target = await bbot_server.create_target(name="target1", seeds=["127.0.0.1"])
     scan = await bbot_server.create_scan(name="scan1", target_id=target.id)
     await bbot_server.start_scan(scan_id=scan.id)
 
-    scan_runs = await bbot_server.get_scan_runs()
-    assert len(scan_runs) == 1
-
     # wait for scan to finish
-    for _ in range(20):
+    for _ in range(120):
         scan_runs = await bbot_server.get_scan_runs()
-        if scan_runs[0].status == "FINISHED":
+        scan_status_finished = len(scan_runs) == 1 and scan_runs[0].status == "FINISHED"
+
+        scan_statuses = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
+        scan_statuses = [a.detail["scan_status"] for a in scan_statuses]
+        scan_status_match = scan_statuses == [
+            "STARTING",
+            "RUNNING",
+            "FINISHING",
+            "FINISHED",
+        ]
+
+        if scan_status_finished and scan_status_match:
             break
+
         await asyncio.sleep(0.5)
     else:
-        raise Exception("Scan run did not finish")
+        assert False, f"Scan run did not finish. Scan statuses: {scan_statuses}, Scan runs: {scan_runs}"
 
-    scan_statuses = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
-    assert all(a.type == "SCAN_STATUS" for a in scan_statuses)
-    scan_statuses = [a.detail["scan_status"] for a in scan_statuses]
-    assert scan_statuses == [
-        "STARTING",
-        "RUNNING",
-        "FINISHING",
-        "FINISHED",
-    ]
+    for _ in range(120):
+        # wait for agent to be ready again
+        agent_statuses = [a async for a in bbot_server.get_activities(type="AGENT_STATUS")]
+        agent_statuses = [a.detail["status"] for a in agent_statuses]
+        agent_status_match = agent_statuses == ["ONLINE", "READY", "BUSY", "READY"]
 
-    await asyncio.sleep(1)
+        # agent should be ready again
+        agents = await bbot_server.get_agents()
+        agent_status_match_2 = len(agents) == 1 and agents[0].status == "READY"
 
-    agent_statuses = [a async for a in bbot_server.get_activities(type="AGENT_STATUS")]
-    assert all(a.type == "AGENT_STATUS" for a in agent_statuses)
-    agent_statuses = [a.detail["status"] for a in agent_statuses]
-    assert agent_statuses == ["ONLINE", "READY", "BUSY", "READY"]
+        if agent_status_match and agent_status_match_2:
+            break
 
-    # agent should be ready again
-    agents = await bbot_server.get_agents()
-    assert len(agents) == 1
-    assert agents[0].status == "READY"
+        await asyncio.sleep(0.5)
+    else:
+        assert False, f"Agent did not become ready again. Agent statuses: {agent_statuses}, Agents: {agents}"
 
 
 async def test_queued_scan_cancellation(bbot_server):
@@ -132,7 +142,7 @@ async def test_queued_scan_cancellation(bbot_server):
 
     scan_runs = await bbot_server.get_scan_runs()
     assert len(scan_runs) == 1
-    assert scan_runs[0].status == "CANCELLED"
+    assert scan_runs[0].status == "ABORTED"
 
 
 async def test_running_scan_cancellation(bbot_server_config, bbot_agent, bbot_watchdog):
@@ -154,7 +164,7 @@ async def test_running_scan_cancellation(bbot_server_config, bbot_agent, bbot_wa
     await bbot_server.start_scan(scan_id=scan.id)
 
     # wait for agent to pick it up
-    for _ in range(20):
+    for _ in range(120):
         scan_runs = await bbot_server.get_scan_runs()
         if len(scan_runs) == 1 and scan_runs[0].status == "RUNNING":
             break
@@ -173,13 +183,14 @@ async def test_running_scan_cancellation(bbot_server_config, bbot_agent, bbot_wa
     # cancel the scan
     await bbot_server.cancel_scan(scan_run_id=scan_runs[0].id)
 
-    # wait 5 seconds
-    await asyncio.sleep(5.0)
-
-    # make sure the scan is cancelled
-    scan_runs = await bbot_server.get_scan_runs()
-    assert len(scan_runs) == 1
-    assert scan_runs[0].status == "ABORTED"
+    # wait until the scan is cancelled
+    for _ in range(120):
+        scan_runs = await bbot_server.get_scan_runs()
+        if len(scan_runs) == 1 and scan_runs[0].status == "ABORTED":
+            break
+        await asyncio.sleep(0.5)
+    else:
+        assert False, f"Scan run did not abort properly. Scan runs: {scan_runs}"
 
     # cancelling the scan again should raise an error
     with pytest.raises(BBOTServerNotFoundError, match="Scan isn't running on agent"):

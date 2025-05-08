@@ -22,7 +22,7 @@ class EventCTL(BaseBBCTL):
 
         if json:
             for event in event_list:
-                self.sys.stdout.buffer.write(self.orjson.dumps(event.model_dump()) + b"\n")
+                self.print_pydantic_json(event)
             return
 
         if csv:
@@ -84,7 +84,7 @@ class EventCTL(BaseBBCTL):
     ):
         for e in self.bbot_server.tail_events(n=n):
             if json:
-                self.sys.stdout.buffer.write(self.orjson.dumps(e.model_dump()) + b"\n")
+                self.print_pydantic_json(e)
                 continue
 
             timestamp = self.timestamp_to_human(e.timestamp)

@@ -14,6 +14,7 @@ def test_cli_targetctl(bbot_server_http):
 
     # create a target (nonexistent file should fail)
     seeds_file = BBOT_SERVER_TEST_DIR / "seeds.txt"
+    seeds_file.unlink(missing_ok=True)
     process = subprocess.run(
         BBCTL_COMMAND + ["--no-color", "target", "create", "--seeds", str(seeds_file)], capture_output=True, text=True
     )
@@ -52,6 +53,8 @@ def test_cli_targetctl(bbot_server_http):
     assert target2["name"] == "Target 2"
     assert set(target2["seeds"]) == {"evilcorp.org"}
 
+    seeds_file.unlink()
+
     # list targets (json)
     process = subprocess.run(BBCTL_COMMAND + ["target", "list", "--json"], capture_output=True, text=True)
     assert process.returncode == 0
@@ -88,8 +91,8 @@ def test_cli_targetctl(bbot_server_http):
         capture_output=True,
         text=True,
     )
-    assert "Must provide either a target name or ID" in process.stderr
-    assert process.returncode == 1
+    assert "Missing option" in process.stderr
+    assert process.returncode == 2
 
     # delete the target (by name)
     process = subprocess.run(

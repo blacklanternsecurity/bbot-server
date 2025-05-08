@@ -11,20 +11,20 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     services:
       mongo:
         image: mongo
         ports:
-          - 27017:27017
+          - 127.0.0.1:27017:27017
       redis:
         image: redis
         ports:
-          - 6379:6379
+          - 127.0.0.1:6379:6379
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python

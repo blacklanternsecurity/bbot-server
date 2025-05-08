@@ -15,7 +15,7 @@ class TestAppletDNSLinks(BaseAppletTest):
         assert "New DNS link: evilcorp.com -(TXT)-> [api.evilcorp.com]" in activity_descriptions
         assert "New DNS link: www.evilcorp.com -(A)-> [5.6.7.8]" in activity_descriptions
         assert "New DNS link: www.evilcorp.com -(A)-> [1.2.3.4]" in activity_descriptions
-        assert "New DNS link: cname.evilcorp.com -(CNAME)-> [a.com]" in activity_descriptions
+        assert "New DNS link: cname.evilcorp.com -(CNAME)-> [evilcorp.azure.com]" in activity_descriptions
 
     async def after_scan_2(self):
         activites = [a for a in self.asset_messages if a.type in ["NEW_DNS_LINK", "DELETED_DNS_LINK"]]
@@ -27,5 +27,5 @@ class TestAppletDNSLinks(BaseAppletTest):
         activity_descriptions = [a.description for a in activites]
         assert "DNS link removed: localhost.evilcorp.com -(A)-> [127.0.0.1]" in activity_descriptions
         assert "New DNS link: localhost.evilcorp.com -(A)-> [127.0.0.2]" in activity_descriptions
-        assert "DNS link removed: cname.evilcorp.com -(CNAME)-> [a.com]" in activity_descriptions
-        assert "New DNS link: cname.evilcorp.com -(CNAME)-> [b.com]" in activity_descriptions
+        assert "DNS link removed: cname.evilcorp.com -(CNAME)-> [evilcorp.azure.com]" in activity_descriptions
+        assert "New DNS link: cname.evilcorp.com -(CNAME)-> [evilcorp.amazonaws.com]" in activity_descriptions

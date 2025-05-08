@@ -1,11 +1,12 @@
 # applets imports
-from bbot_server.applets.risk import Risk
 from bbot_server.applets.emails import EmailsApplet
 from bbot_server.applets.export import ExportApplet
 from bbot_server.applets.findings import FindingsApplet
 from bbot_server.applets.dns_links import DNSLinksApplet
 from bbot_server.applets.open_ports import OpenPortsApplet
 from bbot_server.applets.web_screenshots import WebScreenshotsApplet
+from bbot_server.applets.technologies import TechnologiesApplet
+from bbot_server.applets.cloud import CloudApplet
 
 from bbot_server.assets import Asset
 from bbot_server.utils.misc import utc_now
@@ -16,28 +17,29 @@ class AssetsApplet(BaseApplet):
     name = "Assets"
     description = "hostnames and IP addresses discovered during scans"
     include_apps = [
-        FindingsApplet,
         OpenPortsApplet,
         DNSLinksApplet,
         EmailsApplet,
         WebScreenshotsApplet,
         ExportApplet,
-        Risk,
+        TechnologiesApplet,
+        CloudApplet,
+        FindingsApplet,
     ]
 
     model = Asset
 
     @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
-    async def get_assets(self):
-        async for asset in self.collection.find({"type": "Asset"}):
-            yield self.model(**asset)
+    async def get_assets(self, domain: str = None, target_id: str = None):
+        """
+        Stream all assets.
 
-    @api_endpoint("/{host}/list", methods=["GET"], summary="List assets by host (including subdomains)")
-    async def get_assets_by_host(self, host: str) -> list[Asset]:
-        cursor = self.collection.find({"type": "asset", "reverse_host": {"$regex": f"^{host[::-1]}."}})
-        assets = await cursor.to_list(length=None)
-        assets = [self.model(**asset) for asset in assets]
-        return assets
+        Args:
+            domain: Filter assets by domain or subdomain
+            target_id: Filter assets by target ID or name
+        """
+        async for asset in self._get_assets(domain=domain, target_id=target_id):
+            yield self.model(**asset)
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: str) -> Asset:
@@ -77,9 +79,102 @@ class AssetsApplet(BaseApplet):
             # update the asset with any changes made by the child applets
             await self.update_asset(asset)
 
-    @api_endpoint("/hosts", methods=["GET"], summary="List all hosts")
-    async def get_hosts(self) -> list[str]:
-        cursor = self.collection.find({"archived": False, "ignored": False})
-        hosts = await cursor.distinct("host")
-        hosts.sort()
-        return hosts
+    @api_endpoint("/hosts", methods=["GET"], summary="List hosts")
+    async def get_hosts(self, domain: str = None, target_id: str = None) -> list[str]:
+        """
+        List all hosts.
+
+        Args:
+            domain: Return all hosts matching this domain (including subdomains)
+            target_id: Only return hosts belonging to this target (can be either name or ID)
+        """
+        hosts = []
+        async for asset in self._get_assets(domain=domain, target_id=target_id, fields=["host"]):
+            host = asset.get("host", None)
+            if host is not None:
+                hosts.append(host)
+        return sorted(hosts)
+
+    async def _get_assets(
+        self,
+        query: dict = None,
+        search: str = None,
+        host: str = None,
+        domain: str = None,
+        type: str = "Asset",
+        target_id: str = None,
+        archived: bool = False,
+        ignored: bool = False,
+        fields: list[str] = None,
+        sort: list[tuple[str, int]] = None,
+    ):
+        """
+        Multipurpose async generator for getting assets from the database.
+
+        Args:
+            query: Additional query parameters (mongo)
+            search: Search using mongo's text index
+            host: Filter assets by host (exact match only)
+            domain: Filter assets by domain (subdomains allowed)
+            type: Filter assets by type (Asset, Technology, Vulnerability, etc.)
+            target_id: Filter assets by target ID
+            archived: Filter archived assets
+            ignored: Filter ignored assets
+            fields: List of fields to return
+            sort: Fields and direction to sort by, e.g. sort=[("last_seen", -1)]
+        """
+        query = dict(query or {})
+        query["archived"] = archived
+        query["ignored"] = ignored
+        if type is not None:
+            query["type"] = type
+        if host is not None:
+            query["host"] = host
+        if domain is not None:
+            reversed_host = domain[::-1]
+            # Match exact domain or subdomains (with dot separator)
+            query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
+        if target_id is not None:
+            target_query_kwargs = {}
+            if target_id != "DEFAULT":
+                target_query_kwargs["id"] = target_id
+            target = await self.root.targets._get_target(**target_query_kwargs, fields=["id"])
+            query["scope"] = target["id"]
+        if search is not None:
+            query["$text"] = {"$search": search}
+        async for asset in self._query_assets(query, fields, sort):
+            yield asset
+
+    async def _get_asset(
+        self,
+        query: dict = None,
+        host: str = None,
+        type: str = "Asset",
+        fields: list[str] = None,
+    ):
+        query = dict(query or {})
+        if type is not None and "type" not in query:
+            query["type"] = type
+        if host is not None:
+            query["host"] = host
+        return await self.collection.find_one(query, fields)
+
+    async def _query_assets(self, query: dict, fields: list[str] = None, sort: list[tuple[str, int]] = None):
+        """
+        Lowest-level query function for getting assets from the database.
+
+        Args:
+            query: Additional query parameters (mongo)
+            fields: List of fields to return
+            sort: Fields and direction to sort by, e.g. sort=[("last_seen", -1)]
+        """
+        self.log.debug(f"Querying assets: query={query} / fields={fields}")
+        fields = {f: 1 for f in fields} if fields else None
+        cursor = self.collection.find(query, fields)
+        if sort:
+            cursor = cursor.sort(sort)
+        async for asset in cursor:
+            yield asset
+
+    async def _update_asset(self, host: str, update: dict):
+        await self.collection.update_one({"host": host}, {"$set": update})

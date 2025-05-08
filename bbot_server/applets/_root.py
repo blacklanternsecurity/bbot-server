@@ -9,10 +9,11 @@ from bbot_server.applets.events import EventsApplet
 from bbot_server.applets.scans.scans import ScansApplet
 from bbot_server.applets.targets import TargetsApplet
 from bbot_server.applets.activity import ActivityApplet
+from bbot_server.applets.stats import StatsApplet
 
 
 class RootApplet(BaseApplet):
-    include_apps = [AssetsApplet, EventsApplet, ScansApplet, TargetsApplet, ActivityApplet]
+    include_apps = [AssetsApplet, EventsApplet, ScansApplet, TargetsApplet, ActivityApplet, StatsApplet]
 
     name = "Root Applet"
 
@@ -30,6 +31,7 @@ class RootApplet(BaseApplet):
         else:
             self._config = BBOT_SERVER_CONFIG
         self._interface_type = "python"
+        self._mcp = None
 
     async def setup(self):
         # don't try to set up database/message queues if we're connected to a remote instance

@@ -17,7 +17,7 @@ class ScanRunsCTL(BaseBBCTL):
 
         if json:
             for scan_run in scan_runs:
-                self.sys.stdout.buffer.write(self.orjson.dumps(scan_run.model_dump()) + b"\n")
+                self.print_pydantic_json(scan_run)
             return
 
         if csv:

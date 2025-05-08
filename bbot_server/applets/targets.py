@@ -1,6 +1,6 @@
 from uuid import UUID
 from pydantic import UUID4
-from typing import Annotated
+from typing import Annotated, Any
 from contextlib import contextmanager
 from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
@@ -110,39 +110,28 @@ class TargetsApplet(BaseApplet):
             await self.emit_activity(scope_result)
 
     @api_endpoint("/", methods=["GET"], summary="Get a single scan target by its name, id, or hash")
-    async def get_target(self, name: str = None, id: UUID4 = None, hash: str = None) -> Target:
-        # if neither name nor id is provided, try to get the default target
-        if (name is None) and (id is None) and (hash is None):
-            target = await self.collection.find_one({"default": True})
-            if target is None:
-                raise self.BBOTServerNotFoundError(
-                    "No default target found. Please create one or specify a target name or id."
-                )
-        else:
-            query = {}
-            if name:
-                query["name"] = name
-            elif id is not None:
-                query["id"] = str(id)
-            elif hash is not None:
-                query["hash"] = hash
-            target = await self.collection.find_one(query)
-        if not target:
-            raise self.BBOTServerNotFoundError(f"Target not found.")
+    async def get_target(self, id: str = None, hash: str = None) -> Target:
+        """
+        'id' can be either a target's ID (UUID) or its name.
+        """
+        target = await self._get_target(id=id, hash=hash)
         return Target(**target)
 
     @api_endpoint("/count", methods=["GET"], summary="Get the number of scan targets")
     async def target_count(self) -> int:
         return await self.collection.count_documents({})
 
-    @api_endpoint("/set_default/{target_id}", methods=["POST"], summary="Set a target as the default target")
-    async def set_default_target(self, target_id: UUID4):
+    @api_endpoint("/set_default/{id}", methods=["POST"], summary="Set a target as the default target")
+    async def set_default_target(self, id: str):
+        """
+        'id' can be either a target's ID (UUID) or its name.
+        """
         # get target
-        target = await self.get_target(id=target_id)
-        target.default = True
-        await self.collection.update_one({"id": str(target_id)}, {"$set": target.model_dump()})
+        target = await self._get_target(id=id, fields=["id"])
+        target_id = target["id"]
+        await self.collection.update_one({"id": target_id}, {"$set": {"default": True}})
         # finally, set default=false on all other targets
-        await self.collection.update_many({"id": {"$ne": str(target_id)}}, {"$set": {"default": False}})
+        await self.collection.update_many({"id": {"$ne": target_id}}, {"$set": {"default": False}})
 
     @api_endpoint("/create", methods=["POST"], summary="Create a new scan target")
     async def create_target(
@@ -154,8 +143,8 @@ class TargetsApplet(BaseApplet):
         blacklist: list[str] = None,
         strict_dns_scope: bool = False,
     ) -> Target:
-        if not seeds:
-            raise self.BBOTServerValueError("Must provide at least one seed")
+        if not whitelist and not seeds:
+            raise self.BBOTServerValueError("Must provide at least one seed or whitelist entry")
         if not name:
             name = await self.get_available_target_name()
         target = Target(
@@ -199,18 +188,20 @@ class TargetsApplet(BaseApplet):
         return target
 
     @api_endpoint("/", methods=["DELETE"], summary="Delete a scan target by its id")
-    async def delete_target(self, id: UUID4 = None, name: str = None, new_default_target_id: UUID4 = None) -> None:
-        target = await self.get_target(id=id, name=name)
+    async def delete_target(self, id: str = None, new_default_target_id: str = None) -> None:
+        target = await self._get_target(id=id, fields=["id", "default"])
+        target_id = str(target["id"])
+        target_is_default = target["default"]
 
         # abort if the target is still in use by any scans
-        scans_with_target = await self.parent.scans.get_scans_brief(target_id=target.id)
+        scans_with_target = await self.parent.scans.get_scans_brief(target_id=target_id)
         if scans_with_target:
             raise self.BBOTServerValueError(
                 f"Target is still in use by the following scans: {', '.join([str(scan.name) for scan in scans_with_target])}"
             )
 
         # when we're deleting the default target, we need to set a new one
-        if target.default:
+        if target_is_default:
             if new_default_target_id is None:
                 num_targets = await self.target_count()
                 # if there are 2 or less targets, we can assume the new default target
@@ -224,8 +215,8 @@ class TargetsApplet(BaseApplet):
                         "Must specify a new default target when deleting the default target."
                     )
 
-        target = await self.get_target(id=target.id)
-        await self.collection.delete_one({"id": str(target.id)})
+        # delete the target
+        await self.collection.delete_one({"id": target_id})
 
         # set the new default target
         if new_default_target_id is not None:
@@ -233,17 +224,16 @@ class TargetsApplet(BaseApplet):
 
         # clear scope cache
         if self._scope_cache is not None:
-            self._scope_cache.pop(str(target.id))
+            self._scope_cache.pop(target_id)
 
-        # clear target ID
-        self._target_ids.discard(str(target.id))
+        # forget the target ID forever
+        self._target_ids.discard(target_id)
 
         # after deleting the target, also delete it from all the assets
-        target_id_str = str(target.id)
         # Remove the target ID from all asset
         await self.root.assets.collection.update_many(
-            {"scope": target_id_str},  # Find documents that have this target ID in their scope
-            {"$pull": {"scope": target_id_str}},  # Remove this target ID from the scope array
+            {"scope": target_id},  # Find documents that have this target ID in their scope
+            {"$pull": {"scope": target_id}},  # Remove this target ID from the scope array
         )
 
     @api_endpoint("/in_scope", methods=["GET"], summary="Check if a host or URL is in scope")
@@ -378,16 +368,9 @@ class TargetsApplet(BaseApplet):
         if cached_target is not None and cache_age < debounce:
             return cached_target
 
-        if target_id is None:
-            query = {"default": True}
-        else:
-            query = {"id": str(target_id)}
-
         # get the target modified date
-        db_modified_date = await self.collection.find_one(query, {"modified": 1})
-        if db_modified_date is None:
-            raise self.BBOTServerNotFoundError(f"Target not found.")
-        db_modified_date = db_modified_date["modified"]
+        target = await self._get_target(id=target_id, fields=["modified"])
+        db_modified_date = target["modified"]
 
         # if the modified date matches, return the cached target
         if cached_modified_date == db_modified_date:
@@ -418,6 +401,9 @@ class TargetsApplet(BaseApplet):
             self._cache_put(target)
 
     def _bbot_target(self, target: Target) -> BBOTTarget:
+        """
+        Given a target pydantic instance, return a BBOTTarget instance capable of fast host lookups
+        """
         return BBOTTarget(
             *target.seeds,
             whitelist=target.whitelist,
@@ -438,3 +424,22 @@ class TargetsApplet(BaseApplet):
                     f'Target with name "{target.name}" already exists', detail={"name": key_value["name"]}
                 )
             raise self.BBOTServerValueError(f"Error creating target: {e}")
+
+    async def _get_target(self, id: str = None, hash: str = None, fields: dict[str, Any] = None) -> dict:
+        query = {}
+        # if neither id nor hash is provided, try to get the default target
+        if id is None and hash is None:
+            query["default"] = True
+        elif hash is not None:
+            query["hash"] = hash
+        elif id is not None:
+            id = str(id)
+            try:
+                query["id"] = str(UUID(id))
+            except Exception:
+                query["name"] = id
+        fields = {f: 1 for f in fields} if fields else None
+        result = await self.collection.find_one(query, fields)
+        if result is None:
+            raise self.BBOTServerNotFoundError(f"Target not found.")
+        return result

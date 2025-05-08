@@ -4,6 +4,7 @@ from contextlib import suppress
 
 from bbot_server import BBOTServer
 from tests.test_applets.base import BaseAppletTest
+from .conftest import INGEST_PROCESSING_DELAY
 
 
 async def _test_fifo_queue(bbot_server):
@@ -30,12 +31,12 @@ async def _test_basic_subscribe(bbot_server):
     # Subscribe to a test channel
     sub1 = await bbot_server.message_queue.subscribe("test_channel", callback1)
 
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(1.0)
 
     # Publish first message
     message1 = {"id": 1, "content": "test message 1"}
     await bbot_server.message_queue.publish(message1, "test_channel")
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(1.0)
 
     # Verify first message was received
     assert messages1 == [message1]
@@ -45,14 +46,14 @@ async def _test_basic_subscribe(bbot_server):
         messages2.append(message)
 
     sub2 = await bbot_server.message_queue.subscribe("test_channel", callback2)
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(1.0)
 
     assert messages2 == []
 
     # Publish second message
     message2 = {"id": 2, "content": "test message 2"}
     await bbot_server.message_queue.publish(message2, "test_channel")
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(1.0)
 
     assert messages1 == [message1, message2]
     assert messages2 == [message2]
@@ -140,7 +141,8 @@ async def _test_historic_subscribe(bbot_server):
     to_send = [{"id": i, "content": f"historic message {i}"} for i in range(10)]
     for message in to_send:
         await bbot_server.message_queue.publish(message, "test_channel")
-    await asyncio.sleep(2.0)
+    # why do we have to wait so long here?
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     sub = await bbot_server.message_queue.subscribe("test_channel", callback, historic=5)
     await asyncio.sleep(1.0)

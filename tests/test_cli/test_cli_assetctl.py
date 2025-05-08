@@ -2,12 +2,12 @@ import orjson
 import subprocess
 from time import sleep
 
-from tests.conftest import BBCTL_COMMAND
+from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR, INGEST_PROCESSING_DELAY
 from bbot_server.assets import Asset
 
 
 scan1_expected_hosts = {
-    "a.com",
+    "evilcorp.azure.com",
     "www.evilcorp.com",
     "cname.evilcorp.com",
     "127.0.0.1",
@@ -15,23 +15,33 @@ scan1_expected_hosts = {
     "api.evilcorp.com",
     "5.6.7.8",
     "1.2.3.4",
+    "192.168.1.1",
+    "192.168.1.2",
     "evilcorp.com",
     "localhost.evilcorp.com",
+    "testevilcorp.com",
+    "tech1.evilcorp.com",
+    "tech2.evilcorp.com",
 }
 
 scan2_expected_hosts = {
-    "a.com",
-    "b.com",
+    "evilcorp.azure.com",
+    "evilcorp.amazonaws.com",
     "www.evilcorp.com",
     "cname.evilcorp.com",
     "127.0.0.1",
     "127.0.0.2",
+    "192.168.1.1",
+    "192.168.1.2",
     "www2.evilcorp.com",
     "api.evilcorp.com",
     "5.6.7.8",
     "1.2.3.4",
     "evilcorp.com",
     "localhost.evilcorp.com",
+    "testevilcorp.com",
+    "tech1.evilcorp.com",
+    "tech2.evilcorp.com",
 }
 
 
@@ -47,7 +57,7 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
     # ingest the first half from stdin
     subprocess.run(BBCTL_COMMAND + ["event", "ingest"], input=scan1_out_file, capture_output=True, text=True)
 
-    sleep(1)
+    sleep(INGEST_PROCESSING_DELAY)
 
     # make sure the assets were created
     process = subprocess.run(BBCTL_COMMAND + ["asset", "list", "--json"], capture_output=True, text=True)
@@ -58,7 +68,7 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
     # ingest the other half from stdin
     subprocess.run(BBCTL_COMMAND + ["event", "ingest"], input=scan2_out_file, capture_output=True, text=True)
 
-    sleep(1)
+    sleep(INGEST_PROCESSING_DELAY)
 
     # make sure the assets were created
     process = subprocess.run(BBCTL_COMMAND + ["asset", "list", "--json"], capture_output=True, text=True)
@@ -73,14 +83,75 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
 
     # test txt version
     process = subprocess.run(BBCTL_COMMAND + ["asset", "list"], capture_output=True, text=True)
-    assert len([l for l in process.stdout.splitlines() if l.strip()]) == len(scan2_expected_hosts) + 4
+    assert process.returncode == 0
+    assert "www.evil" in process.stdout
 
-    return
+    # test target filtering
+
+    target_file = BBOT_SERVER_TEST_DIR / "seeds.txt"
+    target_file.write_text("evilcorp.com\n127.0.0.0/30")
+    blacklist_file = BBOT_SERVER_TEST_DIR / "blacklist.txt"
+    blacklist_file.write_text("localhost.evilcorp.com")
+
+    # target-filtering before creating a target should fail
+    process = subprocess.run(
+        BBCTL_COMMAND + ["asset", "list", "--target", "test-target", "--json"], capture_output=True, text=True
+    )
+    assert process.returncode == 1
+    assert process.stderr.endswith("[ERROR] Target not found.\n")
 
     # create a target
-    subprocess.run(BBCTL_COMMAND + ["target", "create", "test-target"], capture_output=True, text=True)
-
-    # create a scan
-    subprocess.run(
-        BBCTL_COMMAND + ["scan", "create", "test-scan", "--target", "test-target"], capture_output=True, text=True
+    process = subprocess.run(
+        BBCTL_COMMAND
+        + [
+            "target",
+            "create",
+            "--name",
+            "test-target",
+            "--seeds",
+            str(target_file),
+            "--blacklist",
+            str(blacklist_file),
+        ],
+        capture_output=True,
+        text=True,
     )
+    target = orjson.loads(process.stdout)
+    assert target["name"] == "test-target"
+
+    # wait for assets to be tagged with new target
+    sleep(1)
+
+    # by target name
+    process1 = subprocess.run(
+        BBCTL_COMMAND + ["asset", "list", "--target", "test-target", "--json"], capture_output=True, text=True
+    )
+    # by target ID
+    process2 = subprocess.run(
+        BBCTL_COMMAND + ["asset", "list", "--target", target["id"], "--json"], capture_output=True, text=True
+    )
+    # by default
+    process3 = subprocess.run(
+        BBCTL_COMMAND + ["asset", "list", "--json", "--in-scope-only"], capture_output=True, text=True
+    )
+    proc1_output = [orjson.loads(line) for line in process1.stdout.splitlines()]
+    proc2_output = [orjson.loads(line) for line in process2.stdout.splitlines()]
+    proc3_output = [orjson.loads(line) for line in process3.stdout.splitlines()]
+    proc1_hosts = {a["host"] for a in proc1_output}
+    proc2_hosts = {a["host"] for a in proc2_output}
+    proc3_hosts = {a["host"] for a in proc3_output}
+    assert proc1_hosts == {
+        "127.0.0.1",
+        "127.0.0.2",
+        "evilcorp.com",
+        "www2.evilcorp.com",
+        "api.evilcorp.com",
+        "cname.evilcorp.com",
+        "www.evilcorp.com",
+        "tech1.evilcorp.com",
+        "tech2.evilcorp.com",
+        "evilcorp.azure.com",  # this one resolves to 127.0.0.3 so it matches
+        # localhost.evilcorp.com is blacklisted
+    }
+    assert proc1_hosts == proc2_hosts
+    assert proc1_hosts == proc3_hosts

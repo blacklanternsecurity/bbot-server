@@ -1,5 +1,8 @@
-from bbot_server.applets._base import BaseApplet
+from typing import Any
 
+from bbot_server.assets import Asset
+from bbot_server.models.stats_models import BBOTStats
+from bbot_server.applets._base import BaseApplet, api_endpoint
 
 """
 TODO:
@@ -18,7 +21,18 @@ Or, we could compute them on the fly. This might be easier, especially with some
 """
 
 
-class Stats(BaseApplet):
+class StatsApplet(BaseApplet):
     name = "Stats"
     description = "track global stats over time (e.g. number of assets, number of findings, etc.)"
     route_prefix = ""
+    model = BBOTStats
+
+    @api_endpoint("/stats", methods=["GET"], summary="Get statistics for a given target or domain")
+    async def get_stats(self, domain: str = None, host: str = None, target_id: str = None) -> dict[str, Any]:
+        assets = self.root._get_assets(domain=domain, host=host, target_id=target_id)
+        stats = {}
+        async for asset in assets:
+            asset = Asset(**asset)
+            for applet in self.root.all_child_applets(include_self=True):
+                await applet.compute_stats(asset, stats)
+        return stats

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from bbot.models.pydantic import Event
 
-from tests.conftest import BBCTL_COMMAND
+from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY
 
 
 def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events):
@@ -19,15 +19,19 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
 
     # ingest bbot events from file
     json_file = Path("/tmp/.bbot_server_test/events.json")
+    json_file.unlink(missing_ok=True)
     with open(json_file, "w") as f:
         f.write(scan1_out_file)
 
     process = subprocess.run(BBCTL_COMMAND + ["event", "ingest", "-f", str(json_file)], capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout == ""
-    assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n"
+    assert "Ingested 10 events" in process.stderr
+    assert "Ingested 20 events" in process.stderr
+    assert "Ingested 30 events" in process.stderr
+    assert "Ingested 40 events" not in process.stderr
 
-    sleep(1)
+    sleep(INGEST_PROCESSING_DELAY)
 
     # make sure all the events made it into the database
     process = subprocess.run(BBCTL_COMMAND + ["event", "list", "--json"], capture_output=True, text=True)
@@ -38,9 +42,12 @@ def test_cli_events(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events)
     process = subprocess.run(BBCTL_COMMAND + ["event", "ingest"], input=scan2_out_file, capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout == ""
-    assert process.stderr == "[INFO] Ingested 10 events\n[INFO] Ingested 20 events\n"
+    assert "Ingested 10 events" in process.stderr
+    assert "Ingested 20 events" in process.stderr
+    assert "Ingested 30 events" in process.stderr
+    assert "Ingested 40 events" not in process.stderr
 
-    sleep(1)
+    sleep(INGEST_PROCESSING_DELAY)
 
     # make sure all the events made it into the database
     process = subprocess.run(BBCTL_COMMAND + ["event", "list", "--json"], capture_output=True, text=True)

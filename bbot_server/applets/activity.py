@@ -8,14 +8,15 @@ class ActivityApplet(BaseApplet):
     name = "Activity"
     watched_activities = ["*"]
     description = "Query BBOT server activities"
-    route_prefix = ""
     model = Activity
 
     async def handle_activity(self, activity: Activity):
         # write the activity to the database
         await self.collection.insert_one(activity.model_dump())
 
-    @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Activity, summary="Stream all activities")
+    @api_endpoint(
+        "/list", methods=["GET"], type="http_stream", response_model=Activity, summary="Stream all activities"
+    )
     async def get_activities(self, host: str = None, type: str = None):
         query = {}
         if host:

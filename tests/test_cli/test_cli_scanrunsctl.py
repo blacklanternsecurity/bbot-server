@@ -2,7 +2,7 @@ import orjson
 import subprocess
 from time import sleep
 
-from tests.conftest import BBCTL_COMMAND
+from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY
 from bbot_server.models.scan_models import ScanRun
 
 
@@ -23,7 +23,7 @@ def test_cli_scan_runs(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_even
     # ingest the first half from stdin
     subprocess.run(BBCTL_COMMAND + ["event", "ingest"], input=scan1_out_file, capture_output=True, text=True)
 
-    sleep(1)
+    sleep(INGEST_PROCESSING_DELAY)
 
     # make sure the scan run was created
     process = subprocess.run(BBCTL_COMMAND + ["scan", "runs", "list", "--json"], capture_output=True, text=True)
@@ -34,7 +34,7 @@ def test_cli_scan_runs(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_even
     # ingest the other half from stdin
     subprocess.run(BBCTL_COMMAND + ["event", "ingest"], input=scan2_out_file, capture_output=True, text=True)
 
-    sleep(1)
+    sleep(INGEST_PROCESSING_DELAY)
 
     # make sure the scan run was created
     process = subprocess.run(BBCTL_COMMAND + ["scan", "runs", "list", "--json"], capture_output=True, text=True)

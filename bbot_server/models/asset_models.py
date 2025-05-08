@@ -2,6 +2,7 @@ from pydantic import Field
 from typing import Optional, Union, Annotated
 
 from bbot_server.utils.misc import utc_now
+from bbot.core.helpers.misc import make_netloc
 from bbot_server.models.base import BaseBBOTServerModel
 
 
@@ -18,10 +19,12 @@ class BaseAssetFacet(BaseBBOTServerModel):
     A facet typically corresponds to an applet.
     """
 
-    host: Annotated[str, "indexed"]
     type: Annotated[Optional[str], "indexed"] = None
+    host: Annotated[str, "indexed"]
+    port: Annotated[Optional[int], "indexed"] = None
+    netloc: Annotated[Optional[str], "indexed"] = None
+    url: Annotated[Optional[str], "indexed"] = None
     reverse_host: Annotated[Optional[Union[str, None]], "indexed"] = None
-    netloc: Annotated[Optional[Union[str, None]], "indexed"] = None
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     ignored: bool = False
@@ -29,7 +32,30 @@ class BaseAssetFacet(BaseBBOTServerModel):
 
     def __init__(self, *args, **kwargs):
         kwargs["type"] = self.__class__.__name__
+        event = kwargs.pop("event", None)
         super().__init__(*args, **kwargs)
+        if self.host and self.port:
+            self.netloc = make_netloc(self.host, self.port)
+        if event is not None:
+            self.set_event(event)
+
+    def set_event(self, event):
+        """
+        Copy data from a BBOT event into the asset
+        """
+        if event.host and not self.host:
+            self.host = event.host
+            self.reverse_host = event.host[::-1]
+        if event.port and not self.port:
+            self.port = event.port
+        if event.netloc and not self.netloc:
+            self.netloc = event.netloc
+        # handle url
+        event_data_json = getattr(event, "data_json", None)
+        if event_data_json is not None:
+            url = event_data_json.get("url", None)
+            if url is not None:
+                self.url = url
 
     # def _ingest_event(self, event) -> list[Activity]:
     #     self_before = self.__class__.model_validate(self)

@@ -25,6 +25,9 @@ async def test_applet_scans(bbot_server):
     asyncio.create_task(tail_activities())
     asyncio.create_task(tail_events())
 
+    # wait for tasks to start
+    await asyncio.sleep(1.0)
+
     scans = [s async for s in bbot_server.get_scans()]
     assert scans == []
 
@@ -90,10 +93,14 @@ async def test_applet_scans(bbot_server):
     assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent 3"}}}
 
     # make sure an agent is running
-    all_agents = await bbot_server.get_agents()
-    assert len(all_agents) == 1
-    online_agents = await bbot_server.get_online_agents()
-    assert len(online_agents) == 1, f"No online agents (all agents: {all_agents} / activities: {activities})"
+    for _ in range(60):
+        all_agents = await bbot_server.get_agents()
+        online_agents = await bbot_server.get_online_agents()
+        if len(all_agents) == 1 and len(online_agents) == 1:
+            break
+        await asyncio.sleep(0.5)
+    else:
+        assert False, f"No online agents (all agents: {all_agents} / activities: {activities})"
 
     # start scan2
     await bbot_server.start_scan(scan2.id)
@@ -103,27 +110,42 @@ async def test_applet_scans(bbot_server):
         event_types = [e.type for e in events]
         scan_statuses = [a.detail["scan_status"] for a in activities if a.type == "SCAN_STATUS"]
         scan_status_match = scan_statuses == ["STARTING", "RUNNING", "FINISHING", "FINISHED"]
-        activity_types_match = activity_types == [
-            "AGENT_STATUS",  # ONLINE
-            "AGENT_STATUS",  # READY
-            "TARGET_CREATED",
-            "TARGET_CREATED",
-            "SCAN_QUEUED",
-            "SCAN_SENT",
-            "AGENT_STATUS",  # READY -> BUSY
-            "SCAN_STATUS",  # STARTING
-            "SCAN_STATUS",  # STARTED
-            "SCAN_STATUS",  # FINISHING
-            "SCAN_STATUS",  # FINISHED
-            "AGENT_STATUS",  # BUSY -> READY
+        agent_statuses = [(a.detail["old_status"], a.detail["status"]) for a in activities if a.type == "AGENT_STATUS"]
+        agent_status_match = agent_statuses == [
+            ("OFFLINE", "ONLINE"),
+            ("ONLINE", "READY"),
+            ("READY", "BUSY"),
+            ("BUSY", "READY"),
         ]
-        event_types_match = event_types == ["SCAN", "SCAN"]
-        if activity_types_match and event_types_match and scan_status_match:
+        activity_types_match = set(activity_types) == set(
+            [
+                "AGENT_STATUS",  # OFFLINE -> ONLINE
+                "AGENT_STATUS",  # ONLINE -> READY
+                "TARGET_CREATED",
+                "TARGET_CREATED",
+                "SCAN_QUEUED",
+                "SCAN_SENT",
+                "AGENT_STATUS",  # READY -> BUSY
+                "SCAN_STATUS",  # STARTING
+                "SCAN_STATUS",  # STARTED
+                "SCAN_STATUS",  # FINISHING
+                "SCAN_STATUS",  # FINISHED
+                "AGENT_STATUS",  # BUSY -> READY
+            ]
+        )
+        activity_types_match &= len(activity_types) == 12
+        activity_types_match &= activity_types.count("AGENT_STATUS") == 4
+        activity_types_match &= activity_types.count("SCAN_STATUS") == 4
+        activity_types_match &= activity_types.count("TARGET_CREATED") == 2
+        activity_types_match &= activity_types.count("SCAN_QUEUED") == 1
+        activity_types_match &= activity_types.count("SCAN_SENT") == 1
+        event_types_match = set(event_types) == set(["SCAN", "SCAN"])
+        if activity_types_match and event_types_match and scan_status_match and agent_status_match:
             break
         await asyncio.sleep(0.1)
     else:
         assert False, (
-            f"Scan didn't finish properly. Activities: {[a.type for a in activities]}, Events: {[e.type for e in events]}, Scan statuses: {scan_statuses}"
+            f"Scan didn't finish properly. Activities: {[a.type for a in activities]}, Events: {[e.type for e in events]}, Scan statuses: {scan_statuses}, Agent statuses: {agent_statuses}"
         )
 
 

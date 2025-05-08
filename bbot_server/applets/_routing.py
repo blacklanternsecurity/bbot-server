@@ -8,10 +8,10 @@ from contextlib import suppress
 from fastapi.responses import StreamingResponse
 from starlette.websockets import WebSocketDisconnect
 
+from bbot_server.api.mcp import MCP_ENDPOINTS
 from bbot_server.utils.misc import smart_encode
 
 log = logging.getLogger("bbot_server.applets.routing")
-
 
 ROUTE_TYPES = {}
 
@@ -55,6 +55,9 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
         self.function_signature = inspect.signature(function)
         self.kwargs = dict(getattr(function, "_kwargs", {}))
         self.kwargs.pop("type", "")
+        self.mcp = self.kwargs.pop("mcp", False)
+        if self.mcp:
+            MCP_ENDPOINTS[self.function.__name__] = self.function
         self.tags = tags
 
     def add_to_applet(self, applet):
@@ -87,7 +90,7 @@ class HTTPRoute(BaseServerRoute):
         self.kwargs["tags"] = self.tags
 
     def add_to_router(self, router):
-        router.add_api_route(self.endpoint, self.function, **self.kwargs)
+        router.add_api_route(self.endpoint, self.function, operation_id=self.function.__name__, **self.kwargs)
 
     def setup(self):
         self.response_model = self.fastapi_route.response_model
@@ -116,19 +119,28 @@ class HTTPStreamRoute(BaseServerRoute):
 
         # Define a new async function that wraps the original function
         async def wrapper(*args, **kwargs):
-            # Call the original async generator function
-            async def async_generator():
-                async for item in self.function(*args, **kwargs):
-                    item = smart_encode(item) + b"\n"
-                    yield item
+            generator = self.function(*args, **kwargs)
 
-            # Return a StreamingResponse
+            try:
+                # Trigger execution by getting the first item
+                # This is necessary for error handling
+                first_item = await anext(generator)
+            except StopAsyncIteration:
+                # Empty generator is fine
+                return StreamingResponse(iter([]))
+
+            async def async_generator():
+                yield smart_encode(first_item) + b"\n"
+                async for item in generator:
+                    yield smart_encode(item) + b"\n"
+
             return StreamingResponse(async_generator())
 
         # Set the wrapper's signature to match the original function
         wrapper.__signature__ = sig
 
-        router.add_api_route(self.endpoint, wrapper, **self.kwargs)
+        # Add the route
+        router.add_api_route(self.endpoint, wrapper, operation_id=self.function.__name__, **self.kwargs)
 
 
 class WebsocketRoute(BaseServerRoute):

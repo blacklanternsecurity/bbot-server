@@ -44,8 +44,12 @@ def seconds_to_human(seconds: float) -> str:
     return ", ".join(parts)
 
 
-def timestamp_to_human(timestamp: float) -> str:
-    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+def timestamp_to_human(timestamp: float, include_hours: bool = True) -> str:
+    if include_hours:
+        format_str = "%Y-%m-%d %H:%M:%S"
+    else:
+        format_str = "%Y-%m-%d"
+    return datetime.fromtimestamp(timestamp).strftime(format_str)
 
 
 def smart_encode(obj):

@@ -1,6 +1,7 @@
 import httpx
 import string
 import orjson
+import typing
 import asyncio
 from functools import partial
 from websockets import connect
@@ -44,7 +45,8 @@ class http(BaseInterface):
                 raise ValueError("When using the HTTP interface, url is required in the config")
             url = self.config["url"]
         self.base_url = url.strip("/")
-        self.client = httpx.AsyncClient()
+        self._http_timeout = self.config.get("cli", {}).get("http_timeout", 15)
+        self.client = httpx.AsyncClient(timeout=self._http_timeout)
 
     async def _http_request(self, _url, _route, *args, **kwargs):
         """
@@ -60,19 +62,7 @@ class http(BaseInterface):
         except Exception as e:
             raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
-        try:
-            response_json = response.json()
-        except Exception as e:
-            self.log.debug(f"Error decoding response json for {response}: {e} - {getattr(response, 'text', '')}")
-            raise BBOTServerError(f"Error decoding response JSON for {response}: {e}") from e
-
-        if not response.is_success:
-            # detect errors
-            if isinstance(response_json, dict) and "error" in response_json:
-                error_class = HTTP_STATUS_MAPPINGS.get(response.status_code, BBOTServerError)
-                raise error_class(response_json["error"], detail=response_json.get("detail", {}))
-
-            raise BBOTServerError(f"Error making {method} request -> {_url}: {response.status_code} {response.text}")
+        response_json = await self._check_response_error(response)
 
         # if our function doesn't have a return type, return the raw JSON
         if _route.response_model is None:
@@ -97,6 +87,7 @@ class http(BaseInterface):
 
         try:
             async with self.client.stream(method=method, url=_url, json=body) as response:
+                await self._check_response_error(response, return_json=False)
                 async for chunk in response.aiter_bytes():
                     buffer += chunk
 
@@ -128,7 +119,15 @@ class http(BaseInterface):
                     except Exception as e:
                         self.log.error(f"Error decoding final chunk: {buffer}")
                         raise BBOTServerError(f"Error decoding final chunk: {buffer}") from e
+
+        except httpx.HTTPError as e:
+            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
+        except BBOTServerError:
+            raise
         except Exception as e:
+            import traceback
+
+            self.log.critical(traceback.format_exc())
             raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
     async def _websocket_request(self, _url, _route, *args, **kwargs) -> AsyncGenerator:
@@ -281,3 +280,27 @@ class http(BaseInterface):
         Useful for tab completion in IDEs
         """
         return sorted(set(self.applet.route_maps.keys()) | set(dir(self.applet)))
+
+    async def _check_response_error(self, response, return_json=True):
+        response_json = None
+
+        if return_json or not response.is_success:
+            try:
+                # if it's a streaming response, read the body
+                if isinstance(response.stream, typing.AsyncIterable):
+                    await response.aread()
+                response_json = response.json()
+            except Exception as e:
+                self.log.debug(f"Error decoding response json for {response}: {e} - {getattr(response, 'text', '')}")
+                raise BBOTServerError(f"Error decoding response JSON for {response}: {e}") from e
+
+        if not response.is_success:
+            if isinstance(response_json, dict) and "error" in response_json:
+                error_class = HTTP_STATUS_MAPPINGS.get(response.status_code, BBOTServerError)
+                raise error_class(response_json["error"], detail=response_json.get("detail", {}))
+
+            raise BBOTServerError(
+                f"Error making {response.request.method} request -> {response.url}: {response.status_code} {response.text}"
+            )
+
+        return response_json

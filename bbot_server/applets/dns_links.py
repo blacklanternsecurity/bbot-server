@@ -66,6 +66,18 @@ class DNSLinksApplet(BaseApplet):
 
         return activities
 
+    async def compute_stats(self, asset, stats):
+        dns_links = getattr(asset, "dns_links", {})
+        dns_link_stats = stats.get("dns_links", {})
+        for rdtype, links in dns_links.items():
+            try:
+                dns_link_stats[rdtype] += len(links)
+            except KeyError:
+                dns_link_stats[rdtype] = len(links)
+        dns_link_stats = dict(sorted(dns_link_stats.items(), key=lambda x: x[1], reverse=True))
+        stats["dns_links"] = dns_link_stats
+        return stats
+
     def _flatten_dns_links(self, dns_links: dict) -> set[tuple[str, str]]:
         flattened_links = set()
         for rdtype, links in dns_links.items():
