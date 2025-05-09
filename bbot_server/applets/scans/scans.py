@@ -6,6 +6,8 @@ from pymongo.errors import DuplicateKeyError
 from bbot_server.applets.agents import AgentsApplet
 from bbot_server.applets.scans.scan_runs import ScanRunsApplet
 from bbot_server.applets.scans.yara_rules import YaraRulesApplet
+from bbot_server.applets.presets import PresetsApplet
+from bbot_server.applets.targets import TargetsApplet
 
 from bbot_server.applets._base import BaseApplet, api_endpoint
 from bbot_server.models.scan_models import ScanResponse, ScanDBEntry
@@ -15,7 +17,7 @@ class ScansApplet(BaseApplet):
     name = "Scans"
     description = "scans"
     watched_events = ["SCAN"]
-    include_apps = [AgentsApplet, ScanRunsApplet, YaraRulesApplet]
+    include_apps = [AgentsApplet, ScanRunsApplet, YaraRulesApplet, TargetsApplet, PresetsApplet]
     model = ScanDBEntry
 
     @api_endpoint("/", methods=["GET"], summary="Get a single scan by its name")

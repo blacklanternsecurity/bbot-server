@@ -7,13 +7,12 @@ from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.applets.assets import AssetsApplet
 from bbot_server.applets.events import EventsApplet
 from bbot_server.applets.scans.scans import ScansApplet
-from bbot_server.applets.targets import TargetsApplet
 from bbot_server.applets.activity import ActivityApplet
 from bbot_server.applets.stats import StatsApplet
 
 
 class RootApplet(BaseApplet):
-    include_apps = [AssetsApplet, EventsApplet, ScansApplet, TargetsApplet, ActivityApplet, StatsApplet]
+    include_apps = [AssetsApplet, EventsApplet, ScansApplet, ActivityApplet, StatsApplet]
 
     name = "Root Applet"
 
