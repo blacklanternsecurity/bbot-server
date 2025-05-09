@@ -95,6 +95,7 @@ class ServerCTL(BaseBBCTL):
         self._run_docker_compose(["down"], check=False, cwd=self.docker_compose_dir)
 
     def _run_docker_compose(self, args, **kwargs):
+        kwargs["cwd"] = self.docker_compose_dir
         if self._docker_command is None:
             try:
                 run(["docker", "compose", "version"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
