@@ -1,4 +1,4 @@
-![Image](https://github.com/user-attachments/assets/c63cc32c-8823-4b60-a990-12b544dd99ba)
+![Image](https://github.com/user-attachments/assets/f53417ae-1299-4df0-92d0-33cfd34283e1)
 
 # BBOT Server [BETA]
 
