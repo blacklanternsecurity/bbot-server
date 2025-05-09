@@ -96,14 +96,17 @@ class ServerCTL(BaseBBCTL):
 
     def _run_docker_compose(self, args, **kwargs):
         if self._docker_command is None:
+            kwargs = dict(kwargs)
+            if not "check" in kwargs:
+                kwargs["check"] = True
             try:
-                run(["docker", "compose", "version"], check=True, **kwargs)
+                run(["docker", "compose", "version"], **kwargs)
                 self._docker_command = ["docker", "compose"]
             except (FileNotFoundError, subprocess.CalledProcessError):
                 try:
                     run(["docker-compose", "--version"], **kwargs)
                     self._docker_command = ["docker-compose"]
-                except FileNotFoundError:
+                except (FileNotFoundError, subprocess.CalledProcessError):
                     raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
 
         return run(self._docker_command + args, **kwargs)
