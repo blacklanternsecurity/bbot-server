@@ -1,4 +1,6 @@
 FROM python:3.11
+RUN apt-get -y update
+RUN apt-get -y install curl jq
 COPY . /app
 WORKDIR /app
 # install bbot_server in editable mode
