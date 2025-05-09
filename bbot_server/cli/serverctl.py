@@ -96,9 +96,7 @@ class ServerCTL(BaseBBCTL):
 
     def _run_docker_compose(self, args, **kwargs):
         if self._docker_command is None:
-            kwargs = dict(kwargs)
-            if not "check" in kwargs:
-                kwargs["check"] = True
+            kwargs.pop("check", None)
             try:
                 run(["docker", "compose", "version"], **kwargs)
                 self._docker_command = ["docker", "compose"]
