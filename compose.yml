@@ -29,8 +29,8 @@ services:
   mongodb:
     image: mongo:latest
     restart: always
-    # volumes:
-    #   - ./mongodb:/data/db
+    volumes:
+      - ./mongodb:/data/db
 
   redis:
     image: redis:latest

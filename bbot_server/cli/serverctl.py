@@ -2,6 +2,7 @@ import os
 import sys
 import typer
 import asyncio
+import subprocess
 from pathlib import Path
 from subprocess import run
 from omegaconf import OmegaConf
@@ -96,9 +97,9 @@ class ServerCTL(BaseBBCTL):
     def _run_docker_compose(self, args, **kwargs):
         if self._docker_command is None:
             try:
-                run(["docker", "compose", "version"], **kwargs)
+                run(["docker", "compose", "version"], check=True, **kwargs)
                 self._docker_command = ["docker", "compose"]
-            except FileNotFoundError:
+            except (FileNotFoundError, subprocess.CalledProcessError):
                 try:
                     run(["docker-compose", "--version"], **kwargs)
                     self._docker_command = ["docker-compose"]
