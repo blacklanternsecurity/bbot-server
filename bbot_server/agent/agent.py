@@ -10,7 +10,7 @@ from urllib.parse import urlparse, urlunparse, urljoin
 
 from bbot.scanner import Scanner, Preset
 from bbot.scanner.dispatcher import Dispatcher
-from bbot.constants import get_scan_status_name, SCAN_STATUS_NOT_STARTED
+from bbot.constants import get_scan_status_code, get_scan_status_name, SCAN_STATUS_NOT_STARTED, SCAN_STATUS_FAILED
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
@@ -44,7 +44,8 @@ class AgentDispatcher(Dispatcher):
         self.agent = agent
 
     async def on_status(self, status, scan_id):
-        await self.agent.gratuitous_status_update(scan=self.scan, scan_status=status)
+        scan_status_code = get_scan_status_code(status)
+        await self.agent.gratuitous_status_update(scan=self.scan, scan_status_code=scan_status_code)
 
 
 @async_to_sync_class
@@ -168,8 +169,9 @@ class BBOTAgent:
         except asyncio.CancelledError:
             self.log.warning("Scan cancelled")
         except BaseException as e:
-            self.log.error(f"Error running scan: {e}")
-            self.log.error(traceback.format_exc())
+            full_error = f"Error in BBOT scan: {e} - {traceback.format_exc()}"
+            self.log.error(full_error)
+            await self.gratuitous_status_update(scan_status_code=SCAN_STATUS_FAILED, error=full_error)
         finally:
             self.scan = None
             self.scan_task = None
@@ -284,10 +286,11 @@ class BBOTAgent:
             self.log.error(traceback.format_exc())
             raise
 
-    async def gratuitous_status_update(self, scan=None, scan_status=None):
+    async def gratuitous_status_update(self, scan=None, scan_status_code=None, error=None):
         scan_id = getattr(scan, "id", None)
         scan_name = getattr(scan, "name", None)
-        scan_status_code = getattr(scan, "_status_code", SCAN_STATUS_NOT_STARTED)
+        scan_status_code = scan_status_code or getattr(scan, "_status_code", SCAN_STATUS_NOT_STARTED)
+        scan_status_code = get_scan_status_code(scan_status_code)
         scan_status = get_scan_status_name(scan_status_code)
         status = {
             "agent_status": self.status,
@@ -296,6 +299,8 @@ class BBOTAgent:
             "scan_id": scan_id,
             "scan_name": scan_name,
         }
+        if error is not None:
+            status["error"] = error
         if scan_id and scan is not None:
             try:
                 status["scan_status_detail"] = scan.modules_status(detailed=True)

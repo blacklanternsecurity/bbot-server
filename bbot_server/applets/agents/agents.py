@@ -150,26 +150,32 @@ class AgentsApplet(BaseApplet):
                         scan_status = get_scan_status_name(scan_status_code)
                         scan_id = message.response.get("scan_id", None)
                         scan_name = message.response.get("scan_name", None)
+                        detail = {
+                            "agent_id": str(agent.id),
+                            "agent_status": agent_status,
+                            "scan_status": scan_status,
+                            "scan_status_code": scan_status_code,
+                            "scan_id": scan_id,
+                            "scan_name": scan_name,
+                        }
+                        if "error" in message.response:
+                            detail["error"] = message.response["error"]
                         if scan_name and scan_id:
                             try:
                                 existing_scan = await self.parent.get_scan(id=scan_id)
                             except self.BBOTServerNotFoundError as e:
                                 self.log.error(f"Error getting scan {scan_id}: {e}")
                                 existing_scan = None
-                            existing_scan_status_code = getattr(existing_scan, "status_code", SCAN_STATUS_QUEUED)
+                            existing_scan_status_code = get_scan_status_code(
+                                getattr(existing_scan, "status_code", SCAN_STATUS_QUEUED)
+                            )
+                            existing_scan_status = get_scan_status_name(existing_scan_status_code)
                             if scan_status_code > existing_scan_status_code:
                                 await self.parent.update_scan_status(scan_id=scan_id, status_code=scan_status_code)
                                 await self.emit_activity(
                                     type="SCAN_STATUS",
-                                    detail={
-                                        "agent_id": str(agent.id),
-                                        "agent_status": agent_status,
-                                        "scan_status": scan_status,
-                                        "scan_status_code": scan_status_code,
-                                        "scan_id": scan_id,
-                                        "scan_name": scan_name,
-                                    },
-                                    description=f"Scan [COLOR]{scan_name}[/COLOR] status changed to [bold]{scan_status}[/bold]",
+                                    detail=detail,
+                                    description=f"Scan [COLOR]{scan_name}[/COLOR] status changed from [bold]{existing_scan_status}[/bold] to [bold]{scan_status}[/bold]",
                                 )
                         await self._update_agent_status(
                             agent_id=agent.id,
