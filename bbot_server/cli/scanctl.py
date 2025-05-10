@@ -1,5 +1,5 @@
-from typer import Option
 from typing import Annotated
+from typer import Option, Argument
 
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
@@ -45,6 +45,7 @@ class ScanCTL(BaseBBCTL):
                     out_json["duration"] = self.seconds_to_human(duration) if duration is not None else ""
                     out_json["started"] = self.timestamp_to_human(started) if started is not None else ""
                     out_json["finished"] = self.timestamp_to_human(finished) if finished is not None else ""
+                    out_json["id"] = scan_json["id"]
                     yield out_json
 
             for line in common.json_to_csv(
@@ -57,6 +58,7 @@ class ScanCTL(BaseBBCTL):
                     "duration",
                     "started",
                     "finished",
+                    "id",
                 ],
             ):
                 self.sys.stdout.buffer.write(line)
@@ -70,7 +72,7 @@ class ScanCTL(BaseBBCTL):
         table.add_column("Started", style=self.DARK_COLOR)
         table.add_column("Finished", style=self.DARK_COLOR)
         table.add_column("Duration")
-
+        table.add_column("ID", style=self.DARK_COLOR)
         # TODO: why is duration None?
         for scan in scans:
             duration = "" if scan.duration_seconds is None else self.seconds_to_human(scan.duration_seconds)
@@ -94,6 +96,7 @@ class ScanCTL(BaseBBCTL):
                 started,
                 finished,
                 duration,
+                scan.id,
             )
         self.stdout.print(table)
 
@@ -115,3 +118,11 @@ class ScanCTL(BaseBBCTL):
         scan = self.bbot_server.start_scan(name=name, target_id=target, preset_id=preset)
         self.log.info(f"Scan queued successfully")
         self.print_pydantic_json(scan, colorize=True)
+
+    @subcommand(help="Cancel a scan")
+    def cancel(
+        self,
+        scan_id: Annotated[str, Argument(help="Scan ID to cancel")],
+    ):
+        self.bbot_server.cancel_scan(scan_id)
+        self.log.info(f"Scan cancelled successfully")

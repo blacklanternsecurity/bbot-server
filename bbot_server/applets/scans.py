@@ -6,7 +6,13 @@ from pymongo import ASCENDING
 from contextlib import suppress
 
 from bbot.core.helpers.names_generator import random_name
-from bbot.constants import get_scan_status_name, get_scan_status_code, SCAN_STATUS_QUEUED, SCAN_STATUS_ABORTED
+from bbot.constants import (
+    get_scan_status_name,
+    get_scan_status_code,
+    SCAN_STATUS_QUEUED,
+    SCAN_STATUS_ABORTED,
+    SCAN_STATUS_FINISHED,
+)
 
 from bbot_server.applets.agents import AgentsApplet
 from bbot_server.applets.presets import PresetsApplet
@@ -111,10 +117,16 @@ class ScansApplet(BaseApplet):
         scan = await self.collection.find_one(
             {"id": str(scan_id)}, {"id": 1, "agent_id": 1, "name": 1, "status": 1, "status_code": 1}
         )
+        if scan is None:
+            raise self.BBOTServerNotFoundError("Scan not found")
         scan_name = scan.get("name", "")
         if scan is None:
             raise self.BBOTServerNotFoundError("Scan not found")
         agent_id = scan.get("agent_id", None)
+
+        existing_scan_status_code = get_scan_status_code(scan.get("status_code", SCAN_STATUS_QUEUED))
+        if existing_scan_status_code >= SCAN_STATUS_FINISHED:
+            raise self.BBOTServerValueError(f"Scan {scan_name} is already finished, skipping")
 
         mark_aborted = False
         if agent_id is None:
