@@ -3,7 +3,6 @@ from pathlib import Path
 from typer import Argument
 
 from bbot_server.cli import common
-from bbot_server.models.preset_models import Preset
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
@@ -19,16 +18,16 @@ class PresetCTL(BaseBBCTL):
         name: Annotated[str, Option("--name", "-n", help="Preset name")] = "",
         description: Annotated[str, Option("--description", "-d", help="Preset description")] = "",
     ):
-        preset_obj = self._load_preset(preset)
+        preset_dict = self._load_preset(preset)
         if name:
-            preset_obj.name = name
+            preset_dict["name"] = name
         if description:
-            preset_obj.description = description
-        if not preset_obj.name:
-            preset_obj.name = preset.stem
-        self.bbot_server.create_preset(preset_obj)
+            preset_dict["description"] = description
+        if not preset_dict["name"]:
+            preset_dict["name"] = preset.stem
+        new_preset = self.bbot_server.create_preset(preset_dict)
         self.log.info(f"Preset created successfully")
-        self.print_json(preset_obj.model_dump())
+        self.print_pydantic_json(new_preset, colorize=True)
 
     @subcommand(help="Update a preset by name or ID")
     def update(
@@ -36,8 +35,8 @@ class PresetCTL(BaseBBCTL):
         id: Annotated[str, Option("--name", "-n", "--id", "-i", help="Preset name or ID")],
         preset: Annotated[Path, Argument(help="Path to preset YAML file")],
     ):
-        preset_obj = self._load_preset(preset)
-        self.bbot_server.update_preset(id, preset_obj)
+        preset_dict = self._load_preset(preset)
+        self.bbot_server.update_preset(id, preset_dict)
         self.log.info(f"Preset updated successfully")
 
     @subcommand(help="Get a preset by name or ID")
@@ -94,4 +93,4 @@ class PresetCTL(BaseBBCTL):
         preset_dict = yaml.safe_load(preset.read_text())
         if not isinstance(preset_dict, dict):
             raise self.BBOTServerValueError("Preset must be a dictionary")
-        return Preset(preset=preset_dict)
+        return preset_dict

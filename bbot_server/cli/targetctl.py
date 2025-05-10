@@ -30,7 +30,7 @@ class TargetCTL(BaseBBCTL):
             Option(
                 "--strict-scope",
                 "-ss",
-                help="Strict DNS scope (only the exact hosts themselves are in scope, not their children)",
+                help="Strict DNS scope (only the exact hosts themselves should be considered in-scope, not their subdomains)",
             ),
         ] = False,
     ):
@@ -120,6 +120,11 @@ class TargetCTL(BaseBBCTL):
                 self.timestamp_to_human(target.modified),
             )
         self.stdout.print(table)
+
+    @subcommand(help="Get a target by its name or ID")
+    def get(self, target_id: Annotated[str, Argument(help="Target name or ID")]):
+        target = self.bbot_server.get_target(target_id)
+        self.print_json(target.model_dump())
 
     def _read_file(self, file, filetype):
         if not file.resolve().is_file():

@@ -15,7 +15,7 @@ class ScanCTL(BaseBBCTL):
 
     include = [PresetCTL, TargetCTL]
 
-    @subcommand(help="List scan runs")
+    @subcommand(help="List scans")
     def list(
         self,
         json: common.json = False,
@@ -113,5 +113,5 @@ class ScanCTL(BaseBBCTL):
         name: Annotated[str, Option("--name", "-n", help="Name of the scan", metavar="NAME")] = None,
     ):
         scan = self.bbot_server.start_scan(name=name, target_id=target, preset_id=preset)
-        self.log.info(f"Scan started successfully")
+        self.log.info(f"Scan queued successfully")
         self.print_pydantic_json(scan, colorize=True)
