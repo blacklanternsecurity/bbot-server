@@ -32,6 +32,9 @@ class BaseBBCTL:
     # optionally include other BBCTL classes
     include = []
 
+    # allow the command to be invoked without a subcommand
+    _invoke_without_command = False
+
     # imports for convenience
     import sys
     import orjson
@@ -45,7 +48,13 @@ class BaseBBCTL:
         self.children = {}
 
         # initialize typer
-        self.typer = Typer(help=self.help, short_help=self.short_help, epilog=self.epilog)
+        self.typer = Typer(
+            help=self.help,
+            short_help=self.short_help,
+            epilog=self.epilog,
+            invoke_without_command=self._invoke_without_command,
+            no_args_is_help=True,
+        )
 
         # register main method
         decorator = self.typer.callback()

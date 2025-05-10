@@ -29,6 +29,8 @@ class BBCTL(BaseBBCTL):
 
     include = [AssetCTL, ScanCTL, ServerCTL, AgentCTL, EventCTL, ActivityCTL, FindingCTL, TechnologyCTL]
 
+    _invoke_without_command = True
+
     def __init__(self):
         super().__init__()
         self._bbot_server = None
