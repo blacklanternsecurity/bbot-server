@@ -23,7 +23,7 @@ class PresetCTL(BaseBBCTL):
             preset_dict["name"] = name
         if description:
             preset_dict["description"] = description
-        if not preset_dict["name"]:
+        if not preset_dict.get("name", ""):
             preset_dict["name"] = preset.stem
         new_preset = self.bbot_server.create_preset(preset_dict)
         self.log.info(f"Preset created successfully")
