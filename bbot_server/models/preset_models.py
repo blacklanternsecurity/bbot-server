@@ -1,6 +1,6 @@
 import uuid
 from typing import Annotated, Any
-from pydantic import UUID4, Field, computed_field
+from pydantic import UUID4, Field, computed_field, field_validator
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.models.base import BaseBBOTServerModel
@@ -13,6 +13,22 @@ class Preset(BaseBBOTServerModel):
     preset: dict[str, Any] = Field(default_factory=dict)
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
+
+    @field_validator("preset")
+    @classmethod
+    def sanitize_preset(cls, v: dict[str, Any]) -> dict[str, Any]:
+        # remote target information
+        for value in ("target", "targets", "whitelist", "blacklist"):
+            v.pop(value, None)
+        # remove strict scope setting (this is stored in the target)
+        config = v.pop("config", {})
+        if config:
+            scope_config = config.pop("scope", {})
+            if scope_config:
+                scope_config.pop("strict", None)
+                config["scope"] = scope_config
+            v["config"] = config
+        return v
 
     @computed_field
     @property

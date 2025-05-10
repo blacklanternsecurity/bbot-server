@@ -36,7 +36,8 @@ def test_cli_presetctl(bbot_server_http):
     assert len(presets) == 1
     assert presets[0].name == "test preset"
     assert presets[0].description == "test preset description"
-    assert presets[0].preset["targets"] == ["evilcorp.com"]
+    # target should have been removed
+    assert not "targets" in presets[0].preset
 
     # update the preset
     preset_yaml = """
@@ -62,7 +63,8 @@ def test_cli_presetctl(bbot_server_http):
     preset = Preset(preset=orjson.loads(process.stdout))
     assert preset.name == "test preset updated"
     assert preset.description == "test preset description updated"
-    assert preset.preset["targets"] == ["evilcorp.com", "evilcorp.net"]
+    # target should have been removed
+    assert not "targets" in preset.preset
 
     # get preset by name (text)
     command = BBCTL_COMMAND + ["scan", "preset", "get", "test preset updated"]
@@ -89,6 +91,8 @@ def test_cli_presetctl(bbot_server_http):
     )
     assert process.returncode == 0
     assert "Preset created successfully" in process.stderr
+    preset_json = orjson.loads(process.stdout)
+    assert preset_json["name"] == "test preset 2"
 
     # list presets
     command = BBCTL_COMMAND + ["scan", "preset", "list", "--json"]

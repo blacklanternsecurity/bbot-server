@@ -40,15 +40,17 @@ class PresetsApplet(BaseApplet):
         return preset
 
     @api_endpoint("/update/{preset_id}", methods=["PATCH"], summary="Update a preset by its name or id")
-    async def update_preset(self, preset_id: UUID4 | str, preset: Preset) -> Preset:
+    async def update_preset(self, preset_id: UUID4 | str, preset: dict[str, Any]) -> Preset:
         existing_preset = await self.get_preset(preset_id)
-        preset.id = existing_preset.id
-        preset.modified = self.helpers.utc_now()
+        # Create new preset with the updated dictionary
+        new_preset = Preset(preset=preset)
+        new_preset.id = existing_preset.id
+        new_preset.modified = self.helpers.utc_now()
         try:
-            await self.collection.replace_one({"id": str(existing_preset.id)}, preset.model_dump())
+            await self.collection.replace_one({"id": str(existing_preset.id)}, new_preset.model_dump())
         except DuplicateKeyError:
-            raise self.BBOTServerValueError(f"Preset with name '{preset.name}' already exists")
-        return preset
+            raise self.BBOTServerValueError(f"Preset with name '{new_preset.name}' already exists")
+        return new_preset
 
     @api_endpoint("/delete/{preset_id}", methods=["DELETE"], summary="Delete a preset by its name or id")
     async def delete_preset(self, preset_id: UUID4 | str) -> None:

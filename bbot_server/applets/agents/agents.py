@@ -3,8 +3,9 @@ import asyncio
 import traceback
 from uuid import UUID
 from pydantic import UUID4
-from fastapi import WebSocket
+from typing import Annotated
 from contextlib import suppress
+from fastapi import WebSocket, Query
 from datetime import datetime, timezone
 
 from bbot.constants import get_scan_status_code, get_scan_status_name, SCAN_STATUS_QUEUED
@@ -32,7 +33,7 @@ class AgentsApplet(BaseApplet):
             # watch the
             self.kickoff_queued_scans_task = self.create_task(self._kickoff_queued_scans_loop())
 
-    @api_endpoint("/list", methods=["GET"], summary="List all agents")
+    @api_endpoint("/list", methods=["GET"], summary="List all agents", mcp=True)
     async def get_agents(self) -> list[Agent]:
         db_results = await self.collection.find().to_list(length=None)
         agents = []
@@ -51,8 +52,8 @@ class AgentsApplet(BaseApplet):
         return agent
 
     @api_endpoint("/", methods=["DELETE"], summary="Delete an agent")
-    async def delete_agent(self, id: UUID4 = None, name: str = None):
-        agent = await self.get_agent(id=id, name=name)
+    async def delete_agent(self, id: str):
+        agent = await self.get_agent(id)
         await self.collection.delete_one({"id": str(agent.id)})
 
     @api_endpoint("/", methods=["GET"], summary="Get an agent by its id")
@@ -66,12 +67,17 @@ class AgentsApplet(BaseApplet):
             raise self.BBOTServerNotFoundError(f"Agent not found: {query}")
         return await self._make_agent(agent)
 
-    @api_endpoint("/status", methods=["GET"], summary="Get the status of an agent")
-    async def get_agent_status(self, id: UUID4, detailed: bool = False) -> dict[str, str]:
+    @api_endpoint("/status", methods=["GET"], summary="Get the status of an agent", mcp=True)
+    async def get_agent_status(
+        self,
+        id: Annotated[str, Query(description="agent name or ID")],
+        detailed: bool = False,
+    ) -> dict[str, str]:
         start_time = time.time()
+        agent = await self.get_agent(id)
         try:
             command_response = await self.connection_manager.execute_command(
-                str(id), "get_agent_status", timeout=10, detailed=detailed
+                str(agent.id), "get_agent_status", timeout=10, detailed=detailed
             )
             if command_response.error:
                 raise self.BBOTServerValueError(command_response.error)
@@ -94,7 +100,7 @@ class AgentsApplet(BaseApplet):
             raise self.BBOTServerValueError(command_response.error)
         return command_response.response
 
-    @api_endpoint("/online", methods=["GET"], summary="Get all online agents")
+    @api_endpoint("/online", methods=["GET"], summary="Get all online agents", mcp=True)
     async def get_online_agents(self, status: str = "READY") -> list[Agent]:
         agents = await self.collection.find({"status": status}).to_list(length=None)
         agents = [Agent(**agent) for agent in agents]

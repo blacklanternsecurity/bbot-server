@@ -146,8 +146,13 @@ class BBOTAgent:
             return {"status": "error", "message": "Scan not running"}
         if force:
             self.scan_task.cancel()
-            # with suppress(asyncio.CancelledError):
-            #     await self.scan_task
+            with suppress(BaseException):
+                await asyncio.wait_for(self.scan_task, timeout=0.5)
+            if not (self.scan is None and self.status == "READY"):
+                self.scan = None
+                self.scan_task = None
+                self.status = "READY"
+                await self.gratuitous_status_update()
             return {"status": "success"}
         else:
             try:

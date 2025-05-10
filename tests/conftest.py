@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 PROJ_ROOT = Path(__file__).parent.parent
 BBCTL_FILE = PROJ_ROOT / "bbot_server" / "cli" / "bbctl.py"
 TEST_CONFIG_PATH = Path(__file__).parent / "test_config.yml"
-BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH)]
+BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH), "--no-color"]
 
 BBOT_SERVER_TEST_DIR = Path("/tmp/.bbot_server_test")
 BBOT_SERVER_TEST_DIR.mkdir(parents=True, exist_ok=True)

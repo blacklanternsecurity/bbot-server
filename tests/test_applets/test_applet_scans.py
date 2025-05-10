@@ -1,10 +1,8 @@
-import pytest
 import asyncio
 from pathlib import Path
 from contextlib import suppress
 
 from bbot_server import BBOTServer
-from bbot_server.errors import BBOTServerNotFoundError
 
 from ..conftest import INGEST_PROCESSING_DELAY
 
@@ -226,9 +224,8 @@ async def test_running_scan_cancellation(bbot_server_config, bbot_agent, bbot_wa
     else:
         assert False, f"Scan run did not abort properly. Scans: {scans}"
 
-    # cancelling the scan again should raise an error
-    with pytest.raises(BBOTServerNotFoundError, match="Scan isn't running on agent"):
-        await bbot_server.cancel_scan(scan_id=scan.id)
+    # cancelling the scan again should be a no-op
+    await bbot_server.cancel_scan(scan_id=scan.id)
 
     # make sure the agent is still running and ready to pick up the next scan
     agents = await bbot_server.get_agents()

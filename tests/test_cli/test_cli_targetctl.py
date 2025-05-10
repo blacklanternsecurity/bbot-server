@@ -98,12 +98,12 @@ def test_cli_targetctl(bbot_server_http):
         capture_output=True,
         text=True,
     )
-    assert "Missing option" in process.stderr
+    assert "Missing argument" in process.stderr
     assert process.returncode == 2
 
     # delete the target (by name)
     process = subprocess.run(
-        BBCTL_COMMAND + ["--no-color", "scan", "target", "delete", "--name", "Target 1"],
+        BBCTL_COMMAND + ["--no-color", "scan", "target", "delete", "Target 1"],
         capture_output=True,
         text=True,
     )

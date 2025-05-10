@@ -28,6 +28,7 @@ class PresetCTL(BaseBBCTL):
             preset_obj.name = preset.stem
         self.bbot_server.create_preset(preset_obj)
         self.log.info(f"Preset created successfully")
+        self.print_json(preset_obj.model_dump())
 
     @subcommand(help="Update a preset by name or ID")
     def update(

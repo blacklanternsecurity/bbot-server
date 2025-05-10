@@ -7,6 +7,7 @@ from pathlib import Path
 from subprocess import run
 from contextlib import suppress
 
+from bbot_server import BBOT_SERVER_PROJECT_ROOT
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
@@ -51,7 +52,14 @@ class ServerCTL(BaseBBCTL):
                 app = partial(make_server_app, config=self.config)
 
             # TODO: increase workers after adding websocket channels
-            uvicorn.run(app, host=listen, port=port, reload=reload, workers=1)
+            uvicorn.run(
+                app,
+                host=listen,
+                port=port,
+                reload=reload,
+                reload_excludes=[str(BBOT_SERVER_PROJECT_ROOT / "mongodb")],
+                workers=1,
+            )
 
         elif watchdog_only:
             print("Starting watchdog")

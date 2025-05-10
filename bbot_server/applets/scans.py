@@ -3,6 +3,7 @@ import asyncio
 import traceback
 from pydantic import UUID4
 from contextlib import suppress
+from pymongo.operations import ASCENDING
 
 from bbot.core.helpers.names_generator import random_name
 from bbot.constants import get_scan_status_name, get_scan_status_code, SCAN_STATUS_QUEUED, SCAN_STATUS_ABORTED
@@ -42,8 +43,8 @@ class ScansApplet(BaseApplet):
     @api_endpoint("/start", methods=["POST"], summary="Create a new scan")
     async def start_scan(
         self,
-        target_id: UUID4,
-        preset_id: UUID4,
+        target_id: str,
+        preset_id: str,
         name: str = None,
         agent_id: UUID4 = None,
         seed_with_current_assets: bool = False,
@@ -100,7 +101,8 @@ class ScansApplet(BaseApplet):
 
     @api_endpoint("/queued", methods=["GET"], summary="List queued scans")
     async def get_queued_scans(self) -> list[Scan]:
-        cursor = self.collection.find({"status": "QUEUED"})
+        # we sort by `created` ascending to get the oldest queued scans first
+        cursor = self.collection.find({"status": "QUEUED"}, sort=[("created", ASCENDING)])
         return [Scan(**run) for run in await cursor.to_list(length=None)]
 
     @api_endpoint("/cancel/{id}", methods=["POST"], summary="Cancel a scan by its id")
@@ -190,7 +192,7 @@ class ScansApplet(BaseApplet):
                         {"id": str(scan.id)}, {"$set": {"agent_id": str(selected_agent.id)}}
                     )
 
-                    # merge target into the preset
+                    # merge target and preset
                     scan_preset = dict(scan.preset.preset)
                     scan_preset["target"] = scan.target.seeds
                     scan_preset["whitelist"] = scan.target.whitelist
