@@ -105,6 +105,14 @@ class ServerCTL(BaseBBCTL):
     def ps(self):
         self._run_docker_compose(["ps"])
 
+    @subcommand(help="List docker compose logs")
+    def logs(
+        self,
+        follow: Annotated[bool, Option("--follow", "-f", help="Follow the logs")] = False,
+        tail: Annotated[int, Option("--tail", "-n", help="Number of lines to show from the end of the logs")] = 100,
+    ):
+        self._run_docker_compose(["logs", "--tail", str(tail), "--follow" if follow else ""])
+
     @subcommand(help="Clear the database (drop Mongodb collections).")
     def cleardb(
         self,
@@ -178,6 +186,6 @@ class ServerCTL(BaseBBCTL):
     )
     def compose(self, args: list[str]):
         # we take sys.argv after "run-docker-compose"
-        docker_compose_index = sys.argv.index("run-docker-compose")
+        docker_compose_index = sys.argv.index("compose")
         docker_compose_args = sys.argv[docker_compose_index + 1 :]
         return self._run_docker_compose(docker_compose_args)

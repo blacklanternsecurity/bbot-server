@@ -2,6 +2,8 @@ import orjson
 import subprocess
 from time import sleep
 
+from bbot.models.pydantic import Event
+
 from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY, BBOT_SERVER_TEST_DIR
 from bbot_server.models.scan_models import Scan
 
@@ -104,6 +106,11 @@ debug: true
     assert scans[0].finished_at is not None
     assert scans[0].started_at is not None
 
+    events = subprocess.run(BBCTL_COMMAND + ["events", "list", "--json"], capture_output=True, text=True)
+    assert process.returncode == 0
+    events = [Event(**orjson.loads(line)) for line in events.stdout.splitlines()]
+    assert len(events) > 0
+    assert "127.0.0.1" in [e.data for e in events]
 
 def test_cli_scan_ingest(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events):
     scan1_out_file, scan2_out_file = bbot_out_file

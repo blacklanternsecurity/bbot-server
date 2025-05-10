@@ -10,6 +10,11 @@ class TargetCTL(BaseBBCTL):
     help = "Create, start, and monitor BBOT targets"
     short_help = "Manage BBOT targets"
 
+    @subcommand(help="Get a target by its name or ID")
+    def get(self, target_id: Annotated[str, Argument(help="Target name or ID")]):
+        target = self.bbot_server.get_target(target_id)
+        self.print_json(target.model_dump())
+
     @subcommand(help="Create a new target")
     def create(
         self,

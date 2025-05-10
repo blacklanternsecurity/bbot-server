@@ -225,27 +225,6 @@ class ScansApplet(BaseApplet):
             self.log.error(f"Error in scans loop: {e}")
             self.log.error(traceback.format_exc())
 
-    async def handle_activity(self, activity: Activity) -> list[Activity]:
-        """
-        Whenever we get a SCAN_STATUS activity, we update the scan status in the database.
-        """
-        scan_id = activity.detail["scan_id"]
-        existing_scan_status = await self.collection.find_one({"id": scan_id}, {"status_code": 1})
-        if not existing_scan_status:
-            self.log.warning(f"Scan {scan_id} not found, skipping handling of SCAN_STATUS {activity}")
-            return
-        existing_status_code = get_scan_status_code(existing_scan_status["status_code"])
-        scan_status_code = get_scan_status_code(activity.detail["scan_status_code"])
-        scan_status_name = get_scan_status_name(scan_status_code)
-        if scan_status_code <= existing_status_code:
-            self.log.warning(
-                f"Scan {scan_id} status code {scan_status_code} is not greater than existing status code {existing_status_code}, skipping (SCAN: {await self.get_scan(scan_id)})"
-            )
-            return
-        self.collection.update_one(
-            {"id": scan_id}, {"$set": {"status": scan_status_name, "status_code": scan_status_code}}
-        )
-
     async def handle_event(self, event, asset) -> list[Activity]:
         """
         Whenever we get a SCAN event, we create or update the scan in the database.
