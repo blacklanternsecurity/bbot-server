@@ -42,6 +42,7 @@ class BBCTL(BaseBBCTL):
             bool, Option(f"--color/--no-color", "-cl/-ncl", help="Enable or disable color in the terminal")
         ] = True,
         debug: Annotated[bool, Option("--debug", "-d", help="Enable debug mode")] = False,
+        current_config: Annotated[bool, Option("--current-config", "-cc", help="Print the current config")] = False,
     ):
         self.silent = silent
         self.color = color
@@ -64,6 +65,9 @@ class BBCTL(BaseBBCTL):
 
         self._stdout = Console(file=sys.stdout, highlight=False, color_system=("auto" if self.color else None))
         self._stderr = Console(file=sys.stderr, highlight=False, color_system=("auto" if self.color else None))
+
+        if current_config:
+            self.print_yaml(OmegaConf.to_yaml(self.config))
 
     @cached_property
     def bbot_server(self):
