@@ -68,26 +68,14 @@ cat ~/.bbot/scans/demonic_jimmy/output.json | bbctl event ingest
 
 ## Start a scan (through BBOT server)
 
-In BBOT server, scans are stored presets that can be run repeatably.
+To start a scan in BBOT server, you need to first create a **Preset** and **Target**.
 
-To create a scan, pass a BBOT preset to `scans create`:
+1. Create Preset
 
-```bash
-# Create a new scan
-bbctl scan create --name "evilcorp_subdomains" --preset my_preset.yml
-```
+The preset defines which flags, modules, API keys, etc. will be used for the scan. It typically looks something like this:
 
-The preset contains your targets, and will look something like this:
-
+**`my_preset.yml`**:
 ```yaml
-targets:
-  - evilcorp.com
-  - evilcorp.net
-  - 1.2.3.0/24
-
-blacklist:
-  - internal.evilcorp.com
-
 include:
   - subdomain-enum
   - cloud-enum
@@ -101,14 +89,27 @@ config:
     api_key: deadbeef
 ```
 
-## Start the scan
+```bash
+# create a new scan preset
+bbctl scan preset create my_preset.yml
+```
+
+2. Create Target
+
+A target defines what's in-scope for the scan. They can also be used when filtering assets.
 
 ```bash
-# List scans
-bbctl scan list
+# create a new scan target
+bbctl scan target create --seeds evilcorp.txt --name "my_target"
+```
 
-# Start the scan
-bbctl scan start "evilcorp_subdomains"
+3. Start Scan
+
+Now that we've created a preset and target, we can start the scan:
+
+```bash
+# start the scan
+bbctl scan start --preset my_preset --target my_target --name "demonic_jimmy"
 ```
 
 ## Monitor scan progress
@@ -139,24 +140,10 @@ You can monitor or stop an in-progress scan:
 
 ```bash
 # List scan runs
-bbctl scan runs list
+bbctl scan list
 
 # Stop the scan
-bbctl scan runs stop --name "demonic_jimmy"
-```
-
-## Targets
-
-BBOT server categorizes its assets by target.
-
-You can list targets like so:
-
-```bash
-# List targets
-bbctl target list
-
-# Create a new target
-bbctl target create --seeds seeds.txt --blacklist blacklist.txt
+bbctl scan stop --name "demonic_jimmy"
 ```
 
 ## Custom triggers
