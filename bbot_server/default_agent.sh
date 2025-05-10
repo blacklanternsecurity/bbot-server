@@ -1,7 +1,7 @@
 #! /bin/bash
 
 # delete the default agent if it exists
-bbctl agent delete --name "Docker Default Agent"
+bbctl agent delete "Docker Default Agent"
 
 # create the default agent
 default_agent_json=$(bbctl agent create --name "Docker Default Agent" --description "Default agent for Docker")

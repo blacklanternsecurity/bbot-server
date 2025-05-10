@@ -1,3 +1,4 @@
+from typer import Argument
 from datetime import datetime
 
 from bbot_server.cli import common
@@ -53,14 +54,9 @@ class AgentCTL(BaseBBCTL):
     @subcommand(help="Delete an agent")
     def delete(
         self,
-        agent_id: Annotated[str, Option("--id", "-i", help="ID of the agent to delete", metavar="UUID")] = None,
-        agent_name: Annotated[
-            str, Option("--name", "-n", help="Name of the agent to delete", metavar="STRING")
-        ] = None,
+        agent_id: Annotated[str, Argument(help="Name or ID of the agent to delete")] = None,
     ):
-        if agent_id is None and agent_name is None:
-            raise self.BBOTServerValueError("Either --id or --name must be provided")
-        self.bbot_server.delete_agent(id=agent_id, name=agent_name)
+        self.bbot_server.delete_agent(agent_id)
 
     @subcommand(help="Start an agent process")
     def start(

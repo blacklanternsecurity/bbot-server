@@ -63,6 +63,7 @@ class BBOTWatchdog:
         try:
             activities = []
             event = Event(**message)
+            self.log.info(f"Received event: {event}")
             # get the event's associated asset (this saves on database queries since it will be passed down to each applet)
             if event.host is not None:
                 try:
