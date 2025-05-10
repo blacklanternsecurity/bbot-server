@@ -1,7 +1,11 @@
-from typing import AsyncGenerator
+import asyncio
+from fastapi import Query
+from contextlib import suppress
 from bbot.models.pydantic import Event
+from typing import AsyncGenerator, Annotated
 from datetime import datetime, timezone, timedelta
-from bbot_server.applets._base import BaseApplet, api_endpoint, watchdog_task
+
+from bbot_server.applets._base import BaseApplet, api_endpoint
 
 
 class EventsApplet(BaseApplet):
@@ -11,8 +15,7 @@ class EventsApplet(BaseApplet):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # set up cron job for archiving events
-        # self.archive_cron = self.event_store.event_store_config.archive_cron
+        self._archive_events_task = None
 
     async def handle_event(self, event: Event, asset):
         # write the event to the database
@@ -22,16 +25,12 @@ class EventsApplet(BaseApplet):
     async def insert_event(self, event: Event):
         """
         Insert a BBOT event into the asset database
-
-        This creates a list of activities that occurred as a result of the event (e.g. PORT_OPENED, CRITICAL_VULN, etc.).
-
-        The activities are raised to subscribers and also returned to the caller.
         """
         # publish event to the message queue
         # it will be picked up by the watchdog and ingested
         await self.root.message_queue.publish_event(event)
 
-    @api_endpoint("/{uuid}", methods=["GET"], summary="Get an event by its UUID")
+    @api_endpoint("/get/{uuid}", methods=["GET"], summary="Get an event by its UUID")
     async def get_event(self, uuid: str) -> Event:
         return await self.event_store.get_event(uuid)
 
@@ -40,34 +39,31 @@ class EventsApplet(BaseApplet):
         async for event in self.message_queue.tail_events(n=n):
             yield event
 
-    @api_endpoint("/{uuid}/archive", methods=["GET"], summary="Archive an event")
+    @api_endpoint("/{uuid}/archive", methods=["POST"], summary="Archive an event")
     async def archive_event(self, uuid: str):
         await self.event_store.archive_event(uuid)
 
-    @api_endpoint("/archive", methods=["GET"], summary="Archive old events")
-    async def archive_old_events(self, older_than=None):
-        await self.archive_events_task.kiq()
+    @api_endpoint("/archive", methods=["POST"], summary="Archive old events")
+    async def archive_old_events(
+        self,
+        older_than: Annotated[int, Query(description="Archive events older than this many days")],
+    ):
+        # cancel the current archiving task if one is in progress
+        if self._archive_events_task is not None:
+            self.log.info(f"Archive is already in progress, cancelling")
+            self._archive_events_task.cancel()
+            with suppress(BaseException):
+                await asyncio.wait_for(self._archive_events_task, 0.5)
+            self._archive_events_task = None
+        self._archive_events_task = asyncio.create_task(self._archive_events(older_than=older_than))
 
-    # TODO: run this whenever a scan finishes
-    @watchdog_task(
-        # # run every day at midnight
-        # cron="0 0 * * *",
-        # cron_config_key="event_store.archive_cron",
-    )
-    async def archive_events_task(self):
-        archive_after = (datetime.now(timezone.utc) - timedelta(days=self.event_store.archive_after_days)).timestamp()
-        # archive old events
-        await self.event_store.archive_events(older_than=archive_after)
-        # refresh asset database
-        await self.root.assets.refresh_assets()
-
-    @api_endpoint("/", methods=["GET"], type="http_stream", response_model=Event, summary="Stream all events")
+    @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Event, summary="Stream all events")
     async def get_events(self, type: str = None, host: str = None, archived: bool = False, active: bool = True):
         async for event in self.event_store.get_events(type=type, host=host, archived=archived, active=active):
             yield event
 
     @api_endpoint(
-        "/insert", type="websocket_stream_incoming", response_model=Event, summary="Insert events via websocket"
+        "/ingest", type="websocket_stream_incoming", response_model=Event, summary="Ingest events via websocket"
     )
     async def consume_event_stream(self, event_generator: AsyncGenerator[Event, None]):
         """
@@ -76,6 +72,11 @@ class EventsApplet(BaseApplet):
         This is used by the agent to send events to the server.
         """
         async for event in event_generator:
-            # we use "interface" here because we need it to still work even if we're accessing a remote BBOT server instance
-            # wait what?? TODO
             await self.interface.insert_event(event)
+
+    async def _archive_events(self, older_than: int):
+        archive_after = (datetime.now(timezone.utc) - timedelta(days=older_than)).timestamp()
+        # archive old events
+        await self.event_store.archive_events(older_than=archive_after)
+        # refresh asset database
+        await self.root.assets.refresh_assets()

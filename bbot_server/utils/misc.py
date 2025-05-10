@@ -97,3 +97,63 @@ def combine_pydantic_models(models, model_name, base_model=BaseModel):
         **combined_fields,
     )
     return combined_model
+
+
+# List of MongoDB operators to filter out
+MONGO_OPERATORS = {
+    # Update operators
+    "$set",
+    "$unset",
+    "$inc",
+    "$mul",
+    "$rename",
+    "$setOnInsert",
+    "$push",
+    "$pop",
+    "$pull",
+    "$pullAll",
+    "$addToSet",
+    "$each",
+    "$slice",
+    "$sort",
+    "$position",
+    "$bit",
+    "$currentDate",
+    # Query operators
+    "$where",
+    "$expr",
+    "$text",
+    "$regex",
+    "$options",
+    # Aggregation operators
+    "$function",
+    "$accumulator",
+    "$map",
+    "$reduce",
+    # JavaScript evaluation
+    "$eval",
+    "$js",
+}
+
+
+def _sanitize_mongo_operators(data: dict) -> dict:
+    """
+    Sanitizes a dictionary by removing any MongoDB operators and JavaScript code that might be present.
+    This prevents MongoDB operator injection and JavaScript injection attacks.
+    """
+
+    sanitized = {}
+    for key, value in data.items():
+        # Check if the key itself is a MongoDB operator
+        if key in MONGO_OPERATORS:
+            continue
+
+        if isinstance(value, dict):
+            # Recursively sanitize nested dictionaries
+            sanitized[key] = _sanitize_mongo_operators(value)
+        elif isinstance(value, list):
+            # Sanitize each item in the list if it's a dictionary
+            sanitized[key] = [_sanitize_mongo_operators(item) if isinstance(item, dict) else item for item in value]
+        else:
+            sanitized[key] = value
+    return sanitized

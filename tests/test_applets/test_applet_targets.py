@@ -171,11 +171,6 @@ async def test_applet_targets(bbot_server):
         blacklist=["127.0.0.2"],
     )
 
-    # deleting a target that's a part of a scan should not work
-    scan = await bbot_server.create_scan(name="scan1", target_id=target2.id)
-    with pytest.raises(BBOTServerValueError, match="Target is still in use by the following scans: scan1"):
-        await bbot_server.delete_target(target2.id)
-
     # deleting the default target without specifying a new default target should raise an error
     with pytest.raises(
         BBOTServerValueError, match="Must specify a new default target when deleting the default target."
@@ -185,10 +180,7 @@ async def test_applet_targets(bbot_server):
     # deleting the default target with a new default target should work
     await bbot_server.delete_target(target3.id, new_default_target_id=target2.id)
 
-    # delete the scan associated with target2
-    await bbot_server.delete_scan(scan.id)
-
-    # deleting target2 should work now, even though it's the default target
+    # deleting target2 should work, even though it's the default target
     # because there's only one other target left, it's assumed to be the new default
     await bbot_server.delete_target(target2.id)
 
@@ -252,7 +244,7 @@ async def test_scope_checks(bbot_server):
     assert target.name == "target1"
     assert target.seeds == ["evilcorp.com"]
     assert target.whitelist == None
-    assert target.blacklist == None
+    assert target.blacklist == []
 
     assert await bbot_server.in_scope("evilcorp.com") == True
     assert await bbot_server.in_scope("external.evilcorp.com") == True

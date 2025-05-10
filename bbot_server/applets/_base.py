@@ -229,21 +229,21 @@ class BaseApplet:
         """
         if not model:
             return
-        for fieldname, field in model.model_fields.items():
-            unique = "unique" in field.metadata
+        for fieldname, metadata in model.indexed_fields().items():
+            unique = "unique" in metadata
             # normal indexes
-            if "indexed" in field.metadata:
+            if "indexed" in metadata:
                 index = [(fieldname, ASCENDING)]
                 self.log.debug(f"Creating index: {index}")
                 try:
-                    await self.collection.create_index(index, unique=unique)
+                    await self.collection.create_index(index, unique=unique, sparse=unique)
                 except OperationFailure as e:
                     if "existing index has the same name" in str(e):
                         self.log.debug(f"Index {index} already exists, skipping")
                     else:
                         raise
             # text indexes
-            if "indexed-text" in field.metadata:
+            if "indexed-text" in metadata:
                 index = [(fieldname, "text")]
                 self.log.debug(f"Creating text index: {index}")
                 try:
@@ -280,7 +280,7 @@ class BaseApplet:
                     else:
                         self.log.error(f"Error creating text index: {e}")
             # compound indexes
-            for metadata in field.metadata:
+            for metadata in metadata:
                 if isinstance(metadata, str) and metadata.startswith("indexed-compound:"):
                     # create a compound index
                     fields = metadata.split(":")[-1].split(",")

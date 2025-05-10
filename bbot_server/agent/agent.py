@@ -14,7 +14,6 @@ from bbot.constants import get_scan_status_name, SCAN_STATUS_NOT_STARTED
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
-from bbot_server.models.scan_models import ScanRun
 from bbot_server.utils.async_utils import async_to_sync_class
 from bbot_server.models.agent_models import AgentResponse
 
@@ -112,14 +111,25 @@ class BBOTAgent:
         return await command_fn(**kwargs)
 
     @command
-    async def start_scan(self, scan_run: dict[str, Any]):
+    async def start_scan(self, scan_id: str, preset: dict[str, Any]):
         if self.scan is not None:
             return {"status": "error", "message": "Scan already running"}
-        scan_run = ScanRun(**scan_run)
-        preset = self.make_agent_preset()
-        preset.merge(Preset.from_dict(scan_run.preset))
 
-        scan = Scanner(preset=preset, scan_id=scan_run.id, dispatcher=self.dispatcher)
+        # base preset with agent-specific overrides
+        agent_preset = self.make_agent_preset()
+
+        self.log.critical(f"TEH PRESET: {preset}")
+
+        preset_obj = Preset.from_dict(preset)
+        agent_preset.merge(preset_obj)
+
+        # create scanner
+        scan = Scanner(
+            preset=agent_preset,
+            scan_id=scan_id,
+            dispatcher=self.dispatcher,
+        )
+        self.log.critical(f"SCAN PRESET: {scan.preset.to_dict()}")
         self._patch_scan(scan)
         self.scan_task = asyncio.create_task(self._start_scan_task(scan))
         return {
@@ -136,8 +146,13 @@ class BBOTAgent:
             return {"status": "error", "message": "Scan not running"}
         if force:
             self.scan_task.cancel()
-            # with suppress(asyncio.CancelledError):
-            #     await self.scan_task
+            with suppress(BaseException):
+                await asyncio.wait_for(self.scan_task, timeout=0.5)
+            if not (self.scan is None and self.status == "READY"):
+                self.scan = None
+                self.scan_task = None
+                self.status = "READY"
+                await self.gratuitous_status_update()
             return {"status": "success"}
         else:
             try:

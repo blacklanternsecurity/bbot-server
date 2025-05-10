@@ -6,8 +6,8 @@ from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
+from bbot_server.models.target_models import Target
 from bbot_server.models.activity_models import Activity
-from bbot_server.models.scan_models import Target
 from bbot_server.applets._base import BaseApplet, api_endpoint
 from bbot_server.assets.custom_fields import CustomAssetFields
 
@@ -140,7 +140,7 @@ class TargetsApplet(BaseApplet):
         description: str = "",
         seeds: list[str] = [],
         whitelist: list[str] = None,
-        blacklist: list[str] = None,
+        blacklist: list[str] = [],
         strict_dns_scope: bool = False,
     ) -> Target:
         if not whitelist and not seeds:
@@ -194,7 +194,7 @@ class TargetsApplet(BaseApplet):
         target_is_default = target["default"]
 
         # abort if the target is still in use by any scans
-        scans_with_target = await self.parent.scans.get_scans_brief(target_id=target_id)
+        scans_with_target = await self.parent.get_scans_brief(target_id=target_id)
         if scans_with_target:
             raise self.BBOTServerValueError(
                 f"Target is still in use by the following scans: {', '.join([str(scan.name) for scan in scans_with_target])}"

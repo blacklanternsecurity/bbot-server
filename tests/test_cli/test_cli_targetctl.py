@@ -7,7 +7,7 @@ from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR
 
 def test_cli_targetctl(bbot_server_http):
     # we shouldn't have any targets yet
-    command = BBCTL_COMMAND + ["target", "list", "--json"]
+    command = BBCTL_COMMAND + ["scan", "target", "list", "--json"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout == ""
@@ -16,7 +16,9 @@ def test_cli_targetctl(bbot_server_http):
     seeds_file = BBOT_SERVER_TEST_DIR / "seeds.txt"
     seeds_file.unlink(missing_ok=True)
     process = subprocess.run(
-        BBCTL_COMMAND + ["--no-color", "target", "create", "--seeds", str(seeds_file)], capture_output=True, text=True
+        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--seeds", str(seeds_file)],
+        capture_output=True,
+        text=True,
     )
     assert process.returncode == 1
     assert f"Unable to find seeds at {seeds_file}" in process.stderr
@@ -24,7 +26,9 @@ def test_cli_targetctl(bbot_server_http):
     # create a target
     seeds_file.write_text("evilcorp.com\nevilcorp.net")
     process = subprocess.run(
-        BBCTL_COMMAND + ["--no-color", "target", "create", "--seeds", str(seeds_file)], capture_output=True, text=True
+        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--seeds", str(seeds_file)],
+        capture_output=True,
+        text=True,
     )
     assert process.returncode == 0
     assert "Target created successfully" in process.stderr
@@ -34,7 +38,9 @@ def test_cli_targetctl(bbot_server_http):
 
     # creating the same target again should fail
     process = subprocess.run(
-        BBCTL_COMMAND + ["--no-color", "target", "create", "--seeds", str(seeds_file)], capture_output=True, text=True
+        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--seeds", str(seeds_file)],
+        capture_output=True,
+        text=True,
     )
     assert process.returncode == 1
     assert "Identical target already exists" in process.stderr
@@ -42,7 +48,7 @@ def test_cli_targetctl(bbot_server_http):
     # create a second target
     seeds_file.write_text("evilcorp.org")
     process = subprocess.run(
-        BBCTL_COMMAND + ["--no-color", "target", "create", "--seeds", str(seeds_file), "--strict-scope"],
+        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--seeds", str(seeds_file), "--strict-scope"],
         capture_output=True,
         text=True,
     )
@@ -56,7 +62,7 @@ def test_cli_targetctl(bbot_server_http):
     seeds_file.unlink()
 
     # list targets (json)
-    process = subprocess.run(BBCTL_COMMAND + ["target", "list", "--json"], capture_output=True, text=True)
+    process = subprocess.run(BBCTL_COMMAND + ["scan", "target", "list", "--json"], capture_output=True, text=True)
     assert process.returncode == 0
     targets = [Target(**orjson.loads(line)) for line in process.stdout.splitlines()]
     assert len(targets) == 2
@@ -67,7 +73,7 @@ def test_cli_targetctl(bbot_server_http):
     assert targets["Target 2"].strict_dns_scope is True
 
     # list targets (csv)
-    process = subprocess.run(BBCTL_COMMAND + ["target", "list", "--csv"], capture_output=True, text=True)
+    process = subprocess.run(BBCTL_COMMAND + ["scan", "target", "list", "--csv"], capture_output=True, text=True)
     assert process.returncode == 0
     lines = process.stdout.splitlines()
     assert len(lines) == 3
@@ -76,7 +82,7 @@ def test_cli_targetctl(bbot_server_http):
     assert lines[2].startswith("Target 2,,1,0,0,Yes,")
 
     # list targets (text)
-    process = subprocess.run(BBCTL_COMMAND + ["target", "list"], capture_output=True, text=True)
+    process = subprocess.run(BBCTL_COMMAND + ["scan", "target", "list"], capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout.count("Target") == 2
 
@@ -85,24 +91,27 @@ def test_cli_targetctl(bbot_server_http):
         BBCTL_COMMAND
         + [
             "--no-color",
+            "scan",
             "target",
             "delete",
         ],
         capture_output=True,
         text=True,
     )
-    assert "Missing option" in process.stderr
+    assert "Missing argument" in process.stderr
     assert process.returncode == 2
 
     # delete the target (by name)
     process = subprocess.run(
-        BBCTL_COMMAND + ["--no-color", "target", "delete", "--name", "Target 1"], capture_output=True, text=True
+        BBCTL_COMMAND + ["--no-color", "scan", "target", "delete", "Target 1"],
+        capture_output=True,
+        text=True,
     )
     assert "Target deleted successfully" in process.stderr
     assert process.returncode == 0
 
     # make sure target1 is gone
-    process = subprocess.run(BBCTL_COMMAND + ["target", "list", "--json"], capture_output=True, text=True)
+    process = subprocess.run(BBCTL_COMMAND + ["scan", "target", "list", "--json"], capture_output=True, text=True)
     assert process.returncode == 0
     targets = [Target(**orjson.loads(line)) for line in process.stdout.splitlines()]
     assert len(targets) == 1

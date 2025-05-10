@@ -34,20 +34,20 @@ class TestAppletAgents(BaseAppletTest):
         assert any(agent.id == new_agent_3.id for agent in agents)
         assert any(agent.id == new_agent_2.id for agent in agents)
 
-        agent_2 = await self.bbot_server.get_agent(id=new_agent_2.id)
+        agent_2 = await self.bbot_server.get_agent(new_agent_2.id)
         assert agent_2 is not None
         assert agent_2.name == new_agent_2.name
         assert agent_2.description == new_agent_2.description
         assert agent_2.id == new_agent_2.id
 
-        agent_3 = await self.bbot_server.get_agent(name=new_agent_3.name)
+        agent_3 = await self.bbot_server.get_agent(new_agent_3.name)
         assert agent_3 is not None
         assert agent_3.name == new_agent_3.name
         assert agent_3.description == new_agent_3.description
         assert agent_3.id == new_agent_3.id
 
         # delete agent 2
-        await self.bbot_server.delete_agent(name=agent_2.name)
+        await self.bbot_server.delete_agent(agent_2.name)
         agents = await self.bbot_server.get_agents()
         assert len(agents) == 2
         assert not any(agent.id == agent_2.id for agent in agents)

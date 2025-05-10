@@ -1,4 +1,5 @@
 from pathlib import Path
+from typer import Argument
 
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
@@ -28,7 +29,7 @@ class TargetCTL(BaseBBCTL):
             bool,
             Option(
                 "--strict-scope",
-                "-s",
+                "-ss",
                 help="Strict DNS scope (only the exact hosts themselves are in scope, not their children)",
             ),
         ] = False,
@@ -45,12 +46,12 @@ class TargetCTL(BaseBBCTL):
             strict_dns_scope=strict_dns_scope,
         )
         self.log.info(f"Target created successfully:")
-        self.stdout.print_json(target.model_dump_json())
+        self.print_json(target.model_dump())
 
     @subcommand(help="Delete a target")
     def delete(
         self,
-        id: Annotated[str, Option("--name", "-n", "--id", "-i", help="Target name or ID")],
+        id: Annotated[str, Argument(help="Target name or ID")],
     ):
         self.bbot_server.delete_target(id=id)
         self.log.info(f"Target deleted successfully")
