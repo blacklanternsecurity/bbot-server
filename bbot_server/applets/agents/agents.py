@@ -165,6 +165,7 @@ class AgentsApplet(BaseApplet):
                                         "agent_id": str(agent.id),
                                         "agent_status": agent_status,
                                         "scan_status": scan_status,
+                                        "scan_status_code": scan_status_code,
                                         "scan_id": scan_id,
                                         "scan_name": scan_name,
                                     },

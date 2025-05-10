@@ -118,8 +118,6 @@ class BBOTAgent:
         # base preset with agent-specific overrides
         agent_preset = self.make_agent_preset()
 
-        self.log.critical(f"TEH PRESET: {preset}")
-
         preset_obj = Preset.from_dict(preset)
         agent_preset.merge(preset_obj)
 
@@ -129,7 +127,6 @@ class BBOTAgent:
             scan_id=scan_id,
             dispatcher=self.dispatcher,
         )
-        self.log.critical(f"SCAN PRESET: {scan.preset.to_dict()}")
         self._patch_scan(scan)
         self.scan_task = asyncio.create_task(self._start_scan_task(scan))
         return {
