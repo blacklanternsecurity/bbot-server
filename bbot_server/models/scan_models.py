@@ -15,7 +15,7 @@ class Scan(BaseBBOTServerModel):
     __user__ = True
 
     id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: f"SCAN:{uuid.uuid4()}")
-    name: Annotated[str, "indexed"]
+    name: Annotated[str, "indexed", "unique"]
     description: Annotated[Optional[str], "indexed"] = None
     status_code: Annotated[int, "indexed", Field(ge=min(SCAN_STATUS_CODES), le=max(SCAN_STATUS_CODES))] = 0
     agent_id: Annotated[Optional[UUID4], "indexed"] = None

@@ -4,6 +4,7 @@ import traceback
 from pydantic import UUID4
 from pymongo import ASCENDING
 from contextlib import suppress
+from pymongo.errors import DuplicateKeyError
 
 from bbot.core.helpers.names_generator import random_name
 from bbot.constants import (
@@ -39,9 +40,9 @@ class ScansApplet(BaseApplet):
             # this task will start scans when agents are ready
             self.scan_watch_task = self.create_task(self.start_scans_loop())
 
-    @api_endpoint("/get/{id}", methods=["GET"], summary="Get a single scan by its id")
+    @api_endpoint("/get/{id}", methods=["GET"], summary="Get a single scan by its name or ID")
     async def get_scan(self, id: str) -> Scan:
-        scan = await self.collection.find_one({"id": str(id)})
+        scan = await self.collection.find_one({"$or": [{"id": str(id)}, {"name": str(id)}]})
         if scan is None:
             raise self.BBOTServerNotFoundError("Scan not found")
         return Scan(**scan)
@@ -71,7 +72,10 @@ class ScansApplet(BaseApplet):
             agent_id=agent_id,
             seed_with_current_assets=seed_with_current_assets,
         )
-        await self.collection.insert_one(scan.model_dump())
+        try:
+            await self.collection.insert_one(scan.model_dump())
+        except DuplicateKeyError:
+            raise self.BBOTServerValueError(f"Scan with name '{name}' already exists")
         description = f"Scan [[COLOR]{scan.name}[/COLOR]] queued"
         if agent_id is not None:
             agent = await self.get_agent(id=agent_id)
@@ -111,58 +115,59 @@ class ScansApplet(BaseApplet):
         cursor = self.collection.find({"status": "QUEUED"}, sort=[("created", ASCENDING)])
         return [Scan(**run) for run in await cursor.to_list(length=None)]
 
-    @api_endpoint("/cancel/{id}", methods=["POST"], summary="Cancel a scan by its id")
+    @api_endpoint("/cancel/{id}", methods=["POST"], summary="Cancel a scan by its name or ID")
     async def cancel_scan(self, scan_id: str, force: bool = False):
         # get the scan
-        scan = await self.collection.find_one(
-            {"id": str(scan_id)}, {"id": 1, "agent_id": 1, "name": 1, "status": 1, "status_code": 1}
-        )
-        if scan is None:
-            raise self.BBOTServerNotFoundError("Scan not found")
-        scan_name = scan.get("name", "")
-        if scan is None:
-            raise self.BBOTServerNotFoundError("Scan not found")
-        agent_id = scan.get("agent_id", None)
+        scan = await self.get_scan(scan_id)
 
-        existing_scan_status_code = get_scan_status_code(scan.get("status_code", SCAN_STATUS_QUEUED))
+        existing_scan_status_code = get_scan_status_code(getattr(scan, "status_code", SCAN_STATUS_QUEUED))
         if existing_scan_status_code >= SCAN_STATUS_FINISHED:
-            raise self.BBOTServerValueError(f"Scan {scan_name} is already finished, skipping")
+            raise self.BBOTServerValueError(f"Scan {scan.name} is already finished, skipping")
 
         mark_aborted = False
-        if agent_id is None:
+        if scan.agent_id is None:
             # if we don't have an agent id, it's probably a queued scan
-            self.log.info(f"Scan {scan_name} has no agent id, marking as aborted")
+            self.log.info(f"Scan {scan.name} has no agent id, marking as aborted")
             mark_aborted = True
         else:
-            self.log.info(f"Scan {scan_name} is running on agent {agent_id}, checking if it's running")
-            # otherwise, we make sure the agent is actually running our scan
-            agent = await self.get_agent(id=agent_id)
-            if str(agent.current_scan_id) != scan_id:
+            self.log.info(f"Scan {scan.name} is running on agent {scan.agent_id}, checking if it's running")
+
+            # if the agent doesn't exist, we clear the agent from the scan and try again
+            try:
+                agent = await self.get_agent(id=scan.agent_id)
+            except self.BBOTServerNotFoundError:
+                self.log.warning(f"Scan's agent no longer exists. Clearing agent from scan")
+                await self.collection.update_one({"id": str(scan.id)}, {"$set": {"agent_id": None}})
+                return await self.cancel_scan(str(scan.id), force=force)
+
+            # otherwise, we check if the agent is actually running our scan
+            if str(agent.current_scan_id) != str(scan.id):
                 # if this happens, it means the scan probably is stalled or failed
                 mark_aborted = True
                 self.log.info(f"Scan isn't running on agent (current_scan_id={agent.current_scan_id})")
             else:
-                self.log.info(f"Scan {scan_name} is running on agent {agent_id}, sending cancel command")
-                await self.execute_agent_command(agent_id, "cancel_scan", force=force)
+                self.log.info(f"Scan {scan.name} is running on agent {scan.agent_id}, sending cancel command")
+                await self.execute_agent_command(scan.agent_id, "cancel_scan", force=force)
+
         if mark_aborted:
             # if the scan is already aborted, we don't need to do anything
-            if scan.get("status", "") == "ABORTED":
-                self.log.info(f"Scan {scan_name} is already aborted, skipping")
+            if scan.status == "ABORTED":
+                self.log.info(f"Scan {scan.name} is already aborted, skipping")
                 return
-            self.log.info(f"Marking {scan_name} as aborted")
+            self.log.info(f"Marking {scan.name} as aborted")
             await self.collection.update_one(
-                {"id": str(scan_id)}, {"$set": {"status": "ABORTED", "status_code": SCAN_STATUS_ABORTED}}
+                {"id": str(scan.id)}, {"$set": {"status": "ABORTED", "status_code": SCAN_STATUS_ABORTED}}
             )
 
         await self.emit_activity(
             type="SCAN_STATUS",
-            description=f"Scan [[COLOR]{scan_name}[/COLOR]] aborted",
+            description=f"Scan [[COLOR]{scan.name}[/COLOR]] aborted",
             detail={
-                "scan_id": scan_id,
-                "scan_name": scan_name,
+                "scan_id": str(scan.id),
+                "scan_name": scan.name,
                 "scan_status": "ABORTED",
                 "scan_status_code": SCAN_STATUS_ABORTED,
-                "agent_id": agent_id,
+                "agent_id": scan.agent_id,
             },
         )
 

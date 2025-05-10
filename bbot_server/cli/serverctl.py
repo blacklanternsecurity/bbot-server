@@ -109,9 +109,14 @@ class ServerCTL(BaseBBCTL):
     def logs(
         self,
         follow: Annotated[bool, Option("--follow", "-f", help="Follow the logs")] = False,
-        tail: Annotated[int, Option("--tail", "-n", help="Number of lines to show from the end of the logs")] = 100,
+        tail: Annotated[int, Option("--tail", "-n", help="Number of lines to show from the end of the logs")] = None,
     ):
-        self._run_docker_compose(["logs", "--tail", str(tail), "--follow" if follow else ""])
+        command = ["logs"]
+        if follow:
+            command += ["--follow"]
+            if tail is not None:
+                command += ["--tail", str(tail)]
+        self._run_docker_compose(command)
 
     @subcommand(help="Clear the database (drop Mongodb collections).")
     def cleardb(

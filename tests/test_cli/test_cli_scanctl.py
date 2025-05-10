@@ -106,11 +106,20 @@ debug: true
     assert scans[0].finished_at is not None
     assert scans[0].started_at is not None
 
-    events = subprocess.run(BBCTL_COMMAND + ["events", "list", "--json"], capture_output=True, text=True)
+    process = subprocess.run(BBCTL_COMMAND + ["event", "list", "--json"], capture_output=True, text=True)
     assert process.returncode == 0
-    events = [Event(**orjson.loads(line)) for line in events.stdout.splitlines()]
+    events = [Event(**orjson.loads(line)) for line in process.stdout.splitlines()]
     assert len(events) > 0
     assert "127.0.0.1" in [e.data for e in events]
+
+    # create a duplicate scan
+    process = subprocess.run(
+        BBCTL_COMMAND + ["scan", "start", "--name", "demonic_jimmy", "--target", "thetarget", "--preset", "thepreset"],
+        capture_output=True,
+        text=True,
+    )
+    assert process.returncode == 1
+    assert "Scan with name 'demonic_jimmy' already exists" in process.stderr
 
 
 def test_cli_scan_ingest(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events):
