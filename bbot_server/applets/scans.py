@@ -191,10 +191,12 @@ class ScansApplet(BaseApplet):
                             selected_agent = ready_agents[str(scan.agent_id)]
                         except KeyError:
                             self.log.warning(f"Agent {scan.agent_id} was selected for a scan, but it is not online")
+                            # check if agent doesn't exist anymore. if so, we'll clear it from the scan.
                             try:
-                                selected_agent = await self.get_agent(id=scan.agent_id)
-                            except self.BBOTServerNotFoundError as e:
-                                self.log.warning(f"Error sending scan to selected agent: {e}")
+                                selected_agent = await self.get_agent(str(scan.agent_id))
+                            except self.BBOTServerNotFoundError:
+                                self.log.warning(f"Scan's agent no longer exists. Clearing agent from scan")
+                                await self.collection.update_one({"id": str(scan.id)}, {"$set": {"agent_id": None}})
                                 continue
 
                     self.log.info(f"Selected agent: {selected_agent.name}")

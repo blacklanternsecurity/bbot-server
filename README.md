@@ -143,7 +143,7 @@ You can monitor or stop an in-progress scan:
 bbctl scan list
 
 # Stop the scan
-bbctl scan stop --name "demonic_jimmy"
+bbctl scan cancel "demonic_jimmy"
 ```
 
 ## Custom triggers
@@ -174,10 +174,10 @@ You can query and export the data even while a scan is running.
 bbctl asset list
 
 # Export assets to CSV
-bbctl asset export --csv > assets.csv
+bbctl asset list --csv > assets.csv
 
 # Export assets as JSON
-bbctl asset export --json | jq
+bbctl asset list --json | jq
 ```
 
 ### Events
@@ -187,10 +187,10 @@ bbctl asset export --json | jq
 bbctl event list
 
 # Export events to CSV
-bbctl event export --csv > events.csv
+bbctl event list --csv > events.csv
 
 # Export events as JSON
-bbctl event export --json | jq
+bbctl event list --json | jq
 ```
 
 ### Technologies
