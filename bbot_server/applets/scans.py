@@ -2,8 +2,8 @@ import random
 import asyncio
 import traceback
 from pydantic import UUID4
+from pymongo import ASCENDING
 from contextlib import suppress
-from pymongo.operations import ASCENDING
 
 from bbot.core.helpers.names_generator import random_name
 from bbot.constants import get_scan_status_name, get_scan_status_code, SCAN_STATUS_QUEUED, SCAN_STATUS_ABORTED
