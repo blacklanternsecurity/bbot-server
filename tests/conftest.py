@@ -171,7 +171,7 @@ def bbot_server_http(mongo_cleanup, redis_cleanup):
         success = False
         for i in range(1000):
             with suppress(Exception):
-                response = httpx.get(f"http://localhost:8807/v1/assets/")
+                response = httpx.get(f"http://localhost:8807/v1/assets/hosts")
                 if getattr(response, "status_code", 0) == 200:
                     success = True
                     break

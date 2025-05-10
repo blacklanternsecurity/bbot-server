@@ -6,7 +6,7 @@ from bbot_server.config import BBOT_SERVER_CONFIG
 # assets imports
 from bbot_server.applets.assets import AssetsApplet
 from bbot_server.applets.events import EventsApplet
-from bbot_server.applets.scans.scans import ScansApplet
+from bbot_server.applets.scans import ScansApplet
 from bbot_server.applets.activity import ActivityApplet
 from bbot_server.applets.stats import StatsApplet
 

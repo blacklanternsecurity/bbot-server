@@ -7,6 +7,8 @@ from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
 
 from bbot_server.cli.scanrunsctl import ScanRunsCTL
+from bbot_server.cli.presetctl import PresetCTL
+from bbot_server.cli.targetctl import TargetCTL
 
 
 class ScanCTL(BaseBBCTL):
@@ -14,7 +16,7 @@ class ScanCTL(BaseBBCTL):
     help = "Create, start, and monitor BBOT scans"
     short_help = "Manage BBOT scans"
 
-    include = [ScanRunsCTL]
+    include = [ScanRunsCTL, PresetCTL, TargetCTL]
 
     @subcommand(help="List preconfigured scans")
     def list(
@@ -91,18 +93,15 @@ class ScanCTL(BaseBBCTL):
         self,
         name: Annotated[str, Option("--name", "-n", help="Name of the scan", metavar="NAME")] = None,
         id: Annotated[str, Option("--id", "-i", help="ID of the scan", metavar="ID")] = None,
-        agent_name: Annotated[
-            str, Option("--agent-name", "-an", help="Agent name to use for the scan", metavar="AGENT_NAME")
-        ] = None,
         agent_id: Annotated[
-            str, Option("--agent-id", "-ai", help="Agent ID to use for the scan", metavar="AGENT_ID")
+            str, Option("--agent-id", "-ai", help="Agent name or ID to use for the scan", metavar="AGENT_ID")
         ] = None,
     ):
         if name is None and id is None:
             raise self.BBOTServerError("Must provide either a scan name or id")
         scan = self.bbot_server.get_scan(name=name, id=id)
-        if agent_name or agent_id:
-            agent = self.bbot_server.get_agent(name=agent_name, id=agent_id)
+        if agent_id:
+            agent = self.bbot_server.get_agent(agent_id)
             agent_id = agent.id
         self.bbot_server.start_scan(scan.id, agent_id)
         self.log.info(f"Scan {scan.name} successfully queued")

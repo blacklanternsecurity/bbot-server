@@ -9,13 +9,13 @@ async def test_applet_presets(bbot_server):
     bbot_server = await bbot_server()
 
     # list presets
-    presets = await bbot_server.list_presets()
+    presets = await bbot_server.get_presets()
     assert presets == []
 
     # create a preset
     original_preset = Preset(
-        name="test preset",
         preset={
+            "name": "test preset",
             "targets": ["evilcorp.com"],
             "config": {
                 "modules": ["robots"],
@@ -40,7 +40,7 @@ async def test_applet_presets(bbot_server):
     assert preset.preset["config"]["modules"] == ["robots"]
 
     # list presets
-    presets = await bbot_server.list_presets()
+    presets = await bbot_server.get_presets()
     assert len(presets) == 1
     assert presets[0].id == preset.id
     assert presets[0].name == "test preset"
@@ -50,8 +50,8 @@ async def test_applet_presets(bbot_server):
     # try creating a new preset with the same name
     with pytest.raises(BBOTServerValueError):
         dup_preset = Preset(
-            name="test preset",
             preset={
+                "name": "test preset",
                 "targets": ["evilcorp.com"],
             },
         )
@@ -59,15 +59,15 @@ async def test_applet_presets(bbot_server):
 
     # update the preset
     updated_preset = Preset(
-        name="test preset updated",
         preset={
+            "name": "test preset updated",
             "targets": ["evilcorp.com"],
         },
     )
     updated_preset = await bbot_server.update_preset(str(original_preset.id), updated_preset)
     assert updated_preset.id == original_preset.id
     assert updated_preset.name == "test preset updated"
-    assert updated_preset.preset == {"targets": ["evilcorp.com"]}
+    assert updated_preset.preset == {"name": "test preset updated", "targets": ["evilcorp.com"]}
 
     # create a new preset
     new_preset = Preset(
@@ -78,7 +78,7 @@ async def test_applet_presets(bbot_server):
     new_preset = await bbot_server.create_preset(new_preset)
     assert new_preset.id is not None
     assert new_preset.name == "Preset 1"
-    assert new_preset.preset == {"targets": ["evilcorp.com"]}
+    assert new_preset.preset == {"name": "Preset 1", "targets": ["evilcorp.com"]}
 
     new_preset2 = Preset(
         preset={
@@ -90,13 +90,13 @@ async def test_applet_presets(bbot_server):
     assert new_preset2.name == "Preset 2"
 
     # list presets
-    presets = await bbot_server.list_presets()
+    presets = await bbot_server.get_presets()
     assert len(presets) == 3
     assert {p.name for p in presets} == {"Preset 1", "Preset 2", "test preset updated"}
 
     # delete a preset
     await bbot_server.delete_preset("test preset updated")
-    presets = await bbot_server.list_presets()
+    presets = await bbot_server.get_presets()
     assert len(presets) == 2
     assert {p.name for p in presets} == {"Preset 1", "Preset 2"}
 

@@ -1,4 +1,5 @@
-import uuid
+from uuid import UUID
+from typing import Any
 from pydantic import UUID4
 from pymongo.errors import DuplicateKeyError
 
@@ -14,38 +15,39 @@ class PresetsApplet(BaseApplet):
     @api_endpoint("/get/{preset_id}", methods=["GET"], summary="Get a preset by its name or id")
     async def get_preset(self, preset_id: UUID4 | str) -> Preset:
         try:
-            query = {"id": str(UUID4(preset_id))}
-        except ValueError:
-            query = {"name": preset_id}
+            query = {"id": str(UUID(str(preset_id)))}
+        except Exception:
+            query = {"name": str(preset_id)}
         preset = await self.collection.find_one(query)
         if preset is None:
             raise self.BBOTServerNotFoundError(f"Preset not found: {query}")
         return Preset(**preset)
 
     @api_endpoint("/list", methods=["GET"], summary="List all presets")
-    async def list_presets(self) -> list[Preset]:
+    async def get_presets(self) -> list[Preset]:
         presets = await self.collection.find().to_list(length=None)
         return [Preset(**preset) for preset in presets]
 
     @api_endpoint("/create", methods=["POST"], summary="Create a new preset")
-    async def create_preset(self, preset: Preset) -> Preset:
-        preset.id = uuid.uuid4()
+    async def create_preset(self, preset: dict[str, Any]) -> Preset:
+        preset = Preset(preset=preset)
         if not preset.name:
             preset.name = await self.get_available_preset_name()
         try:
             await self.collection.insert_one(preset.model_dump())
         except DuplicateKeyError:
-            raise self.BBOTServerValueError(f"Preset with name {preset.name} already exists")
+            raise self.BBOTServerValueError(f"Preset with name '{preset.name}' already exists")
         return preset
 
     @api_endpoint("/update/{preset_id}", methods=["PATCH"], summary="Update a preset by its name or id")
     async def update_preset(self, preset_id: UUID4 | str, preset: Preset) -> Preset:
         existing_preset = await self.get_preset(preset_id)
         preset.id = existing_preset.id
+        preset.modified = self.helpers.utc_now()
         try:
             await self.collection.replace_one({"id": str(existing_preset.id)}, preset.model_dump())
         except DuplicateKeyError:
-            raise self.BBOTServerValueError(f"Preset with name {preset.name} already exists")
+            raise self.BBOTServerValueError(f"Preset with name '{preset.name}' already exists")
         return preset
 
     @api_endpoint("/delete/{preset_id}", methods=["DELETE"], summary="Delete a preset by its name or id")
