@@ -112,6 +112,7 @@ debug: true
     assert len(events) > 0
     assert "127.0.0.1" in [e.data for e in events]
 
+
 def test_cli_scan_ingest(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events):
     scan1_out_file, scan2_out_file = bbot_out_file
     scan1_events, scan2_events = bbot_events
