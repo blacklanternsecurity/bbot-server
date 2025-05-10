@@ -14,10 +14,12 @@ def test_cli_presetctl(bbot_server_http):
 
     # create a preset
     preset_yaml = """
-    name: test preset
-    description: test preset description
-    targets:
-      - evilcorp.com
+name: test preset
+description: test preset description
+targets:
+  - evilcorp.com
+
+debug: true
     """
     preset_file = BBOT_SERVER_TEST_DIR / "preset.yaml"
     preset_file.unlink(missing_ok=True)
@@ -27,6 +29,11 @@ def test_cli_presetctl(bbot_server_http):
     )
     assert process.returncode == 0
     assert "Preset created successfully" in process.stderr
+    preset_dict = orjson.loads(process.stdout)
+    assert preset_dict["name"] == "test preset"
+    assert preset_dict["description"] == "test preset description"
+    assert not "target" in preset_dict
+    assert preset_dict["preset"]["debug"] == True
 
     # list presets
     command = BBCTL_COMMAND + ["scan", "preset", "list", "--json"]
