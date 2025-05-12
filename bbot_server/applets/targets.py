@@ -42,6 +42,7 @@ class TargetsApplet(BaseApplet):
         # this holds an up-to-date list of all the target IDs
         self._target_ids = set()
         self._target_ids_modified = None
+        return True, ""
 
     async def handle_event(self, event, asset):
         """

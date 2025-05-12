@@ -40,6 +40,7 @@ class ScansApplet(BaseApplet):
         if self.is_main_server:
             # this task will start scans when agents are ready
             self.scan_watch_task = self.create_task(self.start_scans_loop())
+        return True, ""
 
     @api_endpoint("/get/{id}", methods=["GET"], summary="Get a single scan by its name or ID")
     async def get_scan(self, id: str) -> Scan:

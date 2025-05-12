@@ -19,6 +19,7 @@ class CloudApplet(BaseApplet):
         import cloudcheck
 
         self._cloudcheck = cloudcheck
+        return True, ""
 
     @api_endpoint(
         "/list/{host}",

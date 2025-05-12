@@ -40,6 +40,8 @@ jobs:
           poetry run ruff check
           poetry run ruff format --check
       - name: Run tests
+        env:
+          NO_COLOR: true
         run: |
           poetry run pytest --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
       - name: Upload Code Coverage

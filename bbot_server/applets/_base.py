@@ -11,6 +11,7 @@ from pymongo import WriteConcern, ASCENDING
 from pymongo.errors import OperationFailure
 
 from bbot.models.pydantic import Event
+from bbot_server.errors import BBOTServerError
 from bbot.core.helpers import misc as bbot_misc
 from bbot_server.applets._routing import ROUTE_TYPES
 from bbot_server.utils import misc as bbot_server_misc
@@ -102,6 +103,9 @@ class BaseApplet:
         self.event_store = None
         self.message_queue = None
         self.task_broker = None
+
+        # whether this applet should be enabled
+        self._enabled = True
 
         # mongo stuff
         self.collection = None
@@ -215,7 +219,16 @@ class BaseApplet:
         await self.register_watchdog_tasks(self.task_broker)
 
         if self.name != "Root Applet":
-            await self.setup()
+            try:
+                status, reason = await self.setup()
+                if not status:
+                    self._enabled = False
+                if status is None:
+                    self.log.warning(f"Setup soft-failed for {self.name}: {reason}")
+                elif status is False:
+                    self.log.error(f"Error setting up {self.name}: {reason}")
+            except Exception as e:
+                raise BBOTServerError(f"Error setting up {self.name}: {e}") from e
 
     async def build_indexes(self, model):
         """
@@ -318,7 +331,12 @@ class BaseApplet:
             setattr(self, method_name, task)
 
     async def setup(self):
-        pass
+        """
+        Override this method for any applet-specific setup
+
+        Returns a 2-tuple (status, reason), where status can be either True (success), None (soft-fail), or False (hard-fail)
+        """
+        return True, ""
 
     async def _cleanup(self):
         for child_applet in self.child_applets:

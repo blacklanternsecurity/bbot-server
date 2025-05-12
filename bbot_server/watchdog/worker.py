@@ -89,6 +89,8 @@ class BBOTWatchdog:
 
             # let each applet process the event
             for applet in self.bbot_server.all_child_applets(include_self=True):
+                if not applet._enabled:
+                    continue
                 if await applet.watches_event(event.type):
                     try:
                         new_activities = await applet.handle_event(event, asset) or []

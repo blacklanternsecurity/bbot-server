@@ -64,6 +64,7 @@ class RootApplet(BaseApplet):
             await self.message_queue.setup()
 
         await self._setup()
+        return True, ""
 
     @property
     def config(self):

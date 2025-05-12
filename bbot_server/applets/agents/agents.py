@@ -32,6 +32,7 @@ class AgentsApplet(BaseApplet):
             self.connection_manager = ConnectionManager()
             # watch the
             self.kickoff_queued_scans_task = self.create_task(self._kickoff_queued_scans_loop())
+        return True, ""
 
     @api_endpoint("/list", methods=["GET"], summary="List all agents", mcp=True)
     async def get_agents(self) -> list[Agent]:
