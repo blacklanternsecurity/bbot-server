@@ -1,8 +1,10 @@
+import pytest
 import asyncio
 from pathlib import Path
 from contextlib import suppress
 
 from bbot_server import BBOTServer
+from bbot_server.errors import BBOTServerValueError
 
 from ..conftest import INGEST_PROCESSING_DELAY
 
@@ -62,6 +64,27 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
         await activity_task
 
 
+async def test_scan_with_invalid_preset(bbot_server, bbot_agent):
+    """
+    Test that a scan with an invalid preset surfaces the error to the user
+    """
+    bbot_server = await bbot_server(needs_agent=True, needs_watchdog=True)
+
+    preset = await bbot_server.create_preset(
+        preset={"name": "preset1", "description": "preset1 description", "modules": ["invalid"]}
+    )
+    target = await bbot_server.create_target(name="target1", seeds=["127.0.0.1"])
+    await bbot_server.start_scan(name="scan1", preset_id=preset.id, target_id=target.id)
+
+    for _ in range(30):
+        activities = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
+        if any(a.detail["scan_status"] == "FAILED" for a in activities):
+            break
+        await asyncio.sleep(0.5)
+    else:
+        assert False, "Scan did not fail successfully"
+
+
 async def test_basic_scan_run(bbot_server):
     """
     A basic scan run, with an agent. Makes sure the scan runs start to finish and reports its statuses correctly
@@ -91,7 +114,7 @@ async def test_basic_scan_run(bbot_server):
     preset = await bbot_server.create_preset(
         preset={"name": "preset1", "description": "preset1 description", "scan_name": "teh_scan"}
     )
-    await bbot_server.start_scan(name="scan1", target_id=target.id, preset_id=preset.id)
+    await bbot_server.start_scan(target_id=target.id, preset_id=preset.id)
 
     # wait for scan to finish
     for _ in range(120):
@@ -116,12 +139,12 @@ async def test_basic_scan_run(bbot_server):
 
     scan_events = [e for e in events if e.type == "SCAN"]
     assert len(scan_events) == 2
-    scan_event = scan_events[0]
-    assert scan_event.data_json["name"] == "teh_scan"
-    assert scan_event.data_json["target"]["seeds"] == ["127.0.0.1"]
-    assert scan_event.data_json["target"]["whitelist"] == ["127.0.0.2"]
-    assert scan_event.data_json["target"]["blacklist"] == ["127.0.0.3"]
-    assert scan_event.data_json["target"]["strict_dns_scope"] == True
+    for scan_event in scan_events:
+        assert scan_event.data_json["name"] == "teh_scan"
+        assert scan_event.data_json["target"]["seeds"] == ["127.0.0.1"]
+        assert scan_event.data_json["target"]["whitelist"] == ["127.0.0.2"]
+        assert scan_event.data_json["target"]["blacklist"] == ["127.0.0.3"]
+        assert scan_event.data_json["target"]["strict_dns_scope"] == True
 
     ip_events = [e for e in events if e.type == "IP_ADDRESS"]
     assert "127.0.0.1" in [e.data for e in ip_events]
@@ -142,6 +165,13 @@ async def test_basic_scan_run(bbot_server):
         await asyncio.sleep(0.5)
     else:
         assert False, f"Agent did not become ready again. Agent statuses: {agent_statuses}, Agents: {agents}"
+
+    # get scans brief
+    scans = await bbot_server.get_scans_brief()
+    assert len(scans) == 1
+    assert scans[0]["name"] == "teh_scan"
+    assert scans[0]["target"]["name"] == "target1"
+    assert scans[0]["preset"]["name"] == "preset1"
 
     event_task.cancel()
     with suppress(asyncio.CancelledError):
@@ -224,13 +254,11 @@ async def test_running_scan_cancellation(bbot_server_config, bbot_agent, bbot_wa
     else:
         assert False, f"Scan run did not abort properly. Scans: {scans}"
 
-    # cancelling the scan again should be a no-op
-    await bbot_server.cancel_scan(scan_id=scan.id)
+    # cancelling the scan again should raise an error
+    with pytest.raises(BBOTServerValueError):
+        await bbot_server.cancel_scan(scan_id=scan.id)
 
     # make sure the agent is still running and ready to pick up the next scan
     agents = await bbot_server.get_agents()
     assert len(agents) == 1
     assert agents[0].status == "READY"
-
-    activities = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
-    print(activities)

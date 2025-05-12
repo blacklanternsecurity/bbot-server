@@ -90,7 +90,6 @@ def test_cli_targetctl(bbot_server_http):
     process = subprocess.run(
         BBCTL_COMMAND
         + [
-            "--no-color",
             "scan",
             "target",
             "delete",
@@ -103,7 +102,7 @@ def test_cli_targetctl(bbot_server_http):
 
     # delete the target (by name)
     process = subprocess.run(
-        BBCTL_COMMAND + ["--no-color", "scan", "target", "delete", "Target 1"],
+        BBCTL_COMMAND + ["scan", "target", "delete", "Target 1"],
         capture_output=True,
         text=True,
     )
@@ -116,3 +115,12 @@ def test_cli_targetctl(bbot_server_http):
     targets = [Target(**orjson.loads(line)) for line in process.stdout.splitlines()]
     assert len(targets) == 1
     assert targets[0].name == "Target 2"
+
+    # delete nonexistent target
+    process = subprocess.run(
+        BBCTL_COMMAND + ["scan", "target", "delete", "Target 1"],
+        capture_output=True,
+        text=True,
+    )
+    assert process.returncode == 1
+    assert "Target not found" in process.stderr

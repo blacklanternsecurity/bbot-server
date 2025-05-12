@@ -15,10 +15,11 @@ class EventCTL(BaseBBCTL):
     @subcommand(help="List BBOT events")
     def list(
         self,
+        type: Annotated[str, typer.Option("--type", "-t", help="Filter events by type")] = None,
         json: common.json = False,
         csv: common.csv = False,
     ):
-        event_list = self.bbot_server.get_events()
+        event_list = self.bbot_server.get_events(type=type)
 
         if json:
             for event in event_list:

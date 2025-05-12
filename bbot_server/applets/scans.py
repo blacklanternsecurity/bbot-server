@@ -10,6 +10,7 @@ from bbot.core.helpers.names_generator import random_name
 from bbot.constants import (
     get_scan_status_name,
     get_scan_status_code,
+    SCAN_STATUS_FAILED,
     SCAN_STATUS_QUEUED,
     SCAN_STATUS_ABORTED,
     SCAN_STATUS_FINISHED,
@@ -63,6 +64,7 @@ class ScansApplet(BaseApplet):
             seeds = set(target.seeds)
             seeds.update(await self.root.get_hosts(target_id=target_id))
             target.seeds = list(seeds)
+        name = name or preset.preset.get("scan_name", None)
         if name is None:
             name = await self.get_available_scan_name()
         scan = Scan(
@@ -92,11 +94,13 @@ class ScansApplet(BaseApplet):
         async for scan in self.collection.find():
             yield Scan(**scan)
 
-    @api_endpoint("/list_brief", methods=["GET"], summary="Get all scans in a brief format (without target info)")
-    async def get_scans_brief(self, target_id: UUID4 = None):
-        return await self.collection.find({}, {"name": 1, "id": 1, "target.name": 1, "preset.name": 1}).to_list(
-            length=None
-        )
+    @api_endpoint(
+        "/list_brief", methods=["GET"], summary="Get all scans in a brief format (without target info)", mcp=True
+    )
+    async def get_scans_brief(self):
+        return await self.collection.find(
+            {}, {"name": 1, "id": 1, "target.name": 1, "preset.name": 1, "_id": 0}
+        ).to_list(length=None)
 
     async def get_available_scan_name(self) -> str:
         """
@@ -147,7 +151,9 @@ class ScansApplet(BaseApplet):
                 self.log.info(f"Scan isn't running on agent (current_scan_id={agent.current_scan_id})")
             else:
                 self.log.info(f"Scan {scan.name} is running on agent {scan.agent_id}, sending cancel command")
-                await self.execute_agent_command(scan.agent_id, "cancel_scan", force=force)
+                command_result = await self.execute_agent_command(scan.agent_id, "cancel_scan", force=force)
+                if command_result.error:
+                    self.log.warning(f"Error cancelling scan on agent: {command_result.error}")
 
         if mark_aborted:
             # if the scan is already aborted, we don't need to do anything
@@ -229,6 +235,18 @@ class ScansApplet(BaseApplet):
                     )
                     if scan_start_response.error:
                         self.log.warning(f"Error sending scan to agent: {scan_start_response.error}")
+                        await self.emit_activity(
+                            type="SCAN_STATUS",
+                            description=f"Scan [[COLOR]{scan.name}[/COLOR]] failed to start",
+                            detail={
+                                "scan_id": scan.id,
+                                "scan_name": scan.name,
+                                "agent_id": str(selected_agent.id),
+                                "scan_status": "FAILED",
+                                "scan_status_code": SCAN_STATUS_FAILED,
+                                "error": scan_start_response.error,
+                            },
+                        )
                         await self.sleep(1)
                         continue
 

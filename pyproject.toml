@@ -23,6 +23,7 @@ ruff = "^0.9.7"
 typer = "^0.15.2"
 redis = "^5.2.1"
 taskiq-redis = "^1.0.3"
+mcp = "^1.7.0"
 fastapi-mcp = "^0.3.3"
 cloudcheck = "^7.2.0"
 bbot = {git = "https://github.com/blacklanternsecurity/bbot", rev = "bbot-server-improvements"}

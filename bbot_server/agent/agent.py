@@ -119,15 +119,22 @@ class BBOTAgent:
         # base preset with agent-specific overrides
         agent_preset = self.make_agent_preset()
 
-        preset_obj = Preset.from_dict(preset)
-        agent_preset.merge(preset_obj)
+        try:
+            preset_obj = Preset.from_dict(preset)
+            agent_preset.merge(preset_obj)
+        except BaseException as e:
+            return {"status": "error", "message": f"Error parsing preset: {e} - {traceback.format_exc()}"}
 
-        # create scanner
-        scan = Scanner(
-            preset=agent_preset,
-            scan_id=scan_id,
-            dispatcher=self.dispatcher,
-        )
+        try:
+            # create scanner
+            scan = Scanner(
+                preset=agent_preset,
+                scan_id=scan_id,
+                dispatcher=self.dispatcher,
+            )
+        except BaseException as e:
+            return {"status": "error", "message": f"Error creating scanner: {e} - {traceback.format_exc()}"}
+
         self._patch_scan(scan)
         self.scan_task = asyncio.create_task(self._start_scan_task(scan))
         return {
@@ -264,7 +271,7 @@ class BBOTAgent:
                             error = f"Error handling message: {e}\n{trace}"
                             response = AgentResponse(request_id=request_id, error=error)
 
-                        self.log.info(f"Agent {self.name} sending response: {response}")
+                        self.log.debug(f"Agent {self.name} sending response: {response}")
                         await websocket.send(orjson.dumps(response.model_dump()))
 
                 except websockets.ConnectionClosed:

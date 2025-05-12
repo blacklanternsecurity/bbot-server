@@ -74,16 +74,16 @@ class PresetCTL(BaseBBCTL):
         table = self.Table()
         table.add_column("Name", style=self.COLOR)
         table.add_column("Description")
+        table.add_column("Preset")
         table.add_column("Created", style=self.DARK_COLOR)
         table.add_column("Modified", style=self.DARK_COLOR)
-        table.add_column("Preset")
         for preset in preset_list:
             table.add_row(
                 preset.name,
                 preset.description,
+                self.highlight_json(preset.preset),
                 self.timestamp_to_human(preset.created),
                 self.timestamp_to_human(preset.modified),
-                self.highlight_json(preset.preset),
             )
         self.stdout.print(table)
 

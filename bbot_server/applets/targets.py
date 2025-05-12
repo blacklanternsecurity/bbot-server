@@ -193,13 +193,6 @@ class TargetsApplet(BaseApplet):
         target_id = str(target["id"])
         target_is_default = target["default"]
 
-        # abort if the target is still in use by any scans
-        scans_with_target = await self.parent.get_scans_brief(target_id=target_id)
-        if scans_with_target:
-            raise self.BBOTServerValueError(
-                f"Target is still in use by the following scans: {', '.join([str(scan.name) for scan in scans_with_target])}"
-            )
-
         # when we're deleting the default target, we need to set a new one
         if target_is_default:
             if new_default_target_id is None:
@@ -224,7 +217,7 @@ class TargetsApplet(BaseApplet):
 
         # clear scope cache
         if self._scope_cache is not None:
-            self._scope_cache.pop(target_id)
+            self._scope_cache.pop(target_id, None)
 
         # forget the target ID forever
         self._target_ids.discard(target_id)
