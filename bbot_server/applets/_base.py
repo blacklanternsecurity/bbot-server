@@ -240,7 +240,7 @@ class BaseApplet:
         - indexed-text - text index (for quick searching of partial strings - ideal for technology/vuln descriptions etc.)
         - indexed-compound:field1,field2 - compound index on multiple fields (useful for preventing duplicates)
         """
-        if not model or not self.is_main_server:
+        if not model:
             return
         for fieldname, metadata in model.indexed_fields().items():
             unique = "unique" in metadata

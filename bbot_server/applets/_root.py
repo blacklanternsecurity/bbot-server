@@ -41,12 +41,12 @@ class RootApplet(BaseApplet):
                 from bbot_server.store.user_store import UserStore
                 from bbot_server.store.asset_store import AssetStore
 
-                self.asset_store = AssetStore(self.config)
+                self.asset_store = AssetStore(self.global_config)
                 await self.asset_store.setup()
                 self.asset_db = self.asset_store.db
                 self.asset_fs = self.asset_store.fs
 
-                self.user_store = UserStore(self.config)
+                self.user_store = UserStore(self.global_config)
                 await self.user_store.setup()
                 self.user_db = self.user_store.db
                 self.user_fs = self.user_store.fs
@@ -54,13 +54,13 @@ class RootApplet(BaseApplet):
             # set up event store
             from bbot_server.event_store import EventStore
 
-            self.event_store = EventStore(self.config)
+            self.event_store = EventStore(self.global_config)
             await self.event_store.setup()
 
             # set up NATS client
             from bbot_server.message_queue import MessageQueue
 
-            self.message_queue = MessageQueue(self.config)
+            self.message_queue = MessageQueue(self.global_config)
             await self.message_queue.setup()
 
         await self._setup()
