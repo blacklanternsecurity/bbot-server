@@ -403,12 +403,12 @@ class BaseApplet:
         if not self.is_main_server:
             raise self.BBOTServerValueError("This endpoint is only available on the main server instance")
 
-    def watches_event(self, event_type):
+    async def watches_event(self, event_type):
         if "*" in self.watched_events:
             return True
         return event_type in self.watched_events
 
-    def watches_activity(self, activity, activity_json):
+    async def watches_activity(self, activity, activity_json):
         if "*" in self.watched_activities:
             return True
         return activity.type in self.watched_activities

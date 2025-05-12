@@ -28,5 +28,6 @@ class AgentResponse(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # if the response is an error, set the error field
         if (not self.error) and self.response.get("status", "success") == "error":
             self.error = self.response.get("message", "")

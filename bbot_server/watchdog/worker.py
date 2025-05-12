@@ -89,7 +89,7 @@ class BBOTWatchdog:
 
             # let each applet process the event
             for applet in self.bbot_server.all_child_applets(include_self=True):
-                if applet.watches_event(event.type):
+                if await applet.watches_event(event.type):
                     try:
                         new_activities = await applet.handle_event(event, asset) or []
                         activities.extend(new_activities)
@@ -114,11 +114,11 @@ class BBOTWatchdog:
         Consume activities from the queue and distribute them to the applets
         """
         activity = Activity(**message)
-        activity_json = Activity.model_dumps()
+        activity_json = activity.model_dump()
         new_activites = []
         # let each applet process the activity
         for applet in self.bbot_server.all_child_applets(include_self=True):
-            if applet.watches_activity(activity, activity_json):
+            if await applet.watches_activity(activity, activity_json):
                 try:
                     new_activities = await applet.handle_activity(activity) or []
                     new_activites.extend(new_activities)
