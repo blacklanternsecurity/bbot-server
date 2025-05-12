@@ -81,6 +81,7 @@ class AgentsApplet(BaseApplet):
             )
             if command_response.error:
                 raise self.BBOTServerValueError(command_response.error)
+            self.log.critical(f"AGENT STATUS COMMAND RESPONSE: {command_response}")
             agent_status = command_response.response
         except TimeoutError:
             end_time = time.time()

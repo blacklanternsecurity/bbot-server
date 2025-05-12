@@ -227,7 +227,7 @@ class BaseApplet:
         - indexed-text - text index (for quick searching of partial strings - ideal for technology/vuln descriptions etc.)
         - indexed-compound:field1,field2 - compound index on multiple fields (useful for preventing duplicates)
         """
-        if not model:
+        if not model or not self.is_main_server:
             return
         for fieldname, metadata in model.indexed_fields().items():
             unique = "unique" in metadata
@@ -408,10 +408,10 @@ class BaseApplet:
             return True
         return event_type in self.watched_events
 
-    def watches_activity(self, activity_type):
+    def watches_activity(self, activity, activity_json):
         if "*" in self.watched_activities:
             return True
-        return activity_type in self.watched_activities
+        return activity.type in self.watched_activities
 
     async def compute_stats(self, asset, stats):
         pass
@@ -454,8 +454,12 @@ class BaseApplet:
                 bbot_server_route.add_to_applet(self)
 
     @property
-    def config(self):
+    def global_config(self):
         return self.root._config
+
+    @property
+    def config(self):
+        return self.global_config.get("modules", {}).get(self.name, {})
 
     @property
     def tag(self):

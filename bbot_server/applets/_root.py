@@ -65,6 +65,10 @@ class RootApplet(BaseApplet):
 
         await self._setup()
 
+    @property
+    def config(self):
+        return self._config
+
     async def cleanup(self):
         if self.is_native:
             await self.asset_store.cleanup()

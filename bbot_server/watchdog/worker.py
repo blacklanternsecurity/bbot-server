@@ -114,10 +114,11 @@ class BBOTWatchdog:
         Consume activities from the queue and distribute them to the applets
         """
         activity = Activity(**message)
+        activity_json = Activity.model_dumps()
         new_activites = []
         # let each applet process the activity
         for applet in self.bbot_server.all_child_applets(include_self=True):
-            if applet.watches_activity(activity.type):
+            if applet.watches_activity(activity, activity_json):
                 try:
                     new_activities = await applet.handle_activity(activity) or []
                     new_activites.extend(new_activities)

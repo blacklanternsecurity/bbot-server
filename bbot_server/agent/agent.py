@@ -243,6 +243,7 @@ class BBOTAgent:
 
                     async for message in websocket:
                         message = orjson.loads(message)
+                        self.log.debug(f"Agent got message: {message}")
 
                         try:
                             request_id = message.pop("request_id")

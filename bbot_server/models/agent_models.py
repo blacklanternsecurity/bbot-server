@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated, Any, Optional
+from pydantic import BaseModel, Field, UUID4
 from bbot_server.models.base import BaseBBOTServerModel
-from pydantic import BaseModel, Field, UUID4, computed_field
 
 
 class Agent(BaseBBOTServerModel):
@@ -24,10 +24,9 @@ class AgentCommand(BaseModel):
 class AgentResponse(BaseModel):
     request_id: Optional[str] = None
     response: dict[str, Any] = {}
+    error: Optional[str] = None
 
-    @computed_field
-    @property
-    def error(self) -> Optional[str]:
-        if self.response.get("status", "success") == "error":
-            return self.response.get("message", "")
-        return ""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if (not self.error) and self.response.get("status", "success") == "error":
+            self.error = self.response.get("message", "")

@@ -97,6 +97,7 @@ def test_cli_targetctl(bbot_server_http):
         capture_output=True,
         text=True,
     )
+    print(process.stderr)
     assert "Missing argument" in process.stderr
     assert process.returncode == 2
 
