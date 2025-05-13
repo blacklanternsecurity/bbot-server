@@ -98,7 +98,7 @@ def test_cli_targetctl(bbot_server_http):
         text=True,
     )
     print(process.stderr)
-    assert "Missing argument" in process.stderr
+    assert "Missing argument" in process.stderr or "positional argument" in process.stderr
     assert process.returncode == 2
 
     # delete the target (by name)
