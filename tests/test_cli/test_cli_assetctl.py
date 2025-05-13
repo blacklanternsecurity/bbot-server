@@ -104,6 +104,7 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
     process = subprocess.run(
         BBCTL_COMMAND
         + [
+            "scan",
             "target",
             "create",
             "--name",
@@ -116,8 +117,8 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
         capture_output=True,
         text=True,
     )
+    assert "Target created successfully" in process.stderr
     target = orjson.loads(process.stdout)
-    assert target["name"] == "test-target"
 
     # wait for assets to be tagged with new target
     sleep(1)

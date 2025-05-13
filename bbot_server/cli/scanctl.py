@@ -1,12 +1,11 @@
-import yaml
-from typer import Option
-from pathlib import Path
 from typing import Annotated
+from typer import Option, Argument
 
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
 
-from bbot_server.cli.scanrunsctl import ScanRunsCTL
+from bbot_server.cli.presetctl import PresetCTL
+from bbot_server.cli.targetctl import TargetCTL
 
 
 class ScanCTL(BaseBBCTL):
@@ -14,95 +13,116 @@ class ScanCTL(BaseBBCTL):
     help = "Create, start, and monitor BBOT scans"
     short_help = "Manage BBOT scans"
 
-    include = [ScanRunsCTL]
+    include = [PresetCTL, TargetCTL]
 
-    @subcommand(help="List preconfigured scans")
+    @subcommand(help="List scans")
     def list(
         self,
         json: common.json = False,
         csv: common.csv = False,
     ):
-        scan_list = self.bbot_server.get_scans()
+        scans = self.bbot_server.get_scans()
 
         if json:
-            for scan in scan_list:
-                self.sys.stdout.buffer.write(self.orjson.dumps(scan.model_dump()))
+            for scan in scans:
+                self.print_pydantic_json(scan)
             return
 
         if csv:
-            for line in self.json_to_csv(scan_list, fieldnames=["name", "targets"]):
+
+            def iter_scans():
+                for scan in scans:
+                    scan_json = scan.model_dump()
+                    duration = scan_json.get("duration_seconds", None)
+                    started = scan_json.get("started_at", None)
+                    finished = scan_json.get("finished_at", None)
+
+                    out_json = {}
+                    out_json["name"] = scan_json["name"]
+                    out_json["status"] = scan_json["status"]
+                    out_json["target"] = scan_json["target"]["name"]
+                    out_json["preset"] = scan_json["preset"]["name"]
+                    out_json["duration"] = self.seconds_to_human(duration) if duration is not None else ""
+                    out_json["started"] = self.timestamp_to_human(started) if started is not None else ""
+                    out_json["finished"] = self.timestamp_to_human(finished) if finished is not None else ""
+                    out_json["id"] = scan_json["id"]
+                    yield out_json
+
+            for line in common.json_to_csv(
+                iter_scans(),
+                fieldnames=[
+                    "name",
+                    "status",
+                    "target",
+                    "preset",
+                    "duration",
+                    "started",
+                    "finished",
+                    "id",
+                ],
+            ):
                 self.sys.stdout.buffer.write(line)
             return
 
         table = self.Table()
         table.add_column("Name", style=self.COLOR)
-        table.add_column("Seeds")
-        table.add_column("Whitelist")
-        table.add_column("Blacklist")
-        table.add_column("Created", style=self.DARK_COLOR)
-        table.add_column("Modified", style=self.DARK_COLOR)
-        for scan in scan_list:
+        table.add_column("Status", style="bold")
+        table.add_column("Target")
+        table.add_column("Preset", style=self.COLOR)
+        table.add_column("Started", style=self.DARK_COLOR)
+        table.add_column("Finished", style=self.DARK_COLOR)
+        table.add_column("Duration")
+        table.add_column("ID", style=self.DARK_COLOR)
+        # TODO: why is duration None?
+        for scan in scans:
+            duration = "" if scan.duration_seconds is None else self.seconds_to_human(scan.duration_seconds)
+            started = "" if scan.started_at is None else self.timestamp_to_human(scan.started_at)
+            finished = "" if scan.finished_at is None else self.timestamp_to_human(scan.finished_at)
+            target_name = f"[{self.COLOR}]{scan.target.name}[/{self.COLOR}]"
+            for attr, friendly_attr in (
+                ("seed_size", "Seeds"),
+                ("whitelist_size", "Whitelist"),
+                ("blacklist_size", "Blacklist"),
+            ):
+                if getattr(scan.target, attr):
+                    target_name += (
+                        f" [{self.DARK_COLOR}]({friendly_attr}: {getattr(scan.target, attr):,})[/{self.DARK_COLOR}]"
+                    )
             table.add_row(
                 scan.name,
-                f"{scan.target.seed_size:,}",
-                f"{scan.target.whitelist_size:,}",
-                f"{scan.target.blacklist_size:,}",
-                self.timestamp_to_human(scan.created),
-                self.timestamp_to_human(scan.modified),
+                scan.status,
+                target_name,
+                scan.preset.name,
+                started,
+                finished,
+                duration,
+                scan.id,
             )
         self.stdout.print(table)
 
-    @subcommand(help="Create a new scan")
-    def create(
+    @subcommand(help="Start a new scan")
+    def start(
         self,
+        target: Annotated[str, Option("--target", "-t", help="Target name or ID to scan", metavar="TARGET")],
         preset: Annotated[
-            Path,
+            str,
             Option(
                 "--preset",
                 "-p",
-                help="BBOT preset YAML file to use for the scan. Must include target.",
+                help="Preset name or ID to use for the scan",
                 metavar="PRESET",
             ),
         ],
         name: Annotated[str, Option("--name", "-n", help="Name of the scan", metavar="NAME")] = None,
     ):
-        if not preset.resolve().is_file():
-            raise self.BBOTServerNotFoundError(f"Unable to find preset file at {preset}")
-        preset = yaml.safe_load(preset.read_text())
-        targets = preset.pop("targets", [])
-        whitelist = preset.pop("whitelist", [])
-        blacklist = preset.pop("blacklist", [])
-        strict_dns_scope = preset.get("scope", {}).get("strict_dns", False)
-        try:
-            target = self.bbot_server.create_target(
-                seeds=targets, whitelist=whitelist, blacklist=blacklist, strict_dns_scope=strict_dns_scope
-            )
-        except self.BBOTServerValueError as e:
-            error = e.detail.get("error", "")
-            if "Identical target already exists" in error:
-                hash = e.detail.get("hash")
-                target = self.bbot_server.get_target(hash=hash)
-            raise
-        scan = self.bbot_server.create_scan(name=name, target_id=str(target.id))
-        self.sys.stdout.buffer.write(self.orjson.dumps(scan.model_dump()))
+        scan = self.bbot_server.start_scan(name=name, target_id=target, preset_id=preset)
+        self.log.info(f"Scan queued successfully")
+        self.print_pydantic_json(scan, colorize=True)
 
-    @subcommand(help="Start a scan")
-    def start(
+    @subcommand(help="Cancel a scan")
+    def cancel(
         self,
-        name: Annotated[str, Option("--name", "-n", help="Name of the scan", metavar="NAME")] = None,
-        id: Annotated[str, Option("--id", "-i", help="ID of the scan", metavar="ID")] = None,
-        agent_name: Annotated[
-            str, Option("--agent-name", "-an", help="Agent name to use for the scan", metavar="AGENT_NAME")
-        ] = None,
-        agent_id: Annotated[
-            str, Option("--agent-id", "-ai", help="Agent ID to use for the scan", metavar="AGENT_ID")
-        ] = None,
+        scan_id: Annotated[str, Argument(help="Scan ID to cancel")],
     ):
-        if name is None and id is None:
-            raise self.BBOTServerError("Must provide either a scan name or id")
-        scan = self.bbot_server.get_scan(name=name, id=id)
-        if agent_name or agent_id:
-            agent = self.bbot_server.get_agent(name=agent_name, id=agent_id)
-            agent_id = agent.id
-        self.bbot_server.start_scan(scan.id, agent_id)
-        self.log.info(f"Scan {scan.name} successfully queued")
+        self.bbot_server.cancel_scan(scan_id)
+        self.log.info(f"Scan cancelled successfully")

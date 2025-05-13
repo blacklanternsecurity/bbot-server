@@ -11,6 +11,7 @@ from pymongo import WriteConcern, ASCENDING
 from pymongo.errors import OperationFailure
 
 from bbot.models.pydantic import Event
+from bbot_server.errors import BBOTServerError
 from bbot.core.helpers import misc as bbot_misc
 from bbot_server.applets._routing import ROUTE_TYPES
 from bbot_server.utils import misc as bbot_server_misc
@@ -102,6 +103,9 @@ class BaseApplet:
         self.event_store = None
         self.message_queue = None
         self.task_broker = None
+
+        # whether this applet should be enabled
+        self._enabled = True
 
         # mongo stuff
         self.collection = None
@@ -215,7 +219,16 @@ class BaseApplet:
         await self.register_watchdog_tasks(self.task_broker)
 
         if self.name != "Root Applet":
-            await self.setup()
+            try:
+                status, reason = await self.setup()
+                if not status:
+                    self._enabled = False
+                if status is None:
+                    self.log.warning(f"Setup soft-failed for {self.name}: {reason}")
+                elif status is False:
+                    self.log.error(f"Error setting up {self.name}: {reason}")
+            except Exception as e:
+                raise BBOTServerError(f"Error setting up {self.name}: {e}") from e
 
     async def build_indexes(self, model):
         """
@@ -229,21 +242,21 @@ class BaseApplet:
         """
         if not model:
             return
-        for fieldname, field in model.model_fields.items():
-            unique = "unique" in field.metadata
+        for fieldname, metadata in model.indexed_fields().items():
+            unique = "unique" in metadata
             # normal indexes
-            if "indexed" in field.metadata:
+            if "indexed" in metadata:
                 index = [(fieldname, ASCENDING)]
                 self.log.debug(f"Creating index: {index}")
                 try:
-                    await self.collection.create_index(index, unique=unique)
+                    await self.collection.create_index(index, unique=unique, sparse=unique)
                 except OperationFailure as e:
                     if "existing index has the same name" in str(e):
                         self.log.debug(f"Index {index} already exists, skipping")
                     else:
                         raise
             # text indexes
-            if "indexed-text" in field.metadata:
+            if "indexed-text" in metadata:
                 index = [(fieldname, "text")]
                 self.log.debug(f"Creating text index: {index}")
                 try:
@@ -280,7 +293,7 @@ class BaseApplet:
                     else:
                         self.log.error(f"Error creating text index: {e}")
             # compound indexes
-            for metadata in field.metadata:
+            for metadata in metadata:
                 if isinstance(metadata, str) and metadata.startswith("indexed-compound:"):
                     # create a compound index
                     fields = metadata.split(":")[-1].split(",")
@@ -308,7 +321,7 @@ class BaseApplet:
                     raise ValueError(
                         f"{self.name}.{method_name}: When specifying a crontab config value, you must also give a default crontab value (kwarg: 'cron')"
                     )
-                cron = OmegaConf.select(self.config, cron_config_key, default=cron_default)
+                cron = OmegaConf.select(self.global_config, cron_config_key, default=cron_default)
                 kwargs["schedule"] = [{"cron": cron}]
             elif cron_default is not None:
                 kwargs["schedule"] = [{"cron": cron_default}]
@@ -318,7 +331,12 @@ class BaseApplet:
             setattr(self, method_name, task)
 
     async def setup(self):
-        pass
+        """
+        Override this method for any applet-specific setup
+
+        Returns a 2-tuple (status, reason), where status can be either True (success), None (soft-fail), or False (hard-fail)
+        """
+        return True, ""
 
     async def _cleanup(self):
         for child_applet in self.child_applets:
@@ -403,15 +421,15 @@ class BaseApplet:
         if not self.is_main_server:
             raise self.BBOTServerValueError("This endpoint is only available on the main server instance")
 
-    def watches_event(self, event_type):
+    async def watches_event(self, event_type):
         if "*" in self.watched_events:
             return True
         return event_type in self.watched_events
 
-    def watches_activity(self, activity_type):
+    async def watches_activity(self, activity, activity_json):
         if "*" in self.watched_activities:
             return True
-        return activity_type in self.watched_activities
+        return activity.type in self.watched_activities
 
     async def compute_stats(self, asset, stats):
         pass
@@ -454,8 +472,12 @@ class BaseApplet:
                 bbot_server_route.add_to_applet(self)
 
     @property
-    def config(self):
+    def global_config(self):
         return self.root._config
+
+    @property
+    def config(self):
+        return self.global_config.get("modules", {}).get(self.name, {})
 
     @property
     def tag(self):

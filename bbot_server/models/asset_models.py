@@ -1,5 +1,5 @@
 from pydantic import Field
-from typing import Optional, Union, Annotated
+from typing import Optional, Annotated
 
 from bbot_server.utils.misc import utc_now
 from bbot.core.helpers.misc import make_netloc
@@ -19,12 +19,13 @@ class BaseAssetFacet(BaseBBOTServerModel):
     A facet typically corresponds to an applet.
     """
 
+    # id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Annotated[Optional[str], "indexed"] = None
     host: Annotated[str, "indexed"]
     port: Annotated[Optional[int], "indexed"] = None
     netloc: Annotated[Optional[str], "indexed"] = None
     url: Annotated[Optional[str], "indexed"] = None
-    reverse_host: Annotated[Optional[Union[str, None]], "indexed"] = None
+    reverse_host: Annotated[Optional[str], "indexed"] = None
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     ignored: bool = False

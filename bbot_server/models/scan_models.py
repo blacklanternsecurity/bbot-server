@@ -1,57 +1,39 @@
 import uuid
+from typing import Annotated, Optional
 from pydantic import UUID4, Field, computed_field
-from typing import Annotated, Any, Optional, Union
 
 from bbot.constants import get_scan_status_name, SCAN_STATUS_CODES
 
-from bbot_server.utils.misc import utc_now
+from bbot_server.models.preset_models import Preset
+from bbot_server.models.target_models import Target
 from bbot_server.models.base import BaseBBOTServerModel
-from bbot_server.models.target_models import BaseTarget, Target
-
-### SCANS ###
+from bbot_server.utils.misc import utc_now, timestamp_to_human
 
 
-class BaseScan(BaseBBOTServerModel):
-    name: Annotated[str, "indexed", "unique"]
-    preset: dict[str, Any] = {}
-    created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
-    modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
-
-
-class ScanDBEntry(BaseScan):
+class Scan(BaseBBOTServerModel):
     __tablename__ = "scans"
     __user__ = True
 
-    id: Annotated[UUID4, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
-    target_id: Annotated[UUID4, "indexed"]
-
-
-class ScanResponse(BaseScan):
-    id: Annotated[UUID4, "indexed", "unique"] = Field(default_factory=lambda: f"SCAN:{uuid.uuid4()}")
-    target: Target
-
-
-### SCAN RUNS ###
-
-
-class ScanRun(BaseBBOTServerModel):
-    __tablename__ = "scan_runs"
-    __user__ = True
-
     id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: f"SCAN:{uuid.uuid4()}")
-    name: Annotated[str, "indexed"]
+    name: Annotated[str, "indexed", "unique"]
+    description: Annotated[Optional[str], "indexed"] = None
     status_code: Annotated[int, "indexed", Field(ge=min(SCAN_STATUS_CODES), le=max(SCAN_STATUS_CODES))] = 0
-    target: BaseTarget
-    agent_id: Annotated[Union[UUID4, None], "indexed"] = None
-    parent_scan_id: Annotated[Optional[UUID4], "indexed"] = None
-    preset: dict[str, Any]
+    agent_id: Annotated[Optional[UUID4], "indexed"] = None
+    target: Target
+    preset: Preset
     seed_with_current_assets: bool = False
+    created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     started_at: Annotated[Optional[float], "indexed"] = None
     finished_at: Annotated[Optional[float], "indexed"] = None
     duration_seconds: Optional[float] = None
     duration: Optional[str] = None
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.description:
+            self.description = f"Scan '{self.name}' queued against target '{self.target.name}' with preset '{self.preset.name}' at {timestamp_to_human(self.created)}"
+
     @computed_field
     @property
-    def status(self) -> str:
+    def status(self) -> Annotated[str, "indexed"]:
         return get_scan_status_name(self.status_code)

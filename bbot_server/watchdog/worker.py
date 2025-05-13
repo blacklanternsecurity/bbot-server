@@ -63,6 +63,15 @@ class BBOTWatchdog:
         try:
             activities = []
             event = Event(**message)
+            event_data = getattr(event, "data", None)
+            event_host = getattr(event, "host", None)
+            if event_data:
+                event_preview = f": {event_data}"
+            elif event_host:
+                event_preview = f": {event_host}"
+            else:
+                event_preview = ""
+            self.log.info(f"Received event: {event.type}{event_preview}")
             # get the event's associated asset (this saves on database queries since it will be passed down to each applet)
             if event.host is not None:
                 try:
@@ -80,7 +89,9 @@ class BBOTWatchdog:
 
             # let each applet process the event
             for applet in self.bbot_server.all_child_applets(include_self=True):
-                if applet.watches_event(event.type):
+                if not applet._enabled:
+                    continue
+                if await applet.watches_event(event.type):
                     try:
                         new_activities = await applet.handle_event(event, asset) or []
                         activities.extend(new_activities)
@@ -105,10 +116,11 @@ class BBOTWatchdog:
         Consume activities from the queue and distribute them to the applets
         """
         activity = Activity(**message)
+        activity_json = activity.model_dump()
         new_activites = []
         # let each applet process the activity
         for applet in self.bbot_server.all_child_applets(include_self=True):
-            if applet.watches_activity(activity.type):
+            if await applet.watches_activity(activity, activity_json):
                 try:
                     new_activities = await applet.handle_activity(activity) or []
                     new_activites.extend(new_activities)

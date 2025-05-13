@@ -9,7 +9,7 @@ from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR
 # make sure error handling works properly
 def test_cli_debugging():
     bogus_server_url = "http://localhost:58777"
-    error_message = f"[ERROR] Error making GET request -> {bogus_server_url}/events/?archived=False&active=True: All connection attempts failed\n"
+    error_message = f"[ERROR] Error making GET request -> {bogus_server_url}/events/list?archived=False&active=True: All connection attempts failed\n"
 
     # induce an error with a bogus server URL
     command = BBCTL_COMMAND + ["-u", bogus_server_url, "event", "list"]
@@ -29,7 +29,7 @@ def test_cli_debugging():
 
 
 def test_cli_config():
-    result = subprocess.run(BBCTL_COMMAND + ["server", "current-config"], capture_output=True, text=True)
+    result = subprocess.run(BBCTL_COMMAND + ["--current-config"], capture_output=True, text=True)
     assert result.returncode == 0
     config = yaml.safe_load(result.stdout)
     assert config["event_store"]["uri"] == "mongodb://localhost:27017/test_bbot_server_events"
@@ -43,7 +43,7 @@ event_store:
         f.write(yaml_config_str)
 
     result = subprocess.run(
-        BBCTL_COMMAND + ["-c", str(temp_config_path), "server", "current-config"], capture_output=True, text=True
+        BBCTL_COMMAND + ["-c", str(temp_config_path), "--current-config"], capture_output=True, text=True
     )
     assert result.returncode == 0
     config = yaml.safe_load(result.stdout)

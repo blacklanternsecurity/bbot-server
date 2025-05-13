@@ -95,7 +95,7 @@ def _test_sychronous_api(interface, bbot_events, bbot_server_config):
     try:
         assert bbot_server._setup_finished == False
         setup_result = bbot_server.setup()
-        assert setup_result is None
+        assert setup_result == (True, "")
         assert bbot_server._setup_finished == True
 
         bbot_event = bbot_events[0][0]

@@ -1,5 +1,8 @@
+import json
+import yaml
 import inspect
 import logging
+from rich.syntax import Syntax
 from typer import Typer, Option  # noqa
 from typing import Annotated  # noqa
 from functools import cached_property, wraps
@@ -32,6 +35,9 @@ class BaseBBCTL:
     # optionally include other BBCTL classes
     include = []
 
+    # allow the command to be invoked without a subcommand
+    _invoke_without_command = False
+
     # imports for convenience
     import sys
     import orjson
@@ -45,7 +51,13 @@ class BaseBBCTL:
         self.children = {}
 
         # initialize typer
-        self.typer = Typer(help=self.help, short_help=self.short_help, epilog=self.epilog)
+        self.typer = Typer(
+            help=self.help,
+            short_help=self.short_help,
+            epilog=self.epilog,
+            invoke_without_command=self._invoke_without_command,
+            no_args_is_help=True,
+        )
 
         # register main method
         decorator = self.typer.callback()
@@ -133,15 +145,29 @@ class BaseBBCTL:
         """
         Highlight a JSON string with rich
         """
-        from rich.json import JSON
+        if not isinstance(data, str):
+            data = json.dumps(data, indent=2)
+        return Syntax(data, "json", theme="monokai", background_color="default", **kwargs)
 
-        return JSON.from_data(data, **kwargs)
+    def highlight_yaml(self, data, **kwargs):
+        """
+        Highlight a YAML string with rich
+        """
+        if not isinstance(data, str):
+            data = yaml.dump(data, indent=2)
+        return Syntax(data, "yaml", theme="monokai", background_color="default", **kwargs)
 
     def print_json(self, data, **kwargs):
         self.stdout.print(self.highlight_json(data, **kwargs))
 
-    def print_pydantic_json(self, model):
-        self.print_raw_line(self.orjson.dumps(model.model_dump()))
+    def print_yaml(self, data, **kwargs):
+        self.stdout.print(self.highlight_yaml(data, **kwargs))
+
+    def print_pydantic_json(self, model, colorize=False):
+        if colorize:
+            self.stdout.print(self.highlight_json(json.dumps(model.model_dump(), indent=2)))
+        else:
+            self.print_raw_line(self.orjson.dumps(model.model_dump()))
 
     def print_raw_line(self, line):
         """

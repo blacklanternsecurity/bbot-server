@@ -1,4 +1,6 @@
-![Image](https://github.com/user-attachments/assets/c63cc32c-8823-4b60-a990-12b544dd99ba)
+![Image](https://github.com/user-attachments/assets/f53417ae-1299-4df0-92d0-33cfd34283e1)
+
+[![Python Version](https://img.shields.io/badge/python-3.9+-FF8400)](https://www.python.org) [![License](https://img.shields.io/badge/license-GPLv3-FF8400.svg)](https://github.com/blacklanternsecurity/bbot/blob/dev/LICENSE) [![PyPi Downloads](https://static.pepy.tech/personalized-badge/bbot-server?right_color=orange&left_color=grey)](https://pepy.tech/project/bbot-server) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![Tests](https://github.com/blacklanternsecurity/bbot-server/actions/workflows/tests.yml/badge.svg?branch=stable)](https://github.com/blacklanternsecurity/bbot-server/actions?query=workflow%3A"tests") [![Codecov](https://codecov.io/gh/blacklanternsecurity/bbot-server/branch/stable/graph/badge.svg?token=IR5AZBDM5K)](https://codecov.io/gh/blacklanternsecurity/bbot-server) [![Discord](https://img.shields.io/discord/859164869970362439)](https://discord.com/invite/PZqkgxu5SA)
 
 # BBOT Server [BETA]
 
@@ -27,7 +29,7 @@ BBOT Server is a database and multiplayer hub for all your [BBOT](https://github
 
 ```bash
 # clone the repo and cd into it
-git clone git@github.com:blacklanternsecurity/bbot_server.git && cd bbot_server
+git clone git@github.com:blacklanternsecurity/bbot-server.git && cd bbot_server
 
 # Install in editable mode
 pipx install -e .
@@ -66,26 +68,14 @@ cat ~/.bbot/scans/demonic_jimmy/output.json | bbctl event ingest
 
 ## Start a scan (through BBOT server)
 
-In BBOT server, scans are stored presets that can be run repeatably.
+To start a scan in BBOT server, you need to first create a **Preset** and **Target**.
 
-To create a scan, pass a BBOT preset to `scans create`:
+1. Create Preset
 
-```bash
-# Create a new scan
-bbctl scan create --name "evilcorp_subdomains" --preset my_preset.yml
-```
+The preset defines which flags, modules, API keys, etc. will be used for the scan. It typically looks something like this:
 
-The preset contains your targets, and will look something like this:
-
+**`my_preset.yml`**:
 ```yaml
-targets:
-  - evilcorp.com
-  - evilcorp.net
-  - 1.2.3.0/24
-
-blacklist:
-  - internal.evilcorp.com
-
 include:
   - subdomain-enum
   - cloud-enum
@@ -99,14 +89,27 @@ config:
     api_key: deadbeef
 ```
 
-## Start the scan
+```bash
+# create a new scan preset
+bbctl scan preset create my_preset.yml
+```
+
+2. Create Target
+
+A target defines what's in-scope for the scan. They can also be used when filtering assets.
 
 ```bash
-# List scans
-bbctl scan list
+# create a new scan target
+bbctl scan target create --seeds evilcorp.txt --name "my_target"
+```
 
-# Start the scan
-bbctl scan start "evilcorp_subdomains"
+3. Start Scan
+
+Now that we've created a preset and target, we can start the scan:
+
+```bash
+# start the scan
+bbctl scan start --preset my_preset --target my_target --name "demonic_jimmy"
 ```
 
 ## Monitor scan progress
@@ -137,24 +140,10 @@ You can monitor or stop an in-progress scan:
 
 ```bash
 # List scan runs
-bbctl scan runs list
+bbctl scan list
 
 # Stop the scan
-bbctl scan runs stop --name "demonic_jimmy"
-```
-
-## Targets
-
-BBOT server categorizes its assets by target.
-
-You can list targets like so:
-
-```bash
-# List targets
-bbctl target list
-
-# Create a new target
-bbctl target create --seeds seeds.txt --blacklist blacklist.txt
+bbctl scan cancel "demonic_jimmy"
 ```
 
 ## Custom triggers
@@ -185,10 +174,10 @@ You can query and export the data even while a scan is running.
 bbctl asset list
 
 # Export assets to CSV
-bbctl asset export --csv > assets.csv
+bbctl asset list --csv > assets.csv
 
 # Export assets as JSON
-bbctl asset export --json | jq
+bbctl asset list --json | jq
 ```
 
 ### Events
@@ -198,10 +187,10 @@ bbctl asset export --json | jq
 bbctl event list
 
 # Export events to CSV
-bbctl event export --csv > events.csv
+bbctl event list --csv > events.csv
 
 # Export events as JSON
-bbctl event export --json | jq
+bbctl event list --json | jq
 ```
 
 ### Technologies

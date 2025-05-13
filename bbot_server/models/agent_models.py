@@ -1,6 +1,6 @@
 import uuid
+from typing import Annotated, Any, Optional
 from pydantic import BaseModel, Field, UUID4
-from typing import Annotated, Any, Optional, Union
 from bbot_server.models.base import BaseBBOTServerModel
 
 
@@ -11,8 +11,8 @@ class Agent(BaseBBOTServerModel):
     description: str
     connected: Annotated[bool, "indexed"] = False
     status: Annotated[str, "indexed"] = "OFFLINE"
-    current_scan_id: Annotated[Union[str, None], "indexed"] = None
-    last_seen: Annotated[Union[float, None], "indexed"] = None
+    current_scan_id: Annotated[Optional[str], "indexed"] = None
+    last_seen: Annotated[Optional[float], "indexed"] = None
 
 
 class AgentCommand(BaseModel):
@@ -25,3 +25,9 @@ class AgentResponse(BaseModel):
     request_id: Optional[str] = None
     response: dict[str, Any] = {}
     error: Optional[str] = None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # if the response is an error, set the error field
+        if (not self.error) and self.response.get("status", "success") == "error":
+            self.error = self.response.get("message", "")

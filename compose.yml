@@ -16,23 +16,36 @@ services:
       - BBOT_HOST
       - BBOT_PORT
     command: ["bbctl", "server", "start", "--api-only", "--listen", "0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8807/v1/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      - mongodb
+      - redis
 
   watchdog:
     <<: *bbot-server-base
     command: ["bbctl", "server", "start", "--watchdog-only"]
+    depends_on:
+      server:
+        condition: service_healthy
 
   agent:
     <<: *bbot-server-base
     command: ["bbctl", "agent", "start"]
-    volumes:
-      - ./bbot_server/default_agent.sh:/app/bbot_server/default_agent.sh
     entrypoint: ["bash", "/app/bbot_server/default_agent.sh"]
+    depends_on:
+      server:
+        condition: service_healthy
 
   mongodb:
     image: mongo:latest
     restart: always
-    # volumes:
-    #   - ./mongodb:/data/db
+    volumes:
+      - ./mongodb:/data/db
 
   redis:
     image: redis:latest

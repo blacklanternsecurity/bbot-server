@@ -1,6 +1,7 @@
 import uuid
+from typing import Optional
+from typing import Annotated
 from pydantic import UUID4, Field
-from typing import Annotated, Union
 
 from bbot.scanner.target import BBOTTarget
 from bbot_server.utils.misc import utc_now
@@ -10,8 +11,8 @@ from bbot_server.models.base import BaseBBOTServerModel
 class BaseTarget(BaseBBOTServerModel):
     description: str = ""
     seeds: list[str] = []
-    whitelist: Union[list[str], None] = None
-    blacklist: Union[list[str], None] = None
+    whitelist: Optional[list[str]] = None
+    blacklist: list[str] = []
     strict_dns_scope: bool = False
     hash: Annotated[str, "indexed", "unique"] = ""
     scope_hash: Annotated[str, "indexed"] = ""

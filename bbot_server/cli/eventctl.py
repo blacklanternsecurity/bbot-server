@@ -15,10 +15,11 @@ class EventCTL(BaseBBCTL):
     @subcommand(help="List BBOT events")
     def list(
         self,
+        type: Annotated[str, typer.Option("--type", "-t", help="Filter events by type")] = None,
         json: common.json = False,
         csv: common.csv = False,
     ):
-        event_list = self.bbot_server.get_events()
+        event_list = self.bbot_server.get_events(type=type)
 
         if json:
             for event in event_list:
@@ -31,20 +32,23 @@ class EventCTL(BaseBBCTL):
             return
 
         table = self.Table()
-        table.add_column("Timestamp", style=self.DARK_COLOR)
+
+        table.add_column("Module")
         table.add_column("Type", style=self.COLOR)
         table.add_column("Data", style="bold")
         table.add_column("Scope")
         table.add_column("Tags")
+        table.add_column("Timestamp", style=self.DARK_COLOR)
         for event in event_list:
             event_data = event.data if event.data else self.orjson.dumps(event.data_json).decode()
             event_data = event_data[:100] + "..." if len(event_data) > 100 else event_data
             table.add_row(
-                self.timestamp_to_human(event.timestamp),
+                event.module,
                 event.type,
                 event_data,
                 event.scope_description,
                 ", ".join(sorted(event.tags)),
+                self.timestamp_to_human(event.timestamp),
             )
         self.stdout.print(table)
 

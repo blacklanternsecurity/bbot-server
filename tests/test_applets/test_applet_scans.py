@@ -1,172 +1,264 @@
 import pytest
 import asyncio
-import logging
+from pathlib import Path
+from contextlib import suppress
 
+from bbot_server import BBOTServer
 from bbot_server.errors import BBOTServerValueError
 
-log = logging.getLogger("bbot_server.test_applet_scans")
+from ..conftest import INGEST_PROCESSING_DELAY
 
 
-async def test_applet_scans(bbot_server):
-    bbot_server = await bbot_server(needs_agent=True, needs_api=True)
+# make sure ad-hoc ingestion of a BBOT scan creates an associated scan run in the database
+async def test_scan_run_adhoc(bbot_server, bbot_events):
+    bbot_server = await bbot_server(needs_watchdog=True)
 
-    # tail activities + events
     activities = []
-    events = []
 
-    async def tail_activities():
-        async for activity in bbot_server.tail_activities(n=10):
+    async def watch_activities():
+        async for activity in bbot_server.tail_activities():
             activities.append(activity)
 
-    async def tail_events():
-        async for event in bbot_server.tail_events(n=10):
-            events.append(event)
+    activity_task = asyncio.create_task(watch_activities())
 
-    asyncio.create_task(tail_activities())
-    asyncio.create_task(tail_events())
-
-    # wait for tasks to start
-    await asyncio.sleep(1.0)
-
+    # we shouldn't have any scan runs yet
     scans = [s async for s in bbot_server.get_scans()]
-    assert scans == []
+    assert len(scans) == 0
 
-    # first, create a target
-    target = await bbot_server.create_target(
-        name="target1",
-        description="target1 description",
-        seeds=["localhost"],
-    )
+    scan1_events, scan2_events = bbot_events
 
-    # then create a scan
-    scan1 = await bbot_server.create_scan(
-        name="scan1",
-        target_id=target.id,
-        preset={"config": {"web": {"user_agent": "BBOT User Agent"}}},
-    )
+    # insert the first event
+    for event in scan1_events[:1]:
+        await bbot_server.insert_event(event)
+
+    # wait for events to be processed
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     scans = [s async for s in bbot_server.get_scans()]
     assert len(scans) == 1
     scan = scans[0]
+    assert scan.status == "RUNNING"
     assert scan.name == "scan1"
-    assert scan.target.id == target.id
-    assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent"}}}
 
-    scan2 = await bbot_server.create_scan(
-        name="scan2",
-        target_id=target.id,
-        preset={"config": {"web": {"user_agent": "BBOT User Agent 2"}}},
-    )
+    assert [a.type for a in activities] == ["SCAN_STATUS"]
+    assert activities[0].detail["scan_status"] == "RUNNING"
 
-    scans = [s async for s in bbot_server.get_scans()]
-    assert len(scans) == 2
-    scan = [s for s in scans if s.id == scan1.id][0]
-    assert scan.name == "scan1"
-    assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent"}}}
-    scan = [s for s in scans if s.id == scan2.id][0]
-    assert scan.name == "scan2"
-    assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent 2"}}}
+    # insert the rest of the events
+    for event in scan1_events[1:]:
+        await bbot_server.insert_event(event)
 
-    # delete scan1
-    await bbot_server.delete_scan(scan1.id)
-    scans = [s async for s in bbot_server.get_scans()]
-    assert len(scans) == 1
-    scan = scans[0]
-    assert scan.name == "scan2"
-
-    # edit scan2
-    target2 = await bbot_server.create_target(
-        name="target2",
-        description="target2 description",
-        seeds=["127.0.0.1"],
-    )
-    scan2.name = "scan2_edited"
-    scan2.target_id = target2.id
-    scan2.preset = {"config": {"web": {"user_agent": "BBOT User Agent 3"}}}
-    await bbot_server.update_scan(scan2.id, scan2)
-    scans = [s async for s in bbot_server.get_scans()]
-    assert len(scans) == 1
-    scan = scans[0]
-    assert scan.id == scan2.id
-    assert scan.name == "scan2_edited"
-    assert scan.target.id == target2.id
-    assert scan.preset == {"config": {"web": {"user_agent": "BBOT User Agent 3"}}}
-
-    # make sure an agent is running
-    for _ in range(60):
-        all_agents = await bbot_server.get_agents()
-        online_agents = await bbot_server.get_online_agents()
-        if len(all_agents) == 1 and len(online_agents) == 1:
+    # wait for events to be processed
+    for _ in range(120):
+        scans = [s async for s in bbot_server.get_scans()]
+        if len(scans) == 1 and scans[0].status == "FINISHED":
             break
         await asyncio.sleep(0.5)
     else:
-        assert False, f"No online agents (all agents: {all_agents} / activities: {activities})"
+        assert False, "Scan did not finish"
 
-    # start scan2
-    await bbot_server.start_scan(scan2.id)
+    assert [a.type for a in activities if a.type.startswith("SCAN_")] == ["SCAN_STATUS", "SCAN_STATUS"]
+    assert [a.detail["scan_status"] for a in activities if a.type.startswith("SCAN_")] == ["RUNNING", "FINISHED"]
 
-    for _ in range(100):
-        activity_types = [a.type for a in activities]
-        event_types = [e.type for e in events]
-        scan_statuses = [a.detail["scan_status"] for a in activities if a.type == "SCAN_STATUS"]
-        scan_status_match = scan_statuses == ["STARTING", "RUNNING", "FINISHING", "FINISHED"]
-        agent_statuses = [(a.detail["old_status"], a.detail["status"]) for a in activities if a.type == "AGENT_STATUS"]
-        agent_status_match = agent_statuses == [
-            ("OFFLINE", "ONLINE"),
-            ("ONLINE", "READY"),
-            ("READY", "BUSY"),
-            ("BUSY", "READY"),
-        ]
-        activity_types_match = set(activity_types) == set(
-            [
-                "AGENT_STATUS",  # OFFLINE -> ONLINE
-                "AGENT_STATUS",  # ONLINE -> READY
-                "TARGET_CREATED",
-                "TARGET_CREATED",
-                "SCAN_QUEUED",
-                "SCAN_SENT",
-                "AGENT_STATUS",  # READY -> BUSY
-                "SCAN_STATUS",  # STARTING
-                "SCAN_STATUS",  # STARTED
-                "SCAN_STATUS",  # FINISHING
-                "SCAN_STATUS",  # FINISHED
-                "AGENT_STATUS",  # BUSY -> READY
-            ]
-        )
-        activity_types_match &= len(activity_types) == 12
-        activity_types_match &= activity_types.count("AGENT_STATUS") == 4
-        activity_types_match &= activity_types.count("SCAN_STATUS") == 4
-        activity_types_match &= activity_types.count("TARGET_CREATED") == 2
-        activity_types_match &= activity_types.count("SCAN_QUEUED") == 1
-        activity_types_match &= activity_types.count("SCAN_SENT") == 1
-        event_types_match = set(event_types) == set(["SCAN", "SCAN"])
-        if activity_types_match and event_types_match and scan_status_match and agent_status_match:
+    activity_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await activity_task
+
+
+async def test_scan_with_invalid_preset(bbot_server, bbot_agent):
+    """
+    Test that a scan with an invalid preset surfaces the error to the user
+    """
+    bbot_server = await bbot_server(needs_agent=True, needs_watchdog=True)
+
+    preset = await bbot_server.create_preset(
+        preset={"name": "preset1", "description": "preset1 description", "modules": ["invalid"]}
+    )
+    target = await bbot_server.create_target(name="target1", seeds=["127.0.0.1"])
+    await bbot_server.start_scan(name="scan1", preset_id=preset.id, target_id=target.id)
+
+    for _ in range(30):
+        activities = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
+        if any(a.detail["scan_status"] == "FAILED" for a in activities):
             break
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.5)
     else:
-        assert False, (
-            f"Scan didn't finish properly. Activities: {[a.type for a in activities]}, Events: {[e.type for e in events]}, Scan statuses: {scan_statuses}, Agent statuses: {agent_statuses}"
-        )
+        assert False, "Scan did not fail successfully"
 
 
-async def test_scan_auto_naming(bbot_server):
-    bbot_server = await bbot_server()
+async def test_basic_scan_run(bbot_server):
+    """
+    A basic scan run, with an agent. Makes sure the scan runs start to finish and reports its statuses correctly
+    """
+    bbot_server = await bbot_server(needs_agent=True, needs_watchdog=True)
+
+    events = []
+
+    async def watch_events():
+        async for event in bbot_server.tail_events():
+            events.append(event)
+
+    event_task = asyncio.create_task(watch_events())
+
+    # wait for agent to be ready
+    for _ in range(120):
+        agents = await bbot_server.get_agents()
+        if len(agents) == 1 and agents[0].status == "READY":
+            break
+        await asyncio.sleep(0.5)
+    else:
+        assert False, "Agent did not become ready"
 
     target = await bbot_server.create_target(
-        name="target1",
-        description="target1 description",
-        seeds=["localhost"],
+        name="target1", seeds=["127.0.0.1"], whitelist=["127.0.0.2"], blacklist=["127.0.0.3"], strict_dns_scope=True
     )
+    preset = await bbot_server.create_preset(
+        preset={"name": "preset1", "description": "preset1 description", "scan_name": "teh_scan"}
+    )
+    await bbot_server.start_scan(target_id=target.id, preset_id=preset.id)
 
-    scan1 = await bbot_server.create_scan(target_id=target.id)
-    assert scan1.name == "Scan 1"
-    scan2 = await bbot_server.create_scan(target_id=target.id)
-    assert scan2.name == "Scan 2"
-    scan3 = await bbot_server.create_scan(target_id=target.id)
-    assert scan3.name == "Scan 3"
+    # wait for scan to finish
+    for _ in range(120):
+        scans = [a async for a in bbot_server.get_scans()]
+        scan_status_finished = len(scans) == 1 and scans[0].status == "FINISHED"
 
-    with pytest.raises(BBOTServerValueError, match='Scan with name "Scan 3" already exists'):
-        await bbot_server.create_scan(name="Scan 3", target_id=target.id)
+        scan_statuses = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
+        scan_statuses = [a.detail["scan_status"] for a in scan_statuses]
+        scan_status_match = scan_statuses == [
+            "STARTING",
+            "RUNNING",
+            "FINISHING",
+            "FINISHED",
+        ]
 
-    with pytest.raises(BBOTServerValueError, match='Scan with name "Scan 2" already exists'):
-        await bbot_server.update_scan(scan3.id, scan2)
+        if scan_status_finished and scan_status_match:
+            break
+
+        await asyncio.sleep(0.5)
+    else:
+        assert False, f"Scan run did not finish. Scan statuses: {scan_statuses}, Scans: {scans}"
+
+    scan_events = [e for e in events if e.type == "SCAN"]
+    assert len(scan_events) == 2
+    for scan_event in scan_events:
+        assert scan_event.data_json["name"] == "teh_scan"
+        assert scan_event.data_json["target"]["seeds"] == ["127.0.0.1"]
+        assert scan_event.data_json["target"]["whitelist"] == ["127.0.0.2"]
+        assert scan_event.data_json["target"]["blacklist"] == ["127.0.0.3"]
+        assert scan_event.data_json["target"]["strict_dns_scope"] == True
+
+    ip_events = [e for e in events if e.type == "IP_ADDRESS"]
+    assert "127.0.0.1" in [e.data for e in ip_events]
+
+    for _ in range(120):
+        # wait for agent to be ready again
+        agent_statuses = [a async for a in bbot_server.get_activities(type="AGENT_STATUS")]
+        agent_statuses = [a.detail["status"] for a in agent_statuses]
+        agent_status_match = agent_statuses == ["ONLINE", "READY", "BUSY", "READY"]
+
+        # agent should be ready again
+        agents = await bbot_server.get_agents()
+        agent_status_match_2 = len(agents) == 1 and agents[0].status == "READY"
+
+        if agent_status_match and agent_status_match_2:
+            break
+
+        await asyncio.sleep(0.5)
+    else:
+        assert False, f"Agent did not become ready again. Agent statuses: {agent_statuses}, Agents: {agents}"
+
+    # get scans brief
+    scans = await bbot_server.get_scans_brief()
+    assert len(scans) == 1
+    assert scans[0]["name"] == "teh_scan"
+    assert scans[0]["target"]["name"] == "target1"
+    assert scans[0]["preset"]["name"] == "preset1"
+
+    event_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await event_task
+
+
+async def test_queued_scan_cancellation(bbot_server):
+    """
+    Here we start a scan without an agent, so we have a queued scan in limbo
+
+    Then we cancel the scan, which should remove it from the queue
+    """
+    bbot_server = await bbot_server()
+
+    target = await bbot_server.create_target(name="target1", seeds=["evilcorp.com"])
+    preset = await bbot_server.create_preset(preset={"name": "preset1", "description": "preset1 description"})
+    scan = await bbot_server.start_scan(name="scan1", target_id=target.id, preset_id=preset.id)
+
+    scans = [s async for s in bbot_server.get_scans()]
+    assert len(scans) == 1
+    assert scans[0].status == "QUEUED"
+
+    await bbot_server.cancel_scan(scan_id=scan.id)
+
+    scans = [s async for s in bbot_server.get_scans()]
+    assert len(scans) == 1
+    assert scans[0].status == "ABORTED"
+
+
+async def test_running_scan_cancellation(bbot_server_config, bbot_agent, bbot_watchdog):
+    """
+    Here we start a scan with an agent, so we have a running scan
+
+    Then we cancel the scan, and make sure the cleanup etc. happens properly
+    """
+    # we have to use the HTTP interface here because we can only cancel a scan through the REST API
+    bbot_server = BBOTServer(interface="http", config=bbot_server_config)
+    await bbot_server.setup()
+
+    infinite_module_dir = Path(__file__).parent.parent / "bbot_modules"
+
+    # start scan
+    target = await bbot_server.create_target(name="target1", seeds=["evilcorp.com"])
+    preset = await bbot_server.create_preset(
+        preset={
+            "name": "preset1",
+            "description": "preset1 description",
+            "modules": ["infinite"],
+            "module_dirs": [str(infinite_module_dir)],
+        }
+    )
+    scan = await bbot_server.start_scan(name="scan1", target_id=target.id, preset_id=preset.id)
+
+    # wait for agent to pick it up
+    for _ in range(120):
+        scans = [s async for s in bbot_server.get_scans()]
+        if len(scans) == 1 and scans[0].status == "RUNNING":
+            break
+        await asyncio.sleep(0.5)
+    else:
+        raise Exception("Scan run did not start")
+
+    # wait 5 seconds
+    await asyncio.sleep(5.0)
+
+    # make sure the scan run is still running
+    scans = [s async for s in bbot_server.get_scans()]
+    assert len(scans) == 1
+    assert scans[0].status == "RUNNING"
+
+    # cancel the scan
+    await bbot_server.cancel_scan(scan_id=scan.id)
+
+    # wait until the scan is cancelled
+    for _ in range(120):
+        scans = [s async for s in bbot_server.get_scans()]
+        if len(scans) == 1 and scans[0].status == "ABORTED":
+            break
+        await asyncio.sleep(0.5)
+    else:
+        assert False, f"Scan run did not abort properly. Scans: {scans}"
+
+    # cancelling the scan again should raise an error
+    with pytest.raises(BBOTServerValueError):
+        await bbot_server.cancel_scan(scan_id=scan.id)
+
+    # make sure the agent is still running and ready to pick up the next scan
+    agents = await bbot_server.get_agents()
+    assert len(agents) == 1
+    assert agents[0].status == "READY"

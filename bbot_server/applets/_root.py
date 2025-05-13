@@ -6,14 +6,13 @@ from bbot_server.config import BBOT_SERVER_CONFIG
 # assets imports
 from bbot_server.applets.assets import AssetsApplet
 from bbot_server.applets.events import EventsApplet
-from bbot_server.applets.scans.scans import ScansApplet
-from bbot_server.applets.targets import TargetsApplet
+from bbot_server.applets.scans import ScansApplet
 from bbot_server.applets.activity import ActivityApplet
 from bbot_server.applets.stats import StatsApplet
 
 
 class RootApplet(BaseApplet):
-    include_apps = [AssetsApplet, EventsApplet, ScansApplet, TargetsApplet, ActivityApplet, StatsApplet]
+    include_apps = [AssetsApplet, EventsApplet, ScansApplet, ActivityApplet, StatsApplet]
 
     name = "Root Applet"
 
@@ -42,12 +41,12 @@ class RootApplet(BaseApplet):
                 from bbot_server.store.user_store import UserStore
                 from bbot_server.store.asset_store import AssetStore
 
-                self.asset_store = AssetStore(self.config)
+                self.asset_store = AssetStore(self.global_config)
                 await self.asset_store.setup()
                 self.asset_db = self.asset_store.db
                 self.asset_fs = self.asset_store.fs
 
-                self.user_store = UserStore(self.config)
+                self.user_store = UserStore(self.global_config)
                 await self.user_store.setup()
                 self.user_db = self.user_store.db
                 self.user_fs = self.user_store.fs
@@ -55,16 +54,21 @@ class RootApplet(BaseApplet):
             # set up event store
             from bbot_server.event_store import EventStore
 
-            self.event_store = EventStore(self.config)
+            self.event_store = EventStore(self.global_config)
             await self.event_store.setup()
 
             # set up NATS client
             from bbot_server.message_queue import MessageQueue
 
-            self.message_queue = MessageQueue(self.config)
+            self.message_queue = MessageQueue(self.global_config)
             await self.message_queue.setup()
 
         await self._setup()
+        return True, ""
+
+    @property
+    def config(self):
+        return self._config
 
     async def cleanup(self):
         if self.is_native:

@@ -2,27 +2,24 @@ import os
 import sys
 import typer
 import asyncio
+import subprocess
 from pathlib import Path
 from subprocess import run
-from omegaconf import OmegaConf
 from contextlib import suppress
 
+from bbot_server import BBOT_SERVER_PROJECT_ROOT
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
 class ServerCTL(BaseBBCTL):
     command = "server"
     help = "Start/stop BBOT server"
-    short_help = "Start the main BBOT server via Docker Compose or individual components in standalone mode"
+    short_help = "Start the main BBOT server via Docker Compose or individual components in standalone mode. These commands must be run from the server machine."
 
     def setup(self):
         self._docker_command = None
         self.docker_compose_dir = Path(__file__).parent.parent
         self.docker_compose_file = self.docker_compose_dir / "compose.yml"
-
-    @subcommand(help="Print the current BBOT server config")
-    def current_config(self):
-        print(OmegaConf.to_yaml(self.bbot_server.config))
 
     @subcommand(help="Start BBOT server")
     def start(
@@ -55,7 +52,14 @@ class ServerCTL(BaseBBCTL):
                 app = partial(make_server_app, config=self.config)
 
             # TODO: increase workers after adding websocket channels
-            uvicorn.run(app, host=listen, port=port, reload=reload, workers=1)
+            uvicorn.run(
+                app,
+                host=listen,
+                port=port,
+                reload=reload,
+                reload_excludes=[str(BBOT_SERVER_PROJECT_ROOT / "mongodb")],
+                workers=1,
+            )
 
         elif watchdog_only:
             print("Starting watchdog")
@@ -87,32 +91,106 @@ class ServerCTL(BaseBBCTL):
             env = os.environ.copy()
             env["BBOT_HOST"] = "0.0.0.0"
             env["BBOT_PORT"] = str(port)
-            self._run_docker_compose(["up", "-d"], check=False, cwd=self.docker_compose_dir, env=env)
+            self._run_docker_compose(["up", "-d"], env=env)
 
-    @subcommand(help="Stop BBOT server")
+    @subcommand(help="Stop BBOT server (via docker compose stop)")
     def stop(self):
-        self._run_docker_compose(["down"], check=False, cwd=self.docker_compose_dir)
+        self._run_docker_compose(["stop"])
+
+    @subcommand(help="Stop BBOT server (via docker compose down)")
+    def down(self):
+        self._run_docker_compose(["down"])
+
+    @subcommand(help="List docker compose services")
+    def ps(self):
+        self._run_docker_compose(["ps"])
+
+    @subcommand(help="List docker compose logs")
+    def logs(
+        self,
+        follow: Annotated[bool, Option("--follow", "-f", help="Follow the logs")] = False,
+        tail: Annotated[int, Option("--tail", "-n", help="Number of lines to show from the end of the logs")] = None,
+    ):
+        command = ["logs"]
+        if follow:
+            command += ["--follow"]
+            if tail is not None:
+                command += ["--tail", str(tail)]
+        self._run_docker_compose(command)
+
+    @subcommand(help="Clear the database (drop Mongodb collections).")
+    def cleardb(
+        self,
+        event_store: Annotated[bool, Option("--event-store", "-e", help="Clear the event store database")] = False,
+        asset_store: Annotated[bool, Option("--asset-store", "-a", help="Clear the asset store database")] = False,
+        user_store: Annotated[bool, Option("--user-store", "-u", help="Clear the user store database")] = False,
+    ):
+        if not event_store and not asset_store and not user_store:
+            raise self.BBOTServerError(f"Must specify at least one database to clear")
+
+        if event_store:
+            event_store_db = self.config.get("event_store", {}).get("uri", "").split("/")[-1]
+            if not event_store_db:
+                raise self.BBOTServerError("Event store database not found in config")
+            response = input(
+                f"Are you sure you want to clear the event store database: {event_store_db}? This will permanently delete all BBOT scan events! (y/N) "
+            )
+            if response.lower() != "y":
+                raise self.BBOTServerError("Aborting")
+
+            self._run_docker_compose(["exec", "mongodb", "mongosh", "--eval", "db.dropDatabase()", event_store_db])
+            self.log.info(f"Successfully cleared event store database: {event_store_db}")
+
+        if asset_store:
+            asset_store_db = self.config.get("asset_store", {}).get("uri", "").split("/")[-1]
+            if not asset_store_db:
+                raise self.BBOTServerError("Asset store database not found in config")
+            response = input(
+                f"Are you sure you want to clear the asset store database: {asset_store_db}? This will permanently delete all BBOT asset data! (y/N) "
+            )
+            if response.lower() != "y":
+                raise self.BBOTServerError("Aborting")
+            self._run_docker_compose(["exec", "mongodb", "mongosh", "--eval", "db.dropDatabase()", asset_store_db])
+            self.log.info(f"Successfully cleared asset store database: {asset_store_db}")
+
+        if user_store:
+            user_store_db = self.config.get("user_store", {}).get("uri", "").split("/")[-1]
+            if not user_store_db:
+                raise self.BBOTServerError("User store database not found in config")
+            response = input(
+                f"Are you sure you want to clear the user store database: {user_store_db}? This will permanently delete all BBOT user data, including presets and targets! (y/N) "
+            )
+            if response.lower() != "y":
+                raise self.BBOTServerError("Aborting")
+            self._run_docker_compose(["exec", "mongodb", "mongosh", "--eval", "db.dropDatabase()", user_store_db])
+            self.log.info(f"Successfully cleared user store database: {user_store_db}")
 
     def _run_docker_compose(self, args, **kwargs):
+        kwargs["cwd"] = self.docker_compose_dir
         if self._docker_command is None:
             try:
-                run(["docker", "compose", "version"], **kwargs)
+                run(["docker", "compose", "version"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 self._docker_command = ["docker", "compose"]
-            except FileNotFoundError:
+            except (FileNotFoundError, subprocess.CalledProcessError):
                 try:
-                    run(["docker-compose", "--version"], **kwargs)
+                    run(
+                        ["docker-compose", "--version"],
+                        check=True,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
                     self._docker_command = ["docker-compose"]
-                except FileNotFoundError:
+                except (FileNotFoundError, subprocess.CalledProcessError):
                     raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
 
         return run(self._docker_command + args, **kwargs)
 
     @subcommand(
         help="Run a command with docker compose",
-        epilog="Example: bbctl server run-docker-compose exec server bash",
+        epilog="Example: `bbctl server compose ps` or `bbctl server compose exec server bash`",
     )
-    def run_docker_compose(self, args: list[str]):
+    def compose(self, args: list[str]):
         # we take sys.argv after "run-docker-compose"
-        docker_compose_index = sys.argv.index("run-docker-compose")
+        docker_compose_index = sys.argv.index("compose")
         docker_compose_args = sys.argv[docker_compose_index + 1 :]
         return self._run_docker_compose(docker_compose_args)

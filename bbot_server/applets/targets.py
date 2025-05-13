@@ -6,8 +6,8 @@ from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
+from bbot_server.models.target_models import Target
 from bbot_server.models.activity_models import Activity
-from bbot_server.models.scan_models import Target
 from bbot_server.applets._base import BaseApplet, api_endpoint
 from bbot_server.assets.custom_fields import CustomAssetFields
 
@@ -42,6 +42,7 @@ class TargetsApplet(BaseApplet):
         # this holds an up-to-date list of all the target IDs
         self._target_ids = set()
         self._target_ids_modified = None
+        return True, ""
 
     async def handle_event(self, event, asset):
         """
@@ -140,7 +141,7 @@ class TargetsApplet(BaseApplet):
         description: str = "",
         seeds: list[str] = [],
         whitelist: list[str] = None,
-        blacklist: list[str] = None,
+        blacklist: list[str] = [],
         strict_dns_scope: bool = False,
     ) -> Target:
         if not whitelist and not seeds:
@@ -193,13 +194,6 @@ class TargetsApplet(BaseApplet):
         target_id = str(target["id"])
         target_is_default = target["default"]
 
-        # abort if the target is still in use by any scans
-        scans_with_target = await self.parent.scans.get_scans_brief(target_id=target_id)
-        if scans_with_target:
-            raise self.BBOTServerValueError(
-                f"Target is still in use by the following scans: {', '.join([str(scan.name) for scan in scans_with_target])}"
-            )
-
         # when we're deleting the default target, we need to set a new one
         if target_is_default:
             if new_default_target_id is None:
@@ -224,7 +218,7 @@ class TargetsApplet(BaseApplet):
 
         # clear scope cache
         if self._scope_cache is not None:
-            self._scope_cache.pop(target_id)
+            self._scope_cache.pop(target_id, None)
 
         # forget the target ID forever
         self._target_ids.discard(target_id)

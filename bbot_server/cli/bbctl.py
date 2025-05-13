@@ -18,7 +18,6 @@ from bbot_server.cli.scanctl import ScanCTL
 from bbot_server.cli.serverctl import ServerCTL
 from bbot_server.cli.eventctl import EventCTL
 from bbot_server.cli.activityctl import ActivityCTL
-from bbot_server.cli.targetctl import TargetCTL
 from bbot_server.cli.findingctl import FindingCTL
 from bbot_server.cli.technologyctl import TechnologyCTL
 
@@ -28,7 +27,9 @@ class BBCTL(BaseBBCTL):
     The root command for the BBCTL CLI
     """
 
-    include = [AssetCTL, ScanCTL, TargetCTL, ServerCTL, AgentCTL, EventCTL, ActivityCTL, FindingCTL, TechnologyCTL]
+    include = [AssetCTL, ScanCTL, ServerCTL, AgentCTL, EventCTL, ActivityCTL, FindingCTL, TechnologyCTL]
+
+    _invoke_without_command = True
 
     def __init__(self):
         super().__init__()
@@ -43,6 +44,7 @@ class BBCTL(BaseBBCTL):
             bool, Option(f"--color/--no-color", "-cl/-ncl", help="Enable or disable color in the terminal")
         ] = True,
         debug: Annotated[bool, Option("--debug", "-d", help="Enable debug mode")] = False,
+        current_config: Annotated[bool, Option("--current-config", "-cc", help="Print the current config")] = False,
     ):
         self.silent = silent
         self.color = color
@@ -65,6 +67,9 @@ class BBCTL(BaseBBCTL):
 
         self._stdout = Console(file=sys.stdout, highlight=False, color_system=("auto" if self.color else None))
         self._stderr = Console(file=sys.stderr, highlight=False, color_system=("auto" if self.color else None))
+
+        if current_config:
+            self.print_yaml(OmegaConf.to_yaml(self.config))
 
     @cached_property
     def bbot_server(self):

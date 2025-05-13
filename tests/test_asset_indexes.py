@@ -1,4 +1,65 @@
 from bbot_server import BBOTServer
+from pydantic import computed_field
+from typing import Annotated
+from bbot_server.models.base import BaseBBOTServerModel
+
+
+class IndexTestModel(BaseBBOTServerModel):
+    # Regular fields with different index types
+    regular_field: Annotated[str, "indexed"] = "test"
+    text_field: Annotated[str, "indexed-text"] = "test"
+    compound_field: Annotated[str, "indexed", "unique"] = "test"
+    non_indexed: str = "test"
+
+    # Computed fields with different index types
+    @computed_field
+    @property
+    def computed_field_test(self) -> Annotated[str, "indexed"]:
+        return "test"
+
+    @computed_field
+    @property
+    def computed_text(self) -> Annotated[str, "indexed-text"]:
+        return "test"
+
+    @computed_field
+    @property
+    def computed_compound(self) -> Annotated[str, "indexed", "unique"]:
+        return "test"
+
+    @computed_field
+    @property
+    def computed_non_indexed(self) -> str:
+        return "test"
+
+
+async def test_indexed_fields():
+    # Test both regular and computed fields
+    indexed = IndexTestModel.indexed_fields()
+
+    # Check regular fields
+    assert "regular_field" in indexed
+    assert indexed["regular_field"] == ["indexed"]
+
+    assert "text_field" in indexed
+    assert indexed["text_field"] == ["indexed-text"]
+
+    assert "compound_field" in indexed
+    assert set(indexed["compound_field"]) == {"indexed", "unique"}
+
+    assert "non_indexed" not in indexed
+
+    # Check computed fields
+    assert "computed_field_test" in indexed
+    assert indexed["computed_field_test"] == ["indexed"]
+
+    assert "computed_text" in indexed
+    assert indexed["computed_text"] == ["indexed-text"]
+
+    assert "computed_compound" in indexed
+    assert set(indexed["computed_compound"]) == {"indexed", "unique"}
+
+    assert "computed_non_indexed" not in indexed
 
 
 async def test_asset_indexes(bbot_server_config):

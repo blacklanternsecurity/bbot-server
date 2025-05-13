@@ -102,7 +102,7 @@ class BaseAppletTest:
 
             # archive old events (from the first scan)
             with self.handle_errors("running archive task"):
-                await self.bbot_server.archive_old_events()
+                await self.bbot_server.archive_old_events(older_than=90)
             # wait for the archive task to finish
             await asyncio.sleep(1.0)
 

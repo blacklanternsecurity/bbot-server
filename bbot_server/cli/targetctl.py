@@ -1,4 +1,5 @@
 from pathlib import Path
+from typer import Argument
 
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
@@ -28,8 +29,8 @@ class TargetCTL(BaseBBCTL):
             bool,
             Option(
                 "--strict-scope",
-                "-s",
-                help="Strict DNS scope (only the exact hosts themselves are in scope, not their children)",
+                "-ss",
+                help="Strict DNS scope (only the exact hosts themselves should be considered in-scope, not their subdomains)",
             ),
         ] = False,
     ):
@@ -45,12 +46,12 @@ class TargetCTL(BaseBBCTL):
             strict_dns_scope=strict_dns_scope,
         )
         self.log.info(f"Target created successfully:")
-        self.stdout.print_json(target.model_dump_json())
+        self.print_json(target.model_dump())
 
     @subcommand(help="Delete a target")
     def delete(
         self,
-        id: Annotated[str, Option("--name", "-n", "--id", "-i", help="Target name or ID")],
+        id: Annotated[str, Argument(help="Target name or ID")],
     ):
         self.bbot_server.delete_target(id=id)
         self.log.info(f"Target deleted successfully")
@@ -119,6 +120,11 @@ class TargetCTL(BaseBBCTL):
                 self.timestamp_to_human(target.modified),
             )
         self.stdout.print(table)
+
+    @subcommand(help="Get a target by its name or ID")
+    def get(self, target_id: Annotated[str, Argument(help="Target name or ID")]):
+        target = self.bbot_server.get_target(target_id)
+        self.print_json(target.model_dump())
 
     def _read_file(self, file, filetype):
         if not file.resolve().is_file():

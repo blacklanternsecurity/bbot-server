@@ -1,14 +1,10 @@
 # url of BBOT server
-url: http://bbot-server:8807/v1/
+url: http://server:8807/v1/
 
 # event store is just a big bucket of BBOT scan events
 event_store:
   uri: mongodb://mongodb:27017/bbot_eventstore
   table_name: events
-  # archive events older than 90 days
-  archive_after: 90
-  # run archive task once every 24 hours at midnight
-  archive_cron: "0 0 * * *"
 
 # assets are derived in real time from the event store, and can be recreated at any time
 asset_store:

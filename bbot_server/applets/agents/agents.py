@@ -1,9 +1,11 @@
 import time
 import asyncio
 import traceback
+from uuid import UUID
 from pydantic import UUID4
-from fastapi import WebSocket
+from typing import Annotated
 from contextlib import suppress
+from fastapi import WebSocket, Query
 from datetime import datetime, timezone
 
 from bbot.constants import get_scan_status_code, get_scan_status_name, SCAN_STATUS_QUEUED
@@ -30,8 +32,9 @@ class AgentsApplet(BaseApplet):
             self.connection_manager = ConnectionManager()
             # watch the
             self.kickoff_queued_scans_task = self.create_task(self._kickoff_queued_scans_loop())
+        return True, ""
 
-    @api_endpoint("/list", methods=["GET"], summary="List all agents")
+    @api_endpoint("/list", methods=["GET"], summary="List all agents", mcp=True)
     async def get_agents(self) -> list[Agent]:
         db_results = await self.collection.find().to_list(length=None)
         agents = []
@@ -50,33 +53,36 @@ class AgentsApplet(BaseApplet):
         return agent
 
     @api_endpoint("/", methods=["DELETE"], summary="Delete an agent")
-    async def delete_agent(self, id: UUID4 = None, name: str = None):
-        agent = await self.get_agent(id=id, name=name)
+    async def delete_agent(self, id: str):
+        agent = await self.get_agent(id)
         await self.collection.delete_one({"id": str(agent.id)})
 
     @api_endpoint("/", methods=["GET"], summary="Get an agent by its id")
-    async def get_agent(self, id: UUID4 = None, name: str = None) -> Agent:
-        if id is None and name is None:
-            raise ValueError("Must provide either a scan name or id")
-        query = {}
-        if id is not None:
-            query["id"] = str(id)
-        if name is not None:
-            query["name"] = name
+    async def get_agent(self, id: str) -> Agent:
+        try:
+            query = {"id": str(UUID(str(id)))}
+        except Exception:
+            query = {"name": str(id)}
         agent = await self.collection.find_one(query)
         if agent is None:
-            raise self.BBOTServerNotFoundError(f"Agent not found")
+            raise self.BBOTServerNotFoundError(f"Agent not found: {query}")
         return await self._make_agent(agent)
 
-    @api_endpoint("/status", methods=["GET"], summary="Get the status of an agent")
-    async def get_agent_status(self, id: UUID4, detailed: bool = False) -> dict[str, str]:
+    @api_endpoint("/status", methods=["GET"], summary="Get the status of an agent", mcp=True)
+    async def get_agent_status(
+        self,
+        id: Annotated[str, Query(description="agent name or ID")],
+        detailed: bool = False,
+    ) -> dict[str, str]:
         start_time = time.time()
+        agent = await self.get_agent(id)
         try:
             command_response = await self.connection_manager.execute_command(
-                str(id), "get_agent_status", timeout=10, detailed=detailed
+                str(agent.id), "get_agent_status", timeout=10, detailed=detailed
             )
             if command_response.error:
                 raise self.BBOTServerValueError(command_response.error)
+            self.log.critical(f"AGENT STATUS COMMAND RESPONSE: {command_response}")
             agent_status = command_response.response
         except TimeoutError:
             end_time = time.time()
@@ -96,13 +102,13 @@ class AgentsApplet(BaseApplet):
             raise self.BBOTServerValueError(command_response.error)
         return command_response.response
 
-    @api_endpoint("/online", methods=["GET"], summary="Get all online agents")
+    @api_endpoint("/online", methods=["GET"], summary="Get all online agents", mcp=True)
     async def get_online_agents(self, status: str = "READY") -> list[Agent]:
         agents = await self.collection.find({"status": status}).to_list(length=None)
         agents = [Agent(**agent) for agent in agents]
         return agents
 
-    async def execute_command(self, agent_id: UUID4, command: str, **kwargs) -> dict:
+    async def execute_agent_command(self, agent_id: UUID4, command: str, **kwargs) -> dict:
         # since this is communicating directly with a connected agent over websocket,
         # it must be called from the main bbot server instance
         self.ensure_main_server()
@@ -144,35 +150,40 @@ class AgentsApplet(BaseApplet):
                         scan_status_code = message.response.get("scan_status_code", SCAN_STATUS_QUEUED)
                         scan_status_code = get_scan_status_code(scan_status_code)
                         scan_status = get_scan_status_name(scan_status_code)
-                        scan_run_id = message.response.get("scan_id", None)
+                        scan_id = message.response.get("scan_id", None)
                         scan_name = message.response.get("scan_name", None)
-                        if scan_name and scan_run_id:
+                        detail = {
+                            "agent_id": str(agent.id),
+                            "agent_status": agent_status,
+                            "scan_status": scan_status,
+                            "scan_status_code": scan_status_code,
+                            "scan_id": scan_id,
+                            "scan_name": scan_name,
+                        }
+                        if "error" in message.response:
+                            detail["error"] = message.response["error"]
+                        if scan_name and scan_id:
                             try:
-                                existing_scan = await self.root.get_scan_run(scan_run_id=scan_run_id)
+                                existing_scan = await self.parent.get_scan(id=scan_id)
                             except self.BBOTServerNotFoundError as e:
-                                self.log.error(f"Error getting scan run {scan_run_id}: {e}")
+                                self.log.error(f"Error getting scan {scan_id}: {e}")
                                 existing_scan = None
-                            existing_scan_status_code = getattr(existing_scan, "status_code", SCAN_STATUS_QUEUED)
+                            existing_scan_status_code = get_scan_status_code(
+                                getattr(existing_scan, "status_code", SCAN_STATUS_QUEUED)
+                            )
+                            existing_scan_status = get_scan_status_name(existing_scan_status_code)
                             if scan_status_code > existing_scan_status_code:
-                                await self.root.update_scan_run_status(
-                                    scan_run_id=scan_run_id, status_code=scan_status_code
-                                )
+                                await self.parent.update_scan_status(scan_id=scan_id, status_code=scan_status_code)
                                 await self.emit_activity(
                                     type="SCAN_STATUS",
-                                    detail={
-                                        "agent_id": str(agent.id),
-                                        "agent_status": agent_status,
-                                        "scan_status": scan_status,
-                                        "scan_id": scan_run_id,
-                                        "scan_name": scan_name,
-                                    },
-                                    description=f"Scan [COLOR]{scan_name}[/COLOR] status changed to [bold]{scan_status}[/bold]",
+                                    detail=detail,
+                                    description=f"Scan [COLOR]{scan_name}[/COLOR] status changed from [bold]{existing_scan_status}[/bold] to [bold]{scan_status}[/bold]",
                                 )
                         await self._update_agent_status(
                             agent_id=agent.id,
                             status=agent_status,
                             connected=True,
-                            current_scan_id=scan_run_id,
+                            current_scan_id=scan_id,
                         )
                 except Exception as e:
                     self.log.error(f"Error in server-side websocket loop for agent {agent.id}: {e}")

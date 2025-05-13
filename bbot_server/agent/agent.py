@@ -10,11 +10,10 @@ from urllib.parse import urlparse, urlunparse, urljoin
 
 from bbot.scanner import Scanner, Preset
 from bbot.scanner.dispatcher import Dispatcher
-from bbot.constants import get_scan_status_name, SCAN_STATUS_NOT_STARTED
+from bbot.constants import get_scan_status_code, get_scan_status_name, SCAN_STATUS_NOT_STARTED, SCAN_STATUS_FAILED
 
 from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
-from bbot_server.models.scan_models import ScanRun
 from bbot_server.utils.async_utils import async_to_sync_class
 from bbot_server.models.agent_models import AgentResponse
 
@@ -45,7 +44,8 @@ class AgentDispatcher(Dispatcher):
         self.agent = agent
 
     async def on_status(self, status, scan_id):
-        await self.agent.gratuitous_status_update(scan=self.scan, scan_status=status)
+        scan_status_code = get_scan_status_code(status)
+        await self.agent.gratuitous_status_update(scan=self.scan, scan_status_code=scan_status_code)
 
 
 @async_to_sync_class
@@ -112,14 +112,29 @@ class BBOTAgent:
         return await command_fn(**kwargs)
 
     @command
-    async def start_scan(self, scan_run: dict[str, Any]):
+    async def start_scan(self, scan_id: str, preset: dict[str, Any]):
         if self.scan is not None:
             return {"status": "error", "message": "Scan already running"}
-        scan_run = ScanRun(**scan_run)
-        preset = self.make_agent_preset()
-        preset.merge(Preset.from_dict(scan_run.preset))
 
-        scan = Scanner(preset=preset, scan_id=scan_run.id, dispatcher=self.dispatcher)
+        # base preset with agent-specific overrides
+        agent_preset = self.make_agent_preset()
+
+        try:
+            preset_obj = Preset.from_dict(preset)
+            agent_preset.merge(preset_obj)
+        except BaseException as e:
+            return {"status": "error", "message": f"Error parsing preset: {e} - {traceback.format_exc()}"}
+
+        try:
+            # create scanner
+            scan = Scanner(
+                preset=agent_preset,
+                scan_id=scan_id,
+                dispatcher=self.dispatcher,
+            )
+        except BaseException as e:
+            return {"status": "error", "message": f"Error creating scanner: {e} - {traceback.format_exc()}"}
+
         self._patch_scan(scan)
         self.scan_task = asyncio.create_task(self._start_scan_task(scan))
         return {
@@ -136,8 +151,13 @@ class BBOTAgent:
             return {"status": "error", "message": "Scan not running"}
         if force:
             self.scan_task.cancel()
-            # with suppress(asyncio.CancelledError):
-            #     await self.scan_task
+            with suppress(BaseException):
+                await asyncio.wait_for(self.scan_task, timeout=0.5)
+            if not (self.scan is None and self.status == "READY"):
+                self.scan = None
+                self.scan_task = None
+                self.status = "READY"
+                await self.gratuitous_status_update()
             return {"status": "success"}
         else:
             try:
@@ -156,8 +176,9 @@ class BBOTAgent:
         except asyncio.CancelledError:
             self.log.warning("Scan cancelled")
         except BaseException as e:
-            self.log.error(f"Error running scan: {e}")
-            self.log.error(traceback.format_exc())
+            full_error = f"Error in BBOT scan: {e} - {traceback.format_exc()}"
+            self.log.error(full_error)
+            await self.gratuitous_status_update(scan_status_code=SCAN_STATUS_FAILED, error=full_error)
         finally:
             self.scan = None
             self.scan_task = None
@@ -222,6 +243,7 @@ class BBOTAgent:
 
                     async for message in websocket:
                         message = orjson.loads(message)
+                        self.log.debug(f"Agent got message: {message}")
 
                         try:
                             request_id = message.pop("request_id")
@@ -250,7 +272,7 @@ class BBOTAgent:
                             error = f"Error handling message: {e}\n{trace}"
                             response = AgentResponse(request_id=request_id, error=error)
 
-                        self.log.info(f"Agent {self.name} sending response: {response}")
+                        self.log.debug(f"Agent {self.name} sending response: {response}")
                         await websocket.send(orjson.dumps(response.model_dump()))
 
                 except websockets.ConnectionClosed:
@@ -272,10 +294,11 @@ class BBOTAgent:
             self.log.error(traceback.format_exc())
             raise
 
-    async def gratuitous_status_update(self, scan=None, scan_status=None):
+    async def gratuitous_status_update(self, scan=None, scan_status_code=None, error=None):
         scan_id = getattr(scan, "id", None)
         scan_name = getattr(scan, "name", None)
-        scan_status_code = getattr(scan, "_status_code", SCAN_STATUS_NOT_STARTED)
+        scan_status_code = scan_status_code or getattr(scan, "_status_code", SCAN_STATUS_NOT_STARTED)
+        scan_status_code = get_scan_status_code(scan_status_code)
         scan_status = get_scan_status_name(scan_status_code)
         status = {
             "agent_status": self.status,
@@ -284,6 +307,8 @@ class BBOTAgent:
             "scan_id": scan_id,
             "scan_name": scan_name,
         }
+        if error is not None:
+            status["error"] = error
         if scan_id and scan is not None:
             try:
                 status["scan_status_detail"] = scan.modules_status(detailed=True)

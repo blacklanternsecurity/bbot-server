@@ -12,7 +12,6 @@ class OpenPortsApplet(BaseApplet):
     watched_events = ["OPEN_TCP_PORT"]
     watched_activities = ["PORT_OPENED", "PORT_CLOSED"]
     description = "open ports discovered during scans"
-    route_prefix = ""
 
     async def handle_event(self, event, asset):
         """
@@ -46,7 +45,7 @@ class OpenPortsApplet(BaseApplet):
         open_ports_stats = dict(sorted(open_ports_stats.items(), key=lambda x: x[1], reverse=True))
         statistics["open_ports"] = open_ports_stats
 
-    @api_endpoint("/open_ports", methods=["GET"], summary="Get all the open ports for all hosts")
+    @api_endpoint("/list", methods=["GET"], summary="Get all the open ports for all hosts")
     async def get_open_ports(self, domain: str = None, target_id: str = None) -> dict[str, list[int]]:
         open_ports = {}
         async for asset in self.parent._get_assets(
@@ -58,16 +57,14 @@ class OpenPortsApplet(BaseApplet):
             open_ports[asset["host"]] = asset["open_ports"]
         return open_ports
 
-    @api_endpoint("/open_ports/{host}", methods=["GET"], summary="Get all the open ports for a host")
+    @api_endpoint("/list/{host}", methods=["GET"], summary="Get all the open ports for a host")
     async def get_open_ports_by_host(self, host: str) -> list[int]:
         asset = await self.collection.find_one({"host": str(host), "type": "Asset"}, {"open_ports": 1})
         if asset is None:
             return []
         return asset.get("open_ports", [])
 
-    @api_endpoint(
-        "/open_ports/search/{port}", methods=["POST"], summary="Search for assets with a given open port", mcp=True
-    )
+    @api_endpoint("/search/{port}", methods=["POST"], summary="Search for assets with a given open port", mcp=True)
     async def search_by_open_port(self, port: int, target_id: str = None) -> list[str]:
         assets = [
             a async for a in self.parent._get_assets(query={"open_ports": port}, target_id=target_id, fields=["host"])
