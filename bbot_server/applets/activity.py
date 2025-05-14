@@ -23,7 +23,7 @@ class ActivityApplet(BaseApplet):
             query["host"] = host
         if type:
             query["type"] = type
-        async for activity in self.collection.find(query):
+        async for activity in self.collection.find(query, sort=[("timestamp", 1), ("created", 1)]):
             yield self.model(**activity)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Activity)

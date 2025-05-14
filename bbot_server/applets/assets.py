@@ -48,6 +48,20 @@ class AssetsApplet(BaseApplet):
             raise self.BBOTServerNotFoundError(f"Asset {host} not found")
         return self.model(**asset)
 
+    @api_endpoint(
+        "/{host}/history", methods=["GET"], summary="Get the history of a single asset by its host", mcp=True
+    )
+    async def get_asset_history(self, host: str) -> list[str]:
+        query = {}
+        if host:
+            query["host"] = host
+        history = []
+        async for activity in self.root.activity.collection.find(
+            query, {"description": 1}, sort=[("timestamp", 1), ("created", 1)]
+        ):
+            history.append(activity["description"])
+        return history
+
     async def update_asset(self, asset: Asset):
         asset.modified = utc_now()
         await self.strict_collection.update_one({"host": asset.host}, {"$set": asset.model_dump()}, upsert=True)
