@@ -6,6 +6,7 @@ from functools import cached_property
 from datetime import datetime, timezone
 from typing import Annotated, Any, Optional
 
+from bbot_server.utils.misc import utc_now
 from bbot_server.cli.themes import COLOR, DARK_COLOR
 from bbot_server.models.base import BaseBBOTServerModel
 
@@ -26,6 +27,7 @@ class Activity(BaseBBOTServerModel):
     id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Annotated[str, "indexed"]
     timestamp: Annotated[float, "indexed"]
+    created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     description: Annotated[str, "indexed"]
     description_colored: str = Field(default="")
     detail: dict[str, Any] = {}

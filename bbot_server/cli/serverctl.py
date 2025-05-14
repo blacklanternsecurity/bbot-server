@@ -14,7 +14,7 @@ from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 class ServerCTL(BaseBBCTL):
     command = "server"
     help = "Start/stop BBOT server"
-    short_help = "Start the main BBOT server via Docker Compose or individual components in standalone mode. These commands must be run from the server machine."
+    short_help = "Start or stop BBOT server via Docker Compose"
 
     def setup(self):
         self._docker_command = None
@@ -102,7 +102,7 @@ class ServerCTL(BaseBBCTL):
         self._run_docker_compose(["down"])
 
     @subcommand(help="List docker compose services")
-    def ps(self):
+    def status(self):
         self._run_docker_compose(["ps"])
 
     @subcommand(help="List docker compose logs")
