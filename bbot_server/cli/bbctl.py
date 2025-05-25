@@ -29,7 +29,7 @@ class BBCTL(BaseBBCTL):
     The root command for the BBCTL CLI
     """
 
-    include = [AssetCTL, ScanCTL, ServerCTL, AgentCTL, EventCTL, ActivityCTL, FindingCTL, TechnologyCTL]
+    include = [AssetCTL, ScanCTL, ServerCTL, AgentCTL, EventCTL, ActivityCTL, FindingCTL, TechnologyCTL, UserCTL]
 
     _invoke_without_command = True
 
