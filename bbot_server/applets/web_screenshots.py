@@ -12,7 +12,7 @@ class WebScreenshotsApplet(BaseApplet):
     async def handle_event(self, event: Event, asset) -> list[Activity]:
         return []
 
-    @api_endpoint("/webscreenshots", methods=["GET"], summary="Get all web screenshots")
+    @api_endpoint("/webscreenshots", methods=["GET"], summary="Get all web screenshots", dependencies=None)
     async def get_webscreenshots(self) -> list[str]:
         return []
 

@@ -21,8 +21,6 @@ app_kwargs = {
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
-API_KEYS = dict(BBOT_SERVER_CONFIG.get("valid_secrets", {}))
-
 
 # Dependency to verify the API key
 async def verify_api_key(api_key: str = Security(api_key_header)):
@@ -48,8 +46,18 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
     except ValueError:
         raise HTTPException(status_code=403, detail="Both secret_id and secret_key must be valid UUIDs")
     hashed_secret = blake2s(secret_key.encode()).hexdigest()
+    API_KEYS = BBOT_SERVER_CONFIG.get("valid_secrets", {})
     if not API_KEYS.get(secret_id, "") == hashed_secret:
-        raise HTTPException(status_code=403, detail="Invalid API key")
+        # raise HTTPException(status_code=403, detail="Invalid API key")
+        from bbot_server.config import BBOT_SERVER_CONFIG_PATH
+
+        main_config = BBOT_SERVER_CONFIG_PATH.read_text()
+        from omegaconf import OmegaConf
+
+        raise HTTPException(
+            status_code=403,
+            detail=f"Invalid API key: {api_key} ({secret_id} is not in {API_KEYS}) - CONFIG: {OmegaConf.to_yaml(BBOT_SERVER_CONFIG)}, main_config: {main_config}",
+        )
     return api_key
 
 

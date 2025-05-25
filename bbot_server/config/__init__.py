@@ -29,13 +29,13 @@ if not BBOT_SERVER_CONFIG_PATH.exists():
         log.error(f"Error creating config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
 
 # if a custom config is provided, merge it with the defaults
-custom_config_path = os.environ.get("BBOT_SERVER_CONFIG", "")
-if custom_config_path and Path(custom_config_path).exists():
-    BBOT_SERVER_CONFIG_PATH = Path(custom_config_path)
+config_path = Path(os.environ.get("BBOT_SERVER_CONFIG", BBOT_SERVER_CONFIG_PATH))
+if config_path.exists():
+    BBOT_SERVER_CONFIG_PATH = config_path
     try:
-        custom_config = OmegaConf.load(BBOT_SERVER_CONFIG_PATH)
-        BBOT_SERVER_CONFIG = OmegaConf.merge(BBOT_SERVER_DEFAULTS, custom_config)
+        config = OmegaConf.load(BBOT_SERVER_CONFIG_PATH)
+        BBOT_SERVER_CONFIG = OmegaConf.merge(BBOT_SERVER_DEFAULTS, config)
     except Exception as e:
-        log.error(f"Error loading custom config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
+        log.error(f"Error loading config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
 
 BBOT_SERVER_URL = BBOT_SERVER_CONFIG.url

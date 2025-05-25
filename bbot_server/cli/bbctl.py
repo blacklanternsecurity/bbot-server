@@ -8,9 +8,9 @@ from omegaconf import OmegaConf
 from rich.console import Console
 from functools import cached_property
 
-from bbot_server.errors import BBOTServerError
 from bbot_server.cli.base import BaseBBCTL, Annotated, Option
-from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG, BBOT_SERVER_CONFIG_PATH
+from bbot_server.errors import BBOTServerError, BBOTServerForbiddenError
+from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG, BBOT_SERVER_CONFIG_PATH, BBOT_SERVER_DEFAULTS
 
 # subcommand imports
 from bbot_server.cli.agentctl import AgentCTL
@@ -52,17 +52,17 @@ class BBCTL(BaseBBCTL):
         self.color = color
         self.debug = debug
         self.config_path = None
-        if config:
+        custom_config = os.environ.get("BBOT_SERVER_CONFIG", config)
+        if custom_config:
             try:
-                self.config_path = Path(config)
+                self.config_path = Path(custom_config)
                 os.environ["BBOT_SERVER_CONFIG"] = str(self.config_path)
+                self._config = OmegaConf.merge(BBOT_SERVER_DEFAULTS, OmegaConf.load(self.config_path))
             except Exception as e:
-                raise BBOTServerError(f"Error loading config file {config}: {e}")
+                raise BBOTServerError(f"Error loading config file at {self.config_path}: {e}")
         else:
             self.config_path = BBOT_SERVER_CONFIG_PATH
             self._config = BBOT_SERVER_CONFIG
-        config = OmegaConf.load(self.config_path)
-        self._config = OmegaConf.merge(BBOT_SERVER_CONFIG, config)
         if self.debug:
             logging.getLogger().setLevel(logging.DEBUG)
         if server_url != BBOT_SERVER_URL:
@@ -98,10 +98,13 @@ log = logging.getLogger("bbot_server.bbctl")
 
 def main():
     bbctl = BBCTL()
+    _log = getattr(bbctl, "log", log)
     try:
         bbctl.typer()
+    except BBOTServerForbiddenError as e:
+        _log.error(f"Authentication failed: {e.detail}")
+        sys.exit(1)
     except BBOTServerError as e:
-        _log = getattr(bbctl, "log", log)
         _log.error(str(e))
         _log.debug(traceback.format_exc())
         sys.exit(1)

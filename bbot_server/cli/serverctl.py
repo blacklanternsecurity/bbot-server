@@ -184,12 +184,12 @@ class ServerCTL(BaseBBCTL):
                 except (FileNotFoundError, subprocess.CalledProcessError):
                     raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
 
-        print(f"RUNNING: {self._docker_command + args}")
         return run(self._docker_command + args, cwd=self.docker_compose_dir, **kwargs)
 
     @subcommand(
         help="Run a command with docker compose",
-        epilog="Example: `bbctl server compose ps` or `bbctl server compose exec server bash`",
+        epilog="Example: bbctl server run-docker-compose exec server bash",
+        context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
     )
     def compose(self, args: list[str]):
         # we take sys.argv after "run-docker-compose"
