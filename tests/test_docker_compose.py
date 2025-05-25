@@ -229,7 +229,7 @@ def test_docker_compose_authentication():
                 capture_output=True,
                 text=True,
             )
-            if "Invalid API key" in result.stderr:
+            if "Invalid API key" in result.stderr or "No API key found" in result.stderr:
                 break
             time.sleep(0.5)
         else:

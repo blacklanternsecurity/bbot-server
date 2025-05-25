@@ -146,6 +146,23 @@ bbctl scan list
 bbctl scan cancel "demonic_jimmy"
 ```
 
+## Targets
+
+BBOT server categorizes its assets by target.
+
+You can list targets like so:
+
+```bash
+# List targets
+bbctl target list
+
+# Create a new target
+bbctl target create --seeds seeds.txt --blacklist blacklist.txt --name custom_target
+
+# List only the assets that match your new target
+bbctl asset list --target custom_target
+```
+
 ## Custom triggers
 
 You can kick off a custom command or bash script whenever a certain activity happens, such as when a new technology or open port is discovered.
