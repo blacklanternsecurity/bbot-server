@@ -11,3 +11,6 @@ user_store:
 
 message_queue:
   uri: redis://localhost:6379/15
+
+api_keys:
+  - test_api_key

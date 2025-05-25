@@ -1,5 +1,7 @@
 # url of BBOT server
 url: http://localhost:8807/v1/
+# which API key to use when in client mode
+api_key: ""
 
 # event store is just a big bucket of BBOT scan events
 event_store:
@@ -33,3 +35,6 @@ agent:
 
 cli:
   http_timeout: 15
+
+# a list of blake2s-hashed API keys to be considered valid by the server
+valid_api_keys: []

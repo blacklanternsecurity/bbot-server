@@ -11,9 +11,9 @@ import logging
 import subprocess
 import pytest_asyncio
 from pathlib import Path
+from hashlib import blake2s
 from omegaconf import OmegaConf
 from contextlib import suppress
-
 from bbot_server.config import BBOT_SERVER_CONFIG
 from .gen_scan_data import *
 
@@ -42,7 +42,9 @@ BBOT_SERVER_TEST_DIR.mkdir(parents=True, exist_ok=True)
 def bbot_server_config():
     # load test file omegaconf config
     test_config = OmegaConf.load(TEST_CONFIG_PATH)
-    return OmegaConf.merge(BBOT_SERVER_CONFIG, test_config)
+    test_config = OmegaConf.merge(BBOT_SERVER_CONFIG, test_config)
+    test_config["valid_api_keys"] = [blake2s("test-api-key".encode()).hexdigest()]
+    return test_config
 
 
 @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
