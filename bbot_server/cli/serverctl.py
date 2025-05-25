@@ -43,13 +43,7 @@ class ServerCTL(BaseBBCTL):
                 os.environ["BBOT_SERVER_CONFIG"] = str(self.root.config_path)
             import uvicorn
 
-            if reload:
-                app = "bbot_server.api.app:server_app"
-            else:
-                from functools import partial
-                from bbot_server.api import make_server_app
-
-                app = partial(make_server_app, config=self.config)
+            app = "bbot_server.api.app:server_app"
 
             # TODO: increase workers after adding websocket channels
             uvicorn.run(

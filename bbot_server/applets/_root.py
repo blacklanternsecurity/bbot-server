@@ -3,12 +3,12 @@ from omegaconf import OmegaConf
 from bbot_server.applets._base import BaseApplet
 from bbot_server.config import BBOT_SERVER_CONFIG
 
-# assets imports
+# applet imports
+from bbot_server.applets.stats import StatsApplet
 from bbot_server.applets.assets import AssetsApplet
 from bbot_server.applets.events import EventsApplet
 from bbot_server.applets.scans import ScansApplet
 from bbot_server.applets.activity import ActivityApplet
-from bbot_server.applets.stats import StatsApplet
 
 
 class RootApplet(BaseApplet):

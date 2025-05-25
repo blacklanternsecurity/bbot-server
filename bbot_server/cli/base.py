@@ -157,6 +157,16 @@ class BaseBBCTL:
             data = yaml.dump(data, indent=2)
         return Syntax(data, "yaml", theme="monokai", background_color="default", **kwargs)
 
+    def highlight_yaml(self, yaml_string, **kwargs):
+        """
+        Highlight a YAML string with rich
+        """
+        if not "background_color" in kwargs:
+            kwargs["background_color"] = "default"
+        if not "theme" in kwargs:
+            kwargs["theme"] = "monokai"
+        return Syntax(yaml_string, "yaml", **kwargs)
+
     def print_json(self, data, **kwargs):
         self.stdout.print(self.highlight_json(data, **kwargs))
 

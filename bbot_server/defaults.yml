@@ -36,5 +36,5 @@ agent:
 cli:
   http_timeout: 15
 
-# a list of blake2s-hashed API keys to be considered valid by the server
-valid_api_keys: []
+# a dictionary of API keys in the format secret-id: blake2s(secret-key) to be considered valid by the server
+valid_secrets: {}

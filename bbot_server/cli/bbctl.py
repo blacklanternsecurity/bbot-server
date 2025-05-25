@@ -1,3 +1,4 @@
+import os
 import sys
 import asyncio
 import logging
@@ -9,7 +10,7 @@ from functools import cached_property
 
 from bbot_server.errors import BBOTServerError
 from bbot_server.cli.base import BaseBBCTL, Annotated, Option
-from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG
+from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG, BBOT_SERVER_CONFIG_PATH
 
 # subcommand imports
 from bbot_server.cli.agentctl import AgentCTL
@@ -20,6 +21,7 @@ from bbot_server.cli.eventctl import EventCTL
 from bbot_server.cli.activityctl import ActivityCTL
 from bbot_server.cli.findingctl import FindingCTL
 from bbot_server.cli.technologyctl import TechnologyCTL
+from bbot_server.cli.userctl import UserCTL
 
 
 class BBCTL(BaseBBCTL):
@@ -53,12 +55,14 @@ class BBCTL(BaseBBCTL):
         if config:
             try:
                 self.config_path = Path(config)
-                config = OmegaConf.load(self.config_path)
-                self._config = OmegaConf.merge(BBOT_SERVER_CONFIG, config)
+                os.environ["BBOT_SERVER_CONFIG"] = str(self.config_path)
             except Exception as e:
                 raise BBOTServerError(f"Error loading config file {config}: {e}")
         else:
+            self.config_path = BBOT_SERVER_CONFIG_PATH
             self._config = BBOT_SERVER_CONFIG
+        config = OmegaConf.load(self.config_path)
+        self._config = OmegaConf.merge(BBOT_SERVER_CONFIG, config)
         if self.debug:
             logging.getLogger().setLevel(logging.DEBUG)
         if server_url != BBOT_SERVER_URL:
@@ -70,6 +74,18 @@ class BBCTL(BaseBBCTL):
 
         if current_config:
             self.print_yaml(OmegaConf.to_yaml(self.config))
+            return
+
+        if not self.config.get("valid_secrets", {}):
+            self.log.info("First-time run detected. Adding a new API key...")
+            self.children["server"].setup()
+            self.children["server"].add_user()
+            # refresh config
+            self._config = OmegaConf.merge(self._config, OmegaConf.load(self.config_path))
+
+        self._api_key = self.config.get("api_key", None)
+        if not self._api_key:
+            raise BBOTServerError(f"No API key found. Please set `api_key` in your config file at {self.config_path}")
 
     @cached_property
     def bbot_server(self):

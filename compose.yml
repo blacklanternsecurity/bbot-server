@@ -1,7 +1,7 @@
 x-bbot-server-base: &bbot-server-base
   build:
     context: .
-  restart: always
+  restart: unless-stopped
   volumes:
     - ~/.config/bbot_server:/root/.config/bbot_server
     - ./bbot_server/defaults_docker.yml:/app/bbot_server/defaults.yml
@@ -43,10 +43,10 @@ services:
 
   mongodb:
     image: mongo:latest
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./mongodb:/data/db
 
   redis:
     image: redis:latest
-    restart: always
+    restart: unless-stopped
