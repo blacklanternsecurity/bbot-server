@@ -39,8 +39,8 @@ class ServerCTL(BaseBBCTL):
         # initialize the config if not already
         if not self.config.get("valid_secrets", {}):
             self.log.info("First run detected. Adding a new API key...")
-            self.children["user"].setup()
-            self.children["user"].add()
+            self.root.children["user"].setup()
+            self.root.children["user"].add()
             self.root._refresh_config()
 
         if api_only:
@@ -184,7 +184,8 @@ class ServerCTL(BaseBBCTL):
                 except (FileNotFoundError, subprocess.CalledProcessError):
                     raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
 
-        return run(self._docker_command + args, **kwargs)
+        print(f"RUNNING: {self._docker_command + args}")
+        return run(self._docker_command + args, cwd=self.docker_compose_dir, **kwargs)
 
     @subcommand(
         help="Run a command with docker compose",

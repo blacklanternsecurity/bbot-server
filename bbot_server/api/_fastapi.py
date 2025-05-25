@@ -21,7 +21,7 @@ app_kwargs = {
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
-API_KEYS = set(BBOT_SERVER_CONFIG.get("valid_secrets", []))
+API_KEYS = dict(BBOT_SERVER_CONFIG.get("valid_secrets", {}))
 
 
 # Dependency to verify the API key

@@ -3,6 +3,7 @@ import string
 import orjson
 import typing
 import asyncio
+from uuid import UUID
 from functools import partial
 from websockets import connect
 from contextlib import suppress
@@ -46,7 +47,7 @@ class http(BaseInterface):
             url = self.config["url"]
         self.base_url = url.strip("/")
         self._http_timeout = self.config.get("cli", {}).get("http_timeout", 15)
-        self.client = httpx.AsyncClient(timeout=self._http_timeout)
+        self._client = None
 
     async def _http_request(self, _url, _route, *args, **kwargs):
         """
@@ -245,6 +246,22 @@ class http(BaseInterface):
         # Reconstruct the URL with new query string
         return urlunparse((scheme, netloc, path, params, new_query, fragment))
 
+    @property
+    def client(self):
+        if self._client is None:
+            self._api_key = self.bbot_server.config.get("api_key", "").strip()
+            if not self._api_key:
+                raise BBOTServerError("No API key found. Please set `api_key` in your config file")
+            try:
+                secret_id, secret_key = self._api_key.split(":")
+                secret_id, secret_key = UUID(secret_id), UUID(secret_key)
+            except ValueError:
+                raise BBOTServerError(
+                    f'Malformed API key "{self._api_key}". Must be in the format of <secret_id>:<secret_key>, where both are valid UUIDs'
+                )
+            self._client = httpx.AsyncClient(timeout=self._http_timeout, headers={"X-API-Key": self._api_key})
+        return self._client
+
     def __getattr__(self, attr):
         """
         For every attribute, try to find a matching route in the route map and return a coroutine that will make the request
@@ -254,9 +271,9 @@ class http(BaseInterface):
         _wrap is used here to allow the coroutine to be called synchronously
         """
         # if the attribute is a route, prepare the request
-        applet = self.__getattribute__("applet")
+        bbot_server = self.__getattribute__("bbot_server")
         try:
-            route = applet.route_maps[attr]
+            route = bbot_server.route_maps[attr]
             url = f"{self.base_url}{route.full_path}"
             if route.endpoint_type == "http":
                 coro = partial(self._http_request, url, route)
@@ -271,7 +288,7 @@ class http(BaseInterface):
             return coro
         # otherwise just return the attribute as is
         except (KeyError, AttributeError):
-            return getattr(applet, attr)
+            return getattr(bbot_server, attr)
 
     def __dir__(self):
         """
@@ -279,7 +296,7 @@ class http(BaseInterface):
 
         Useful for tab completion in IDEs
         """
-        return sorted(set(self.applet.route_maps.keys()) | set(dir(self.applet)))
+        return sorted(set(self.bbot_server.route_maps.keys()) | set(dir(self.bbot_server)))
 
     async def _check_response_error(self, response, return_json=True):
         response_json = None

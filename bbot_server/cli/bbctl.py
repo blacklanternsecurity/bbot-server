@@ -76,10 +76,6 @@ class BBCTL(BaseBBCTL):
             self.print_yaml(OmegaConf.to_yaml(self.config))
             return
 
-        self._api_key = self.config.get("api_key", None)
-        if not self._api_key:
-            raise BBOTServerError(f"No API key found. Please set `api_key` in your config file at {self.config_path}")
-
     @cached_property
     def bbot_server(self):
         bbot_server_kwargs = {}

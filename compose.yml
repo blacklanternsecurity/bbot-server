@@ -10,11 +10,8 @@ x-bbot-server-base: &bbot-server-base
 services:
   server:
     <<: *bbot-server-base
-    environment:
-      - BBOT_LISTEN_ADDRESS=127.0.0.1
-      - BBOT_PORT=8807
     ports:
-      - "${BBOT_LISTEN_ADDRESS}:${BBOT_PORT}:8807"
+      - "${BBOT_LISTEN_ADDRESS:-127.0.0.1}:${BBOT_PORT:-8807}:8807"
     command: ["bbctl", "server", "start", "--api-only", "--listen", "0.0.0.0"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8807/v1/docs"]

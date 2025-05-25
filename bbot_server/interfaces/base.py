@@ -21,13 +21,13 @@ class BaseInterface:
 
         from bbot_server.applets import BBOTServerRootApplet
 
-        self.applet = BBOTServerRootApplet(**kwargs)
-        self.applet._interface = self
-        self.applet._interface_type = self.interface_type
+        self.bbot_server = BBOTServerRootApplet(**kwargs)
+        self.bbot_server._interface = self
+        self.bbot_server._interface_type = self.interface_type
 
     def __getattr__(self, name):
         """
         Default is to pass through to the applet
         """
-        applet = self.__getattribute__("applet")
-        return getattr(applet, name)
+        bbot_server = self.__getattribute__("bbot_server")
+        return getattr(bbot_server, name)
