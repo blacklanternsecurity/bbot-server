@@ -165,7 +165,7 @@ def test_docker_compose_custom_config():
 
     # if we don't pass --config, the docker container should use the default config
     result = subprocess.run(
-        ["poetry", "run", "bbctl", "server", "run-docker-compose", "run", "server", "bbctl", "--current-config"],
+        ["poetry", "run", "bbctl", "server", "compose", "run", "server", "bbctl", "--current-config"],
         cwd=project_root,
         capture_output=True,
         text=True,
@@ -176,7 +176,7 @@ def test_docker_compose_custom_config():
 
     # if we do pass --config, it should use the custom config
     result = subprocess.run(
-        BBCTL_COMMAND + ["server", "run-docker-compose", "run", "server", "bbctl", "--current-config"],
+        BBCTL_COMMAND + ["server", "compose", "run", "server", "bbctl", "--current-config"],
         cwd=project_root,
         capture_output=True,
         text=True,
