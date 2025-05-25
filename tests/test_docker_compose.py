@@ -23,6 +23,9 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_docker_compose_userexperience():
+    """
+    A basic up/down test to make sure bbot server is working with docker compose
+    """
     try:
         # make sure docker compose is down
         result = subprocess.run(

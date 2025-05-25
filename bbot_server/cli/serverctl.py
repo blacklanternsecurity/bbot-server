@@ -184,7 +184,7 @@ class ServerCTL(BaseBBCTL):
                 except (FileNotFoundError, subprocess.CalledProcessError):
                     raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
 
-        return run(self._docker_command + args, cwd=self.docker_compose_dir, **kwargs)
+        return run(self._docker_command + args, **kwargs)
 
     @subcommand(
         help="Run a command with docker compose",
