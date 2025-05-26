@@ -7,6 +7,7 @@ from pathlib import Path
 from subprocess import run
 from contextlib import suppress
 
+import bbot_server.config as bbcfg
 from bbot_server import BBOT_SERVER_PROJECT_ROOT
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
@@ -41,13 +42,10 @@ class ServerCTL(BaseBBCTL):
             self.log.info("First run detected. Adding a new API key...")
             self.root.children["user"].setup()
             self.root.children["user"].add()
-            self.root._refresh_config()
+            bbcfg.refresh_config()
 
         if api_only:
             print("Starting BBOT server API")
-            if self.root.config_path is not None:
-                self.log.info(f"Using config file: {self.root.config_path}")
-                os.environ["BBOT_SERVER_CONFIG"] = str(self.root.config_path)
             import uvicorn
 
             app = "bbot_server.api.app:server_app"

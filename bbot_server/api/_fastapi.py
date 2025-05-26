@@ -1,13 +1,18 @@
+import os
+import logging
 from uuid import UUID
 from hashlib import blake2s
+from omegaconf import OmegaConf
 from fastapi.security import APIKeyHeader
 from contextlib import asynccontextmanager
 from fastapi.openapi.utils import get_openapi
 from fastapi import FastAPI, Security, HTTPException, Depends
 from fastapi.responses import RedirectResponse, ORJSONResponse
 
-from bbot_server.config import BBOT_SERVER_CONFIG
+import bbot_server.config as bbcfg
 from bbot_server.errors import BBOTServerError, handle_bbot_server_error
+
+log = logging.getLogger("bbot_server.api.fastapi")
 
 # from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 
@@ -46,17 +51,21 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
     except ValueError:
         raise HTTPException(status_code=403, detail="Both secret_id and secret_key must be valid UUIDs")
     hashed_secret = blake2s(secret_key.encode()).hexdigest()
-    API_KEYS = BBOT_SERVER_CONFIG.get("valid_secrets", {})
+    API_KEYS = bbcfg.BBOT_SERVER_CONFIG.get("valid_secrets", {})
     if not API_KEYS.get(secret_id, "") == hashed_secret:
         # raise HTTPException(status_code=403, detail="Invalid API key")
-        from bbot_server.config import BBOT_SERVER_CONFIG_PATH
+        main_config = bbcfg.BBOT_SERVER_CONFIG_PATH.read_text()
+        err_message = f"Invalid API key: {api_key} ({secret_id} is not in {API_KEYS}) - CONFIG PATH: {bbcfg.BBOT_SERVER_CONFIG_PATH}, ENV={os.environ.get('BBOT_SERVER_CONFIG', 'not set')}, CONFIG: {OmegaConf.to_yaml(bbcfg.BBOT_SERVER_CONFIG)}, main_config: {main_config}"
 
-        main_config = BBOT_SERVER_CONFIG_PATH.read_text()
-        from omegaconf import OmegaConf
+        log.critical(err_message)
+        print(err_message)
+        import sys
+
+        sys.stderr.write(err_message)
 
         raise HTTPException(
             status_code=403,
-            detail=f"Invalid API key: {api_key} ({secret_id} is not in {API_KEYS}) - CONFIG: {OmegaConf.to_yaml(BBOT_SERVER_CONFIG)}, main_config: {main_config}",
+            detail=err_message,
         )
     return api_key
 

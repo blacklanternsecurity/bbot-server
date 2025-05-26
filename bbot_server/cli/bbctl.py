@@ -8,9 +8,9 @@ from omegaconf import OmegaConf
 from rich.console import Console
 from functools import cached_property
 
+import bbot_server.config as bbcfg
 from bbot_server.cli.base import BaseBBCTL, Annotated, Option
 from bbot_server.errors import BBOTServerError, BBOTServerForbiddenError
-from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG, BBOT_SERVER_CONFIG_PATH, BBOT_SERVER_DEFAULTS
 
 # subcommand imports
 from bbot_server.cli.agentctl import AgentCTL
@@ -39,7 +39,9 @@ class BBCTL(BaseBBCTL):
 
     def main(
         self,
-        server_url: Annotated[str, Option("--url", "-u", help="BBOT server URL", metavar="URL")] = BBOT_SERVER_URL,
+        server_url: Annotated[
+            str, Option("--url", "-u", help="BBOT server URL", metavar="URL")
+        ] = bbcfg.BBOT_SERVER_URL,
         config: Annotated[str, Option("--config", "-c", help="Path to a config file", metavar="PATH")] = None,
         silent: Annotated[bool, Option("--silent", "-s", help="Suppress all stderr output")] = False,
         color: Annotated[
@@ -56,16 +58,15 @@ class BBCTL(BaseBBCTL):
         if custom_config:
             try:
                 self.config_path = Path(custom_config)
-                os.environ["BBOT_SERVER_CONFIG"] = str(self.config_path)
-                self._config = OmegaConf.merge(BBOT_SERVER_DEFAULTS, OmegaConf.load(self.config_path))
+                self._config = bbcfg.refresh_config(self.config_path)
             except Exception as e:
                 raise BBOTServerError(f"Error loading config file at {self.config_path}: {e}")
         else:
-            self.config_path = BBOT_SERVER_CONFIG_PATH
-            self._config = BBOT_SERVER_CONFIG
+            self.config_path = bbcfg.BBOT_SERVER_CONFIG_PATH
+            self._config = bbcfg.BBOT_SERVER_CONFIG
         if self.debug:
             logging.getLogger().setLevel(logging.DEBUG)
-        if server_url != BBOT_SERVER_URL:
+        if server_url != bbcfg.BBOT_SERVER_URL:
             self._config.url = server_url
         self.server_url = self.config.url
 
@@ -87,10 +88,6 @@ class BBCTL(BaseBBCTL):
         bbot_server = BBOTServer(interface="http", url=self.server_url, synchronous=True, **bbot_server_kwargs)
         bbot_server.setup()
         return bbot_server
-
-    def _refresh_config(self):
-        # refresh config
-        self._config = OmegaConf.merge(self._config, OmegaConf.load(self.config_path))
 
 
 log = logging.getLogger("bbot_server.bbctl")

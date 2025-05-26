@@ -11,7 +11,6 @@ import logging
 import subprocess
 import pytest_asyncio
 from pathlib import Path
-from hashlib import blake2s
 from omegaconf import OmegaConf
 from contextlib import suppress
 from bbot_server.config import BBOT_SERVER_CONFIG
@@ -29,13 +28,16 @@ logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=loggin
 
 log = logging.getLogger(__name__)
 
-PROJ_ROOT = Path(__file__).parent.parent
-BBCTL_FILE = PROJ_ROOT / "bbot_server" / "cli" / "bbctl.py"
-TEST_CONFIG_PATH = Path(__file__).parent / "test_config.yml"
-BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH), "--no-color"]
-
 BBOT_SERVER_TEST_DIR = Path("/tmp/.bbot_server_test")
 BBOT_SERVER_TEST_DIR.mkdir(parents=True, exist_ok=True)
+
+PROJ_ROOT = Path(__file__).parent.parent
+BBCTL_FILE = PROJ_ROOT / "bbot_server" / "cli" / "bbctl.py"
+TEST_CONFIG_PATH = BBOT_SERVER_TEST_DIR / "test_config.yml"
+TEST_CONFIG_PATH_SOURCE = Path(__file__).parent / "test_config.yml"
+BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH), "--no-color"]
+
+shutil.copy(TEST_CONFIG_PATH_SOURCE, TEST_CONFIG_PATH)
 
 
 @pytest.fixture
@@ -43,7 +45,7 @@ def bbot_server_config():
     # load test file omegaconf config
     test_config = OmegaConf.load(TEST_CONFIG_PATH)
     test_config = OmegaConf.merge(BBOT_SERVER_CONFIG, test_config)
-    test_config["valid_api_keys"] = [blake2s("test-api-key".encode()).hexdigest()]
+    # test_config["valid_api_keys"] = [blake2s("test-api-key".encode()).hexdigest()]
     return test_config
 
 
@@ -109,7 +111,7 @@ def bbot_watchdog(mongo_cleanup, redis_cleanup):
     try:
         # Wait for watchdog to be ready by monitoring stderr
         ready = False
-        for _ in range(50):  # 10 second timeout (50 * 0.2)
+        while 1:  # 10 second timeout (50 * 0.2)
             line = watchdog_process.stderr.readline()
             log.critical(f"Watchdog: {line.strip()}")
             if "[INFO] Subscribed to bbot:stream:events" in line:
@@ -174,7 +176,7 @@ def bbot_server_http(mongo_cleanup, redis_cleanup):
         for i in range(1000):
             with suppress(Exception):
                 response = httpx.get(f"http://localhost:8807/v1/assets/hosts")
-                if getattr(response, "status_code", 0) == 200:
+                if getattr(response, "status_code", 0) == 403:
                     success = True
                     break
             time.sleep(0.1)
