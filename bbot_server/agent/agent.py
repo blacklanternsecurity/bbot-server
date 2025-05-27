@@ -18,7 +18,6 @@ from bbot_server.utils.async_utils import async_to_sync_class
 from bbot_server.models.agent_models import AgentResponse
 
 api_key = bbcfg.get_api_key()
-default_server_url = bbcfg.BBOT_SERVER_CONFIG.get("url", "http://localhost:8807/v1/")
 default_bbot_preset = bbcfg.BBOT_SERVER_CONFIG.get("agent", {}).get("base_preset", {})
 
 log = logging.getLogger("bbot_server.agent")
@@ -222,6 +221,9 @@ class BBOTAgent:
                 "modules": {
                     "http": {
                         "url": self.scan_output_url,
+                        "headers": {
+                            bbcfg.API_KEY_NAME: bbcfg.get_api_key()
+                        }
                     }
                 }
             },

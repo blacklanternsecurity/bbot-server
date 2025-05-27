@@ -72,7 +72,7 @@ class EventsApplet(BaseApplet):
         This is used by the agent to send events to the server.
         """
         async for event in event_generator:
-            await self.insert_event(event)
+            await self.interface.insert_event(event)
 
     async def _archive_events(self, older_than: int):
         archive_after = (datetime.now(timezone.utc) - timedelta(days=older_than)).timestamp()
