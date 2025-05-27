@@ -53,7 +53,7 @@ class BBCTL(BaseBBCTL):
         self.color = color
         self.debug = debug
         self.config_path = None
-        custom_config = os.environ.get("BBOT_SERVER_CONFIG", config)
+        custom_config = config or os.environ.get("BBOT_SERVER_CONFIG", "")
         if custom_config:
             try:
                 self.config_path = Path(custom_config)

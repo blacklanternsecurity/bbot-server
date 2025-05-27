@@ -449,6 +449,7 @@ class BaseApplet:
             # see if the value has an "_endpoint" attribute
             endpoint = getattr(function, "_endpoint", None)
             # if it's a callable function and it has _endpoint, it's an @api_endpoint
+
             if endpoint is not None:
                 fastapi_kwargs = dict(getattr(function, "_kwargs", {}))
                 endpoint_type = fastapi_kwargs.pop("type", "http")

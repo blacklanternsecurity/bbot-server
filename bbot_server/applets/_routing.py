@@ -59,16 +59,19 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
         self.kwargs.pop("type", "")
         self.mcp = self.kwargs.pop("mcp", False)
         if self.mcp:
-            MCP_ENDPOINTS[self.function.__name__] = self.function
+            MCP_ENDPOINTS[self.function_name] = self.function
         self.tags = tags
+
+    @property
+    def function_name(self):
+        return self.function.__name__
 
     def add_to_applet(self, applet):
         self.add_to_router(applet.router)
         self.fastapi_route = applet.router.routes[-1]
         self.path = self.fastapi_route.path
         self.full_path = f"{applet.full_prefix()}{self.fastapi_route.path}"
-        function_name = self.function.__name__
-        applet.route_maps[function_name] = self
+        applet.route_maps[self.function_name] = self
         self.setup()
 
     def setup(self):
@@ -223,8 +226,8 @@ class WebsocketStreamIncomingRoute(BaseServerRoute):
     def __init__(self, function, response_model, tags=[]):
         super().__init__(function, tags)
         self.response_model = response_model
-        self.original_function = function
-        self.function = self.websocket_wrapper
+        # we blank out the function signature
+        self.function_signature = inspect.Signature(parameters=[], return_annotation=None)
 
     async def websocket_wrapper(self, websocket: WebSocket):
         try:
@@ -233,19 +236,23 @@ class WebsocketStreamIncomingRoute(BaseServerRoute):
             valid, reason = bbcfg.check_api_key(api_key)
             if not valid:
                 await websocket.close(code=3000, reason=reason)
+                return
 
             async def agen():
                 try:
-                    async for message in websocket:
+                    while True:
+                        message = await websocket.receive_bytes()
                         message = orjson.loads(message)
                         message = self.response_model(**message)
                         yield message
+                except WebSocketDisconnect:
+                    log.info("WebSocket disconnected by client")
                 except asyncio.CancelledError:
                     log.info("Websocket stream incoming cancelled")
                 except RuntimeError as e:
                     log.error(f"Unexpected error in websocket stream: {e}")
 
-            await self.original_function(agen())
+            await self.function(agen())
         finally:
             with suppress(BaseException):
                 await websocket.close()

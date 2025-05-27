@@ -17,6 +17,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 
 import bbot_server.config as bbcfg
+from bbot_server.utils.misc import smart_encode
 from bbot_server.interfaces.base import BaseInterface
 from bbot_server.utils.async_utils import async_to_sync_class
 from bbot_server.errors import HTTP_STATUS_MAPPINGS, BBOTServerError
@@ -168,8 +169,9 @@ class http(BaseInterface):
 
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
         try:
-            async for message in message_generator:
-                async for websocket in connect(_url, additional_headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}):
+            async with connect(_url, additional_headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}) as websocket:
+                async for message in message_generator:
+                    message = smart_encode(message)
                     await websocket.send(message)
         except Exception as e:
             raise BBOTServerError(f"Error in websocket stream at {_url}: {e}") from e
@@ -267,8 +269,6 @@ class http(BaseInterface):
         For every attribute, try to find a matching route in the route map and return a coroutine that will make the request
 
         If the attribute isn't found in the route map, just return the attribute from the applet
-
-        _wrap is used here to allow the coroutine to be called synchronously
         """
         # if the attribute is a route, prepare the request
         bbot_server = self.__getattribute__("bbot_server")
