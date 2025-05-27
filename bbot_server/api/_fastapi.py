@@ -1,7 +1,4 @@
-import os
 import logging
-from uuid import UUID
-from hashlib import blake2s
 from omegaconf import OmegaConf
 from fastapi.security import APIKeyHeader
 from contextlib import asynccontextmanager
@@ -23,51 +20,21 @@ app_kwargs = {
 }
 
 # API key header
-API_KEY_NAME = "X-API-Key"
-api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+api_key_header = APIKeyHeader(name=bbcfg.API_KEY_NAME, auto_error=False)
+valid_api_keys = set(bbcfg.BBOT_SERVER_CONFIG.get("api_keys", []))
+
+
+async def verify_api_key(api_key: str):
+    valid, reason = bbcfg.check_api_key(api_key)
+    if not valid:
+        raise HTTPException(status_code=403, detail=reason)
+    return api_key
 
 
 # Dependency to verify the API key
-async def verify_api_key(api_key: str = Security(api_key_header)):
-    """
-    We use blake2s here because it's faster than sha1 and has a better collision resistance.
-
-    Something like bcrypt would be overkill because:
-        1) The plaintext is a 128-bit UUID, which isn't really guessable
-        2) It needs to be fast since it's calculated for every request
-
-    To discourage manually inserting a weak key, we enforce the UUID format for both the secret_id and secret_key.
-    """
-    if not api_key:
-        raise HTTPException(status_code=403, detail="API Key is required")
-    try:
-        secret_id, secret_key = api_key.split(":")
-    except ValueError:
-        raise HTTPException(status_code=403, detail="API Key must be in the format <secret_id>:<secret_key>")
-    # Must be a UUID
-    try:
-        secret_id = str(UUID(secret_id))
-        secret_key = str(UUID(secret_key))
-    except ValueError:
-        raise HTTPException(status_code=403, detail="Both secret_id and secret_key must be valid UUIDs")
-    hashed_secret = blake2s(secret_key.encode()).hexdigest()
-    API_KEYS = bbcfg.BBOT_SERVER_CONFIG.get("valid_secrets", {})
-    if not API_KEYS.get(secret_id, "") == hashed_secret:
-        # raise HTTPException(status_code=403, detail="Invalid API key")
-        main_config = bbcfg.BBOT_SERVER_CONFIG_PATH.read_text()
-        err_message = f"Invalid API key: {api_key} ({secret_id} is not in {API_KEYS}) - CONFIG PATH: {bbcfg.BBOT_SERVER_CONFIG_PATH}, ENV={os.environ.get('BBOT_SERVER_CONFIG', 'not set')}, CONFIG: {OmegaConf.to_yaml(bbcfg.BBOT_SERVER_CONFIG)}, main_config: {main_config}"
-
-        log.critical(err_message)
-        print(err_message)
-        import sys
-
-        sys.stderr.write(err_message)
-
-        raise HTTPException(
-            status_code=403,
-            detail=err_message,
-        )
-    return api_key
+async def api_key_dependency(api_key: str = Security(api_key_header)):
+    await verify_api_key(api_key)
+    
 
 
 def make_app(config=None):
@@ -88,7 +55,7 @@ def make_app(config=None):
         root_path="/v1",
         openapi_tags=app_root.tags_metadata,
         default_response_class=ORJSONResponse,
-        dependencies=[Depends(verify_api_key)],
+        dependencies=[Depends(api_key_dependency)],
         **app_kwargs,
     )
 

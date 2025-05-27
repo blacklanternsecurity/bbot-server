@@ -10,7 +10,7 @@ from functools import cached_property
 
 import bbot_server.config as bbcfg
 from bbot_server.cli.base import BaseBBCTL, Annotated, Option
-from bbot_server.errors import BBOTServerError, BBOTServerForbiddenError
+from bbot_server.errors import BBOTServerError, BBOTServerUnauthorizedError
 
 # subcommand imports
 from bbot_server.cli.agentctl import AgentCTL
@@ -98,7 +98,7 @@ def main():
     _log = getattr(bbctl, "log", log)
     try:
         bbctl.typer()
-    except BBOTServerForbiddenError as e:
+    except BBOTServerUnauthorizedError as e:
         _log.error(f"Authentication failed: {e.detail}")
         sys.exit(1)
     except BBOTServerError as e:

@@ -54,7 +54,7 @@ def test_docker_compose_userexperience():
         config = yaml.safe_load(result.stdout)
         assert config.get("testasdf", "") == "testasdf"
         assert not config.get("api_key", "")
-        assert not config.get("valid_api_keys", [])
+        assert not config.get("api_keys", [])
 
         # try listing assets
         # this should fail because we don't have an API key

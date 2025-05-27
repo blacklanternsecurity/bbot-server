@@ -8,6 +8,7 @@ from contextlib import suppress
 from fastapi.responses import StreamingResponse
 from starlette.websockets import WebSocketDisconnect
 
+import bbot_server.config as bbcfg
 from bbot_server.api.mcp import MCP_ENDPOINTS
 from bbot_server.utils.misc import smart_encode
 
@@ -151,7 +152,19 @@ class WebsocketRoute(BaseServerRoute):
     endpoint_type = "websocket"
 
     def add_to_router(self, router):
-        router.add_api_websocket_route(self.endpoint, self.function, **self.kwargs)
+        @functools.wraps(self.function)
+        async def websocket_auth_wrapper(websocket: WebSocket, *args, **kwargs):
+            await websocket.accept()
+            api_key = websocket.headers.get(bbcfg.API_KEY_NAME, "")
+            valid, reason = bbcfg.check_api_key(api_key)
+            if valid:
+                await self.function(websocket, *args, **kwargs)
+            else:
+                await websocket.close(code=1008, reason=reason)
+
+        _patch_websocket_signature(self.function, websocket_auth_wrapper)
+
+        router.add_api_websocket_route(self.endpoint, websocket_auth_wrapper, **self.kwargs)
 
 
 class WebsocketStreamOutgoingRoute(BaseServerRoute):
@@ -174,6 +187,10 @@ class WebsocketStreamOutgoingRoute(BaseServerRoute):
             """
             try:
                 await websocket.accept()
+                api_key = websocket.headers.get(bbcfg.API_KEY_NAME, "")
+                valid, reason = bbcfg.check_api_key(api_key)
+                if not valid:
+                    await websocket.close(code=3000, reason=reason)
                 agen = self.function(*args, **kwargs)
                 async for message in agen:
                     message = smart_encode(message)
@@ -211,6 +228,10 @@ class WebsocketStreamIncomingRoute(BaseServerRoute):
     async def websocket_wrapper(self, websocket: WebSocket):
         try:
             await websocket.accept()
+            api_key = websocket.headers.get(bbcfg.API_KEY_NAME, "")
+            valid, reason = bbcfg.check_api_key(api_key)
+            if not valid:
+                await websocket.close(code=3000, reason=reason)
 
             async def agen():
                 try:

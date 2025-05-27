@@ -7,9 +7,9 @@ class BBOTServerError(Exception):
         self.detail = detail or {}
 
 
-class BBOTServerForbiddenError(BBOTServerError):
-    http_status_code = 403
-    default_message = "Forbidden"
+class BBOTServerUnauthorizedError(BBOTServerError):
+    http_status_code = 401
+    default_message = "Unauthorized"
 
 
 class BBOTServerValueError(BBOTServerError):

@@ -45,7 +45,6 @@ def bbot_server_config():
     # load test file omegaconf config
     test_config = OmegaConf.load(TEST_CONFIG_PATH)
     test_config = OmegaConf.merge(BBOT_SERVER_CONFIG, test_config)
-    # test_config["valid_api_keys"] = [blake2s("test-api-key".encode()).hexdigest()]
     return test_config
 
 

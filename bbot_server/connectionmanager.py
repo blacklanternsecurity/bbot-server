@@ -39,7 +39,6 @@ class ConnectionManager:
         self.log.debug(f"Starting connection manager loop for agent {agent_id}")
         agent_id = str(agent_id)
         try:
-            await websocket.accept()
             self.active_connections[agent_id] = websocket
             while True:
                 try:
