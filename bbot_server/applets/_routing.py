@@ -236,8 +236,7 @@ class WebsocketStreamIncomingRoute(BaseServerRoute):
 
             async def agen():
                 try:
-                    while True:
-                        message = await websocket.receive_text()
+                    async for message in websocket:
                         message = orjson.loads(message)
                         message = self.response_model(**message)
                         yield message

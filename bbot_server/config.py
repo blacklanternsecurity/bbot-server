@@ -4,6 +4,8 @@ import logging
 from pathlib import Path
 from omegaconf import OmegaConf
 
+from bbot_server.errors import BBOTServerError
+
 
 log = logging.getLogger("bbot_server.config")
 
@@ -11,6 +13,7 @@ log = logging.getLogger("bbot_server.config")
 BBOT_SERVER_DIR = Path(__file__).parent
 API_KEY_NAME = "X-API-Key"
 VALID_API_KEYS = set()
+API_KEY = ""
 
 # Load defaults
 BBOT_SERVER_DEFAULTS_PATH = BBOT_SERVER_DIR / "defaults.yml"
@@ -45,7 +48,9 @@ def refresh_config(custom_config_path=None):
     # if a custom config is provided, merge it with the defaults
     config_path = Path(os.environ.get("BBOT_SERVER_CONFIG", BBOT_SERVER_CONFIG_PATH))
     if config_path.exists():
-        BBOT_SERVER_CONFIG_PATH = config_path
+        if str(config_path) != str(BBOT_SERVER_CONFIG_PATH):
+            log.debug(f"Changing config to point to {config_path} (was {BBOT_SERVER_CONFIG_PATH})")
+            BBOT_SERVER_CONFIG_PATH = config_path
         try:
             config = OmegaConf.load(BBOT_SERVER_CONFIG_PATH)
             BBOT_SERVER_CONFIG = OmegaConf.merge(BBOT_SERVER_DEFAULTS, config)
@@ -74,6 +79,20 @@ def refresh_api_keys():
     VALID_API_KEYS = api_keys
 
 
+def get_api_keys():
+    """
+    Get the API keys from the config
+    """
+    return VALID_API_KEYS
+
+
+def get_api_key():
+    try:
+        return next(iter(VALID_API_KEYS))
+    except StopIteration:
+        raise BBOTServerError("No API keys found. Please set `api_keys` in your config file")
+
+
 def check_api_key(api_key: str):
     """
     Check whether an API key is valid
@@ -89,7 +108,7 @@ def check_api_key(api_key: str):
     if api_key not in VALID_API_KEYS:
         refresh_config()
         if api_key not in VALID_API_KEYS:
-            return False, "Invalid API key"
+            return False, f'Invalid API key "{api_key}" not in {VALID_API_KEYS}'
     return True, "Valid API key"
 
 

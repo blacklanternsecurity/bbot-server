@@ -3,7 +3,6 @@ import string
 import orjson
 import typing
 import asyncio
-from uuid import UUID
 from functools import partial
 from websockets import connect
 from contextlib import suppress
@@ -17,6 +16,7 @@ from fastapi.encoders import jsonable_encoder
 # for converting raw JSON into pydantic objects
 from pydantic import TypeAdapter
 
+import bbot_server.config as bbcfg
 from bbot_server.interfaces.base import BaseInterface
 from bbot_server.utils.async_utils import async_to_sync_class
 from bbot_server.errors import HTTP_STATUS_MAPPINGS, BBOTServerError
@@ -49,6 +49,12 @@ class http(BaseInterface):
         self._http_timeout = self.config.get("cli", {}).get("http_timeout", 15)
         self._client = None
 
+        assert not str(bbcfg.BBOT_SERVER_CONFIG_PATH) == "/home/bls/.config/bbot_server/config.yml"
+
+    @property
+    def config(self):
+        return bbcfg.BBOT_SERVER_CONFIG
+
     async def _http_request(self, _url, _route, *args, **kwargs):
         """
         Builds and issues a web request to the bbot server REST API
@@ -59,7 +65,9 @@ class http(BaseInterface):
         body = self._prepare_http_body(method, kwargs)
 
         try:
-            response = await self.client.request(url=_url, method=method, json=body)
+            response = await self.client.request(
+                url=_url, method=method, json=body, headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}
+            )
         except Exception as e:
             raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
@@ -140,7 +148,7 @@ class http(BaseInterface):
         # replace scheme with ws
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
         try:
-            async for websocket in connect(_url, additional_headers={"X-API-Key": self._api_key}):
+            async for websocket in connect(_url, additional_headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}):
                 async for message in websocket:
                     decoded_json = orjson.loads(message)
                     model_obj = _route.response_model(**decoded_json)
@@ -161,7 +169,7 @@ class http(BaseInterface):
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
         try:
             async for message in message_generator:
-                async for websocket in connect(_url, additional_headers={"X-API-Key": self._api_key}):
+                async for websocket in connect(_url, additional_headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}):
                     await websocket.send(message)
         except Exception as e:
             raise BBOTServerError(f"Error in websocket stream at {_url}: {e}") from e
@@ -249,17 +257,9 @@ class http(BaseInterface):
     @property
     def client(self):
         if self._client is None:
-            self._api_key = self.bbot_server.config.get("api_key", "").strip()
-            if not self._api_key:
-                raise BBOTServerError("No API key found. Please set `api_key` in your config file")
-            try:
-                secret_id, secret_key = self._api_key.split(":")
-                secret_id, secret_key = UUID(secret_id), UUID(secret_key)
-            except ValueError:
-                raise BBOTServerError(
-                    f'Malformed API key "{self._api_key}". Must be in the format of <secret_id>:<secret_key>, where both are valid UUIDs'
-                )
-            self._client = httpx.AsyncClient(timeout=self._http_timeout, headers={"X-API-Key": self._api_key})
+            self._client = httpx.AsyncClient(
+                timeout=self._http_timeout, headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}
+            )
         return self._client
 
     def __getattr__(self, attr):

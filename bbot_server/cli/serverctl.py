@@ -38,11 +38,11 @@ class ServerCTL(BaseBBCTL):
         ] = False,
     ):
         # initialize the config if not already
-        if not self.config.get("valid_secrets", {}):
+        if not bbcfg.get_api_keys():
             self.log.info("First run detected. Adding a new API key...")
             self.root.children["user"].setup()
             self.root.children["user"].add()
-            bbcfg.refresh_config()
+        bbcfg.refresh_config()
 
         if api_only:
             print("Starting BBOT server API")

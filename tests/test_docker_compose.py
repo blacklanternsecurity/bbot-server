@@ -65,12 +65,10 @@ def test_docker_compose_userexperience():
             text=True,
         )
         assert result.returncode == 1
-        assert "Please set `api_key` in your config file" in result.stderr
+        assert "Please set `api_keys` in your config file" in result.stderr
 
         # even with API key, this should fail because docker compose isn't running
-        custom_config_file.write_text(
-            "api_key: deadbeef-dead-beef-dead-beefdeadbeef:deadbeef-dead-beef-dead-beefdeadbeef"
-        )
+        custom_config_file.write_text("api_key: deadbeef-dead-beef-dead-beefdeadbeef")
         result = subprocess.run(
             BBCTL_COMMAND + ["asset", "stats"],
             cwd=project_root,
@@ -93,6 +91,7 @@ def test_docker_compose_userexperience():
         assert result.returncode == 0
         config = yaml.safe_load(result.stdout)
         assert not config.get("api_key", "")
+        assert not config.get("api_keys", [])
 
         # start docker compose
         result = subprocess.run(

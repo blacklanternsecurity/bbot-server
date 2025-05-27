@@ -6,6 +6,8 @@ from contextlib import suppress
 from tests.test_applets.base import BaseAppletTest
 from bbot_server.models.agent_models import AgentCommand, AgentResponse
 
+import bbot_server.config as bbcfg
+
 
 class TestAppletAgents(BaseAppletTest):
     needs_agent = True
@@ -71,7 +73,9 @@ class TestAppletAgents(BaseAppletTest):
             # connect to the agent, send a message, and disconnect
             agent_url = f"ws://localhost:8807/v1/scans/agents/dock/{self.agent_3.id}"
             try:
-                async for websocket in websockets.connect(agent_url):
+                async for websocket in websockets.connect(
+                    agent_url, additional_headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}
+                ):
                     gratuitous_status = AgentResponse(response={"agent_status": "READY", "scan_status": "NOT_RUNNING"})
                     await websocket.send(orjson.dumps(gratuitous_status.model_dump()))
 

@@ -13,7 +13,8 @@ import pytest_asyncio
 from pathlib import Path
 from omegaconf import OmegaConf
 from contextlib import suppress
-from bbot_server.config import BBOT_SERVER_CONFIG
+
+import bbot_server.config as bbcfg
 from .gen_scan_data import *
 
 
@@ -37,14 +38,21 @@ TEST_CONFIG_PATH = BBOT_SERVER_TEST_DIR / "test_config.yml"
 TEST_CONFIG_PATH_SOURCE = Path(__file__).parent / "test_config.yml"
 BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH), "--no-color"]
 
+os.environ["BBOT_SERVER_CONFIG"] = str(TEST_CONFIG_PATH)
+
 shutil.copy(TEST_CONFIG_PATH_SOURCE, TEST_CONFIG_PATH)
 
 
 @pytest.fixture
 def bbot_server_config():
+    bbcfg.refresh_config()
+    if not bbcfg.get_api_keys():
+        # create a new api key if we don't have one yet
+        bbcfg.add_api_key()
+
     # load test file omegaconf config
     test_config = OmegaConf.load(TEST_CONFIG_PATH)
-    test_config = OmegaConf.merge(BBOT_SERVER_CONFIG, test_config)
+    test_config = OmegaConf.merge(bbcfg.BBOT_SERVER_CONFIG, test_config)
     return test_config
 
 
@@ -56,7 +64,6 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup, bbot_server_config)
 
     bbot_server = None
     message_queue = None
-    # underlying_bbot_server = None
 
     async def _make_bbot_server(
         config_overrides=None, needs_agent=False, needs_api=False, needs_watchdog=True, **kwargs
@@ -145,6 +152,7 @@ def bbot_watchdog(mongo_cleanup, redis_cleanup):
 
 @pytest.fixture
 def bbot_server_http(mongo_cleanup, redis_cleanup):
+    # start server
     command = [*BBCTL_COMMAND, "server", "start", "--api-only"]
 
     # Start process in its own process group
@@ -248,13 +256,13 @@ def bbot_agent(bbot_server_http):
 
 
 @pytest_asyncio.fixture
-async def mongo_cleanup():
+async def mongo_cleanup(bbot_server_config):
     """
     Clear the mongo database before and after each test
     """
     from motor.motor_asyncio import AsyncIOMotorClient
 
-    client = AsyncIOMotorClient(BBOT_SERVER_CONFIG["event_store"]["uri"])
+    client = AsyncIOMotorClient(bbot_server_config["event_store"]["uri"])
 
     async def clear_everything():
         await client.drop_database("test_bbot_server_events")
