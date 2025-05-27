@@ -24,12 +24,13 @@ def _patch_websocket_signature(original_function, wrapper_function):
 
     This is needed because FastAPI requires 'websocket' as a positional argument in the function signature
     """
+    original_signature = inspect.signature(original_function)
     wrapper_function.__signature__ = inspect.Signature(
         parameters=[
             inspect.Parameter("websocket", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=WebSocket),
-            *[p for p in inspect.signature(original_function).parameters.values()],
+            *[p for p in original_signature.parameters.values()],
         ],
-        return_annotation=inspect.signature(original_function).return_annotation,
+        return_annotation=original_signature.return_annotation,
     )
 
 
@@ -162,7 +163,7 @@ class WebsocketRoute(BaseServerRoute):
             else:
                 await websocket.close(code=1008, reason=reason)
 
-        _patch_websocket_signature(self.function, websocket_auth_wrapper)
+        # _patch_websocket_signature(self.function, websocket_auth_wrapper)
 
         router.add_api_websocket_route(self.endpoint, websocket_auth_wrapper, **self.kwargs)
 
@@ -235,7 +236,8 @@ class WebsocketStreamIncomingRoute(BaseServerRoute):
 
             async def agen():
                 try:
-                    async for message in websocket:
+                    while True:
+                        message = await websocket.receive_text()
                         message = orjson.loads(message)
                         message = self.response_model(**message)
                         yield message

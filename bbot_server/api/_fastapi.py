@@ -1,9 +1,7 @@
 import logging
-from omegaconf import OmegaConf
-from fastapi.security import APIKeyHeader
 from contextlib import asynccontextmanager
 from fastapi.openapi.utils import get_openapi
-from fastapi import FastAPI, Security, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, WebSocket
 from fastapi.responses import RedirectResponse, ORJSONResponse
 
 import bbot_server.config as bbcfg
@@ -20,20 +18,36 @@ app_kwargs = {
 }
 
 # API key header
-api_key_header = APIKeyHeader(name=bbcfg.API_KEY_NAME, auto_error=False)
-valid_api_keys = set(bbcfg.BBOT_SERVER_CONFIG.get("api_keys", []))
+# api_key_header = APIKeyHeader(name=bbcfg.API_KEY_NAME, auto_error=False)
 
 
-async def verify_api_key(api_key: str):
-    valid, reason = bbcfg.check_api_key(api_key)
-    if not valid:
-        raise HTTPException(status_code=403, detail=reason)
-    return api_key
+def api_key_dependency_http(request: Request = None):
+    if request is not None:
+        api_key = request.headers.get(bbcfg.API_KEY_NAME, "")
+        if not api_key:
+            raise HTTPException(status_code=401, detail="API key is required")
+        valid, reason = bbcfg.check_api_key(api_key)
+        if not valid:
+            raise HTTPException(status_code=401, detail=reason)
+        return api_key
+
+
+async def api_key_dependency_websocket(websocket: WebSocket = None):
+    if websocket is not None:
+        api_key = websocket.headers.get(bbcfg.API_KEY_NAME, "")
+        if not api_key:
+            await websocket.close(code=3000, reason="API key is required")
+            raise HTTPException(status_code=401, detail="API key is required")
+        valid, reason = bbcfg.check_api_key(api_key)
+        if not valid:
+            await websocket.close(code=3000, reason=reason)
+            raise HTTPException(status_code=401, detail=reason)
+        return api_key
 
 
 # Dependency to verify the API key
-async def api_key_dependency(api_key: str = Security(api_key_header)):
-    await verify_api_key(api_key)
+# async def api_key_dependency(api_key: str = Security(api_key_header)):
+#     await verify_api_key(api_key)
 
 
 def make_app(config=None):
@@ -54,7 +68,7 @@ def make_app(config=None):
         root_path="/v1",
         openapi_tags=app_root.tags_metadata,
         default_response_class=ORJSONResponse,
-        dependencies=[Depends(api_key_dependency)],
+        dependencies=[Depends(api_key_dependency_http), Depends(api_key_dependency_websocket)],
         **app_kwargs,
     )
 
@@ -87,7 +101,7 @@ def make_app(config=None):
             "APIKeyHeader": {
                 "type": "apiKey",
                 "in": "header",
-                "name": API_KEY_NAME,
+                "name": bbcfg.API_KEY_NAME,
                 "description": "API key authentication",
             }
         }

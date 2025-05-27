@@ -7,6 +7,7 @@ from typer import Typer, Option  # noqa
 from typing import Annotated  # noqa
 from functools import cached_property, wraps
 
+import bbot_server.config as bbcfg
 from bbot_server.utils.misc import timestamp_to_human, seconds_to_human
 
 
@@ -34,6 +35,9 @@ class BaseBBCTL:
 
     # optionally include other BBCTL classes
     include = []
+
+    # BBOT server config helpers
+    bbcfg = bbcfg
 
     # allow the command to be invoked without a subcommand
     _invoke_without_command = False

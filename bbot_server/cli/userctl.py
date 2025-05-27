@@ -1,4 +1,3 @@
-import uuid
 from pydantic import UUID4
 from omegaconf import OmegaConf
 
@@ -25,41 +24,13 @@ class UserCTL(BaseBBCTL):
 
     @subcommand(help="Add a new user to BBOT server")
     def add(self):
-        api_key = str(uuid.uuid4())
-
-        # load the existing config and insert the new API key
-        existing_config = self.existing_config.copy()
+        api_key = self.bbcfg.add_api_key()
         self.log.info(f"New API key added. Please restart the server for the new key to be recognized:")
         self.log.info(f"    - API KEY: {api_key}")
 
-        # if no API key is set, set it to the new secret
-        if existing_config.get("api_keys", ""):
-            self.log.warning(
-                f"You already have a different API key in your config file at {self.root.config_path}. It will not be overwritten."
-            )
-            self.log.warning("Please make sure to save this in a secure location!")
-        else:
-            existing_config.api_key = f"{secret_id}:{secret_key}"
-            self.log.info(
-                f"The new API key has been automatically saved to your config file at {self.root.config_path}."
-            )
-        # write out the updated config
-        existing_config["valid_secrets"] = valid_secrets
+    @subcommand(help="Revoke an API key")
+    def delete(self, api_key: UUID4):
         try:
-            OmegaConf.save(existing_config, self.root.config_path)
-        except Exception as e:
-            raise self.BBOTServerError(f"Error saving config file at {self.root.config_path}: {e}") from e
-
-    @subcommand(help="Revoke a user by their secret ID")
-    def delete(self, secret_id: UUID4):
-        secret_id = str(secret_id)
-        valid_secrets = self.existing_config.get("valid_secrets", {})
-        if secret_id not in valid_secrets:
-            raise self.BBOTServerError(f"Secret ID {secret_id} not found in config file at {self.root.config_path}")
-        del valid_secrets[secret_id]
-        self.existing_config["valid_secrets"] = valid_secrets
-        try:
-            OmegaConf.save(self.existing_config, self.root.config_path)
-            self.log.info(f"Secret ID {secret_id} successfully deleted from {self.root.config_path}")
-        except Exception as e:
-            raise self.BBOTServerError(f"Error saving config file at {self.root.config_path}: {e}") from e
+            self.bbcfg.revoke_api_key(api_key)
+        except KeyError:
+            raise self.BBOTServerError(f"API key {api_key} not found in config file")

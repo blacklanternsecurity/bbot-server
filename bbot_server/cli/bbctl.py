@@ -58,12 +58,11 @@ class BBCTL(BaseBBCTL):
         if custom_config:
             try:
                 self.config_path = Path(custom_config)
-                self._config = bbcfg.refresh_config(self.config_path)
+                self.bbcfg.refresh_config(self.config_path)
             except Exception as e:
                 raise BBOTServerError(f"Error loading config file at {self.config_path}: {e}")
         else:
             self.config_path = bbcfg.BBOT_SERVER_CONFIG_PATH
-            self._config = bbcfg.BBOT_SERVER_CONFIG
         if self.debug:
             logging.getLogger().setLevel(logging.DEBUG)
         if server_url != bbcfg.BBOT_SERVER_URL:
@@ -88,6 +87,10 @@ class BBCTL(BaseBBCTL):
         bbot_server = BBOTServer(interface="http", url=self.server_url, synchronous=True, **bbot_server_kwargs)
         bbot_server.setup()
         return bbot_server
+
+    @property
+    def _config(self):
+        return self.bbcfg.BBOT_SERVER_CONFIG
 
 
 log = logging.getLogger("bbot_server.bbctl")

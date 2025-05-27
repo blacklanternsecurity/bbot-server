@@ -1,8 +1,9 @@
 import os
+import uuid
 import logging
-from uuid import UUID
 from pathlib import Path
 from omegaconf import OmegaConf
+
 
 log = logging.getLogger("bbot_server.config")
 
@@ -32,21 +33,9 @@ if not BBOT_SERVER_CONFIG_PATH.exists():
         log.error(f"Error creating config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
 
 
-def refresh_api_keys():
-    global VALID_API_KEYS
-    api_keys = set()
-    for key in ("api_keys", "api_key"):
-        keys = BBOT_SERVER_CONFIG.get(key, [])
-        if keys:
-            if isinstance(keys, str):
-                keys = [keys]
-            api_keys.update(keys)
-    VALID_API_KEYS = api_keys
-
-
 def refresh_config(custom_config_path=None):
     """
-    Refresh the config.
+    Re-read the config from disk
     """
     global BBOT_SERVER_CONFIG_PATH, BBOT_SERVER_CONFIG, BBOT_SERVER_URL
 
@@ -70,11 +59,31 @@ def refresh_config(custom_config_path=None):
     return BBOT_SERVER_CONFIG
 
 
-def check_api_key(api_key: str):
+def refresh_api_keys():
+    """
+    Get the API keys from the config
+    """
     global VALID_API_KEYS
+    api_keys = set()
+    for key in ("api_keys", "api_key"):
+        keys = BBOT_SERVER_CONFIG.get(key, [])
+        if keys:
+            if isinstance(keys, str):
+                keys = [keys]
+            api_keys.update(keys)
+    VALID_API_KEYS = api_keys
+
+
+def check_api_key(api_key: str):
+    """
+    Check whether an API key is valid
+    """
+    global VALID_API_KEYS
+    if not api_key:
+        return False, "API key is required"
     try:
-        api_key = str(UUID(api_key))
-    except ValueError:
+        api_key = str(uuid.UUID(api_key))
+    except Exception:
         return False, "API key must be a valid UUID"
     # if the API key is invalid, try refreshing the config
     if api_key not in VALID_API_KEYS:
@@ -82,6 +91,38 @@ def check_api_key(api_key: str):
         if api_key not in VALID_API_KEYS:
             return False, "Invalid API key"
     return True, "Valid API key"
+
+
+def add_api_key():
+    """
+    Add a new API key to the config.
+
+    Note: writes the config to disk
+    """
+    global VALID_API_KEYS
+    api_key = str(uuid.uuid4())
+    VALID_API_KEYS.add(api_key)
+    BBOT_SERVER_CONFIG["api_keys"] = sorted(VALID_API_KEYS)
+
+    # write new API key to config
+    existing_config = OmegaConf.load(BBOT_SERVER_CONFIG_PATH)
+    existing_api_keys = set(existing_config.get("api_keys", []))
+    existing_api_keys.add(api_key)
+    existing_config["api_keys"] = sorted(existing_api_keys)
+    OmegaConf.save(existing_config, BBOT_SERVER_CONFIG_PATH)
+
+    # refresh config by reading it from disk
+    refresh_config()
+    return api_key
+
+
+def revoke_api_key(api_key: str):
+    """
+    Revoke an API key from the config.
+    """
+    global VALID_API_KEYS
+    VALID_API_KEYS.remove(str(api_key))
+    refresh_config()
 
 
 refresh_config()
