@@ -219,12 +219,7 @@ class BBOTAgent:
             output_modules=["http"],
             config={
                 "modules": {
-                    "http": {
-                        "url": self.scan_output_url,
-                        "headers": {
-                            bbcfg.API_KEY_NAME: bbcfg.get_api_key()
-                        }
-                    }
+                    "http": {"url": self.scan_output_url, "headers": {bbcfg.API_KEY_NAME: bbcfg.get_api_key()}}
                 }
             },
         )
