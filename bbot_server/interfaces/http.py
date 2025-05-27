@@ -140,7 +140,7 @@ class http(BaseInterface):
         # replace scheme with ws
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
         try:
-            async for websocket in connect(_url):
+            async for websocket in connect(_url, additional_headers={"X-API-Key": self._api_key}):
                 async for message in websocket:
                     decoded_json = orjson.loads(message)
                     model_obj = _route.response_model(**decoded_json)
@@ -161,7 +161,7 @@ class http(BaseInterface):
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
         try:
             async for message in message_generator:
-                async for websocket in connect(_url):
+                async for websocket in connect(_url, additional_headers={"X-API-Key": self._api_key}):
                     await websocket.send(message)
         except Exception as e:
             raise BBOTServerError(f"Error in websocket stream at {_url}: {e}") from e

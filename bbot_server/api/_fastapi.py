@@ -3,7 +3,7 @@ from omegaconf import OmegaConf
 from fastapi.security import APIKeyHeader
 from contextlib import asynccontextmanager
 from fastapi.openapi.utils import get_openapi
-from fastapi import FastAPI, Security, HTTPException, Depends
+from fastapi import FastAPI, Security, HTTPException, Depends, Request
 from fastapi.responses import RedirectResponse, ORJSONResponse
 
 import bbot_server.config as bbcfg
@@ -34,7 +34,6 @@ async def verify_api_key(api_key: str):
 # Dependency to verify the API key
 async def api_key_dependency(api_key: str = Security(api_key_header)):
     await verify_api_key(api_key)
-    
 
 
 def make_app(config=None):
