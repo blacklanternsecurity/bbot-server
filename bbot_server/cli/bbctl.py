@@ -21,7 +21,6 @@ from bbot_server.cli.eventctl import EventCTL
 from bbot_server.cli.activityctl import ActivityCTL
 from bbot_server.cli.findingctl import FindingCTL
 from bbot_server.cli.technologyctl import TechnologyCTL
-from bbot_server.cli.userctl import UserCTL
 
 
 class BBCTL(BaseBBCTL):
@@ -29,7 +28,7 @@ class BBCTL(BaseBBCTL):
     The root command for the BBCTL CLI
     """
 
-    include = [AssetCTL, ScanCTL, ServerCTL, AgentCTL, EventCTL, ActivityCTL, FindingCTL, TechnologyCTL, UserCTL]
+    include = [AssetCTL, ScanCTL, ServerCTL, AgentCTL, EventCTL, ActivityCTL, FindingCTL, TechnologyCTL]
 
     _invoke_without_command = True
 

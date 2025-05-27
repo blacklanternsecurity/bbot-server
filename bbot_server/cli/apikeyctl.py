@@ -1,28 +1,34 @@
 from pydantic import UUID4
 from omegaconf import OmegaConf
 
+from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
 
 
-class UserCTL(BaseBBCTL):
-    command = "user"
-    help = "Manage BBOT server users"
-    short_help = "Manage BBOT server users"
+class APIKeyCTL(BaseBBCTL):
+    command = "apikey"
+    help = "Manage BBOT server API keys"
+    short_help = "Manage BBOT server API keys"
 
     def setup(self):
         self.existing_config = OmegaConf.load(self.root.config_path)
 
-    @subcommand(help="List all BBOT server users")
-    def list(self):
-        valid_secrets = self.existing_config.get("valid_secrets", {})
+    @subcommand(help="List all BBOT server API keys")
+    def list(
+        self,
+        json: common.json = False,
+    ):
+        valid_secrets = sorted(self.bbcfg.get_api_keys())
+        if json:
+            self.print_raw_line(self.orjson.dumps(valid_secrets))
+            return
         table = self.Table()
-        table.add_column("Secret ID", style=self.COLOR)
-        table.add_column("Secret Key")
-        for secret_id in valid_secrets:
-            table.add_row(secret_id, "********")
+        table.add_column("API Key", style=self.COLOR)
+        for api_key in valid_secrets:
+            table.add_row(api_key)
         self.stdout.print(table)
 
-    @subcommand(help="Add a new user to BBOT server")
+    @subcommand(help="Create a new API key")
     def add(self):
         api_key = self.bbcfg.add_api_key()
         self.log.info(f"New API key added. Please restart the server for the new key to be recognized:")

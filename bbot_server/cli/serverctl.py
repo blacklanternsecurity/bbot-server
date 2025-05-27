@@ -8,6 +8,7 @@ from subprocess import run
 from contextlib import suppress
 
 import bbot_server.config as bbcfg
+from bbot_server.cli.apikeyctl import APIKeyCTL
 from bbot_server import BBOT_SERVER_PROJECT_ROOT
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
@@ -16,6 +17,8 @@ class ServerCTL(BaseBBCTL):
     command = "server"
     help = "Start/stop BBOT server"
     short_help = "Start or stop BBOT server via Docker Compose"
+
+    include = [APIKeyCTL]
 
     def setup(self):
         self._docker_command = None
@@ -40,8 +43,8 @@ class ServerCTL(BaseBBCTL):
         # initialize the config if not already
         if not bbcfg.get_api_keys():
             self.log.info("First run detected. Adding a new API key...")
-            self.root.children["user"].setup()
-            self.root.children["user"].add()
+            self.root.children["server"].children["apikey"].setup()
+            self.root.children["server"].children["apikey"].add()
         bbcfg.refresh_config()
 
         if api_only:
