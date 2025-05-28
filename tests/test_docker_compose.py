@@ -68,7 +68,7 @@ def test_docker_compose_userexperience():
         assert "Please set `api_keys` in your config file" in result.stderr
 
         # even with API key, this should fail because docker compose isn't running
-        custom_config_file.write_text("api_key: deadbeef-dead-beef-dead-beefdeadbeef")
+        custom_config_file.write_text('api_keys: ["deadbeef-dead-beef-dead-beefdeadbeef"]')
         result = subprocess.run(
             BBCTL_COMMAND + ["asset", "stats"],
             cwd=project_root,
@@ -112,16 +112,22 @@ def test_docker_compose_userexperience():
         )
         assert result.returncode == 0
         config = yaml.safe_load(result.stdout)
-        docker_api_key = config.get("api_key", "")
+        docker_api_key = config.get("api_keys", [])
+        assert docker_api_key
+        assert len(docker_api_key) == 1
+        docker_api_key = docker_api_key[0]
         # load api key from our custom config file
-        our_api_key = yaml.safe_load(custom_config_file.read_text()).get("api_key", "")
+        our_api_key = yaml.safe_load(custom_config_file.read_text()).get("api_keys", [])
         assert our_api_key
+        assert len(our_api_key) == 1
+        our_api_key = our_api_key[0]
         assert docker_api_key[:20] == our_api_key[:20]
 
         for _ in range(120):
             # we should be able to list assets now
+            command = BBCTL_COMMAND + ["asset", "stats"]
             result = subprocess.run(
-                BBCTL_COMMAND + ["asset", "stats"],
+                command,
                 cwd=project_root,
                 capture_output=True,
                 text=True,
