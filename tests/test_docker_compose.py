@@ -152,6 +152,9 @@ def test_docker_compose_userexperience():
 
 
 def test_docker_compose_custom_config():
+    # delete config env var for this test
+    del os.environ["BBOT_SERVER_CONFIG"]
+
     # create a blank config file just for this test
     custom_config_file.unlink(missing_ok=True)
     custom_config_file.write_text("test1234: test4321")
@@ -220,10 +223,8 @@ def test_docker_compose_authentication():
             # docker should detect first run and write a new api key to the custom config file
             custom_config = yaml.safe_load(custom_config_file.read_text())
             if custom_config:
-                api_key = custom_config.get("api_key", "")
-                valid_secrets = custom_config.get("valid_secrets", {})
-                secret_id = api_key.split(":")[0]
-                if api_key and valid_secrets and secret_id in valid_secrets:
+                api_keys = custom_config.get("api_keys", [])
+                if api_keys:
                     break
             time.sleep(0.5)
         else:
@@ -237,7 +238,7 @@ def test_docker_compose_authentication():
                 capture_output=True,
                 text=True,
             )
-            if "Invalid API key" in result.stderr or "No API key found" in result.stderr:
+            if "No API keys found" in result.stderr:
                 break
             time.sleep(0.5)
         else:
