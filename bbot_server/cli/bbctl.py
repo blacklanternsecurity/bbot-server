@@ -38,9 +38,7 @@ class BBCTL(BaseBBCTL):
 
     def main(
         self,
-        server_url: Annotated[
-            str, Option("--url", "-u", help="BBOT server URL", metavar="URL")
-        ] = bbcfg.BBOT_SERVER_URL,
+        server_url: Annotated[str, Option("--url", "-u", help="BBOT server URL", metavar="URL")] = None,
         config: Annotated[str, Option("--config", "-c", help="Path to a config file", metavar="PATH")] = None,
         silent: Annotated[bool, Option("--silent", "-s", help="Suppress all stderr output")] = False,
         color: Annotated[
@@ -53,6 +51,7 @@ class BBCTL(BaseBBCTL):
         self.color = color
         self.debug = debug
         self.config_path = None
+        # command line arg takes precedence over environment variable
         custom_config = config or os.environ.get("BBOT_SERVER_CONFIG", "")
         if custom_config:
             try:
@@ -64,7 +63,7 @@ class BBCTL(BaseBBCTL):
             self.config_path = bbcfg.BBOT_SERVER_CONFIG_PATH
         if self.debug:
             logging.getLogger().setLevel(logging.DEBUG)
-        if server_url != bbcfg.BBOT_SERVER_URL:
+        if server_url is not None and server_url != bbcfg.BBOT_SERVER_URL:
             self._config.url = server_url
         self.server_url = self.config.url
 
