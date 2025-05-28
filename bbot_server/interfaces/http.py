@@ -50,8 +50,6 @@ class http(BaseInterface):
         self._http_timeout = self.config.get("cli", {}).get("http_timeout", 15)
         self._client = None
 
-        assert not str(bbcfg.BBOT_SERVER_CONFIG_PATH) == "/home/bls/.config/bbot_server/config.yml"
-
     @property
     def config(self):
         return bbcfg.BBOT_SERVER_CONFIG
