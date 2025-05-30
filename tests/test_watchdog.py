@@ -12,8 +12,8 @@ from .conftest import INGEST_PROCESSING_DELAY
 
 
 @pytest.mark.asyncio
-async def test_watchdog(bbot_events, bbot_server_config):
-    bbot_server = BBOTServer(config=bbot_server_config)
+async def test_watchdog(bbot_events):
+    bbot_server = BBOTServer()
     await bbot_server.setup()
     watchdog = BBOTWatchdog(bbot_server)
     await watchdog.start()

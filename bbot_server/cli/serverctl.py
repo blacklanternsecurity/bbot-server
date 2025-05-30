@@ -71,7 +71,7 @@ class ServerCTL(BaseBBCTL):
                     from bbot_server import BBOTServer
                     from bbot_server.watchdog import BBOTWatchdog
 
-                    bbot_server = BBOTServer(config=self.config)
+                    bbot_server = BBOTServer()
                     await bbot_server.setup()
 
                     watchdog = BBOTWatchdog(bbot_server)

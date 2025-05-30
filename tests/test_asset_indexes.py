@@ -62,8 +62,8 @@ async def test_indexed_fields():
     assert "computed_non_indexed" not in indexed
 
 
-async def test_asset_indexes(bbot_server_config):
-    bbot_server = BBOTServer(config=bbot_server_config)
+async def test_asset_indexes():
+    bbot_server = BBOTServer()
     await bbot_server.setup()
 
     assert bbot_server.assets.model.indexed_fields() == {

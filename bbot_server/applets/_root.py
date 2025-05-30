@@ -1,7 +1,6 @@
-from omegaconf import OmegaConf
+import bbot_server.config as bbcfg
 
 from bbot_server.applets._base import BaseApplet
-from bbot_server.config import BBOT_SERVER_CONFIG
 
 # applet imports
 from bbot_server.applets.stats import StatsApplet
@@ -24,11 +23,9 @@ class RootApplet(BaseApplet):
         """
         "config" can be either a dictionary or an omegaconf object
         """
-        super().__init__(**kwargs)
         if config is not None:
-            self._config = OmegaConf.merge(BBOT_SERVER_CONFIG, config)
-        else:
-            self._config = BBOT_SERVER_CONFIG
+            bbcfg.update_config(config)
+        super().__init__(**kwargs)
         self._interface_type = "python"
         self._mcp = None
 
@@ -69,6 +66,10 @@ class RootApplet(BaseApplet):
     @property
     def config(self):
         return self._config
+
+    @property
+    def _config(self):
+        return bbcfg.BBOT_SERVER_CONFIG
 
     async def cleanup(self):
         if self.is_native:

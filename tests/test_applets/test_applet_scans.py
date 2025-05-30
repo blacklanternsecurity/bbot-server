@@ -206,14 +206,14 @@ async def test_queued_scan_cancellation(bbot_server):
     assert scans[0].status == "ABORTED"
 
 
-async def test_running_scan_cancellation(bbot_server_config, bbot_agent, bbot_watchdog):
+async def test_running_scan_cancellation(bbot_agent, bbot_watchdog):
     """
     Here we start a scan with an agent, so we have a running scan
 
     Then we cancel the scan, and make sure the cleanup etc. happens properly
     """
     # we have to use the HTTP interface here because we can only cancel a scan through the REST API
-    bbot_server = BBOTServer(interface="http", config=bbot_server_config)
+    bbot_server = BBOTServer(interface="http")
     await bbot_server.setup()
 
     infinite_module_dir = Path(__file__).parent.parent / "bbot_modules"

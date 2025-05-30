@@ -50,11 +50,11 @@ async def api_key_dependency_websocket(websocket: WebSocket = None):
 #     await verify_api_key(api_key)
 
 
-def make_app(config=None):
+def make_app():
     from bbot_server.api.mcp import make_mcp_server
     from bbot_server.applets import BBOTServerRootApplet
 
-    app_root = BBOTServerRootApplet(config=config)
+    app_root = BBOTServerRootApplet()
     app_root._is_main_server = True
 
     @asynccontextmanager
@@ -147,8 +147,8 @@ def make_app(config=None):
     return app, lifespan
 
 
-def make_server_app(config=None):
-    app, lifespan = make_app(config=config)
+def make_server_app():
+    app, lifespan = make_app()
 
     # includes the /v1 prefix
     server_app = FastAPI(

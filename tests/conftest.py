@@ -38,27 +38,23 @@ TEST_CONFIG_PATH = BBOT_SERVER_TEST_DIR / "test_config.yml"
 TEST_CONFIG_PATH_SOURCE = Path(__file__).parent / "test_config.yml"
 BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH), "--no-color"]
 
-os.environ["BBOT_SERVER_CONFIG"] = str(TEST_CONFIG_PATH)
-
 shutil.copy(TEST_CONFIG_PATH_SOURCE, TEST_CONFIG_PATH)
+
+bbcfg.update_config_path(TEST_CONFIG_PATH)
+
+if not bbcfg.get_api_keys():
+    # create a new api key if we don't have one yet
+    bbcfg.add_api_key()
 
 
 @pytest.fixture
 def bbot_server_config():
-    bbcfg.refresh_config()
-    if not bbcfg.get_api_keys():
-        # create a new api key if we don't have one yet
-        bbcfg.add_api_key()
-
-    # load test file omegaconf config
-    test_config = OmegaConf.load(TEST_CONFIG_PATH)
-    test_config = OmegaConf.merge(bbcfg.BBOT_SERVER_CONFIG, test_config)
-    return test_config
+    return bbcfg.BBOT_SERVER_CONFIG
 
 
 @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
 # @pytest_asyncio.fixture(params=[{"interface": "http"}])
-async def bbot_server(request, mongo_cleanup, redis_cleanup, bbot_server_config):
+async def bbot_server(request, mongo_cleanup, redis_cleanup):
     from bbot_server import BBOTServer
     from bbot_server.message_queue import MessageQueue
 
@@ -68,14 +64,14 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup, bbot_server_config)
     async def _make_bbot_server(
         config_overrides=None, needs_agent=False, needs_api=False, needs_watchdog=True, **kwargs
     ):
-        nonlocal bbot_server, bbot_server_config
+        nonlocal bbot_server
 
         if config_overrides is not None:
-            bbot_server_config = OmegaConf.merge(bbot_server_config, config_overrides)
+            bbcfg.update_config(config_overrides)
 
-        interface_kwargs = dict(request.param)
-        interface_kwargs.update({"config": bbot_server_config})
-        kwargs.update(interface_kwargs)
+        log.critical(f"BBOT_SERVER_CONFIG 2: {OmegaConf.to_yaml(bbcfg.BBOT_SERVER_CONFIG)}")
+
+        kwargs.update(dict(request.param))
 
         # main bbot server
         log.info(f"Instantiating bbot server with kwargs: {kwargs}")
@@ -83,7 +79,7 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup, bbot_server_config)
         await bbot_server.setup()
 
         # clear message queue
-        message_queue = MessageQueue(bbot_server_config)
+        message_queue = MessageQueue()
         await message_queue.setup()
         await message_queue.clear()
 
@@ -117,9 +113,12 @@ def bbot_watchdog(mongo_cleanup, redis_cleanup):
     try:
         # Wait for watchdog to be ready by monitoring stderr
         ready = False
-        while 1:  # 10 second timeout (50 * 0.2)
+        while watchdog_process.poll() is None:  # 10 second timeout (50 * 0.2)
             line = watchdog_process.stderr.readline()
             log.critical(f"Watchdog: {line.strip()}")
+            if "Watchdog started" in line:
+                ready = True
+                break
             if "[INFO] Subscribed to bbot:stream:events" in line:
                 ready = True
                 break

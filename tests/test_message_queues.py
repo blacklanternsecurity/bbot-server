@@ -153,8 +153,8 @@ async def _test_historic_subscribe(bbot_server):
 
 
 @pytest.mark.asyncio
-async def test_queues_redis(bbot_server_config):
-    bbot_server = BBOTServer(config=bbot_server_config)
+async def test_queues_redis():
+    bbot_server = BBOTServer()
     await bbot_server.setup()
 
     await bbot_server.message_queue.clear()

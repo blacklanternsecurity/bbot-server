@@ -37,17 +37,29 @@ if not BBOT_SERVER_CONFIG_PATH.exists():
         log.error(f"Error creating config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
 
 
-def refresh_config(custom_config_path=None):
+def update_config_path(config_path):
+    os.environ["BBOT_SERVER_CONFIG"] = str(config_path)
+    refresh_config()
+
+
+def update_config(config):
+    """
+    Update the config with a new config
+    """
+    global BBOT_SERVER_CONFIG
+    BBOT_SERVER_CONFIG = OmegaConf.merge(BBOT_SERVER_CONFIG, config)
+    refresh_config()
+
+
+def refresh_config():
     """
     Re-read the config from disk
     """
     global BBOT_SERVER_CONFIG_PATH, BBOT_SERVER_CONFIG, BBOT_SERVER_URL
 
-    if custom_config_path:
-        os.environ["BBOT_SERVER_CONFIG"] = str(custom_config_path)
-
     # if a custom config is provided, merge it with the defaults
     config_path = Path(os.environ.get("BBOT_SERVER_CONFIG", BBOT_SERVER_CONFIG_PATH))
+    log.critical(f"config_path: {config_path}")
     if config_path.exists():
         if str(config_path) != str(BBOT_SERVER_CONFIG_PATH):
             log.debug(f"Changing config to point to {config_path} (was {BBOT_SERVER_CONFIG_PATH})")
@@ -58,7 +70,7 @@ def refresh_config(custom_config_path=None):
         except Exception as e:
             log.error(f"Error loading config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
     else:
-        log.warning(f"No config file found at {BBOT_SERVER_CONFIG_PATH}, using defaults")
+        log.warning(f"No config file found at {config_path}, using defaults")
 
     try:
         BBOT_SERVER_URL = BBOT_SERVER_CONFIG.url
