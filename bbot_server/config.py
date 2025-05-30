@@ -21,6 +21,7 @@ BBOT_SERVER_DEFAULTS = OmegaConf.load(BBOT_SERVER_DEFAULTS_PATH)
 BBOT_SERVER_CONFIG = BBOT_SERVER_DEFAULTS
 BBOT_SERVER_CONFIG_PATH = Path.home() / ".config" / "bbot_server" / "config.yml"
 
+
 # Create the config if it doesn't exist
 if not BBOT_SERVER_CONFIG_PATH.exists():
     try:
@@ -59,7 +60,23 @@ def refresh_config(custom_config_path=None):
     else:
         log.warning(f"No config file found at {BBOT_SERVER_CONFIG_PATH}, using defaults")
 
-    BBOT_SERVER_URL = BBOT_SERVER_CONFIG.url
+    try:
+        BBOT_SERVER_URL = BBOT_SERVER_CONFIG.url
+    except Exception as e:
+        raise BBOTServerError(f"Config must contain a `url` field") from e
+
+    event_store_uri = os.environ.get("BBOT_SERVER_EVENT_STORE_MONGO_URI", "")
+    if event_store_uri:
+        BBOT_SERVER_CONFIG.event_store.uri = event_store_uri
+    asset_store_uri = os.environ.get("BBOT_SERVER_ASSET_STORE_MONGO_URI", "")
+    if asset_store_uri:
+        BBOT_SERVER_CONFIG.asset_store.uri = asset_store_uri
+    user_store_uri = os.environ.get("BBOT_SERVER_USER_STORE_MONGO_URI", "")
+    if user_store_uri:
+        BBOT_SERVER_CONFIG.user_store.uri = user_store_uri
+    redis_uri = os.environ.get("BBOT_SERVER_REDIS_URI", "")
+    if redis_uri:
+        BBOT_SERVER_CONFIG.message_queue.uri = redis_uri
     refresh_api_keys()
     return BBOT_SERVER_CONFIG
 

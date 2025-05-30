@@ -9,7 +9,7 @@ for p in module_dir.iterdir():
 BACKEND_CHOICES.sort()
 
 
-def EventStore(config, **kwargs):
+def EventStore(*args, **kwargs):
     # backend = backend.strip().lower()
     # if backend not in BACKEND_CHOICES:
     #     raise ValueError(f"Invalid event store backend: {backend} - choices: {', '.join(BACKEND_CHOICES)}")
@@ -20,4 +20,4 @@ def EventStore(config, **kwargs):
     # return module(**kwargs)
     from bbot_server.event_store.mongo import MongoEventStore
 
-    return MongoEventStore(config)
+    return MongoEventStore(*args, **kwargs)

@@ -1,39 +1,52 @@
 import logging
 
+import bbot_server.config as bbcfg
+from bbot_server.errors import BBOTServerValueError
+
 
 class BaseDB:
+    # config_key is used for looking up the config for this specific db store
+    # e.g. "event_store" or "asset_store" or "user_store"
     config_key = None
 
-    def __init__(self, config):
+    def __init__(self):
         self.log = logging.getLogger(__name__)
-        self.config = config
-        try:
-            self.db_config = config[self.config_key]
-        except Exception as e:
-            raise ValueError(f"'{self.config_key}' is missing from config") from e
-        try:
-            self.uri = self.db_config.uri
-        except Exception as e:
-            raise ValueError("Event store URI is missing") from e
+
+        if not self.db_config:
+            raise BBOTServerValueError(f"Database configuration (`{self.config_key}`) is missing from config: {self.config}")
+        if not self.uri:
+            raise BBOTServerValueError(f"Database URI is missing from config: {self.db_config}")
 
         self.log.debug(f"Setting up {self.__class__.__name__} at {self.uri}")
 
         self._setup_finished = False
 
     @property
+    def config(self):
+        return bbcfg.BBOT_SERVER_CONFIG
+
+    @property
+    def db_config(self):
+        return self.config.get(self.config_key, {})
+
+    @property
+    def uri(self):
+        return self.db_config.get("uri", "")
+
+    @property
     def db_name(self):
-        if self.db_config.uri.count("/") == 3:
-            db_name = self.db_config.uri.split("/")[-1]
+        if self.uri.count("/") == 3:
+            db_name = self.uri.split("/")[-1]
             if not db_name:
-                raise ValueError("Database name must be included in the URI.")
+                raise BBOTServerValueError("Database name must be included in the URI.")
             return db_name
-        raise ValueError(f"Invalid URI: {self.db_config.uri} - Database name must be included.")
+        raise BBOTServerValueError(f"Invalid URI: {self.uri} - Database name must be included.")
 
     @property
     def table_name(self):
-        table_name = self.db_config.table_name
+        table_name = self.db_config.get("table_name", "")
         if not table_name:
-            raise ValueError("Table name must be included in the configuration.")
+            raise BBOTServerValueError("Table name must be included in the configuration.")
         return table_name
 
     async def setup(self):
