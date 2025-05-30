@@ -173,12 +173,15 @@ class AgentsApplet(BaseApplet):
                             )
                             existing_scan_status = get_scan_status_name(existing_scan_status_code)
                             if scan_status_code > existing_scan_status_code:
-                                await self.parent.update_scan_status(scan_id=scan_id, status_code=scan_status_code)
-                                await self.emit_activity(
-                                    type="SCAN_STATUS",
-                                    detail=detail,
-                                    description=f"Scan [COLOR]{scan_name}[/COLOR] status changed from [bold]{existing_scan_status}[/bold] to [bold]{scan_status}[/bold]",
+                                status_changed = await self.parent.update_scan_status(
+                                    scan_id=scan_id, status_code=scan_status_code
                                 )
+                                if status_changed:
+                                    await self.emit_activity(
+                                        type="SCAN_STATUS",
+                                        detail=detail,
+                                        description=f"Scan [[COLOR]{scan_name}[/COLOR]] status changed from [bold]{existing_scan_status}[/bold] to [bold]{scan_status}[/bold]",
+                                    )
                         await self._update_agent_status(
                             agent_id=agent.id,
                             status=agent_status,

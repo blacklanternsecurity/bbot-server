@@ -13,7 +13,9 @@ class BaseDB:
         self.log = logging.getLogger(__name__)
 
         if not self.db_config:
-            raise BBOTServerValueError(f"Database configuration (`{self.config_key}`) is missing from config: {self.config}")
+            raise BBOTServerValueError(
+                f"Database configuration (`{self.config_key}`) is missing from config: {self.config}"
+            )
         if not self.uri:
             raise BBOTServerValueError(f"Database URI is missing from config: {self.db_config}")
 
