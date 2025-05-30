@@ -264,6 +264,10 @@ async def test_running_scan_cancellation(bbot_agent, bbot_watchdog):
         await bbot_server.cancel_scan(scan_id=scan.id)
 
     # make sure the agent is still running and ready to pick up the next scan
-    agents = await bbot_server.get_agents()
-    assert len(agents) == 1
-    assert agents[0].status == "READY"
+    for _ in range(120):
+        agents = await bbot_server.get_agents()
+        if len(agents) == 1 and agents[0].status == "READY":
+            break
+        await asyncio.sleep(0.5)
+    else:
+        assert False, f"Agent did not become ready again. Agents: {agents}"
