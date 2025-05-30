@@ -56,7 +56,7 @@ class BBCTL(BaseBBCTL):
         if custom_config:
             try:
                 self.config_path = Path(custom_config)
-                self.bbcfg.refresh_config(self.config_path)
+                self.bbcfg.update_config_path(self.config_path)
             except Exception as e:
                 raise BBOTServerError(f"Error loading config file at {self.config_path}: {e}")
         else:
