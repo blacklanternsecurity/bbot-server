@@ -1,3 +1,4 @@
+import json
 import pytest
 import asyncio
 from pathlib import Path
@@ -121,8 +122,8 @@ async def test_basic_scan_run(bbot_server):
         scans = [a async for a in bbot_server.get_scans()]
         scan_status_finished = len(scans) == 1 and scans[0].status == "FINISHED"
 
-        scan_statuses = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
-        scan_statuses = [a.detail["scan_status"] for a in scan_statuses]
+        scan_status_activities = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
+        scan_statuses = [a.detail["scan_status"] for a in scan_status_activities]
         scan_status_match = scan_statuses == [
             "STARTING",
             "RUNNING",
@@ -135,7 +136,9 @@ async def test_basic_scan_run(bbot_server):
 
         await asyncio.sleep(0.5)
     else:
-        assert False, f"Scan run did not finish. Scan statuses: {scan_statuses}, Scans: {scans}"
+        scan_status_activities_json = json.dumps([a.model_dump() for a in scan_status_activities], indent=2)
+        scans_json = json.dumps([s.model_dump() for s in scans], indent=2)
+        assert False, f"Scan runs didn't finish correctly. Scan statuses: {scan_status_activities_json}, Scans: {scans_json}"
 
     scan_events = [e for e in events if e.type == "SCAN"]
     assert len(scan_events) == 2
