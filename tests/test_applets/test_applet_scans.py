@@ -138,7 +138,9 @@ async def test_basic_scan_run(bbot_server):
     else:
         scan_status_activities_json = json.dumps([a.model_dump() for a in scan_status_activities], indent=2)
         scans_json = json.dumps([s.model_dump() for s in scans], indent=2)
-        assert False, f"Scan runs didn't finish correctly. Scan statuses: {scan_status_activities_json}, Scans: {scans_json}"
+        assert False, (
+            f"Scan runs didn't finish correctly. Scan statuses: {scan_status_activities_json}, Scans: {scans_json}"
+        )
 
     scan_events = [e for e in events if e.type == "SCAN"]
     assert len(scan_events) == 2
