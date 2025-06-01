@@ -7,7 +7,7 @@ from contextlib import suppress
 from bbot_server import BBOTServer
 from bbot_server.errors import BBOTServerValueError
 
-from ..conftest import INGEST_PROCESSING_DELAY
+from ..conftest import INGEST_PROCESSING_DELAY, log
 
 
 # make sure ad-hoc ingestion of a BBOT scan creates an associated scan run in the database
@@ -103,6 +103,7 @@ async def test_basic_scan_run(bbot_server):
     # wait for agent to be ready
     for _ in range(120):
         agents = await bbot_server.get_agents()
+        log.info(f"Waiting for agent to be ready: agents: {agents}")
         if len(agents) == 1 and agents[0].status == "READY":
             break
         await asyncio.sleep(0.5)
