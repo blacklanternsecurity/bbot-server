@@ -50,7 +50,6 @@ def refresh_config(config_overrides=None):
 
     # if a custom config is provided, merge it with the defaults
     config_path = Path(os.environ.get("BBOT_SERVER_CONFIG", BBOT_SERVER_CONFIG_PATH))
-    log.critical(f"config_path: {config_path}")
     if config_path.exists():
         if str(config_path) != str(BBOT_SERVER_CONFIG_PATH):
             log.debug(f"Changing config to point to {config_path} (was {BBOT_SERVER_CONFIG_PATH})")

@@ -69,8 +69,6 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup):
         if config_overrides is not None:
             bbcfg.refresh_config(config_overrides)
 
-        log.critical(f"BBOT_SERVER_CONFIG 2: {OmegaConf.to_yaml(bbcfg.BBOT_SERVER_CONFIG)}")
-
         kwargs.update(dict(request.param))
 
         # main bbot server
