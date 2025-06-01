@@ -6,7 +6,7 @@ from omegaconf import OmegaConf
 from .conftest import TEST_CONFIG_PATH
 
 
-async def test_authentication(bbot_server_config, bbot_server_http):
+async def test_authentication(bbot_server_http):
     test_config = OmegaConf.load(TEST_CONFIG_PATH)
     api_keys = test_config.get("api_keys", [])
     assert len(api_keys) == 1, "API keys are not set in test config"
