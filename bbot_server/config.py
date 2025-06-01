@@ -42,16 +42,7 @@ def update_config_path(config_path):
     refresh_config()
 
 
-def update_config(config):
-    """
-    Update the config with a new config
-    """
-    global BBOT_SERVER_CONFIG
-    BBOT_SERVER_CONFIG = OmegaConf.merge(BBOT_SERVER_CONFIG, config)
-    refresh_config()
-
-
-def refresh_config():
+def refresh_config(config_overrides=None):
     """
     Re-read the config from disk
     """
@@ -69,6 +60,8 @@ def refresh_config():
             BBOT_SERVER_CONFIG = OmegaConf.merge(BBOT_SERVER_DEFAULTS, config)
         except Exception as e:
             log.error(f"Error loading config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
+        if config_overrides:
+            BBOT_SERVER_CONFIG = OmegaConf.merge(BBOT_SERVER_CONFIG, config_overrides)
     else:
         log.warning(f"No config file found at {config_path}, using defaults")
 

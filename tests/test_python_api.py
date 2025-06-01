@@ -120,9 +120,9 @@ def _test_sychronous_api(interface, bbot_events):
             bbot_server.cleanup()
 
 
-def test_sychronous_api_python(bbot_server_http, bbot_events, mongo_cleanup, bbot_server_config, bbot_watchdog):
-    _test_sychronous_api("python", bbot_events, bbot_server_config)
+def test_sychronous_api_python(bbot_server_http, bbot_events, mongo_cleanup, bbot_watchdog):
+    _test_sychronous_api("python", bbot_events)
 
 
-def test_sychronous_api_http(bbot_server_http, bbot_events, mongo_cleanup, bbot_server_config, bbot_watchdog):
-    _test_sychronous_api("http", bbot_events, bbot_server_config)
+def test_sychronous_api_http(bbot_server_http, bbot_events, mongo_cleanup, bbot_watchdog):
+    _test_sychronous_api("http", bbot_events)

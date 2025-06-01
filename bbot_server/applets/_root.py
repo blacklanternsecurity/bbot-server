@@ -24,7 +24,7 @@ class RootApplet(BaseApplet):
         "config" can be either a dictionary or an omegaconf object
         """
         if config is not None:
-            bbcfg.update_config(config)
+            bbcfg.refresh_config(config)
         super().__init__(**kwargs)
         self._interface_type = "python"
         self._mcp = None
