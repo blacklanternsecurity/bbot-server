@@ -11,7 +11,6 @@ import logging
 import subprocess
 import pytest_asyncio
 from pathlib import Path
-from omegaconf import OmegaConf
 from contextlib import suppress
 
 import bbot_server.config as bbcfg
