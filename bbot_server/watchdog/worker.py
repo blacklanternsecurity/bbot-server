@@ -117,13 +117,13 @@ class BBOTWatchdog:
         """
         activity = Activity(**message)
         activity_json = activity.model_dump()
-        new_activites = []
+        new_activities = []
         # let each applet process the activity
         for applet in self.bbot_server.all_child_applets(include_self=True):
             if await applet.watches_activity(activity, activity_json):
                 try:
-                    new_activities = await applet.handle_activity(activity) or []
-                    new_activites.extend(new_activities)
+                    activities = await applet.handle_activity(activity) or []
+                    new_activities.extend(activities)
 
                     # publish new activities to the message queue
                     for activity in new_activities:

@@ -89,7 +89,7 @@ async def test_async_generators():
         next(gen)
 
 
-def _test_sychronous_api(interface, bbot_events):
+def _test_synchronous_api(interface, bbot_events):
     log.info(f"Testing synchronous API with interface: {interface}")
     bbot_server = BBOTServer(interface=interface, synchronous=True)
     try:
@@ -120,9 +120,9 @@ def _test_sychronous_api(interface, bbot_events):
             bbot_server.cleanup()
 
 
-def test_sychronous_api_python(bbot_server_http, bbot_events, mongo_cleanup, bbot_watchdog):
-    _test_sychronous_api("python", bbot_events)
+def test_synchronous_api_python(bbot_server_http, bbot_events, mongo_cleanup, bbot_watchdog):
+    _test_synchronous_api("python", bbot_events)
 
 
-def test_sychronous_api_http(bbot_server_http, bbot_events, mongo_cleanup, bbot_watchdog):
-    _test_sychronous_api("http", bbot_events)
+def test_synchronous_api_http(bbot_server_http, bbot_events, mongo_cleanup, bbot_watchdog):
+    _test_synchronous_api("http", bbot_events)
