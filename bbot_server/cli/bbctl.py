@@ -1,3 +1,4 @@
+import os
 import sys
 import asyncio
 import logging
@@ -7,9 +8,9 @@ from omegaconf import OmegaConf
 from rich.console import Console
 from functools import cached_property
 
-from bbot_server.errors import BBOTServerError
+import bbot_server.config as bbcfg
 from bbot_server.cli.base import BaseBBCTL, Annotated, Option
-from bbot_server.config import BBOT_SERVER_URL, BBOT_SERVER_CONFIG
+from bbot_server.errors import BBOTServerError, BBOTServerUnauthorizedError
 
 # subcommand imports
 from bbot_server.cli.agentctl import AgentCTL
@@ -37,7 +38,7 @@ class BBCTL(BaseBBCTL):
 
     def main(
         self,
-        server_url: Annotated[str, Option("--url", "-u", help="BBOT server URL", metavar="URL")] = BBOT_SERVER_URL,
+        server_url: Annotated[str, Option("--url", "-u", help="BBOT server URL", metavar="URL")] = None,
         config: Annotated[str, Option("--config", "-c", help="Path to a config file", metavar="PATH")] = None,
         silent: Annotated[bool, Option("--silent", "-s", help="Suppress all stderr output")] = False,
         color: Annotated[
@@ -50,18 +51,19 @@ class BBCTL(BaseBBCTL):
         self.color = color
         self.debug = debug
         self.config_path = None
-        if config:
+        # command line arg takes precedence over environment variable
+        custom_config = config or os.environ.get("BBOT_SERVER_CONFIG", "")
+        if custom_config:
             try:
-                self.config_path = Path(config)
-                config = OmegaConf.load(self.config_path)
-                self._config = OmegaConf.merge(BBOT_SERVER_CONFIG, config)
+                self.config_path = Path(custom_config)
+                self.bbcfg.update_config_path(self.config_path)
             except Exception as e:
-                raise BBOTServerError(f"Error loading config file {config}: {e}")
+                raise BBOTServerError(f"Error loading config file at {self.config_path}: {e}")
         else:
-            self._config = BBOT_SERVER_CONFIG
+            self.config_path = bbcfg.BBOT_SERVER_CONFIG_PATH
         if self.debug:
             logging.getLogger().setLevel(logging.DEBUG)
-        if server_url != BBOT_SERVER_URL:
+        if server_url is not None and server_url != bbcfg.BBOT_SERVER_URL:
             self._config.url = server_url
         self.server_url = self.config.url
 
@@ -70,6 +72,7 @@ class BBCTL(BaseBBCTL):
 
         if current_config:
             self.print_yaml(OmegaConf.to_yaml(self.config))
+            return
 
     @cached_property
     def bbot_server(self):
@@ -83,16 +86,23 @@ class BBCTL(BaseBBCTL):
         bbot_server.setup()
         return bbot_server
 
+    @property
+    def _config(self):
+        return self.bbcfg.BBOT_SERVER_CONFIG
+
 
 log = logging.getLogger("bbot_server.bbctl")
 
 
 def main():
     bbctl = BBCTL()
+    _log = getattr(bbctl, "log", log)
     try:
         bbctl.typer()
+    except BBOTServerUnauthorizedError as e:
+        _log.error(f"Authentication failed: {e.detail}")
+        sys.exit(1)
     except BBOTServerError as e:
-        _log = getattr(bbctl, "log", log)
         _log.error(str(e))
         _log.debug(traceback.format_exc())
         sys.exit(1)

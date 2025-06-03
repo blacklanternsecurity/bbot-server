@@ -7,6 +7,8 @@ from pathlib import Path
 from subprocess import run
 from contextlib import suppress
 
+import bbot_server.config as bbcfg
+from bbot_server.cli.apikeyctl import APIKeyCTL
 from bbot_server import BBOT_SERVER_PROJECT_ROOT
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
@@ -15,6 +17,8 @@ class ServerCTL(BaseBBCTL):
     command = "server"
     help = "Start/stop BBOT server"
     short_help = "Start or stop BBOT server via Docker Compose"
+
+    include = [APIKeyCTL]
 
     def setup(self):
         self._docker_command = None
@@ -36,20 +40,18 @@ class ServerCTL(BaseBBCTL):
             bool, Option("--reload", "-r", help="Reload the server when the code changes (for development)")
         ] = False,
     ):
+        # initialize the config if not already
+        if not bbcfg.get_api_keys():
+            self.log.info("First run detected. Adding a new API key...")
+            self.root.children["server"].children["apikey"].setup()
+            self.root.children["server"].children["apikey"].add()
+        bbcfg.refresh_config()
+
         if api_only:
             print("Starting BBOT server API")
-            if self.root.config_path is not None:
-                self.log.info(f"Using config file: {self.root.config_path}")
-                os.environ["BBOT_SERVER_CONFIG"] = str(self.root.config_path)
             import uvicorn
 
-            if reload:
-                app = "bbot_server.api.app:server_app"
-            else:
-                from functools import partial
-                from bbot_server.api import make_server_app
-
-                app = partial(make_server_app, config=self.config)
+            app = "bbot_server.api.app:server_app"
 
             # TODO: increase workers after adding websocket channels
             uvicorn.run(
@@ -69,7 +71,7 @@ class ServerCTL(BaseBBCTL):
                     from bbot_server import BBOTServer
                     from bbot_server.watchdog import BBOTWatchdog
 
-                    bbot_server = BBOTServer(config=self.config)
+                    bbot_server = BBOTServer()
                     await bbot_server.setup()
 
                     watchdog = BBOTWatchdog(bbot_server)
@@ -89,7 +91,7 @@ class ServerCTL(BaseBBCTL):
         else:
             # docker compose command with env vars
             env = os.environ.copy()
-            env["BBOT_HOST"] = "0.0.0.0"
+            env["BBOT_LISTEN_ADDRESS"] = listen
             env["BBOT_PORT"] = str(port)
             self._run_docker_compose(["up", "-d"], env=env)
 
@@ -187,7 +189,8 @@ class ServerCTL(BaseBBCTL):
 
     @subcommand(
         help="Run a command with docker compose",
-        epilog="Example: `bbctl server compose ps` or `bbctl server compose exec server bash`",
+        epilog="Example: bbctl server run-docker-compose exec server bash",
+        context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
     )
     def compose(self, args: list[str]):
         # we take sys.argv after "run-docker-compose"

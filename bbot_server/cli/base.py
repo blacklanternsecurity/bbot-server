@@ -7,6 +7,7 @@ from typer import Typer, Option  # noqa
 from typing import Annotated  # noqa
 from functools import cached_property, wraps
 
+import bbot_server.config as bbcfg
 from bbot_server.utils.misc import timestamp_to_human, seconds_to_human
 
 
@@ -34,6 +35,9 @@ class BaseBBCTL:
 
     # optionally include other BBCTL classes
     include = []
+
+    # BBOT server config helpers
+    bbcfg = bbcfg
 
     # allow the command to be invoked without a subcommand
     _invoke_without_command = False
@@ -155,7 +159,11 @@ class BaseBBCTL:
         """
         if not isinstance(data, str):
             data = yaml.dump(data, indent=2)
-        return Syntax(data, "yaml", theme="monokai", background_color="default", **kwargs)
+        if not "background_color" in kwargs:
+            kwargs["background_color"] = "default"
+        if not "theme" in kwargs:
+            kwargs["theme"] = "monokai"
+        return Syntax(data, "yaml", **kwargs)
 
     def print_json(self, data, **kwargs):
         self.stdout.print(self.highlight_json(data, **kwargs))

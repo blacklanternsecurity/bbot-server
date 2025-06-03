@@ -1,20 +1,17 @@
 x-bbot-server-base: &bbot-server-base
   build:
     context: .
-  restart: always
+  restart: unless-stopped
   volumes:
-    - ~/.config/bbot_server:/root/.config/bbot_server
-    - ./bbot_server/defaults_docker.yml:/app/bbot_server/defaults.yml
+    - "${BBOT_SERVER_CONFIG:-~/.config/bbot_server/config.yml}:/root/.config/bbot_server/config.yml"
     - .:/app
+    - ./bbot_server/defaults_docker.yml:/app/bbot_server/defaults.yml
 
 services:
   server:
     <<: *bbot-server-base
     ports:
-      - "8807:8807"
-    environment:
-      - BBOT_HOST
-      - BBOT_PORT
+      - "${BBOT_LISTEN_ADDRESS:-127.0.0.1}:${BBOT_PORT:-8807}:8807"
     command: ["bbctl", "server", "start", "--api-only", "--listen", "0.0.0.0"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8807/v1/docs"]
@@ -43,10 +40,10 @@ services:
 
   mongodb:
     image: mongo:latest
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./mongodb:/data/db
 
   redis:
     image: redis:latest
-    restart: always
+    restart: unless-stopped

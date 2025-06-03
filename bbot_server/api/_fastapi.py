@@ -1,8 +1,13 @@
-from fastapi import FastAPI
+import logging
 from contextlib import asynccontextmanager
+from fastapi.openapi.utils import get_openapi
+from fastapi import FastAPI, HTTPException, Depends, Request, WebSocket
 from fastapi.responses import RedirectResponse, ORJSONResponse
 
+import bbot_server.config as bbcfg
 from bbot_server.errors import BBOTServerError, handle_bbot_server_error
+
+log = logging.getLogger("bbot_server.api.fastapi")
 
 # from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 
@@ -12,12 +17,44 @@ app_kwargs = {
     "debug": True,
 }
 
+# API key header
+# api_key_header = APIKeyHeader(name=bbcfg.API_KEY_NAME, auto_error=False)
 
-def make_app(config=None):
+
+def api_key_dependency_http(request: Request = None):
+    if request is not None:
+        api_key = request.headers.get(bbcfg.API_KEY_NAME, "")
+        if not api_key:
+            raise HTTPException(status_code=401, detail="API key is required")
+        valid, reason = bbcfg.check_api_key(api_key)
+        if not valid:
+            raise HTTPException(status_code=401, detail=reason)
+        return api_key
+
+
+async def api_key_dependency_websocket(websocket: WebSocket = None):
+    if websocket is not None:
+        api_key = websocket.headers.get(bbcfg.API_KEY_NAME, "")
+        if not api_key:
+            await websocket.close(code=3000, reason="API key is required")
+            raise HTTPException(status_code=401, detail="API key is required")
+        valid, reason = bbcfg.check_api_key(api_key)
+        if not valid:
+            await websocket.close(code=3000, reason=reason)
+            raise HTTPException(status_code=401, detail=reason)
+        return api_key
+
+
+# Dependency to verify the API key
+# async def api_key_dependency(api_key: str = Security(api_key_header)):
+#     await verify_api_key(api_key)
+
+
+def make_app():
     from bbot_server.api.mcp import make_mcp_server
     from bbot_server.applets import BBOTServerRootApplet
 
-    app_root = BBOTServerRootApplet(config=config)
+    app_root = BBOTServerRootApplet()
     app_root._is_main_server = True
 
     @asynccontextmanager
@@ -31,8 +68,51 @@ def make_app(config=None):
         root_path="/v1",
         openapi_tags=app_root.tags_metadata,
         default_response_class=ORJSONResponse,
+        dependencies=[Depends(api_key_dependency_http), Depends(api_key_dependency_websocket)],
         **app_kwargs,
     )
+
+    # Customize OpenAPI to better document the authentication
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+
+        openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+
+        # Prepend root_path to all paths in the OpenAPI schema
+        root_path = app.root_path or ""
+        if root_path and root_path != "/":
+            new_paths = {}
+            for path, path_item in openapi_schema["paths"].items():
+                if not path.startswith(root_path):
+                    new_path = root_path + path
+                else:
+                    new_path = path
+                new_paths[new_path] = path_item
+            openapi_schema["paths"] = new_paths
+
+        # Add security scheme to OpenAPI schema
+        openapi_schema["components"]["securitySchemes"] = {
+            "APIKeyHeader": {
+                "type": "apiKey",
+                "in": "header",
+                "name": bbcfg.API_KEY_NAME,
+                "description": "API key authentication",
+            }
+        }
+
+        # Add global security requirement
+        openapi_schema["security"] = [{"APIKeyHeader": []}]
+
+        app.openapi_schema = openapi_schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi
 
     app.include_router(app_root.router)
 
@@ -67,8 +147,8 @@ def make_app(config=None):
     return app, lifespan
 
 
-def make_server_app(config=None):
-    app, lifespan = make_app(config=config)
+def make_server_app():
+    app, lifespan = make_app()
 
     # includes the /v1 prefix
     server_app = FastAPI(

@@ -1,3 +1,4 @@
+import json
 import pytest
 import asyncio
 from pathlib import Path
@@ -6,7 +7,7 @@ from contextlib import suppress
 from bbot_server import BBOTServer
 from bbot_server.errors import BBOTServerValueError
 
-from ..conftest import INGEST_PROCESSING_DELAY
+from ..conftest import INGEST_PROCESSING_DELAY, log
 
 
 # make sure ad-hoc ingestion of a BBOT scan creates an associated scan run in the database
@@ -102,6 +103,7 @@ async def test_basic_scan_run(bbot_server):
     # wait for agent to be ready
     for _ in range(120):
         agents = await bbot_server.get_agents()
+        log.info(f"Waiting for agent to be ready: agents: {agents}")
         if len(agents) == 1 and agents[0].status == "READY":
             break
         await asyncio.sleep(0.5)
@@ -121,8 +123,8 @@ async def test_basic_scan_run(bbot_server):
         scans = [a async for a in bbot_server.get_scans()]
         scan_status_finished = len(scans) == 1 and scans[0].status == "FINISHED"
 
-        scan_statuses = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
-        scan_statuses = [a.detail["scan_status"] for a in scan_statuses]
+        scan_status_activities = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
+        scan_statuses = [a.detail["scan_status"] for a in scan_status_activities]
         scan_status_match = scan_statuses == [
             "STARTING",
             "RUNNING",
@@ -135,7 +137,11 @@ async def test_basic_scan_run(bbot_server):
 
         await asyncio.sleep(0.5)
     else:
-        assert False, f"Scan run did not finish. Scan statuses: {scan_statuses}, Scans: {scans}"
+        scan_status_activities_json = json.dumps([a.model_dump() for a in scan_status_activities], indent=2)
+        scans_json = json.dumps([s.model_dump() for s in scans], indent=2)
+        assert False, (
+            f"Scan runs didn't finish correctly. Scan statuses: {scan_status_activities_json}, Scans: {scans_json}"
+        )
 
     scan_events = [e for e in events if e.type == "SCAN"]
     assert len(scan_events) == 2
@@ -201,14 +207,14 @@ async def test_queued_scan_cancellation(bbot_server):
     assert scans[0].status == "ABORTED"
 
 
-async def test_running_scan_cancellation(bbot_server_config, bbot_agent, bbot_watchdog):
+async def test_running_scan_cancellation(bbot_agent, bbot_watchdog):
     """
     Here we start a scan with an agent, so we have a running scan
 
     Then we cancel the scan, and make sure the cleanup etc. happens properly
     """
     # we have to use the HTTP interface here because we can only cancel a scan through the REST API
-    bbot_server = BBOTServer(interface="http", config=bbot_server_config)
+    bbot_server = BBOTServer(interface="http")
     await bbot_server.setup()
 
     infinite_module_dir = Path(__file__).parent.parent / "bbot_modules"
@@ -259,6 +265,10 @@ async def test_running_scan_cancellation(bbot_server_config, bbot_agent, bbot_wa
         await bbot_server.cancel_scan(scan_id=scan.id)
 
     # make sure the agent is still running and ready to pick up the next scan
-    agents = await bbot_server.get_agents()
-    assert len(agents) == 1
-    assert agents[0].status == "READY"
+    for _ in range(120):
+        agents = await bbot_server.get_agents()
+        if len(agents) == 1 and agents[0].status == "READY":
+            break
+        await asyncio.sleep(0.5)
+    else:
+        assert False, f"Agent did not become ready again. Agents: {agents}"

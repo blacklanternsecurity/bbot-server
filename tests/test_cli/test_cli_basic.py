@@ -1,9 +1,9 @@
 # tests for basic CLI functionality like debugging, etc.
-
+import sys
 import yaml
 import subprocess
 
-from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR
+from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR, BBCTL_FILE
 
 
 # make sure error handling works properly
@@ -42,8 +42,10 @@ event_store:
     with open(temp_config_path, "w") as f:
         f.write(yaml_config_str)
 
+    bbctl_command = [sys.executable, str(BBCTL_FILE), "--no-color"]
+
     result = subprocess.run(
-        BBCTL_COMMAND + ["-c", str(temp_config_path), "--current-config"], capture_output=True, text=True
+        bbctl_command + ["-c", str(temp_config_path), "--current-config"], capture_output=True, text=True
     )
     assert result.returncode == 0
     config = yaml.safe_load(result.stdout)

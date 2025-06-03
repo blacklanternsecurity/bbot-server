@@ -16,6 +16,8 @@ from fastapi.encoders import jsonable_encoder
 # for converting raw JSON into pydantic objects
 from pydantic import TypeAdapter
 
+import bbot_server.config as bbcfg
+from bbot_server.utils.misc import smart_encode
 from bbot_server.interfaces.base import BaseInterface
 from bbot_server.utils.async_utils import async_to_sync_class
 from bbot_server.errors import HTTP_STATUS_MAPPINGS, BBOTServerError
@@ -46,7 +48,11 @@ class http(BaseInterface):
             url = self.config["url"]
         self.base_url = url.strip("/")
         self._http_timeout = self.config.get("cli", {}).get("http_timeout", 15)
-        self.client = httpx.AsyncClient(timeout=self._http_timeout)
+        self._client = None
+
+    @property
+    def config(self):
+        return bbcfg.BBOT_SERVER_CONFIG
 
     async def _http_request(self, _url, _route, *args, **kwargs):
         """
@@ -58,7 +64,9 @@ class http(BaseInterface):
         body = self._prepare_http_body(method, kwargs)
 
         try:
-            response = await self.client.request(url=_url, method=method, json=body)
+            response = await self.client.request(
+                url=_url, method=method, json=body, headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}
+            )
         except Exception as e:
             raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
@@ -139,7 +147,7 @@ class http(BaseInterface):
         # replace scheme with ws
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
         try:
-            async for websocket in connect(_url):
+            async for websocket in connect(_url, additional_headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}):
                 async for message in websocket:
                     decoded_json = orjson.loads(message)
                     model_obj = _route.response_model(**decoded_json)
@@ -159,8 +167,9 @@ class http(BaseInterface):
 
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
         try:
-            async for message in message_generator:
-                async for websocket in connect(_url):
+            async with connect(_url, additional_headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}) as websocket:
+                async for message in message_generator:
+                    message = smart_encode(message)
                     await websocket.send(message)
         except Exception as e:
             raise BBOTServerError(f"Error in websocket stream at {_url}: {e}") from e
@@ -245,18 +254,24 @@ class http(BaseInterface):
         # Reconstruct the URL with new query string
         return urlunparse((scheme, netloc, path, params, new_query, fragment))
 
+    @property
+    def client(self):
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                timeout=self._http_timeout, headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}
+            )
+        return self._client
+
     def __getattr__(self, attr):
         """
         For every attribute, try to find a matching route in the route map and return a coroutine that will make the request
 
         If the attribute isn't found in the route map, just return the attribute from the applet
-
-        _wrap is used here to allow the coroutine to be called synchronously
         """
         # if the attribute is a route, prepare the request
-        applet = self.__getattribute__("applet")
+        bbot_server = self.__getattribute__("bbot_server")
         try:
-            route = applet.route_maps[attr]
+            route = bbot_server.route_maps[attr]
             url = f"{self.base_url}{route.full_path}"
             if route.endpoint_type == "http":
                 coro = partial(self._http_request, url, route)
@@ -271,7 +286,7 @@ class http(BaseInterface):
             return coro
         # otherwise just return the attribute as is
         except (KeyError, AttributeError):
-            return getattr(applet, attr)
+            return getattr(bbot_server, attr)
 
     def __dir__(self):
         """
@@ -279,7 +294,7 @@ class http(BaseInterface):
 
         Useful for tab completion in IDEs
         """
-        return sorted(set(self.applet.route_maps.keys()) | set(dir(self.applet)))
+        return sorted(set(self.bbot_server.route_maps.keys()) | set(dir(self.bbot_server)))
 
     async def _check_response_error(self, response, return_json=True):
         response_json = None

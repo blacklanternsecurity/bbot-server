@@ -4,7 +4,9 @@ import traceback
 
 from pydantic import BaseModel
 
+import bbot_server.config as bbcfg
 from bbot.models.pydantic import Event
+from bbot_server.errors import BBOTServerValueError
 from bbot_server.models.activity_models import Activity
 
 
@@ -13,10 +15,25 @@ class BaseMessageQueue:
     Base class for message queues.
     """
 
-    def __init__(self, uri, config):
+    def __init__(self):
         self.log = logging.getLogger(__name__)
-        self.uri = uri
-        self.config = config
+
+        if not self.mq_config:
+            raise BBOTServerValueError(f"Message queue configuration is missing from config: {self.mq_config}")
+        if not self.uri:
+            raise BBOTServerValueError(f"Message queue URI is missing from config: {self.mq_config}")
+
+    @property
+    def config(self):
+        return bbcfg.BBOT_SERVER_CONFIG
+
+    @property
+    def mq_config(self):
+        return self.config.get("message_queue", {})
+
+    @property
+    def uri(self):
+        return self.mq_config.get("uri", "")
 
     async def publish_event(self, event: Event):
         """
@@ -77,6 +94,18 @@ class BaseMessageQueue:
     async def make_taskiq_broker(self):
         """
         Make a taskiq broker for this message queue.
+        """
+        raise NotImplementedError()
+
+    async def get(self, subject: str, timeout=None):
+        """
+        Get a message from the given subject. Designed to act like a python queue.
+        """
+        raise NotImplementedError()
+
+    async def put(self, message, subject: str):
+        """
+        Put a message on the given subject. Designed to act like a python queue.
         """
         raise NotImplementedError()
 

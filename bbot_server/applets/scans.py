@@ -295,7 +295,7 @@ class ScansApplet(BaseApplet):
             if scan.status_code <= existing_status_code:
                 return []
             existing_status = get_scan_status_name(existing_status_code)
-            description = f"Scan [[COLOR]{scan.name}[/COLOR]] status changed from {existing_status} to {scan.status}"
+            description = f"Scan [[COLOR]{scan.name}[/COLOR]] status changed from [bold]{existing_status}[/bold] to [bold]{scan.status}[/bold]"
             agent_id = getattr(existing_scan, "agent_id", None)
             if agent_id is not None:
                 detail["agent_id"] = agent_id
@@ -303,8 +303,6 @@ class ScansApplet(BaseApplet):
                 {"id": scan_id},
                 {
                     "$set": {
-                        "status": scan.status,
-                        "status_code": scan.status_code,
                         "started_at": scan.started_at,
                         "finished_at": scan.finished_at,
                         "duration": scan.duration,
@@ -312,23 +310,32 @@ class ScansApplet(BaseApplet):
                     }
                 },
             )
+            status_changed = await self.update_scan_status(scan_id=scan_id, status_code=scan.status_code)
         # otherwise, assume the scan is starting and create a new run
         else:
             description = f"Scan [[COLOR]{scan.name}[/COLOR]] started"
             await self.collection.insert_one(scan.model_dump())
+            status_changed = True
 
-        scan_run_activity = Activity(
-            type="SCAN_STATUS",
-            event=event,
-            description=description,
-            detail=detail,
-        )
-        return [scan_run_activity]
+        if status_changed:
+            scan_run_activity = Activity(
+                type="SCAN_STATUS",
+                event=event,
+                description=description,
+                detail=detail,
+            )
+            return [scan_run_activity]
+        else:
+            self.log.debug(f"Scan {scan.name} status not changed, skipping activity")
+            return []
 
     async def update_scan_status(self, scan_id: str, status_code: int):
         status_code = get_scan_status_code(status_code)
         status = get_scan_status_name(status_code)
-        await self.collection.update_one({"id": scan_id}, {"$set": {"status": status, "status_code": status_code}})
+        result = await self.strict_collection.update_one(
+            {"id": scan_id}, {"$set": {"status": status, "status_code": status_code}}
+        )
+        return result.modified_count > 0
 
     async def cleanup(self):
         if self.is_main_server:

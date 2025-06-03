@@ -1,14 +1,13 @@
-from omegaconf import OmegaConf
+import bbot_server.config as bbcfg
 
 from bbot_server.applets._base import BaseApplet
-from bbot_server.config import BBOT_SERVER_CONFIG
 
-# assets imports
+# applet imports
+from bbot_server.applets.stats import StatsApplet
 from bbot_server.applets.assets import AssetsApplet
 from bbot_server.applets.events import EventsApplet
 from bbot_server.applets.scans import ScansApplet
 from bbot_server.applets.activity import ActivityApplet
-from bbot_server.applets.stats import StatsApplet
 
 
 class RootApplet(BaseApplet):
@@ -24,11 +23,9 @@ class RootApplet(BaseApplet):
         """
         "config" can be either a dictionary or an omegaconf object
         """
-        super().__init__(**kwargs)
         if config is not None:
-            self._config = OmegaConf.merge(BBOT_SERVER_CONFIG, config)
-        else:
-            self._config = BBOT_SERVER_CONFIG
+            bbcfg.refresh_config(config)
+        super().__init__(**kwargs)
         self._interface_type = "python"
         self._mcp = None
 
@@ -41,12 +38,12 @@ class RootApplet(BaseApplet):
                 from bbot_server.store.user_store import UserStore
                 from bbot_server.store.asset_store import AssetStore
 
-                self.asset_store = AssetStore(self.global_config)
+                self.asset_store = AssetStore()
                 await self.asset_store.setup()
                 self.asset_db = self.asset_store.db
                 self.asset_fs = self.asset_store.fs
 
-                self.user_store = UserStore(self.global_config)
+                self.user_store = UserStore()
                 await self.user_store.setup()
                 self.user_db = self.user_store.db
                 self.user_fs = self.user_store.fs
@@ -54,13 +51,13 @@ class RootApplet(BaseApplet):
             # set up event store
             from bbot_server.event_store import EventStore
 
-            self.event_store = EventStore(self.global_config)
+            self.event_store = EventStore()
             await self.event_store.setup()
 
             # set up NATS client
             from bbot_server.message_queue import MessageQueue
 
-            self.message_queue = MessageQueue(self.global_config)
+            self.message_queue = MessageQueue()
             await self.message_queue.setup()
 
         await self._setup()
@@ -69,6 +66,10 @@ class RootApplet(BaseApplet):
     @property
     def config(self):
         return self._config
+
+    @property
+    def _config(self):
+        return bbcfg.BBOT_SERVER_CONFIG
 
     async def cleanup(self):
         if self.is_native:

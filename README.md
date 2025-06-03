@@ -46,7 +46,53 @@ Note: this requires Docker and Docker Compose to be installed.
 bbctl server start
 ```
 
-## Start a scan (direct from BBOT CLI)
+## Interacting with BBOT Server Remotely (Multiplayer)
+
+By default, BBOT Server listens on localhost. Use `--listen` to expose it to the network:
+
+```bash
+bbctl server start --listen 0.0.0.0
+```
+
+### Authentication
+
+The first time you start BBOT Server, an API key will be auto generated and put into `~/.config/bbot_server/config.yml`:
+
+```yaml
+# ~/.config/bbot_server/config.yml
+
+# list of API keys to be considered valid
+api_keys:
+  - 4aa8b3c2-9b4d-4208-890c-4ce9ad3b4710
+```
+
+The `api_keys` value in `config.yml` is used by both the server (as a database of valid API keys), and by the client (it will pick one from the list and use it). Normally it just works and you don't have to mess with it. But to access BBOT Server remotely, you'll need to copy the API key from the server onto your local system, along with its URL:
+
+```yaml
+# ~/.config/bbot_server/config.yml
+url: http://1.2.3.4:8807/v1/
+api_keys:
+  - deadbeef-9b4d-4208-890c-4ce9ad3b4710
+```
+
+This tells `bbctl` (the client) where the server is, and gives it the means to authenticate.
+
+### Adding and Revoking API Keys
+
+API keys can be added and removed if you are on the server machine:
+
+```bash
+# add an API key
+bbctl server apikey add
+
+# list API keys
+bbctl server apikey list
+
+# revoke an API key
+bbctl server apikey delete deadbeef-9b4d-4208-890c-4ce9ad3b4710
+```
+
+## Send a BBOT Scan to the Server
 
 You can output a BBOT scan directly to BBOT server:
 
@@ -144,6 +190,23 @@ bbctl scan list
 
 # Stop the scan
 bbctl scan cancel "demonic_jimmy"
+```
+
+## Targets
+
+BBOT server categorizes its assets by target.
+
+You can list targets like so:
+
+```bash
+# List targets
+bbctl target list
+
+# Create a new target
+bbctl target create --seeds seeds.txt --blacklist blacklist.txt --name custom_target
+
+# List only the assets that match your new target
+bbctl asset list --target custom_target
 ```
 
 ## Custom triggers

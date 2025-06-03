@@ -8,17 +8,17 @@ from contextlib import suppress
 from typing import Callable, Any
 from urllib.parse import urlparse, urlunparse, urljoin
 
+import bbot_server.config as bbcfg
 from bbot.scanner import Scanner, Preset
 from bbot.scanner.dispatcher import Dispatcher
 from bbot.constants import get_scan_status_code, get_scan_status_name, SCAN_STATUS_NOT_STARTED, SCAN_STATUS_FAILED
 
-from bbot_server.config import BBOT_SERVER_CONFIG
 from bbot_server.errors import BBOTServerValueError
 from bbot_server.utils.async_utils import async_to_sync_class
 from bbot_server.models.agent_models import AgentResponse
 
-default_server_url = BBOT_SERVER_CONFIG.get("url", "http://localhost:8807/v1/")
-default_bbot_preset = BBOT_SERVER_CONFIG.get("agent", {}).get("base_preset", {})
+api_key = bbcfg.get_api_key()
+default_bbot_preset = bbcfg.BBOT_SERVER_CONFIG.get("agent", {}).get("base_preset", {})
 
 log = logging.getLogger("bbot_server.agent")
 
@@ -219,9 +219,7 @@ class BBOTAgent:
             output_modules=["http"],
             config={
                 "modules": {
-                    "http": {
-                        "url": self.scan_output_url,
-                    }
+                    "http": {"url": self.scan_output_url, "headers": {bbcfg.API_KEY_NAME: bbcfg.get_api_key()}}
                 }
             },
         )
@@ -234,7 +232,9 @@ class BBOTAgent:
             self.log.info(f"Agent {self.name} connecting to {self.websocket_dock_url}...")
             # "async for" will use websocket's builtin retry/reconnect mechanism, with exponential backoff
             # https://websockets.readthedocs.io/en/stable/reference/asyncio/client.html
-            async for websocket in websockets.connect(self.websocket_dock_url):
+            async for websocket in websockets.connect(
+                self.websocket_dock_url, additional_headers={bbcfg.API_KEY_NAME: api_key}
+            ):
                 self.log.info(f"Agent {self.name} successfully connected to {self.websocket_dock_url}")
                 self.websocket = websocket
                 try:

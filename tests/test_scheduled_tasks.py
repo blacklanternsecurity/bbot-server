@@ -1,6 +1,5 @@
 import asyncio
 from contextlib import suppress
-from omegaconf import OmegaConf
 
 from bbot_server.applets._base import BaseApplet, watchdog_task
 
@@ -35,15 +34,14 @@ class ScheduledTaskApplet(BaseApplet):
         self.cron_task_3_ran = True
 
 
-async def test_scheduled_tasks(bbot_server_config, mongo_cleanup):
+async def test_scheduled_tasks(mongo_cleanup):
     from bbot_server import BBOTServer
     from bbot_server.watchdog import BBOTWatchdog
+    import bbot_server.config as bbcfg
 
-    config_overrides = {"test": {"cron_task_2": "*/1 * * * *"}}
+    config = bbcfg.refresh_config({"test": {"cron_task_2": "*/1 * * * *"}})
 
-    bbot_server_config = OmegaConf.merge(bbot_server_config, config_overrides)
-
-    bbot_server = BBOTServer(config=bbot_server_config)
+    bbot_server = BBOTServer(config=config)
     await bbot_server.setup()
     watchdog = BBOTWatchdog(bbot_server)
     await watchdog.start()

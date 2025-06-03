@@ -11,10 +11,9 @@ import logging
 import subprocess
 import pytest_asyncio
 from pathlib import Path
-from omegaconf import OmegaConf
 from contextlib import suppress
 
-from bbot_server.config import BBOT_SERVER_CONFIG
+import bbot_server.config as bbcfg
 from .gen_scan_data import *
 
 
@@ -29,43 +28,47 @@ logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=loggin
 
 log = logging.getLogger(__name__)
 
-PROJ_ROOT = Path(__file__).parent.parent
-BBCTL_FILE = PROJ_ROOT / "bbot_server" / "cli" / "bbctl.py"
-TEST_CONFIG_PATH = Path(__file__).parent / "test_config.yml"
-BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH), "--no-color"]
-
 BBOT_SERVER_TEST_DIR = Path("/tmp/.bbot_server_test")
 BBOT_SERVER_TEST_DIR.mkdir(parents=True, exist_ok=True)
+
+PROJ_ROOT = Path(__file__).parent.parent
+BBCTL_FILE = PROJ_ROOT / "bbot_server" / "cli" / "bbctl.py"
+TEST_CONFIG_PATH = BBOT_SERVER_TEST_DIR / "test_config.yml"
+TEST_CONFIG_PATH_SOURCE = Path(__file__).parent / "test_config.yml"
+BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH), "--no-color"]
+
+shutil.copy(TEST_CONFIG_PATH_SOURCE, TEST_CONFIG_PATH)
+
+bbcfg.update_config_path(TEST_CONFIG_PATH)
+
+if not bbcfg.get_api_keys():
+    # create a new api key if we don't have one yet
+    bbcfg.add_api_key()
 
 
 @pytest.fixture
 def bbot_server_config():
-    # load test file omegaconf config
-    test_config = OmegaConf.load(TEST_CONFIG_PATH)
-    return OmegaConf.merge(BBOT_SERVER_CONFIG, test_config)
+    return bbcfg.BBOT_SERVER_CONFIG
 
 
 @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
 # @pytest_asyncio.fixture(params=[{"interface": "http"}])
-async def bbot_server(request, mongo_cleanup, redis_cleanup, bbot_server_config):
+async def bbot_server(request, mongo_cleanup, redis_cleanup):
     from bbot_server import BBOTServer
     from bbot_server.message_queue import MessageQueue
 
     bbot_server = None
     message_queue = None
-    # underlying_bbot_server = None
 
     async def _make_bbot_server(
         config_overrides=None, needs_agent=False, needs_api=False, needs_watchdog=True, **kwargs
     ):
-        nonlocal bbot_server, bbot_server_config
+        nonlocal bbot_server
 
         if config_overrides is not None:
-            bbot_server_config = OmegaConf.merge(bbot_server_config, config_overrides)
+            bbcfg.refresh_config(config_overrides)
 
-        interface_kwargs = dict(request.param)
-        interface_kwargs.update({"config": bbot_server_config})
-        kwargs.update(interface_kwargs)
+        kwargs.update(dict(request.param))
 
         # main bbot server
         log.info(f"Instantiating bbot server with kwargs: {kwargs}")
@@ -73,7 +76,7 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup, bbot_server_config)
         await bbot_server.setup()
 
         # clear message queue
-        message_queue = MessageQueue(bbot_server_config)
+        message_queue = MessageQueue()
         await message_queue.setup()
         await message_queue.clear()
 
@@ -107,9 +110,12 @@ def bbot_watchdog(mongo_cleanup, redis_cleanup):
     try:
         # Wait for watchdog to be ready by monitoring stderr
         ready = False
-        for _ in range(50):  # 10 second timeout (50 * 0.2)
+        while watchdog_process.poll() is None:  # 10 second timeout (50 * 0.2)
             line = watchdog_process.stderr.readline()
             log.critical(f"Watchdog: {line.strip()}")
+            if "Watchdog started" in line:
+                ready = True
+                break
             if "[INFO] Subscribed to bbot:stream:events" in line:
                 ready = True
                 break
@@ -142,6 +148,7 @@ def bbot_watchdog(mongo_cleanup, redis_cleanup):
 
 @pytest.fixture
 def bbot_server_http(mongo_cleanup, redis_cleanup):
+    # start server
     command = [*BBCTL_COMMAND, "server", "start", "--api-only"]
 
     # Start process in its own process group
@@ -170,8 +177,9 @@ def bbot_server_http(mongo_cleanup, redis_cleanup):
     try:
         success = False
         for i in range(1000):
+            api_key = bbcfg.get_api_key()
             with suppress(Exception):
-                response = httpx.get(f"http://localhost:8807/v1/assets/hosts")
+                response = httpx.get(f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": api_key})
                 if getattr(response, "status_code", 0) == 200:
                     success = True
                     break
@@ -245,13 +253,13 @@ def bbot_agent(bbot_server_http):
 
 
 @pytest_asyncio.fixture
-async def mongo_cleanup():
+async def mongo_cleanup(bbot_server_config):
     """
     Clear the mongo database before and after each test
     """
     from motor.motor_asyncio import AsyncIOMotorClient
 
-    client = AsyncIOMotorClient(BBOT_SERVER_CONFIG["event_store"]["uri"])
+    client = AsyncIOMotorClient(bbot_server_config["event_store"]["uri"])
 
     async def clear_everything():
         await client.drop_database("test_bbot_server_events")
