@@ -1,5 +1,5 @@
-from pydantic import Field
 from typing import Optional, Annotated
+from pydantic import Field, computed_field
 
 from bbot_server.utils.misc import utc_now
 from bbot.core.helpers.misc import make_netloc
@@ -25,7 +25,6 @@ class BaseAssetFacet(BaseBBOTServerModel):
     port: Annotated[Optional[int], "indexed"] = None
     netloc: Annotated[Optional[str], "indexed"] = None
     url: Annotated[Optional[str], "indexed"] = None
-    reverse_host: Annotated[Optional[str], "indexed"] = None
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     ignored: bool = False
@@ -46,7 +45,6 @@ class BaseAssetFacet(BaseBBOTServerModel):
         """
         if event.host and not self.host:
             self.host = event.host
-            self.reverse_host = event.host[::-1]
         if event.port and not self.port:
             self.port = event.port
         if event.netloc and not self.netloc:
@@ -57,6 +55,11 @@ class BaseAssetFacet(BaseBBOTServerModel):
             url = event_data_json.get("url", None)
             if url is not None:
                 self.url = url
+
+    @computed_field
+    @property
+    def reverse_host(self) -> Annotated[str, "indexed"]:
+        return self.host[::-1]
 
     # def _ingest_event(self, event) -> list[Activity]:
     #     self_before = self.__class__.model_validate(self)

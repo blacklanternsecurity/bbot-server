@@ -1,6 +1,5 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi.openapi.utils import get_openapi
 from fastapi import FastAPI, HTTPException, Depends, Request, WebSocket
 from fastapi.responses import RedirectResponse, ORJSONResponse
 
@@ -72,47 +71,47 @@ def make_app():
         **app_kwargs,
     )
 
-    # Customize OpenAPI to better document the authentication
-    def custom_openapi():
-        if app.openapi_schema:
-            return app.openapi_schema
+    # # Customize OpenAPI to better document the authentication
+    # def custom_openapi():
+    #     if app.openapi_schema:
+    #         return app.openapi_schema
 
-        openapi_schema = get_openapi(
-            title=app.title,
-            version=app.version,
-            description=app.description,
-            routes=app.routes,
-        )
+    #     openapi_schema = get_openapi(
+    #         title=app.title,
+    #         version=app.version,
+    #         description=app.description,
+    #         routes=app.routes,
+    #     )
 
-        # Prepend root_path to all paths in the OpenAPI schema
-        root_path = app.root_path or ""
-        if root_path and root_path != "/":
-            new_paths = {}
-            for path, path_item in openapi_schema["paths"].items():
-                if not path.startswith(root_path):
-                    new_path = root_path + path
-                else:
-                    new_path = path
-                new_paths[new_path] = path_item
-            openapi_schema["paths"] = new_paths
+    #     # Prepend root_path to all paths in the OpenAPI schema
+    #     root_path = app.root_path or ""
+    #     if root_path and root_path != "/":
+    #         new_paths = {}
+    #         for path, path_item in openapi_schema["paths"].items():
+    #             if not path.startswith(root_path):
+    #                 new_path = root_path + path
+    #             else:
+    #                 new_path = path
+    #             new_paths[new_path] = path_item
+    #         openapi_schema["paths"] = new_paths
 
-        # Add security scheme to OpenAPI schema
-        openapi_schema["components"]["securitySchemes"] = {
-            "APIKeyHeader": {
-                "type": "apiKey",
-                "in": "header",
-                "name": bbcfg.API_KEY_NAME,
-                "description": "API key authentication",
-            }
-        }
+    #     # Add security scheme to OpenAPI schema
+    #     openapi_schema["components"]["securitySchemes"] = {
+    #         "APIKeyHeader": {
+    #             "type": "apiKey",
+    #             "in": "header",
+    #             "name": bbcfg.API_KEY_NAME,
+    #             "description": "API key authentication",
+    #         }
+    #     }
 
-        # Add global security requirement
-        openapi_schema["security"] = [{"APIKeyHeader": []}]
+    #     # Add global security requirement
+    #     openapi_schema["security"] = [{"APIKeyHeader": []}]
 
-        app.openapi_schema = openapi_schema
-        return app.openapi_schema
+    #     app.openapi_schema = openapi_schema
+    #     return app.openapi_schema
 
-    app.openapi = custom_openapi
+    # app.openapi = custom_openapi
 
     app.include_router(app_root.router)
 

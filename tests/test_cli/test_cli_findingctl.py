@@ -3,7 +3,7 @@ import subprocess
 from time import sleep
 
 from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY
-from bbot_server.models.finding_models import Finding
+from bbot_server.modules.findings.findings_models import Finding
 
 
 def test_cli_findingctl(bbot_server_http, bbot_watchdog, bbot_out_file):

@@ -4,7 +4,7 @@ import traceback
 import websockets
 from contextlib import suppress
 from tests.test_applets.base import BaseAppletTest
-from bbot_server.models.agent_models import AgentCommand, AgentResponse
+from bbot_server.modules.agents.agents_models import AgentCommand, AgentResponse
 
 import bbot_server.config as bbcfg
 

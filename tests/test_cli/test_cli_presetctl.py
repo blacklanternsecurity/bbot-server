@@ -1,7 +1,7 @@
 import orjson
 import subprocess
 
-from bbot_server.models.preset_models import Preset
+from bbot_server.modules.presets.presets_models import Preset
 from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR
 
 

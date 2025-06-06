@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from bbot_server.preloader import APPLETS
+from bbot_server.modules import API_MODULES
 
 
 applet_tests_dir = Path(__file__).parent / "test_applets"
@@ -9,13 +9,14 @@ sys.path.insert(0, str(applet_tests_dir.parent.parent))
 
 applet_test_files = list(applet_tests_dir.glob("test_*.py"))
 applet_test_files.sort(key=lambda p: p.name)
-applet_names = [p.stem.split("test_applet_")[-1] for p in applet_test_files]
+applets_with_tests = [p.stem.split("test_applet_")[-1] for p in applet_test_files]
 
 
 def test_applet_tests():
     # make sure each applet has a .py file
-    for applet_name in APPLETS:
-        assert applet_name in applet_names, f'No test file found for applet "{applet_name}"'
+    for _, applets in API_MODULES.items():
+        for applet in applets:
+            assert applet in applets_with_tests, f'No test file found for applet "{applet}"'
 
     # make sure each test file has a test class
     # for applet_name, applet_file in zip(applet_names, applet_test_files):

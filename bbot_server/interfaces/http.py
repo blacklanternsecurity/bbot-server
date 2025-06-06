@@ -47,7 +47,7 @@ class http(BaseInterface):
                 raise ValueError("When using the HTTP interface, url is required in the config")
             url = self.config["url"]
         self.base_url = url.strip("/")
-        self._http_timeout = self.config.get("cli", {}).get("http_timeout", 15)
+        self._http_timeout = self.config.get("cli", {}).get("http_timeout", 90)
         self._client = None
 
     @property
@@ -63,12 +63,28 @@ class http(BaseInterface):
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
         body = self._prepare_http_body(method, kwargs)
 
-        try:
-            response = await self.client.request(
-                url=_url, method=method, json=body, headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}
+        async def warn_if_slow():
+            await asyncio.sleep(5)
+            self.log.warning(
+                f"{method} request to {_url} is taking a while; if you requested a lot of data (or a summary of a lot of data), this is normal"
             )
-        except Exception as e:
-            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
+
+        request_task = asyncio.create_task(
+            self.client.request(url=_url, method=method, json=body, headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()})
+        )
+        warn_task = asyncio.create_task(warn_if_slow())
+
+        done, _ = await asyncio.wait([request_task, warn_task], return_when=asyncio.FIRST_COMPLETED)
+
+        if warn_task in done:
+            # The warning was logged, now wait for the request to finish
+            response = await request_task
+        else:
+            # The request finished first, cancel the warning task
+            warn_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await warn_task
+            response = await request_task
 
         response_json = await self._check_response_error(response)
 

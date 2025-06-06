@@ -8,7 +8,7 @@ from taskiq import TaskiqScheduler, TaskiqEvents, TaskiqState
 
 from bbot.models.pydantic import Event
 from bbot_server.errors import BBOTServerNotFoundError
-from bbot_server.models.activity_models import Activity
+from bbot_server.modules.activity.activity_models import Activity
 
 
 class BBOTWatchdog:
