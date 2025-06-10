@@ -229,54 +229,59 @@ class BBOTAgent:
 
     async def loop(self):
         try:
-            self.log.info(f"Agent {self.name} connecting to {self.websocket_dock_url}...")
-            # "async for" will use websocket's builtin retry/reconnect mechanism, with exponential backoff
-            # https://websockets.readthedocs.io/en/stable/reference/asyncio/client.html
-            async for websocket in websockets.connect(
-                self.websocket_dock_url, additional_headers={bbcfg.API_KEY_NAME: api_key}
-            ):
-                self.log.info(f"Agent {self.name} successfully connected to {self.websocket_dock_url}")
-                self.websocket = websocket
+            while True:
+                self.log.info(f"Agent {self.name} connecting to {self.websocket_dock_url}...")
+                # "async for" will use websocket's builtin retry/reconnect mechanism, with exponential backoff
+                # https://websockets.readthedocs.io/en/stable/reference/asyncio/client.html
                 try:
-                    # gratuitous status update on first connection
-                    await self.gratuitous_status_update()
+                    async with websockets.connect(
+                        self.websocket_dock_url, additional_headers={bbcfg.API_KEY_NAME: api_key}
+                    ) as websocket:
+                        self.log.info(f"Agent {self.name} successfully connected to {self.websocket_dock_url}")
+                        self.websocket = websocket
+                        # gratuitous status update on first connection
+                        await self.gratuitous_status_update()
 
-                    async for message in websocket:
-                        message = orjson.loads(message)
-                        self.log.debug(f"Agent got message: {message}")
+                        async for message in websocket:
+                            message = orjson.loads(message)
+                            self.log.debug(f"Agent got message: {message}")
 
-                        try:
-                            request_id = message.pop("request_id")
                             try:
-                                command = message["command"]
-                                kwargs = message["kwargs"]
-                                if not isinstance(command, str) or not isinstance(kwargs, dict):
-                                    raise BBOTServerValueError("Invalid message format")
+                                request_id = message.pop("request_id")
+                                try:
+                                    command = message["command"]
+                                    kwargs = message["kwargs"]
+                                    if not isinstance(command, str) or not isinstance(kwargs, dict):
+                                        raise BBOTServerValueError("Invalid message format")
 
-                                if command not in VALID_AGENT_COMMANDS:
-                                    raise BBOTServerValueError(f"Invalid command: {command}")
+                                    if command not in VALID_AGENT_COMMANDS:
+                                        raise BBOTServerValueError(f"Invalid command: {command}")
 
-                                command_fn = getattr(self, command)
-                                response = await command_fn(**kwargs)
+                                    command_fn = getattr(self, command)
+                                    response = await command_fn(**kwargs)
 
-                            except BaseException as e:
+                                except BaseException as e:
+                                    self.log.error(f"Error executing agent command: {e}")
+                                    self.log.error(traceback.format_exc())
+                                    raise
+
+                                response = AgentResponse(request_id=request_id, response=response)
+
+                            except Exception as e:
                                 self.log.error(f"Error handling message: {e}")
-                                self.log.error(traceback.format_exc())
-                                raise
-                            response = AgentResponse(request_id=request_id, response=response)
+                                trace = traceback.format_exc()
+                                self.log.error(trace)
+                                error = f"Error handling message: {e}\n{trace}"
+                                response = AgentResponse(request_id=request_id, error=error)
 
-                        except Exception as e:
-                            self.log.error(f"Error handling message: {e}")
-                            trace = traceback.format_exc()
-                            self.log.error(trace)
-                            error = f"Error handling message: {e}\n{trace}"
-                            response = AgentResponse(request_id=request_id, error=error)
-
-                        self.log.debug(f"Agent {self.name} sending response: {response}")
-                        await websocket.send(orjson.dumps(response.model_dump()))
+                            self.log.debug(f"Agent {self.name} sending response: {response}")
+                            await websocket.send(orjson.dumps(response.model_dump()))
 
                 except websockets.ConnectionClosed:
                     self.log.error("Connection closed, attempting to reconnect...")
+                    await asyncio.sleep(1)
+                except websockets.InvalidStatus as e:
+                    self.log.error(f"Got HTTP {e.response.status_code}: (body: {e.response.body})")
                     await asyncio.sleep(1)
                 except RuntimeError:
                     raise

@@ -53,8 +53,8 @@ class ScansApplet(BaseApplet):
         agent_id: UUID4 = None,
         seed_with_current_assets: bool = False,
     ) -> Scan:
-        target = await self.get_target(target_id)
-        preset = await self.get_preset(preset_id)
+        target = await self.root.get_target(target_id)
+        preset = await self.root.get_preset(preset_id)
         # if seed_with_current_assets is True, we add all our currently known hosts that match the target
         if seed_with_current_assets:
             seeds = set(target.seeds)
