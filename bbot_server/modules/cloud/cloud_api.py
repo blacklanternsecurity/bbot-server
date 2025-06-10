@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from bbot_server.assets import CustomAssetFields
+from bbot_server.assets import Asset, CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.activity.activity_models import Activity
 
@@ -30,7 +30,12 @@ class CloudApplet(BaseApplet):
     )
     async def get_cloud_providers_for_asset(self, host: str) -> list[dict[str, str]]:
         # courteously, we trigger an update of the asset's cloud providers.
-        return await self._refresh_cloud_providers(host)
+        cloud_providers, detail, activities = await self._refresh_cloud_providers(host)
+        for activity in activities:
+            await self.emit_activity(activity)
+        if activities:
+            await self.root._update_asset(host, {"cloud_providers": cloud_providers})
+        return detail
 
     @api_endpoint(
         "/check/{host}",
@@ -64,11 +69,12 @@ class CloudApplet(BaseApplet):
         stats = sorted(stats.items(), key=lambda x: x[1], reverse=True)
         return dict(stats)
 
-    async def handle_activity(self, activity):
+    async def handle_activity(self, activity, asset):
         """
         Whenever a new DNS link is discovered, we re-evaluate the asset's cloud providers
         """
-        await self._refresh_cloud_providers(activity.host, activity)
+        _, _, activities = await self._refresh_cloud_providers(activity.host, activity, asset)
+        return activities
 
     async def compute_stats(self, asset, statistics):
         cloud_providers = getattr(asset, "cloud_providers", [])
@@ -81,19 +87,23 @@ class CloudApplet(BaseApplet):
         cloud_providers_stats = dict(sorted(cloud_providers_stats.items(), key=lambda x: x[1], reverse=True))
         statistics["cloud_providers"] = cloud_providers_stats
 
-    async def _refresh_cloud_providers(self, host: str, parent_activity: Activity = None):
+    async def _refresh_cloud_providers(self, host: str, parent_activity: Activity = None, asset: Asset = None):
         """
-        Given a host, go get its associated asset, and update its cloud providers.
+        Given a host and its associated asset, update its cloud providers.
 
         Return the full details of the cloud provider results.
         """
-        asset = await self.root._get_asset(host=host, fields=["dns_links", "cloud_providers"])
+        if not host:
+            self.log.error(f"No host provided to _refresh_cloud_providers")
+            return []
+
         if not asset:
             return []
 
-        dns_links = asset.get("dns_links", {})
+        activities = []
+        dns_links = asset.dns_links or {}
 
-        old_cloud_providers = set(asset.get("cloud_providers", []))
+        old_cloud_providers = set(asset.cloud_providers or [])
         cloud_providers_detail = await self._dns_links_to_cloud_providers(host, dns_links)
         new_cloud_providers = {detail["provider"] for detail in cloud_providers_detail}
 
@@ -110,7 +120,8 @@ class CloudApplet(BaseApplet):
                     description += ", "
             if cloud_providers_removed:
                 description += f"Removed [[COLOR]{','.join(cloud_providers_removed)}[/COLOR]]"
-            await self.emit_activity(
+
+            activity = self.make_activity(
                 type="CLOUD_PROVIDER_CHANGE",
                 host=host,
                 description=description,
@@ -121,12 +132,16 @@ class CloudApplet(BaseApplet):
                     "details": cloud_providers_detail,
                 },
             )
+            activities.append(activity)
 
-            await self.root._update_asset(host, {"cloud_providers": sorted(new_cloud_providers)})
+            asset.cloud_providers = sorted(new_cloud_providers)
 
-        return cloud_providers_detail
+        return sorted(new_cloud_providers), cloud_providers_detail, activities
 
     async def _dns_links_to_cloud_providers(self, host, dns_links: dict[str, list[str]]) -> list[dict[str, str]]:
+        """
+        Given a host and its DNS links, return all the cloud providers associated with the host.
+        """
         results = []
         to_check = {("SELF", host)}
         for rdtype, records in dns_links.items():
@@ -134,14 +149,22 @@ class CloudApplet(BaseApplet):
                 if rdtype in ("A", "AAAA", "CNAME"):
                     to_check.add((rdtype, record))
         for rdtype, record in to_check:
-            for provider, provider_type, belongs_to in self._cloudcheck.check(record):
+            try:
+                cloudcheck_results = await self.cloudcheck(record)
+            except Exception as e:
+                self.log.error(f'Error checking host "{record}" (type: {type(record)}) for cloud providers: {e}')
+                import traceback
+
+                self.log.error(traceback.format_stack())
+                continue
+            for result in cloudcheck_results:
                 results.append(
                     {
                         "record": record,
                         "rdtype": rdtype,
-                        "provider": provider,
-                        "provider_type": provider_type,
-                        "belongs_to": str(belongs_to),
+                        "provider": result["provider"],
+                        "provider_type": result["provider_type"],
+                        "belongs_to": result["belongs_to"],
                     }
                 )
         return results

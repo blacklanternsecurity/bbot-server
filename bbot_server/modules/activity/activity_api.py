@@ -1,5 +1,6 @@
 from contextlib import suppress
 
+from bbot_server.assets import Asset
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.activity.activity_models import Activity
 
@@ -11,7 +12,7 @@ class ActivityApplet(BaseApplet):
     attach_to = "root_applet"
     model = Activity
 
-    async def handle_activity(self, activity: Activity):
+    async def handle_activity(self, activity: Activity, asset: Asset = None):
         # write the activity to the database
         await self.collection.insert_one(activity.model_dump())
 

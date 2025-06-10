@@ -39,8 +39,7 @@ class http(BaseInterface):
 
     _url_safe_chars = string.ascii_letters + string.digits + "-_.~"
 
-    def __init__(self, **kwargs):
-        url = kwargs.pop("url", None)
+    def __init__(self, url=None, **kwargs):
         super().__init__(**kwargs)
         if url is None:
             if not "url" in self.config:
@@ -74,6 +73,7 @@ class http(BaseInterface):
         )
         warn_task = asyncio.create_task(warn_if_slow())
 
+        log.debug(f"{method} request -> {_url}")
         done, _ = await asyncio.wait([request_task, warn_task], return_when=asyncio.FIRST_COMPLETED)
 
         if warn_task in done:
@@ -110,6 +110,7 @@ class http(BaseInterface):
         MAX_BUFFER_SIZE = 10 * 1024 * 1024  # 10 MB max buffer size
 
         try:
+            log.debug(f"Streaming {method} request -> {_url}")
             async with self.client.stream(method=method, url=_url, json=body) as response:
                 await self._check_response_error(response, return_json=False)
                 async for chunk in response.aiter_bytes():

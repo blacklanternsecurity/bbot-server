@@ -1,5 +1,6 @@
 import re
 import uuid
+import logging
 from hashlib import sha1
 from functools import cached_property
 from datetime import datetime, timezone
@@ -11,6 +12,8 @@ from bbot_server.cli.themes import COLOR, DARK_COLOR
 from bbot_server.models.base import BaseBBOTServerModel
 
 remove_rich_color_pattern = re.compile(r"\[([\w ]+)\](.*?)\[/\1\]")
+
+log = logging.getLogger(__name__)
 
 
 class Activity(BaseBBOTServerModel):
@@ -71,6 +74,8 @@ class Activity(BaseBBOTServerModel):
         self.module = event.module
         self.timestamp = event.timestamp
         self.parent_scan_run_id = event.scan
+        if event.host and not self.host:
+            self.host = event.host
         if event.port and not self.port:
             self.port = event.port
         if event.netloc and not self.netloc:

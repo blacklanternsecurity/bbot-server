@@ -6,7 +6,7 @@ from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
-from bbot_server.assets import CustomAssetFields
+from bbot_server.assets import Asset, CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.targets.targets_models import Target
 from bbot_server.modules.activity.activity_models import Activity
@@ -73,7 +73,7 @@ class TargetsApplet(BaseApplet):
                 activities.append(scope_result)
         return activities
 
-    async def handle_activity(self, activity):
+    async def handle_activity(self, activity, asset: Asset = None):
         """
         Whenever an asset gets created/updated, we evaluate it against the current targets and tag it accordingly
 
@@ -89,6 +89,7 @@ class TargetsApplet(BaseApplet):
                     await self.refresh_scope(host, target, target_id)
         # elif activity.type in ("NEW_ASSET", "NEW_DNS_RECORD", "DELETED_DNS_RECORD"):
         #     await self.update_scope(activity.detail["host"])
+        return []
 
     async def refresh_scope(self, host: str, target: BBOTTarget, target_id: UUID4):
         """

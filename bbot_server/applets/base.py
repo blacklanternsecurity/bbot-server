@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field  # noqa
 from pymongo import WriteConcern, ASCENDING
 from pymongo.errors import OperationFailure
 
+from bbot_server.assets import Asset
 from bbot.models.pydantic import Event
 from bbot_server.modules import API_MODULES
 from bbot_server.errors import BBOTServerError
@@ -86,6 +87,16 @@ class BaseApplet:
 
     # optionally override route prefix
     _route_prefix = None
+
+    # priority of this applet's handle_activity method, between 1 and 5, inclusive
+    # higher numbers are higher priority
+    # this is used to determine the order in which applets' .handle_activity methods are called
+    _activity_priority = 3
+
+    # priority of this applet's handle_event method, between 1 and 5, inclusive
+    # higher numbers are higher priority
+    # this is used to determine the order in which applets' .handle_event methods are called
+    _event_priority = 3
 
     # BBOT helpers
     helpers = bbot_server_misc
@@ -347,7 +358,7 @@ class BaseApplet:
     async def cleanup(self):
         pass
 
-    async def handle_activity(self, activity: Activity):
+    async def handle_activity(self, activity: Activity, asset: Asset = None):
         pass
 
     async def handle_event(self, event: Event, asset=None):
