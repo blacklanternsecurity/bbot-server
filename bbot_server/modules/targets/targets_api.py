@@ -1,12 +1,12 @@
 from uuid import UUID
 from pydantic import UUID4
-from typing import Annotated, Any
+from typing import Any
 from contextlib import contextmanager
 from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
-from bbot_server.assets import Asset, CustomAssetFields
+from bbot_server.assets import Asset
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.targets.targets_models import Target
 from bbot_server.modules.activity.activity_models import Activity
@@ -24,15 +24,11 @@ class BlacklistedError(Exception):
 # this enables extremely fast and precise updates whenever a target is updated
 
 
-class AssetScope(CustomAssetFields):
-    scope: Annotated[list[UUID4], "indexed"] = []
-
-
 class TargetsApplet(BaseApplet):
     name = "Targets"
     description = "scan targets"
     watched_events = ["*"]
-    watched_activities = ["TARGET_CREATED", "TARGET_UPDATED", "NEW_ASSET", "NEW_DNS_RECORD", "DELETED_DNS_RECORD"]
+    watched_activities = ["*"]
     attach_to = "scans"
     model = Target
 
@@ -81,17 +77,25 @@ class TargetsApplet(BaseApplet):
 
         Similarly, whenever a target is created/updated/deleted, we iterate through all the assets and update them
         """
-        # await self._refresh_cache()
+        self.log.critical(f"HANDLING ACTIVITY {activity}")
+        # when a target is created or modified, we run a scope refresh on all the assets
+        # debounce is set to 0.0 here because it's critical we're using the latest version of the target
         if activity.type in ("TARGET_CREATED", "TARGET_UPDATED"):
             for target_id in await self.get_target_ids(debounce=0.0):
                 target = await self._get_bbot_target(target_id, debounce=0.0)
                 for host in await self.root.get_hosts():
-                    await self.refresh_scope(host, target, target_id)
-        # elif activity.type in ("NEW_ASSET", "NEW_DNS_RECORD", "DELETED_DNS_RECORD"):
-        #     await self.update_scope(activity.detail["host"])
+                    await self.refresh_asset_scope(host, target, target_id, emit_activity=True)
+
+        # otherwise, for individual assets, we just refresh the scope for the given host
+        elif activity.host:
+            self.log.critical(f"REFRESHING SCOPE FOR {activity.host}")
+            asset_scope = await self.get_asset_scope(activity.host)
+            self.log.critical(f"NEW SCOPE FOR {activity.host}: {asset_scope}")
+            await self.root._update_asset(activity.host, {"scope": [str(target_id) for target_id in asset_scope]})
+
         return []
 
-    async def refresh_scope(self, host: str, target: BBOTTarget, target_id: UUID4):
+    async def refresh_asset_scope(self, host: str, target: BBOTTarget, target_id: UUID4, emit_activity: bool = False):
         """
         Given a host, evaluate it against all the current targets and tag it with each matching target's ID
         """
@@ -110,7 +114,23 @@ class TargetsApplet(BaseApplet):
                 {"host": host},
                 {"$set": {"scope": [str(target_id) for target_id in asset_scope]}},
             )
-            await self.emit_activity(scope_result)
+            if emit_activity:
+                await self.emit_activity(scope_result)
+
+    async def get_asset_scope(self, host: str):
+        """
+        Given a host, get all the targets it's a part of
+        """
+        asset = await self.root.assets.collection.find_one({"host": host}, {"dns_links": 1})
+        asset_dns_links = asset.get("dns_links", {})
+        asset_scope = []
+        for target_id in await self.get_target_ids(debounce=0.0):
+            target = await self._get_bbot_target(target_id)
+            self.log.critical(f"CHECKING SCOPE FOR {host} AGAINST {target} ({target.seeds})")
+            in_scope = self._check_scope(host, asset_dns_links, target, target_id)
+            if in_scope:
+                asset_scope.append(target_id)
+        return sorted(asset_scope)
 
     @api_endpoint("/", methods=["GET"], summary="Get a single scan target by its name, id, or hash")
     async def get_target(self, id: str = None, hash: str = None) -> Target:
@@ -273,7 +293,7 @@ class TargetsApplet(BaseApplet):
             counter += 1
         return f"Target {counter}"
 
-    def _check_scope(self, host, resolved_hosts, target, target_id, asset_scope) -> Activity:
+    def _check_scope(self, host, resolved_hosts, target, target_id, asset_scope=None) -> Activity:
         """
         Given a host and its DNS records, check whether it's in scope for a given target
 
@@ -310,6 +330,14 @@ class TargetsApplet(BaseApplet):
                             whitelisted_reason = f"{rdtype}->{host}"
         except BlacklistedError:
             pass
+
+        # if the existing scope wasn't provided, we don't calculate the diff, we just return whether the asset is in scope
+        if asset_scope is None:
+            if blacklisted_reason:
+                return False
+            elif whitelisted_reason:
+                return True
+            return False
 
         if blacklisted_reason:
             scope_after = sorted(set(asset_scope) - set([target_id]))
@@ -422,6 +450,9 @@ class TargetsApplet(BaseApplet):
             raise self.BBOTServerValueError(f"Error creating target: {e}")
 
     async def _get_target(self, id: str = None, hash: str = None, fields: dict[str, Any] = None) -> dict:
+        """
+        Get a target in raw JSON format from the database
+        """
         query = {}
         # if neither id nor hash is provided, try to get the default target
         if id is None and hash is None:

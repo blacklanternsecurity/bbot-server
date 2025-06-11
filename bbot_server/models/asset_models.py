@@ -1,5 +1,5 @@
 from typing import Optional, Annotated
-from pydantic import Field, computed_field
+from pydantic import Field, computed_field, UUID4
 
 from bbot_server.utils.misc import utc_now
 from bbot.core.helpers.misc import make_netloc
@@ -29,6 +29,7 @@ class BaseAssetFacet(BaseBBOTServerModel):
     modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     ignored: bool = False
     archived: bool = False
+    scope: Annotated[list[UUID4], "indexed"] = []
 
     def __init__(self, *args, **kwargs):
         kwargs["type"] = self.__class__.__name__

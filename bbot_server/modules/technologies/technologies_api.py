@@ -182,4 +182,4 @@ class TechnologiesApplet(BaseApplet):
             await self.collection.update_one(query, {"$set": {"last_seen": last_seen, "archived": False}})
         else:
             # if it doesn't exist, insert it
-            await self.collection.insert_one(t.model_dump())
+            await self.root._insert_asset(t.model_dump())

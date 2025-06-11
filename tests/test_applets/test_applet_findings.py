@@ -9,6 +9,10 @@ class TestAppletFindings(BaseAppletTest):
         # at the beginning, everything should be empty
         assert [f async for f in self.bbot_server.get_findings()] == []
 
+        # create some targets
+        await self.bbot_server.create_target(name="evilcorp1", seeds=["www2.evilcorp.com"])
+        await self.bbot_server.create_target(name="evilcorp2", seeds=["www.evilcorp.com", "api.evilcorp.com"])
+
     async def after_scan_1(self):
         # we should have 2 findings
         findings = [f async for f in self.bbot_server.get_findings()]
@@ -78,3 +82,8 @@ class TestAppletFindings(BaseAppletTest):
             www_activity.description_colored
             == "New finding with severity [bold bright_red]HIGH[/bold bright_red]: [[bold bright_red]CVE-2024-12345[/bold bright_red]] on [bold]www.evilcorp.com[/bold]"
         )
+
+        # filter findings by target
+        findings1 = [f async for f in self.bbot_server.get_findings(target_id="evilcorp1")]
+        assert len(findings1) == 2, f"{[a async for a in self.bbot_server.get_findings(host='www2.evilcorp.com')]}"
+        assert {f.name for f in findings1} == {"CVE-2024-12345", "CVE-2025-54321"}

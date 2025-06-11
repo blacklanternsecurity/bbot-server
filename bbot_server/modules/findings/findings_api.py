@@ -42,6 +42,7 @@ class FindingsApplet(BaseApplet):
     async def get_findings(
         self,
         search: Annotated[str, Query(description="search finding name or description")] = None,
+        host: Annotated[str, Query(description="filter by exact hostname or IP address")] = None,
         domain: Annotated[str, Query(description="domain or subdomain")] = None,
         target_id: Annotated[str, Query(description="target name or id")] = None,
         min_severity: Annotated[int, Query(description="minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 1,
@@ -52,6 +53,7 @@ class FindingsApplet(BaseApplet):
 
         async for finding in self.root._get_assets(
             type="Finding",
+            host=host,
             domain=domain,
             target_id=target_id,
             query={
@@ -218,7 +220,7 @@ class FindingsApplet(BaseApplet):
             asset.finding_max_severity = None
 
         # insert the new vulnerability
-        await self.collection.insert_one(finding.model_dump())
+        await self.root._insert_asset(finding.model_dump())
 
         severity_color = SEVERITY_COLORS[finding.severity_score]
 

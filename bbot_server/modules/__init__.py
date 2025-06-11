@@ -87,7 +87,10 @@ for file in python_files:
     if file.stem.endswith("_api"):
         source_code = open(file).read()
         # check for custom asset fields
-        check_for_asset_field_models(source_code, file)
+        try:
+            check_for_asset_field_models(source_code, file)
+        except Exception as e:
+            raise BBOTServerError(f"Error processing asset fields class in {file.name}: {e}") from e
 
 # now we merge all the custom asset fields into the master asset model
 

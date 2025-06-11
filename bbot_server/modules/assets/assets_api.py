@@ -173,3 +173,6 @@ class AssetsApplet(BaseApplet):
 
     async def _update_asset(self, host: str, update: dict):
         await self.collection.update_one({"host": host}, {"$set": update})
+
+    async def _insert_asset(self, asset: dict):
+        await self.collection.insert_one(asset)
