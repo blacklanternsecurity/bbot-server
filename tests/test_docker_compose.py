@@ -34,6 +34,13 @@ def test_docker_compose_userexperience():
         )
         assert result.returncode == 0
 
+        # build it
+        result = subprocess.run(
+            ["docker", "compose", "build"],
+            cwd=project_root,
+        )
+        assert result.returncode == 0
+
         docker_compose_file = project_root / "compose.yml"
         assert docker_compose_file.exists()
 

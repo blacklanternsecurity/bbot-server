@@ -3,10 +3,12 @@ import string
 import orjson
 import typing
 import asyncio
+import traceback
 from functools import partial
 from websockets import connect
 from contextlib import suppress
 from typing import AsyncGenerator
+from contextlib import contextmanager
 from urllib.parse import urlparse, parse_qs, urlunparse, urlencode, quote
 
 
@@ -74,16 +76,14 @@ class http(BaseInterface):
         warn_task = asyncio.create_task(warn_if_slow())
 
         log.debug(f"{method} request -> {_url}")
-        done, _ = await asyncio.wait([request_task, warn_task], return_when=asyncio.FIRST_COMPLETED)
+        await asyncio.wait([request_task, warn_task], return_when=asyncio.FIRST_COMPLETED)
 
-        if warn_task in done:
-            # The warning was logged, now wait for the request to finish
-            response = await request_task
-        else:
-            # The request finished first, cancel the warning task
+        # if the request finished first, cancel the warning task
+        with suppress(asyncio.CancelledError):
             warn_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await warn_task
+            await warn_task
+
+        with self._handle_httpx_error(method, _url):
             response = await request_task
 
         response_json = await self._check_response_error(response)
@@ -109,7 +109,7 @@ class http(BaseInterface):
         buffer = b""
         MAX_BUFFER_SIZE = 10 * 1024 * 1024  # 10 MB max buffer size
 
-        try:
+        with self._handle_httpx_error(method, _url):
             log.debug(f"Streaming {method} request -> {_url}")
             async with self.client.stream(method=method, url=_url, json=body) as response:
                 await self._check_response_error(response, return_json=False)
@@ -144,16 +144,6 @@ class http(BaseInterface):
                     except Exception as e:
                         self.log.error(f"Error decoding final chunk: {buffer}")
                         raise BBOTServerError(f"Error decoding final chunk: {buffer}") from e
-
-        except httpx.HTTPError as e:
-            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
-        except BBOTServerError:
-            raise
-        except Exception as e:
-            import traceback
-
-            self.log.critical(traceback.format_exc())
-            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
     async def _websocket_request(self, _url, _route, *args, **kwargs) -> AsyncGenerator:
         """
@@ -312,6 +302,18 @@ class http(BaseInterface):
         Useful for tab completion in IDEs
         """
         return sorted(set(self.bbot_server.route_maps.keys()) | set(dir(self.bbot_server)))
+
+    @contextmanager
+    def _handle_httpx_error(self, method, _url):
+        try:
+            yield
+        except httpx.HTTPError as e:
+            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
+        except BBOTServerError:
+            raise
+        except Exception as e:
+            self.log.critical(traceback.format_exc())
+            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
     async def _check_response_error(self, response, return_json=True):
         response_json = None
