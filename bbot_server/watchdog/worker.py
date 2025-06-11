@@ -6,9 +6,10 @@ from taskiq.schedule_sources import LabelScheduleSource
 from taskiq.api import run_receiver_task, run_scheduler_task
 from taskiq import TaskiqScheduler, TaskiqEvents, TaskiqState
 
+from bbot_server.assets import Asset
 from bbot.models.pydantic import Event
 from bbot_server.errors import BBOTServerNotFoundError
-from bbot_server.models.activity_models import Activity
+from bbot_server.modules.activity.activity_models import Activity
 
 
 class BBOTWatchdog:
@@ -73,19 +74,8 @@ class BBOTWatchdog:
                 event_preview = ""
             self.log.info(f"Received event: {event.type}{event_preview}")
             # get the event's associated asset (this saves on database queries since it will be passed down to each applet)
-            if event.host is not None:
-                try:
-                    asset = await self.bbot_server.assets.get_asset(event.host)
-                except BBOTServerNotFoundError:
-                    asset = self.bbot_server.assets.model(host=event.host)
-                    activity = self.bbot_server.assets.make_activity(
-                        type="NEW_ASSET",
-                        description=f"New asset: [[COLOR]{event.host}[/COLOR]]",
-                        event=event,
-                    )
-                    activities.append(activity)
-            else:
-                asset = None
+            asset, _activities = await self._get_or_create_asset(event.host, event=event)
+            activities.extend(_activities)
 
             # let each applet process the event
             for applet in self.bbot_server.all_child_applets(include_self=True):
@@ -93,8 +83,8 @@ class BBOTWatchdog:
                     continue
                 if await applet.watches_event(event.type):
                     try:
-                        new_activities = await applet.handle_event(event, asset) or []
-                        activities.extend(new_activities)
+                        _activities = await applet.handle_event(event, asset) or []
+                        activities.extend(_activities)
                     except Exception as e:
                         self.log.error(f"Error ingesting event {event.type} for applet {applet.name}: {e}")
                         self.log.error(traceback.format_exc())
@@ -117,20 +107,50 @@ class BBOTWatchdog:
         """
         activity = Activity(**message)
         activity_json = activity.model_dump()
-        new_activities = []
+        activities = []
+        asset, _activities = await self._get_or_create_asset(activity.host, parent_activity=activity)
+        activities.extend(_activities)
+
         # let each applet process the activity
         for applet in self.bbot_server.all_child_applets(include_self=True):
             if await applet.watches_activity(activity, activity_json):
                 try:
-                    activities = await applet.handle_activity(activity) or []
-                    new_activities.extend(activities)
-
-                    # publish new activities to the message queue
-                    for activity in new_activities:
-                        await self.bbot_server._emit_activity(activity)
+                    _activities = await applet.handle_activity(activity, asset) or []
+                    activities.extend(_activities)
                 except Exception as e:
                     self.log.error(f"Error processing activity {activity.type} for applet {applet.name}: {e}")
                     self.log.error(traceback.format_exc())
+
+        # publish new activities to the message queue
+        for activity in activities:
+            await self.bbot_server._emit_activity(activity)
+
+        # update the asset in the database
+        if activities and asset is not None:
+            await self.bbot_server.assets.update_asset(asset)
+
+    async def _get_or_create_asset(self, host: str, event: Event = None, parent_activity: Activity = None) -> Asset:
+        """
+        Given a host, get the asset from the database. If it doesn't exist, create it.
+
+        Returns the asset and a list of activities that were generated (NEW_ASSET if the asset was created).
+        """
+        if not host:
+            return None, []
+        activities = []
+        try:
+            asset = await self.bbot_server.assets.get_asset(host)
+        except BBOTServerNotFoundError:
+            asset = Asset(host=host)
+            activities = [
+                self.bbot_server.assets.make_activity(
+                    type="NEW_ASSET",
+                    description=f"New asset: [[COLOR]{host}[/COLOR]]",
+                    event=event,
+                    parent_activity=parent_activity,
+                )
+            ]
+        return asset, activities
 
     async def stop(self) -> None:
         self.log.info("Stopping watchdog")

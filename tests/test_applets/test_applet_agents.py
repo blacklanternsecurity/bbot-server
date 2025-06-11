@@ -4,7 +4,7 @@ import traceback
 import websockets
 from contextlib import suppress
 from tests.test_applets.base import BaseAppletTest
-from bbot_server.models.agent_models import AgentCommand, AgentResponse
+from bbot_server.modules.agents.agents_models import AgentCommand, AgentResponse
 
 import bbot_server.config as bbcfg
 
@@ -65,6 +65,7 @@ class TestAppletAgents(BaseAppletTest):
         agent_status = await self.bbot_server.get_agent_status(self.agent_3.id)
         assert agent_status == {"agent_status": "OFFLINE", "scan_status": "UNKNOWN"}
 
+        # the main test agent should be online
         connected_agents = await self.bbot_server.get_online_agents()
         assert len(connected_agents) == 1
 

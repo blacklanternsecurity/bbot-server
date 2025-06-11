@@ -3,7 +3,7 @@ import subprocess
 from time import sleep
 
 from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY
-from bbot_server.models.technology_models import Technology
+from bbot_server.modules.technologies.technology_models import Technology
 
 
 def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):

@@ -1,8 +1,6 @@
 import asyncio
 from contextlib import suppress
 
-from bbot_server.applets._base import BaseApplet, watchdog_task
-
 
 # TODO:
 # - how many tasks can be executing at a time?
@@ -12,32 +10,32 @@ from bbot_server.applets._base import BaseApplet, watchdog_task
 # - dependencies (DAG / airflow?)
 
 
-class ScheduledTaskApplet(BaseApplet):
-    name = "Scheduled Tasks"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.cron_task_ran = False
-        self.cron_task_2_ran = False
-        self.cron_task_3_ran = False
-
-    @watchdog_task(cron="* * * * *")
-    async def cron_task(self):
-        self.cron_task_ran = True
-
-    @watchdog_task(cron="* * * * *", cron_config_key="test.cron_task_2")
-    async def cron_task_2(self):
-        self.cron_task_2_ran = True
-
-    @watchdog_task(cron="* * * * *", cron_config_key="test.cron_task_3")
-    async def cron_task_3(self):
-        self.cron_task_3_ran = True
-
-
 async def test_scheduled_tasks(mongo_cleanup):
     from bbot_server import BBOTServer
-    from bbot_server.watchdog import BBOTWatchdog
     import bbot_server.config as bbcfg
+    from bbot_server.watchdog import BBOTWatchdog
+    from bbot_server.applets.base import BaseApplet, watchdog_task
+
+    class ScheduledTaskApplet(BaseApplet):
+        name = "Scheduled Tasks"
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.cron_task_ran = False
+            self.cron_task_2_ran = False
+            self.cron_task_3_ran = False
+
+        @watchdog_task(cron="* * * * *")
+        async def cron_task(self):
+            self.cron_task_ran = True
+
+        @watchdog_task(cron="* * * * *", cron_config_key="test.cron_task_2")
+        async def cron_task_2(self):
+            self.cron_task_2_ran = True
+
+        @watchdog_task(cron="* * * * *", cron_config_key="test.cron_task_3")
+        async def cron_task_3(self):
+            self.cron_task_3_ran = True
 
     config = bbcfg.refresh_config({"test": {"cron_task_2": "*/1 * * * *"}})
 

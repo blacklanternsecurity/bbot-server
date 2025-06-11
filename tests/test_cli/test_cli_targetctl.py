@@ -1,7 +1,7 @@
 import orjson
 import subprocess
 
-from bbot_server.models.target_models import Target
+from bbot_server.modules.targets.targets_models import Target
 from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR
 
 

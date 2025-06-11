@@ -34,6 +34,13 @@ def test_docker_compose_userexperience():
         )
         assert result.returncode == 0
 
+        # build it
+        result = subprocess.run(
+            ["docker", "compose", "build"],
+            cwd=project_root,
+        )
+        assert result.returncode == 0
+
         docker_compose_file = project_root / "compose.yml"
         assert docker_compose_file.exists()
 
@@ -298,8 +305,11 @@ def test_docker_compose_listening_interface():
         else:
             assert False, f"Failed to list assets, stdout: {result.stdout}, stderr: {result.stderr}"
 
+        # replace the url key with 127.0.0.2
+        config_content = custom_config_file.read_text()
+        new_config_content = config_content.replace("url: http://127.0.0.1:8807/v1/", "url: http://127.0.0.2:8807/v1/")
+        custom_config_file.write_text(new_config_content)
         # but if we try 127.0.0.2, it should fail
-        custom_config_file.write_text("url: http://127.0.0.2:8807/v1/")
         result = subprocess.run(
             BBCTL_COMMAND + ["asset", "stats"],
             cwd=project_root,
@@ -339,8 +349,12 @@ def test_docker_compose_listening_interface():
         else:
             assert False, f"Failed to list assets, stdout: {result.stdout}, stderr: {result.stderr}"
 
+        # replace the url key with 127.0.0.1
+        config_content = custom_config_file.read_text()
+        new_config_content = config_content.replace("url: http://127.0.0.2:8807/v1/", "url: http://127.0.0.1:8807/v1/")
+        custom_config_file.write_text(new_config_content)
+
         # but 127.0.0.1 should fail
-        custom_config_file.write_text("url: http://127.0.0.1:8807/v1/")
         result = subprocess.run(
             BBCTL_COMMAND + ["asset", "stats"],
             cwd=project_root,
