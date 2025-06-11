@@ -53,8 +53,8 @@ class ScansApplet(BaseApplet):
         agent_id: UUID4 = None,
         seed_with_current_assets: bool = False,
     ) -> Scan:
-        target = await self.root.get_target(target_id)
-        preset = await self.root.get_preset(preset_id)
+        target = await self.get_target(target_id)
+        preset = await self.get_preset(preset_id)
         # if seed_with_current_assets is True, we add all our currently known hosts that match the target
         if seed_with_current_assets:
             seeds = set(target.seeds)
@@ -200,7 +200,7 @@ class ScansApplet(BaseApplet):
                             self.log.warning(f"Agent {scan.agent_id} was selected for a scan, but it is not online")
                             # check if agent doesn't exist anymore. if so, we'll clear it from the scan.
                             try:
-                                selected_agent = await self.get_agent(str(scan.agent_id))
+                                selected_agent = await self.root.get_agent(str(scan.agent_id))
                             except self.BBOTServerNotFoundError:
                                 self.log.warning(f"Scan's agent no longer exists. Clearing agent from scan")
                                 await self.collection.update_one({"id": str(scan.id)}, {"$set": {"agent_id": None}})
@@ -294,18 +294,21 @@ class ScansApplet(BaseApplet):
             agent_id = getattr(existing_scan, "agent_id", None)
             if agent_id is not None:
                 detail["agent_id"] = agent_id
-            await self.collection.update_one(
-                {"id": scan_id},
-                {
-                    "$set": {
-                        "started_at": scan.started_at,
-                        "finished_at": scan.finished_at,
-                        "duration": scan.duration,
-                        "duration_seconds": scan.duration_seconds,
-                    }
-                },
-            )
-            status_changed = await self.update_scan_status(scan_id=scan_id, status_code=scan.status_code)
+            if scan.duration_seconds:
+                await self.collection.update_one(
+                    {"id": scan_id},
+                    {
+                        "$set": {
+                            "started_at": scan.started_at,
+                            "finished_at": scan.finished_at,
+                            "duration": scan.duration,
+                            "duration_seconds": scan.duration_seconds,
+                        }
+                    },
+                )
+                status_changed = await self.update_scan_status(scan_id=scan_id, status_code=scan.status_code)
+            else:
+                self.log.warning(f'Scan "{scan.name}" found in database, but event has no duration_seconds')
         # otherwise, assume the scan is starting and create a new run
         else:
             description = f"Scan [[COLOR]{scan.name}[/COLOR]] started"

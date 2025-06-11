@@ -11,7 +11,7 @@ class PresetsApplet(BaseApplet):
     name = "Presets"
     description = "manage BBOT scan presets"
     model = Preset
-    attach_to = "root_applet"
+    attach_to = "scans"
 
     @api_endpoint("/get/{preset_id}", methods=["GET"], summary="Get a preset by its name or id")
     async def get_preset(self, preset_id: UUID4 | str) -> Preset:

@@ -21,7 +21,7 @@ from bbot_server.applets.base import BaseApplet, api_endpoint
 class AgentsApplet(BaseApplet):
     name = "Agents"
     description = "manage BBOT scan agents"
-    attach_to = "root_applet"
+    attach_to = "scans"
     model = Agent
 
     async def setup(self):

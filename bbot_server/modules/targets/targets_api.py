@@ -33,7 +33,7 @@ class TargetsApplet(BaseApplet):
     description = "scan targets"
     watched_events = ["*"]
     watched_activities = ["TARGET_CREATED", "TARGET_UPDATED", "NEW_ASSET", "NEW_DNS_RECORD", "DELETED_DNS_RECORD"]
-    attach_to = "root_applet"
+    attach_to = "scans"
     model = Target
 
     async def setup(self):
