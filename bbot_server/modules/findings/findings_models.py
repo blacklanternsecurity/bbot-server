@@ -1,6 +1,7 @@
 from pydantic import Field, computed_field
 from typing import Annotated, Optional, Union
 
+from bbot_server.errors import BBOTServerValueError
 from bbot_server.models.asset_models import BaseAssetFacet
 
 # Severity levels as constants
@@ -24,12 +25,14 @@ class SeverityScore:
         """Convert a severity level to its numeric score."""
         if isinstance(severity, int):
             if severity not in SEVERITY_LEVELS.values():
-                raise ValueError(f"Invalid severity score: {severity}. Must be between 1 and 5.")
+                raise BBOTServerValueError(f'Invalid severity score: "{severity}". Must be between 1 and 5.')
             return severity
         if isinstance(severity, str):
             severity = severity.upper()
             if severity not in SEVERITY_LEVELS:
-                raise ValueError(f"Invalid severity string: {severity}. Must be one of {list(SEVERITY_LEVELS.keys())}")
+                raise BBOTServerValueError(
+                    f'Invalid severity string: "{severity}". Must be one of {list(SEVERITY_LEVELS.keys())}'
+                )
             return SEVERITY_LEVELS[severity]
 
     @classmethod
@@ -38,7 +41,7 @@ class SeverityScore:
         for level, value in SEVERITY_LEVELS.items():
             if value == score:
                 return level
-        raise ValueError(f"Invalid severity score: {score}. Must be between 1 and 5.")
+        raise BBOTServerValueError(f"Invalid severity score: {score}. Must be between 1 and 5.")
 
 
 class Finding(BaseAssetFacet):

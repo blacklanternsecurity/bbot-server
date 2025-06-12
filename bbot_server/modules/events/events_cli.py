@@ -9,8 +9,8 @@ from bbot_server.cli.base import BaseBBCTL, subcommand
 
 class EventCTL(BaseBBCTL):
     command = "event"
-    help = "Query, tail, or ingest BBOT events"
-    short_help = "Query, tail, or ingest BBOT events"
+    help = "Query, export, tail, and ingest BBOT events"
+    short_help = "Query, export, tail, and ingest BBOT events"
     attach_to = "bbctl"
 
     @subcommand(help="List BBOT events")

@@ -8,7 +8,7 @@ from bbot_server.modules.activity.activity_models import Activity
 class ActivityApplet(BaseApplet):
     name = "Activity"
     watched_activities = ["*"]
-    description = "Query BBOT server activities"
+    description = "Query and tail BBOT server activity"
     attach_to = "root_applet"
     model = Activity
 

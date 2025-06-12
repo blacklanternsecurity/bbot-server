@@ -2,7 +2,7 @@ import orjson
 import subprocess
 from time import sleep
 
-from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY
+from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY, BBOT_SERVER_TEST_DIR
 from bbot_server.modules.findings.findings_models import Finding
 
 
@@ -65,3 +65,55 @@ def test_cli_findingctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     assert len(findings) == 2
     assert {f.name for f in findings} == {"CVE-2025-54321"}
     assert {f.host for f in findings} == {"www2.evilcorp.com", "api.evilcorp.com"}
+
+    # filter findings by host (JSON)
+    command = BBCTL_COMMAND + ["finding", "list", "--host", "www2.evilcorp.com", "--json"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 0
+    assert len(process.stdout.splitlines()) == 2
+    findings = [Finding(**orjson.loads(line)) for line in process.stdout.splitlines()]
+    assert len(findings) == 2
+    assert {f.name for f in findings} == {"CVE-2024-12345", "CVE-2025-54321"}
+    assert {f.host for f in findings} == {"www2.evilcorp.com"}
+
+    # invalid severity
+    command = BBCTL_COMMAND + ["finding", "list", "--min-severity", "ASDF", "--json"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 1
+    assert "Invalid severity" in process.stderr
+
+    # filter findings by domain (JSON)
+    command = BBCTL_COMMAND + ["finding", "list", "--domain", "evilcorp.com", "--json"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 0
+    assert len(process.stdout.splitlines()) == 4
+    findings = [Finding(**orjson.loads(line)) for line in process.stdout.splitlines()]
+    assert len(findings) == 4
+    assert {f.name for f in findings} == {"CVE-2024-12345", "CVE-2025-54321"}
+    assert {f.host for f in findings} == {"www.evilcorp.com", "www2.evilcorp.com", "api.evilcorp.com"}
+
+    command = BBCTL_COMMAND + ["finding", "list", "--domain", "www2.evilcorp.com", "--json"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 0
+    assert len(process.stdout.splitlines()) == 2
+    findings = [Finding(**orjson.loads(line)) for line in process.stdout.splitlines()]
+    assert len(findings) == 2
+    assert {f.name for f in findings} == {"CVE-2024-12345", "CVE-2025-54321"}
+    assert {f.host for f in findings} == {"www2.evilcorp.com"}
+
+    # filter findings by target (JSON)
+    # create target
+    target_file = BBOT_SERVER_TEST_DIR / "targets"
+    target_file.write_text("www2.evilcorp.com")
+    command = BBCTL_COMMAND + ["scan", "target", "create", "--seeds", target_file, "--name", "evilcorp1"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 0
+
+    command = BBCTL_COMMAND + ["finding", "list", "--target", "evilcorp1", "--json"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 0
+    assert len(process.stdout.splitlines()) == 2
+    findings = [Finding(**orjson.loads(line)) for line in process.stdout.splitlines()]
+    assert len(findings) == 2
+    assert {f.name for f in findings} == {"CVE-2024-12345", "CVE-2025-54321"}
+    assert {f.host for f in findings} == {"www2.evilcorp.com"}

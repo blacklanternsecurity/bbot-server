@@ -7,8 +7,8 @@ from bbot_server.cli.base import BaseBBCTL, subcommand
 
 class ActivityCTL(BaseBBCTL):
     command = "activity"
-    help = "Query or monitor BBOT activities"
-    short_help = "Query or monitor BBOT activities"
+    help = "Query and tail BBOT server activity"
+    short_help = "Query and tail BBOT server activity"
     attach_to = "bbctl"
 
     @subcommand(help="Tail BBOT server activity")
