@@ -8,7 +8,7 @@ from bbot_server.cli.base import BaseBBCTL, subcommand
 class ScanCTL(BaseBBCTL):
     command = "scan"
     help = "Create, start, and monitor BBOT scans"
-    short_help = "Manage BBOT scans"
+    short_help = "Manage BBOT scans, targets, and presets"
     attach_to = "bbctl"
 
     @subcommand(help="List scans")

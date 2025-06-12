@@ -190,10 +190,9 @@ class FindingsApplet(BaseApplet):
         }
         existing_finding = await self.root._get_asset(
             query=query,
-            fields=["created"],
+            fields=[],
         )
         if existing_finding:
-            finding.created = existing_finding["created"]
             # update the modified field
             await self.collection.update_one(
                 query,

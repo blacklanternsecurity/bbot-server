@@ -172,7 +172,9 @@ class AssetsApplet(BaseApplet):
             yield asset
 
     async def _update_asset(self, host: str, update: dict):
-        await self.collection.update_one({"host": host}, {"$set": update})
+        return await self.strict_collection.update_many({"host": host}, {"$set": update})
 
     async def _insert_asset(self, asset: dict):
-        await self.collection.insert_one(asset)
+        # we exclude scope here to avoid accidentally clobbering it
+        asset.pop("scope", None)
+        await self.strict_collection.insert_one(asset)

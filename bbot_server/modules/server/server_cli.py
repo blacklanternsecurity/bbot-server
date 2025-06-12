@@ -14,8 +14,8 @@ from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 class ServerCTL(BaseBBCTL):
     command = "server"
-    help = "Start/stop BBOT server"
-    short_help = "Start or stop BBOT server via Docker Compose"
+    help = "Start/stop BBOT server via Docker Compose"
+    short_help = "Start/stop BBOT server and manage API keys"
     attach_to = "bbctl"
 
     def setup(self):

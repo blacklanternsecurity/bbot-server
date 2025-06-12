@@ -7,8 +7,8 @@ from bbot_server.cli.base import BaseBBCTL, subcommand
 
 class TechnologyCTL(BaseBBCTL):
     command = "technology"
-    help = "Query BBOT technologies"
-    short_help = "Query BBOT technologies"
+    help = "Query and export BBOT technologies"
+    short_help = "Query and export BBOT technologies"
     attach_to = "bbctl"
 
     @subcommand(help="List all technologies")

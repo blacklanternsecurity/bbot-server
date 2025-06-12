@@ -85,5 +85,35 @@ class TestAppletFindings(BaseAppletTest):
 
         # filter findings by target
         findings1 = [f async for f in self.bbot_server.get_findings(target_id="evilcorp1")]
-        assert len(findings1) == 2, f"{[a async for a in self.bbot_server.get_findings(host='www2.evilcorp.com')]}"
+        assert len(findings1) == 2
         assert {f.name for f in findings1} == {"CVE-2024-12345", "CVE-2025-54321"}
+        assert {f.host for f in findings1} == {"www2.evilcorp.com"}
+        findings2 = [f async for f in self.bbot_server.get_findings(target_id="evilcorp2")]
+        assert len(findings2) == 2
+        assert {f.name for f in findings2} == {"CVE-2024-12345", "CVE-2025-54321"}
+        assert {f.host for f in findings2} == {"www.evilcorp.com", "api.evilcorp.com"}
+
+        # filter findings by domain
+        findings = [f async for f in self.bbot_server.get_findings(domain="evilcorp.com")]
+        assert len(findings) == 4
+        assert {f.name for f in findings} == {"CVE-2024-12345", "CVE-2025-54321"}
+        assert {f.host for f in findings} == {"www.evilcorp.com", "www2.evilcorp.com", "api.evilcorp.com"}
+        findings = [f async for f in self.bbot_server.get_findings(domain="www2.evilcorp.com")]
+        assert len(findings) == 2
+        assert {f.name for f in findings} == {"CVE-2024-12345", "CVE-2025-54321"}
+
+        # filter findings by host
+        findings = [f async for f in self.bbot_server.get_findings(host="www2.evilcorp.com")]
+        assert len(findings) == 2
+        assert {f.name for f in findings} == {"CVE-2024-12345", "CVE-2025-54321"}
+        assert {f.host for f in findings} == {"www2.evilcorp.com"}
+        findings = [f async for f in self.bbot_server.get_findings(host="evilcorp.com")]
+        assert findings == []
+
+        # filter findings by severity
+        findings = [f async for f in self.bbot_server.get_findings(min_severity=4, max_severity=4)]
+        assert len(findings) == 2
+        assert {f.severity for f in findings} == {"HIGH"}
+        findings = [f async for f in self.bbot_server.get_findings(min_severity=4, max_severity=5)]
+        assert len(findings) == 4
+        assert {f.severity for f in findings} == {"HIGH", "CRITICAL"}

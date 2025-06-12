@@ -77,7 +77,6 @@ class TargetsApplet(BaseApplet):
 
         Similarly, whenever a target is created/updated/deleted, we iterate through all the assets and update them
         """
-        self.log.critical(f"HANDLING ACTIVITY {activity}")
         # when a target is created or modified, we run a scope refresh on all the assets
         # debounce is set to 0.0 here because it's critical we're using the latest version of the target
         if activity.type in ("TARGET_CREATED", "TARGET_UPDATED"):
@@ -88,9 +87,7 @@ class TargetsApplet(BaseApplet):
 
         # otherwise, for individual assets, we just refresh the scope for the given host
         elif activity.host:
-            self.log.critical(f"REFRESHING SCOPE FOR {activity.host}")
             asset_scope = await self.get_asset_scope(activity.host)
-            self.log.critical(f"NEW SCOPE FOR {activity.host}: {asset_scope}")
             await self.root._update_asset(activity.host, {"scope": [str(target_id) for target_id in asset_scope]})
 
         return []
@@ -110,7 +107,7 @@ class TargetsApplet(BaseApplet):
                 asset_scope = sorted(set(asset_scope) | set([target_id]))
             else:
                 asset_scope = sorted(set(asset_scope) - set([target_id]))
-            await self.root.assets.collection.update_one(
+            await self.root.assets.collection.update_many(
                 {"host": host},
                 {"$set": {"scope": [str(target_id) for target_id in asset_scope]}},
             )
@@ -124,9 +121,8 @@ class TargetsApplet(BaseApplet):
         asset = await self.root.assets.collection.find_one({"host": host}, {"dns_links": 1})
         asset_dns_links = asset.get("dns_links", {})
         asset_scope = []
-        for target_id in await self.get_target_ids(debounce=0.0):
+        for target_id in await self.get_target_ids():
             target = await self._get_bbot_target(target_id)
-            self.log.critical(f"CHECKING SCOPE FOR {host} AGAINST {target} ({target.seeds})")
             in_scope = self._check_scope(host, asset_dns_links, target, target_id)
             if in_scope:
                 asset_scope.append(target_id)
@@ -246,7 +242,6 @@ class TargetsApplet(BaseApplet):
         self._target_ids.discard(target_id)
 
         # after deleting the target, also delete it from all the assets
-        # Remove the target ID from all asset
         await self.root.assets.collection.update_many(
             {"scope": target_id},  # Find documents that have this target ID in their scope
             {"$pull": {"scope": target_id}},  # Remove this target ID from the scope array
