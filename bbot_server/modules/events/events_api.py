@@ -64,14 +64,30 @@ class EventsApplet(BaseApplet):
         host: str = None,
         domain: str = None,
         scan: str = None,
-        archived: bool = None,
+        min_timestamp: float = None,
+        max_timestamp: float = None,
+        active: bool = True,
+        archived: bool = False,
     ):
+        if active and archived:
+            _archived = None
+        elif active:
+            _archived = False
+        elif archived:
+            _archived = True
+        else:
+            raise self.BBOTServerValueError(
+                "active and archived cannot both be False. Events are either archived or active, so this would return zero events."
+            )
+
         async for event in self.event_store.get_events(
             type=type,
             host=host,
             domain=domain,
             scan=scan,
-            archived=archived,
+            min_timestamp=min_timestamp,
+            max_timestamp=max_timestamp,
+            archived=_archived,
         ):
             yield event
 

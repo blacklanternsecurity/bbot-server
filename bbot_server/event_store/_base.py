@@ -7,9 +7,8 @@ class BaseEventStore(BaseDB):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.event_store_config = self.config.get("event_store", {})
-        self.archive_after_days = self.event_store_config.get("archive_after", 90)
-        self.archive_cron = self.event_store_config.get("archive_cron", "0 0 * * *")
+        self.archive_after_days = self.db_config.get("archive_after", 90)
+        self.archive_cron = self.db_config.get("archive_cron", "0 0 * * *")
 
     async def insert_event(self, event):
         if not isinstance(event, Event):

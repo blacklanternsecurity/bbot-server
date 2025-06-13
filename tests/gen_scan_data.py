@@ -28,8 +28,8 @@ Below is a list of the events and how they change between the two scans.
     api.evilcorp.com            Open ports: None -> 443                                 open_ports
     cname.evilcorp.com          CNAME: evilcorp.azure.com -> evilcorp.amazonaws.com     cloud
     localhost.evilcorp.com      A record: 127.0.0.1 -> 127.0.0.2                        DNS + scope
-    t1.tech.evilcorp.com          Technology: apache -> None                              technologies
-    t2.tech.evilcorp.com          Technology: IIS -> apache                               technologies
+    t1.tech.evilcorp.com        Technology: apache -> None                              technologies
+    t2.tech.evilcorp.com        Technology: IIS -> apache                               technologies
 
     evilcorp.azure.com          None
     evilcorp.amazonaws.com      None

@@ -59,6 +59,7 @@ class MongoEventStore(BaseEventStore):
             # match reverse_host with regex
             reversed_host = domain[::-1]
             query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
+        self.log.debug(f"Querying events: {query}")
         async for event in self.collection.find(query):
             yield event
 
