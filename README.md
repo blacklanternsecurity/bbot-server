@@ -35,7 +35,7 @@ git clone git@github.com:blacklanternsecurity/bbot-server.git && cd bbot-server
 pipx install -e .
 ```
 
-Note: to update to the latest version, run `git pull` in the `bbot_server` directory.
+Note: to update to the latest version, run `git pull` in the `bbot-server` directory.
 
 ## Start the server
 
