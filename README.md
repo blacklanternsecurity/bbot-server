@@ -77,6 +77,8 @@ api_keys:
 
 This tells `bbctl` (the client) where the server is, and gives it the means to authenticate.
 
+To utilise the API key and interact with the BBOT Server via the HTTP API, set the `X-API-Key` HTTP header to the value of a valid API key.
+
 ### Adding and Revoking API Keys
 
 API keys can be added and removed if you are on the server machine:
