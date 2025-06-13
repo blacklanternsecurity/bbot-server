@@ -20,9 +20,24 @@ class BaseEventStore(BaseDB):
         event = await self._get_event(uuid)
         return Event(**event)
 
-    async def get_events(self, host: str = None, type=None, min_timestamp=None, archived=False, active=True):
+    async def get_events(
+        self,
+        host: str = None,
+        domain: str = None,
+        type: str = None,
+        scan: str = None,
+        min_timestamp: float = None,
+        max_timestamp: float = None,
+        archived: bool = False,
+    ):
         async for event in self._get_events(
-            host=host, type=type, min_timestamp=min_timestamp, archived=archived, active=active
+            host=host,
+            domain=domain,
+            type=type,
+            scan=scan,
+            min_timestamp=min_timestamp,
+            max_timestamp=max_timestamp,
+            archived=archived,
         ):
             yield Event(**event)
 

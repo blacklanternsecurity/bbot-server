@@ -14,7 +14,6 @@ class CloudApplet(BaseApplet):
     name = "Cloud"
     watched_activities = ["NEW_DNS_LINK", "DNS_LINK_REMOVED"]
     description = "Cloud providers discovered during scans. Makes use of the cloudcheck library (https://github.com/blacklanternsecurity/cloudcheck)"
-    attach_to = "root_applet"
 
     async def setup(self):
         import cloudcheck

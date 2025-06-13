@@ -2,8 +2,8 @@ import orjson
 import subprocess
 from time import sleep
 
-from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY
 from bbot_server.modules.technologies.technology_models import Technology
+from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY, BBOT_SERVER_TEST_DIR
 
 
 def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
@@ -33,11 +33,11 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     assert len(process.stdout.splitlines()) == 4
     technologies = [Technology(**orjson.loads(line)) for line in process.stdout.splitlines()]
     assert len(technologies) == 4
-    assert {(t.technology, t.netloc) for t in technologies} == {
-        ("cpe:/a:apache:http_server:2.4.12", "tech1.evilcorp.com:80"),
-        ("cpe:/a:apache:http_server:2.4.12", "tech1.evilcorp.com:443"),
-        ("cpe:/a:apache:http_server:2.4.12", "tech2.evilcorp.com:443"),
-        ("cpe:/a:microsoft:internet_information_services", "tech2.evilcorp.com:443"),
+    assert {(t.netloc, t.technology) for t in technologies} == {
+        ("t1.tech.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
+        ("t1.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+        ("t2.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+        ("t2.tech.evilcorp.com:443", "cpe:/a:microsoft:internet_information_services"),
     }
 
     # list technologies (text)
@@ -46,7 +46,7 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     assert process.returncode == 0
     assert process.stdout.count("cpe:/a:apache") == 1
     assert process.stdout.count("cpe:/a:microsoft") == 1
-    assert "tech1.evil" in process.stdout
+    assert "t1.tech.evil" in process.stdout
 
     # search technologies (JSON)
     command = BBCTL_COMMAND + ["technology", "search", "apache", "--json"]
@@ -55,10 +55,10 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     assert len(process.stdout.splitlines()) == 3
     technologies = [Technology(**orjson.loads(line)) for line in process.stdout.splitlines()]
     assert len(technologies) == 3
-    assert {(t.technology, t.netloc) for t in technologies} == {
-        ("cpe:/a:apache:http_server:2.4.12", "tech1.evilcorp.com:80"),
-        ("cpe:/a:apache:http_server:2.4.12", "tech1.evilcorp.com:443"),
-        ("cpe:/a:apache:http_server:2.4.12", "tech2.evilcorp.com:443"),
+    assert {(t.netloc, t.technology) for t in technologies} == {
+        ("t1.tech.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
+        ("t1.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+        ("t2.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
     }
 
     # search technologies (text)
@@ -74,3 +74,59 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     assert process.returncode == 0
     assert process.stdout.count("cpe:/a:microsoft") == 1
     assert not "apache" in process.stdout
+
+    # filter technologies by domain
+    command = BBCTL_COMMAND + ["technology", "list", "--domain", "evilcorp.com", "--json"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 0
+    technologies = [Technology(**orjson.loads(line)) for line in process.stdout.splitlines()]
+    assert len(technologies) == 4
+    assert {(t.netloc, t.technology) for t in technologies} == {
+        ("t1.tech.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
+        ("t1.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+        ("t2.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+        ("t2.tech.evilcorp.com:443", "cpe:/a:microsoft:internet_information_services"),
+    }
+    command = BBCTL_COMMAND + ["technology", "list", "--domain", "tech.evilcorp.com", "--json"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 0
+    technologies = [Technology(**orjson.loads(line)) for line in process.stdout.splitlines()]
+    assert len(technologies) == 4
+    assert {(t.netloc, t.technology) for t in technologies} == {
+        ("t1.tech.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
+        ("t1.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+        ("t2.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+        ("t2.tech.evilcorp.com:443", "cpe:/a:microsoft:internet_information_services"),
+    }
+    command = BBCTL_COMMAND + ["technology", "list", "--domain", "t1.tech.evilcorp.com", "--json"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 0
+    technologies = [Technology(**orjson.loads(line)) for line in process.stdout.splitlines()]
+    assert len(technologies) == 2
+    assert {(t.netloc, t.technology) for t in technologies} == {
+        ("t1.tech.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
+        ("t1.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+    }
+    command = BBCTL_COMMAND + ["technology", "list", "--domain", "asdf.tech.evilcorp.com", "--json"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 0
+    assert process.stdout == ""
+
+    # filter technologies by target id
+    target_file = BBOT_SERVER_TEST_DIR / "targets"
+    target_file.write_text("t2.tech.evilcorp.com")
+    command = BBCTL_COMMAND + ["scan", "target", "create", "--seeds", target_file, "--name", "evilcorp1"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 0
+
+    # wait for a sec for the target to be processed
+    sleep(1)
+    command = BBCTL_COMMAND + ["technology", "list", "--target", "evilcorp1", "--json"]
+    process = subprocess.run(command, capture_output=True, text=True)
+    assert process.returncode == 0
+    technologies = [Technology(**orjson.loads(line)) for line in process.stdout.splitlines()]
+    assert len(technologies) == 2
+    assert {(t.netloc, t.technology) for t in technologies} == {
+        ("t2.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+        ("t2.tech.evilcorp.com:443", "cpe:/a:microsoft:internet_information_services"),
+    }

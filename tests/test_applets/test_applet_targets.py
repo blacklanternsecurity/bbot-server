@@ -323,8 +323,8 @@ class TestTargetScopeMaintenance(BaseAppletTest):
             "www2.evilcorp.com",
             "localhost.evilcorp.com",
             "cname.evilcorp.com",
-            "tech1.evilcorp.com",
-            "tech2.evilcorp.com",
+            "t1.tech.evilcorp.com",
+            "t2.tech.evilcorp.com",
             "api.evilcorp.com",
         }
         assert target_2_assets == {
@@ -343,8 +343,8 @@ class TestTargetScopeMaintenance(BaseAppletTest):
             "www2.evilcorp.com",
             "localhost.evilcorp.com",
             "cname.evilcorp.com",
-            "tech1.evilcorp.com",
-            "tech2.evilcorp.com",
+            "t1.tech.evilcorp.com",
+            "t2.tech.evilcorp.com",
             "api.evilcorp.com",
         }
         assert target_2_assets == {

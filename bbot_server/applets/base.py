@@ -79,6 +79,7 @@ class BaseApplet:
     model = None
 
     # which other applet should include this one
+    # leave blank to attach to the root applet
     attach_to = ""
 
     # whether to nest this applet under its parent
