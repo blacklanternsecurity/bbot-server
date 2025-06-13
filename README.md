@@ -29,13 +29,13 @@ BBOT Server is a database and multiplayer hub for all your [BBOT](https://github
 
 ```bash
 # clone the repo and cd into it
-git clone git@github.com:blacklanternsecurity/bbot-server.git && cd bbot_server
+git clone git@github.com:blacklanternsecurity/bbot-server.git && cd bbot-server
 
 # Install in editable mode
 pipx install -e .
 ```
 
-Note: to update to the latest version, run `git pull` in the `bbot_server` directory.
+Note: to update to the latest version, run `git pull` in the `bbot-server` directory.
 
 ## Start the server
 
@@ -76,6 +76,8 @@ api_keys:
 ```
 
 This tells `bbctl` (the client) where the server is, and gives it the means to authenticate.
+
+To utilise the API key and interact with the BBOT Server via the HTTP API, set the `X-API-Key` HTTP header to the value of a valid API key.
 
 ### Adding and Revoking API Keys
 
@@ -346,5 +348,7 @@ After connecting your AI client to BBOT Server, you can ask it sensible question
 ![finding-list](https://github.com/user-attachments/assets/3fcbb977-6d47-4dc1-81b7-a26e8e3bc292)
 
 *REST API*
+
+Connect to the default URL at [http://localhost:8807](http://localhost:8807/) to view and use the interactive API documentation.
 
 ![rest-api](https://github.com/user-attachments/assets/567bd266-b047-4005-bc0b-22d5bfd2a12b)
