@@ -29,7 +29,7 @@ BBOT Server is a database and multiplayer hub for all your [BBOT](https://github
 
 ```bash
 # clone the repo and cd into it
-git clone git@github.com:blacklanternsecurity/bbot-server.git && cd bbot_server
+git clone git@github.com:blacklanternsecurity/bbot-server.git && cd bbot-server
 
 # Install in editable mode
 pipx install -e .
