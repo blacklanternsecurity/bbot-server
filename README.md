@@ -333,4 +333,6 @@ After connecting your AI client to BBOT Server, you can ask it sensible question
 
 *REST API*
 
+Connect to the default URL at [http://localhost:8807](http://localhost:8807/) to view and use the interactive API documentation.
+
 ![rest-api](https://github.com/user-attachments/assets/567bd266-b047-4005-bc0b-22d5bfd2a12b)
