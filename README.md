@@ -200,10 +200,10 @@ You can list targets like so:
 
 ```bash
 # List targets
-bbctl target list
+bbctl scan target list
 
 # Create a new target
-bbctl target create --seeds seeds.txt --blacklist blacklist.txt --name custom_target
+bbctl scan target create --seeds seeds.txt --blacklist blacklist.txt --name custom_target
 
 # List only the assets that match your new target
 bbctl asset list --target custom_target
