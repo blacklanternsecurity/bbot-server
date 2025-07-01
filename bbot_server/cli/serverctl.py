@@ -59,7 +59,7 @@ class ServerCTL(BaseBBCTL):
                 host=listen,
                 port=port,
                 reload=reload,
-                reload_excludes=[str(BBOT_SERVER_PROJECT_ROOT / "mongodb")],
+                reload_excludes=["mongodb"],
                 workers=1,
             )
 
