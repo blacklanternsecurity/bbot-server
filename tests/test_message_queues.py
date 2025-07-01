@@ -141,7 +141,7 @@ async def _test_historic_subscribe(bbot_server):
     to_send = [{"id": i, "content": f"historic message {i}"} for i in range(10)]
     for message in to_send:
         await bbot_server.message_queue.publish(message, "test_channel")
-    # why do we have to wait so long here?
+    # TODO: why do we have to wait so long here?
     await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     sub = await bbot_server.message_queue.subscribe("test_channel", callback, historic=5)

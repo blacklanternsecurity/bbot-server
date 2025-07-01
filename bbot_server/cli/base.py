@@ -33,8 +33,8 @@ class BaseBBCTL:
     # optional description listed below the command's --help
     epilog = ""
 
-    # optionally include other BBCTL classes
-    include = []
+    # which other BBCTL class should include this one
+    attach_to = ""
 
     # BBOT server config helpers
     bbcfg = bbcfg
@@ -82,15 +82,25 @@ class BaseBBCTL:
                 decorator(method)
 
         # register child classes
-        for bbctl in self.include:
-            self.log.debug(f"Including {bbctl.__name__}")
-            if not issubclass(bbctl, BaseBBCTL):
-                raise ValueError(f"{bbctl.__name__} must be a subclass of BaseBBCTL")
+        from bbot_server.modules import CLI_MODULES
+
+        # which other cli modules should this one include
+        commands_to_include = CLI_MODULES.get(self.command, {})
+        for included_bbctl_command in sorted(commands_to_include):
+            self.log.debug(f"Including {included_bbctl_command}")
+            try:
+                bbctl_class = commands_to_include[included_bbctl_command]
+            except KeyError:
+                raise self.BBOTServerValueError(
+                    f'CLI module {self.__class__.__name__} tried to include unknown BBCTL command "{included_bbctl_command}" (options: {",".join(sorted(commands_to_include))})'
+                )
             for required_attr in ("command", "help", "short_help"):
-                val = getattr(bbctl, required_attr, "")
+                val = getattr(bbctl_class, required_attr, "")
                 if not val:
-                    raise ValueError(f"BBCTL {bbctl.__name__} must define {required_attr}")
-            child = bbctl(parent=self)
+                    raise self.BBOTServerValueError(
+                        f"CLI module {bbctl_class.__name__} must define .{required_attr} attribute"
+                    )
+            child = bbctl_class(parent=self)
             self.children[child.command] = child
             self.typer.add_typer(child.typer, name=child.command)
 

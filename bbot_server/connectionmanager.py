@@ -7,13 +7,13 @@ from pydantic import UUID4
 from contextlib import suppress
 from starlette.websockets import WebSocketDisconnect, WebSocket
 
-from bbot_server.agent import VALID_AGENT_COMMANDS
-from bbot_server.models.agent_models import AgentCommand, AgentResponse
+from bbot_server.modules.agents.agent import VALID_AGENT_COMMANDS
+from bbot_server.modules.agents.agents_models import AgentCommand, AgentResponse
 
 
 class ConnectionManager:
     """
-    On the server side, manages incoming connections and pending outgoing commands for agents
+    On the server side, manages incoming websocket connections and pending outgoing commands for agents
 
     This is needed because we only have one websocket channel for commands, but we need to be able
     to execute multiple concurrent commands. We do this by way of a unique request_id for each command.

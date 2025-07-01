@@ -47,3 +47,6 @@ def json_to_csv(data: Iterator[Union[dict, BaseModel]], fieldnames: list[str]) -
 
 json = Annotated[bool, typer.Option("--json", "-j", help="Output as raw JSON")]
 csv = Annotated[bool, typer.Option("--csv", "-c", help="Output as CSV")]
+host = Annotated[str, typer.Option("--host", "-H", help="Filter by exact hostname or IP address")]
+domain = Annotated[str, typer.Option("--domain", "-d", help="Filter by domain (including subdomains)")]
+target = Annotated[str, typer.Option("--target", "-t", help="Filter by target ID or name")]
