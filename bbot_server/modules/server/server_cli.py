@@ -8,7 +8,6 @@ from subprocess import run
 from contextlib import suppress
 
 import bbot_server.config as bbcfg
-from bbot_server import BBOT_SERVER_PROJECT_ROOT
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
