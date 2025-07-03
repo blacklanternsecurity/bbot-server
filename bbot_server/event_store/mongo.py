@@ -29,13 +29,23 @@ class MongoEventStore(BaseEventStore):
         event_json = event.model_dump()
         await self.collection.insert_one(event_json)
 
-    async def _get_events(self, host: str, type: str, min_timestamp: float, archived: bool, active: bool):
+    async def _get_events(
+        self,
+        host: str,
+        domain: str,
+        type: str,
+        scan: str,
+        min_timestamp: float,
+        max_timestamp: float,
+        active: bool,
+        archived: bool,
+    ):
         """
-        Get all events from the database, or if min_timestamp is provided, get the newest events up to that timestamp
+        Get all events from the database based on the provided filters
         """
         query = {}
         if type is not None:
-            query["type"] = {"$eq": type}
+            query["type"] = type
         if min_timestamp is not None:
             query["timestamp"] = {"$gte": min_timestamp}
         # if both active and archived are true, we don't need to filter anything
@@ -45,8 +55,17 @@ class MongoEventStore(BaseEventStore):
                 raise ValueError("Must query at least one of active or archived")
             # otherwise if only one is true, we need to filter by the other
             query["archived"] = {"$eq": archived}
+        if max_timestamp is not None:
+            query["timestamp"] = {"$lte": max_timestamp}
+        if scan is not None:
+            query["scan"] = scan
         if host is not None:
             query["host"] = host
+        if domain is not None:
+            # match reverse_host with regex
+            reversed_host = domain[::-1]
+            query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
+        self.log.debug(f"Querying events: {query}")
         async for event in self.collection.find(query):
             yield event
 

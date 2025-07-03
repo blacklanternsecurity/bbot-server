@@ -33,8 +33,8 @@ class TestAppletAssets(BaseAppletTest):
             "localhost.evilcorp.com",
             "www.evilcorp.com",
             "www2.evilcorp.com",
-            "tech1.evilcorp.com",
-            "tech2.evilcorp.com",
+            "t1.tech.evilcorp.com",
+            "t2.tech.evilcorp.com",
             "testevilcorp.com",
         }
         for _ in range(120):
@@ -61,8 +61,8 @@ class TestAppletAssets(BaseAppletTest):
             "localhost.evilcorp.com",
             "www.evilcorp.com",
             "www2.evilcorp.com",
-            "tech1.evilcorp.com",
-            "tech2.evilcorp.com",
+            "t1.tech.evilcorp.com",
+            "t2.tech.evilcorp.com",
             "testevilcorp.com",
         }
 
@@ -82,11 +82,24 @@ class TestAppletAssets(BaseAppletTest):
             "localhost.evilcorp.com",
             "www.evilcorp.com",
             "www2.evilcorp.com",
-            "tech1.evilcorp.com",
-            "tech2.evilcorp.com",
+            "t1.tech.evilcorp.com",
+            "t2.tech.evilcorp.com",
             "testevilcorp.com",
         }
 
+        assert set(await self.bbot_server.get_hosts(domain="com")) == {
+            "api.evilcorp.com",
+            "cname.evilcorp.com",
+            "evilcorp.amazonaws.com",
+            "evilcorp.azure.com",
+            "evilcorp.com",
+            "localhost.evilcorp.com",
+            "t1.tech.evilcorp.com",
+            "t2.tech.evilcorp.com",
+            "testevilcorp.com",
+            "www.evilcorp.com",
+            "www2.evilcorp.com",
+        }
         assert set(await self.bbot_server.get_hosts(domain="evilcorp.com")) == {
             "evilcorp.com",
             "api.evilcorp.com",
@@ -94,9 +107,17 @@ class TestAppletAssets(BaseAppletTest):
             "www.evilcorp.com",
             "www2.evilcorp.com",
             "localhost.evilcorp.com",
-            "tech1.evilcorp.com",
-            "tech2.evilcorp.com",
+            "t1.tech.evilcorp.com",
+            "t2.tech.evilcorp.com",
         }
+        assert set(await self.bbot_server.get_hosts(domain="tech.evilcorp.com")) == {
+            "t1.tech.evilcorp.com",
+            "t2.tech.evilcorp.com",
+        }
+        assert set(await self.bbot_server.get_hosts(domain="t1.tech.evilcorp.com")) == {
+            "t1.tech.evilcorp.com",
+        }
+        assert set(await self.bbot_server.get_hosts(domain="asdf.tech.evilcorp.com")) == set()
 
 
 # test to make sure you can filter assets by target
@@ -130,8 +151,8 @@ async def test_applet_target_filter(bbot_server, bbot_events):
         "127.0.0.1",
         "evilcorp.azure.com",
         "testevilcorp.com",
-        "tech1.evilcorp.com",
-        "tech2.evilcorp.com",
+        "t1.tech.evilcorp.com",
+        "t2.tech.evilcorp.com",
     }
 
     all_hosts_target1 = {
@@ -142,8 +163,8 @@ async def test_applet_target_filter(bbot_server, bbot_events):
         "cname.evilcorp.com",
         "www.evilcorp.com",
         "evilcorp.azure.com",  # this one resolves to 127.0.0.3 so it matches
-        "tech1.evilcorp.com",
-        "tech2.evilcorp.com",
+        "t1.tech.evilcorp.com",
+        "t2.tech.evilcorp.com",
     }
 
     all_hosts_target2 = {

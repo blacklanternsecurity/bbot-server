@@ -6,7 +6,6 @@ from bbot_server.applets.base import BaseApplet, api_endpoint
 class AssetsApplet(BaseApplet):
     name = "Assets"
     description = "hostnames and IP addresses discovered during scans"
-    attach_to = "root_applet"
 
     model = Asset
 
@@ -133,6 +132,7 @@ class AssetsApplet(BaseApplet):
             query["scope"] = target["id"]
         if search is not None:
             query["$text"] = {"$search": search}
+        self.log.debug(f"Querying assets: query={query} / fields={fields}")
         async for asset in self._query_assets(query, fields, domain=domain, sort=sort):
             yield asset
 
