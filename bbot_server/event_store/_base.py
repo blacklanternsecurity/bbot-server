@@ -28,6 +28,7 @@ class BaseEventStore(BaseDB):
         min_timestamp: float = None,
         max_timestamp: float = None,
         archived: bool = False,
+        active: bool = True,
     ):
         async for event in self._get_events(
             host=host,
@@ -37,6 +38,7 @@ class BaseEventStore(BaseDB):
             min_timestamp=min_timestamp,
             max_timestamp=max_timestamp,
             archived=archived,
+            active=active,
         ):
             yield Event(**event)
 
