@@ -5,7 +5,7 @@ from time import sleep
 from bbot.models.pydantic import Event
 
 from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY, BBOT_SERVER_TEST_DIR
-from bbot_server.models.scan_models import Scan
+from bbot_server.modules.scans.scans_models import Scan
 
 
 def test_cli_scan_start(bbot_server_http, bbot_watchdog, bbot_agent):

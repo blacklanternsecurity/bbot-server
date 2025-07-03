@@ -1,9 +1,10 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi.openapi.utils import get_openapi
-from fastapi import FastAPI, HTTPException, Depends, Request, WebSocket
 from fastapi.responses import RedirectResponse, ORJSONResponse
+from fastapi import FastAPI, HTTPException, Depends, Request, WebSocket
 
+from bbot_server import modules  # noqa: F401
 import bbot_server.config as bbcfg
 from bbot_server.errors import BBOTServerError, handle_bbot_server_error
 

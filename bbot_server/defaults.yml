@@ -34,4 +34,4 @@ agent:
         - WEB_PARAMETER
 
 cli:
-  http_timeout: 15
+  http_timeout: 90

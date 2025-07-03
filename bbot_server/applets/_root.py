@@ -1,19 +1,12 @@
 import bbot_server.config as bbcfg
 
-from bbot_server.applets._base import BaseApplet
-
-# applet imports
-from bbot_server.applets.stats import StatsApplet
-from bbot_server.applets.assets import AssetsApplet
-from bbot_server.applets.events import EventsApplet
-from bbot_server.applets.scans import ScansApplet
-from bbot_server.applets.activity import ActivityApplet
+from bbot_server.applets.base import BaseApplet
 
 
 class RootApplet(BaseApplet):
-    include_apps = [AssetsApplet, EventsApplet, ScansApplet, ActivityApplet, StatsApplet]
-
     name = "Root Applet"
+
+    attach_to = ""
 
     _nested = False
 

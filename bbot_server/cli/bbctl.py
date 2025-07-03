@@ -12,23 +12,13 @@ import bbot_server.config as bbcfg
 from bbot_server.cli.base import BaseBBCTL, Annotated, Option
 from bbot_server.errors import BBOTServerError, BBOTServerUnauthorizedError
 
-# subcommand imports
-from bbot_server.cli.agentctl import AgentCTL
-from bbot_server.cli.assetctl import AssetCTL
-from bbot_server.cli.scanctl import ScanCTL
-from bbot_server.cli.serverctl import ServerCTL
-from bbot_server.cli.eventctl import EventCTL
-from bbot_server.cli.activityctl import ActivityCTL
-from bbot_server.cli.findingctl import FindingCTL
-from bbot_server.cli.technologyctl import TechnologyCTL
-
 
 class BBCTL(BaseBBCTL):
     """
     The root command for the BBCTL CLI
     """
 
-    include = [AssetCTL, ScanCTL, ServerCTL, AgentCTL, EventCTL, ActivityCTL, FindingCTL, TechnologyCTL]
+    command = "bbctl"
 
     _invoke_without_command = True
 

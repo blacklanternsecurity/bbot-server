@@ -3,10 +3,12 @@ import string
 import orjson
 import typing
 import asyncio
+import traceback
 from functools import partial
 from websockets import connect
 from contextlib import suppress
 from typing import AsyncGenerator
+from contextlib import contextmanager
 from urllib.parse import urlparse, parse_qs, urlunparse, urlencode, quote
 
 
@@ -39,15 +41,14 @@ class http(BaseInterface):
 
     _url_safe_chars = string.ascii_letters + string.digits + "-_.~"
 
-    def __init__(self, **kwargs):
-        url = kwargs.pop("url", None)
+    def __init__(self, url=None, **kwargs):
         super().__init__(**kwargs)
         if url is None:
             if not "url" in self.config:
                 raise ValueError("When using the HTTP interface, url is required in the config")
             url = self.config["url"]
         self.base_url = url.strip("/")
-        self._http_timeout = self.config.get("cli", {}).get("http_timeout", 15)
+        self._http_timeout = self.config.get("cli", {}).get("http_timeout", 90)
         self._client = None
 
     @property
@@ -63,12 +64,27 @@ class http(BaseInterface):
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
         body = self._prepare_http_body(method, kwargs)
 
-        try:
-            response = await self.client.request(
-                url=_url, method=method, json=body, headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}
+        async def warn_if_slow():
+            await asyncio.sleep(5)
+            self.log.warning(
+                f"{method} request to {_url} is taking a while; if you requested a lot of data (or a summary of a lot of data), this is normal"
             )
-        except Exception as e:
-            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
+
+        request_task = asyncio.create_task(
+            self.client.request(url=_url, method=method, json=body, headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()})
+        )
+        warn_task = asyncio.create_task(warn_if_slow())
+
+        log.debug(f"{method} request -> {_url}")
+        await asyncio.wait([request_task, warn_task], return_when=asyncio.FIRST_COMPLETED)
+
+        # if the request finished first, cancel the warning task
+        with suppress(asyncio.CancelledError):
+            warn_task.cancel()
+            await warn_task
+
+        with self._handle_httpx_error(method, _url):
+            response = await request_task
 
         response_json = await self._check_response_error(response)
 
@@ -93,7 +109,8 @@ class http(BaseInterface):
         buffer = b""
         MAX_BUFFER_SIZE = 10 * 1024 * 1024  # 10 MB max buffer size
 
-        try:
+        with self._handle_httpx_error(method, _url):
+            log.debug(f"Streaming {method} request -> {_url}")
             async with self.client.stream(method=method, url=_url, json=body) as response:
                 await self._check_response_error(response, return_json=False)
                 async for chunk in response.aiter_bytes():
@@ -127,16 +144,6 @@ class http(BaseInterface):
                     except Exception as e:
                         self.log.error(f"Error decoding final chunk: {buffer}")
                         raise BBOTServerError(f"Error decoding final chunk: {buffer}") from e
-
-        except httpx.HTTPError as e:
-            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
-        except BBOTServerError:
-            raise
-        except Exception as e:
-            import traceback
-
-            self.log.critical(traceback.format_exc())
-            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
     async def _websocket_request(self, _url, _route, *args, **kwargs) -> AsyncGenerator:
         """
@@ -295,6 +302,18 @@ class http(BaseInterface):
         Useful for tab completion in IDEs
         """
         return sorted(set(self.bbot_server.route_maps.keys()) | set(dir(self.bbot_server)))
+
+    @contextmanager
+    def _handle_httpx_error(self, method, _url):
+        try:
+            yield
+        except httpx.HTTPError as e:
+            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
+        except BBOTServerError:
+            raise
+        except Exception as e:
+            self.log.critical(traceback.format_exc())
+            raise BBOTServerError(f"Error making {method} request -> {_url}: {e}") from e
 
     async def _check_response_error(self, response, return_json=True):
         response_json = None

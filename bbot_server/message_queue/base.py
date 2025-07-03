@@ -7,7 +7,7 @@ from pydantic import BaseModel
 import bbot_server.config as bbcfg
 from bbot.models.pydantic import Event
 from bbot_server.errors import BBOTServerValueError
-from bbot_server.models.activity_models import Activity
+from bbot_server.modules.activity.activity_models import Activity
 
 
 class BaseMessageQueue:

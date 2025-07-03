@@ -87,8 +87,12 @@ class RedisMessageQueue(BaseMessageQueue):
 
         stream_key = f"bbot:stream:{subject}"
         if historic > 0:
+            self.log.info(f"Getting {historic} historic messages for {stream_key}")
             messages = await self.redis.xrevrange(stream_key, count=historic)
+            self.log.info(f"Got {len(messages):,} historic messages")
             await self._callback(callback, *messages[::-1])
+        else:
+            self.log.info(f"No historic messages for {stream_key}")
 
         # Create consumer name and group name as strings (not bytes)
         consumer_name = f"{durable}-{id(callback)}" if durable else f"ephemeral-{id(callback)}"

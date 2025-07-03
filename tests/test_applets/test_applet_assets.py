@@ -18,7 +18,9 @@ class TestAppletAssets(BaseAppletTest):
         assert await self.bbot_server.get_hosts() == []
 
     async def after_scan_1(self):
-        assert set(await self.bbot_server.get_hosts()) == {
+        # since this is our first test, and runners are dog slow, it can take a while for the watchdog etc. to get ready
+        # we loop for a while to give them time to start up
+        expected_hosts = {
             "1.2.3.4",
             "127.0.0.1",
             "192.168.1.1",
@@ -35,6 +37,13 @@ class TestAppletAssets(BaseAppletTest):
             "tech2.evilcorp.com",
             "testevilcorp.com",
         }
+        for _ in range(120):
+            hosts = set(await self.bbot_server.get_hosts())
+            if hosts == expected_hosts:
+                break
+            await asyncio.sleep(0.5)
+        else:
+            assert hosts == expected_hosts, "Hosts don't match expected hosts"
 
     async def after_scan_2(self):
         assert set(await self.bbot_server.get_hosts()) == {
