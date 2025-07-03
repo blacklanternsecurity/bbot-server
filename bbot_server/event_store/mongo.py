@@ -38,9 +38,12 @@ class MongoEventStore(BaseEventStore):
             query["type"] = {"$eq": type}
         if min_timestamp is not None:
             query["timestamp"] = {"$gte": min_timestamp}
+        # if both active and archived are true, we don't need to filter anything
         if not (active and archived):
+            # if both are false, we need to raise an error
             if not (active or archived):
                 raise ValueError("Must query at least one of active or archived")
+            # otherwise if only one is true, we need to filter by the other
             query["archived"] = {"$eq": archived}
         if host is not None:
             query["host"] = host
