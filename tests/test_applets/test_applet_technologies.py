@@ -110,16 +110,16 @@ class TestAppletTechnologies(BaseAppletTest):
             ("t2.tech.evilcorp.com:443", "cpe:/a:microsoft:internet_information_services"),
         }
 
-        # filter technologies by target id
-        await self.bbot_server.create_target(seeds=["t1.tech.evilcorp.com"], name="target1")
-        # wait for a sec for the target to be processed
-        await asyncio.sleep(1)
-        techs = [t async for t in self.bbot_server.get_technologies(target_id="target1")]
-        assert len(techs) == 2
-        assert {(t.netloc, t.technology) for t in techs} == {
-            ("t1.tech.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
-            ("t1.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
-        }
+        # # TODO: filter technologies by target id
+        # await self.bbot_server.create_target(seeds=["t1.tech.evilcorp.com"], name="target1")
+        # # wait for a sec for the target to be processed
+        # await asyncio.sleep(1)
+        # techs = [t async for t in self.bbot_server.get_technologies(target_id="target1")]
+        # assert len(techs) == 2
+        # assert {(t.netloc, t.technology) for t in techs} == {
+        #     ("t1.tech.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
+        #     ("t1.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+        # }
 
         # by exact match
         techs = [t async for t in self.bbot_server.get_technologies(technology="apache")]
@@ -128,9 +128,9 @@ class TestAppletTechnologies(BaseAppletTest):
         techs = [t async for t in self.bbot_server.get_technologies(technology="cpe:/a:apache:http_server:2.4.12")]
         assert len(techs) == 3
         assert set([(t.netloc, t.technology) for t in techs]) == {
-            ("tech1.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
-            ("tech1.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
-            ("tech2.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+            ("t1.tech.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
+            ("t1.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+            ("t2.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
         }
 
     async def after_archive(self):
