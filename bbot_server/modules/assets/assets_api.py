@@ -176,5 +176,8 @@ class AssetsApplet(BaseApplet):
 
     async def _insert_asset(self, asset: dict):
         # we exclude scope here to avoid accidentally clobbering it
-        asset.pop("scope", None)
+        # however we preserve scope for technologies and findings since they should inherit scope
+        asset_type = asset.get("type", "Asset")
+        if asset_type == "Asset":
+            asset.pop("scope", None)
         await self.strict_collection.insert_one(asset)
