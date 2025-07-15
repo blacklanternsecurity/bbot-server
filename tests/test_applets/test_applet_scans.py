@@ -51,14 +51,16 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
     # wait for events to be processed
     for _ in range(120):
         scans = [s async for s in bbot_server.get_scans()]
+
         if len(scans) == 1 and scans[0].status == "FINISHED":
-            break
+            scan_activities = [a for a in activities if a.type.startswith("SCAN_")]
+            scan_statuses = [a.detail["scan_status"] for a in scan_activities]
+            if scan_activities == ["SCAN_STATUS", "SCAN_STATUS"] and scan_statuses == ["RUNNING", "FINISHED"]:
+                break
+
         await asyncio.sleep(0.5)
     else:
         assert False, "Scan did not finish"
-
-    assert [a.type for a in activities if a.type.startswith("SCAN_")] == ["SCAN_STATUS", "SCAN_STATUS"]
-    assert [a.detail["scan_status"] for a in activities if a.type.startswith("SCAN_")] == ["RUNNING", "FINISHED"]
 
     activity_task.cancel()
     with suppress(asyncio.CancelledError):
