@@ -58,8 +58,8 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
         if (
             len(scans) == 1
             and scans[0].status == "FINISHED"
-            and scan_activities == ["SCAN_STATUS", "SCAN_STATUS"]
-            and scan_statuses == ["RUNNING", "FINISHED"]
+            and [s.type for s in scan_activities] == ["SCAN_STATUS", "SCAN_STATUS"]
+            and [s.detail["scan_status"] for s in scan_activities] == ["RUNNING", "FINISHED"]
         ):
             break
 
