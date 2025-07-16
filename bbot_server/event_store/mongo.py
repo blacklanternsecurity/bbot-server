@@ -29,7 +29,7 @@ class MongoEventStore(BaseEventStore):
         event_json = event.model_dump()
         await self.collection.insert_one(event_json)
 
-    async def _get_events(self, host: str, type: str, min_timestamp: float, archived: bool, active: bool):
+    async def _get_events(self, host: str, type: str, min_timestamp: float, archived: bool, active: bool, scan_id: str):
         """
         Get all events from the database, or if min_timestamp is provided, get the newest events up to that timestamp
         """
@@ -44,6 +44,8 @@ class MongoEventStore(BaseEventStore):
             query["archived"] = {"$eq": archived}
         if host is not None:
             query["host"] = host
+        if scan_id is not None:
+            query["scan"] = scan_id
         async for event in self.collection.find(query):
             yield event
 

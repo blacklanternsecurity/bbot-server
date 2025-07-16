@@ -17,10 +17,11 @@ class EventCTL(BaseBBCTL):
     def list(
         self,
         type: Annotated[str, typer.Option("--type", "-t", help="Filter events by type")] = None,
+        scan_id: Annotated[str, typer.Option("--scan-id", "-s", help="Filter events by scan ID")] = None,
         json: common.json = False,
         csv: common.csv = False,
     ):
-        event_list = self.bbot_server.get_events(type=type)
+        event_list = self.bbot_server.get_events(type=type, scan_id=scan_id)
 
         if json:
             for event in event_list:
