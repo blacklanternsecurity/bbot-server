@@ -2,7 +2,7 @@ from pymongo import WriteConcern
 from motor.motor_asyncio import AsyncIOMotorClient
 
 
-from bbot_server.errors import BBOTServerNotFoundError
+from bbot_server.errors import BBOTServerNotFoundError, BBOTServerValueError
 from bbot_server.event_store._base import BaseEventStore
 
 
@@ -52,7 +52,7 @@ class MongoEventStore(BaseEventStore):
         if not (active and archived):
             # if both are false, we need to raise an error
             if not (active or archived):
-                raise ValueError("Must query at least one of active or archived")
+                raise BBOTServerValueError("Must query at least one of active or archived")
             # otherwise if only one is true, we need to filter by the other
             query["archived"] = {"$eq": archived}
         if max_timestamp is not None:
