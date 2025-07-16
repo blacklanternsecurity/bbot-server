@@ -8,7 +8,7 @@ from bbot_server.event_store._base import BaseEventStore
 
 class MongoEventStore(BaseEventStore):
     """
-    docker run --rm -p 27017:27017 mongo
+    docker run --rm -p 127.0.0.1:27017:27017 mongo
     """
 
     async def _setup(self):

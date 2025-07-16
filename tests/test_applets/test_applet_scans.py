@@ -172,6 +172,8 @@ async def test_basic_scan_run(bbot_server):
         agents = await bbot_server.get_agents()
         agent_status_match_2 = len(agents) == 1 and agents[0].status == "READY"
 
+        print(f"Agent statuses: {agent_statuses}, Agents: {agents}")
+
         if agent_status_match and agent_status_match_2:
             break
 
