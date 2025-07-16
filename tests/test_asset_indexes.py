@@ -86,7 +86,8 @@ async def test_asset_indexes():
     }
     for applet in bbot_server.all_child_applets(include_self=True):
         if applet.model is not None:
-            indexes = await applet.collection.list_indexes().to_list()
+            index_cursor = await applet.collection.list_indexes()
+            indexes = await index_cursor.to_list()
             indexed_fields = []
             for idx in indexes:
                 # Handle text indexes specially
