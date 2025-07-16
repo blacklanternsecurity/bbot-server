@@ -279,7 +279,8 @@ class BaseApplet:
                     # ideally we should not have to delete and recreate the index
                     if "index already exists" in str(e):
                         # Get existing text index
-                        existing_indexes = await self.collection.list_indexes().to_list()
+                        indexes_cursor = await self.collection.list_indexes()
+                        existing_indexes = [idx async for idx in indexes_cursor]
                         text_index = next((idx for idx in existing_indexes if "text" in idx["key"].values()), None)
                         if text_index:
                             self.log.debug(f"Found existing text index: {text_index}")

@@ -257,9 +257,9 @@ async def mongo_cleanup(bbot_server_config):
     """
     Clear the mongo database before and after each test
     """
-    from motor.motor_asyncio import AsyncIOMotorClient
+    from pymongo import AsyncMongoClient
 
-    client = AsyncIOMotorClient(bbot_server_config["event_store"]["uri"])
+    client = AsyncMongoClient(bbot_server_config["event_store"]["uri"])
 
     async def clear_everything():
         await client.drop_database("test_bbot_server_events")
