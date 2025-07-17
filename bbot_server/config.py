@@ -152,7 +152,7 @@ def add_api_key():
     global VALID_API_KEYS
     api_key = uuid.uuid4()
     VALID_API_KEYS.add(api_key)
-    BBOT_SERVER_CONFIG["api_keys"] = sorted(VALID_API_KEYS)
+    BBOT_SERVER_CONFIG["api_keys"] = sorted([str(key) for key in VALID_API_KEYS])
 
     # write new API key to config
     existing_config = OmegaConf.load(BBOT_SERVER_CONFIG_PATH)

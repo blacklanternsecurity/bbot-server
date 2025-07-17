@@ -17,7 +17,7 @@ async def test_applet_stats(bbot_server, bbot_events):
     for _ in range(60):
         # global stats
         global_stats = await bbot_server.get_stats()
-        global_stats_ok = global_stats == {
+        expected_global_stats = {
             "dns_links": {
                 "A": 13,
                 "AAAA": 1,
@@ -68,10 +68,11 @@ async def test_applet_stats(bbot_server, bbot_events):
                 },
             },
         }
+        global_stats_ok = global_stats == expected_global_stats
 
         # by target
         stats_by_target = await bbot_server.get_stats(target_id=target1.id)
-        stats_by_target_ok = stats_by_target == {
+        expected_stats_by_target = {
             "dns_links": {
                 "A": 9,
                 "CNAME": 1,
@@ -115,10 +116,11 @@ async def test_applet_stats(bbot_server, bbot_events):
                 },
             },
         }
+        stats_by_target_ok = stats_by_target == expected_stats_by_target
 
         # by domain
         stats_by_domain = await bbot_server.get_stats(domain="www2.evilcorp.com")
-        stats_by_domain_ok = stats_by_domain == {
+        expected_stats_by_domain = {
             "dns_links": {
                 "A": 2,
             },
@@ -149,6 +151,7 @@ async def test_applet_stats(bbot_server, bbot_events):
                 },
             },
         }
+        stats_by_domain_ok = stats_by_domain == expected_stats_by_domain
 
         if global_stats_ok and stats_by_target_ok and stats_by_domain_ok:
             break
@@ -156,6 +159,4 @@ async def test_applet_stats(bbot_server, bbot_events):
         await asyncio.sleep(0.5)
 
     else:
-        assert False, (
-            f"Stats are not ok. global_stats_ok: {global_stats_ok}, stats_by_target_ok: {stats_by_target_ok}, stats_by_domain_ok: {stats_by_domain_ok}"
-        )
+        assert global_stats 
