@@ -121,7 +121,7 @@ def get_api_key():
         except StopIteration:
             raise BBOTServerError(
                 f"No API keys found in the config. Please set `api_keys` in your config file or run `bbctl server apikey add`"
-        )
+            )
 
 
 def check_api_key(api_key: str):

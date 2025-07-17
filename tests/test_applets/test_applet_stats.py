@@ -1,7 +1,5 @@
 import asyncio
 
-from ..conftest import INGEST_PROCESSING_DELAY
-
 
 async def test_applet_stats(bbot_server, bbot_events):
     bbot_server = await bbot_server(needs_watchdog=True)
@@ -158,4 +156,6 @@ async def test_applet_stats(bbot_server, bbot_events):
         await asyncio.sleep(0.5)
 
     else:
-        assert False, f"Stats are not ok. global_stats_ok: {global_stats_ok}, stats_by_target_ok: {stats_by_target_ok}, stats_by_domain_ok: {stats_by_domain_ok}"
+        assert False, (
+            f"Stats are not ok. global_stats_ok: {global_stats_ok}, stats_by_target_ok: {stats_by_target_ok}, stats_by_domain_ok: {stats_by_domain_ok}"
+        )
