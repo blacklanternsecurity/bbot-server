@@ -200,7 +200,7 @@ async def test_queued_scan_cancellation(bbot_server):
     assert len(scans) == 1
     assert scans[0].status == "QUEUED"
 
-    await bbot_server.cancel_scan(scan_id=scan.id)
+    await bbot_server.cancel_scan(id=scan.id)
 
     scans = [s async for s in bbot_server.get_scans()]
     assert len(scans) == 1
@@ -249,7 +249,7 @@ async def test_running_scan_cancellation(bbot_agent, bbot_watchdog):
     assert scans[0].status == "RUNNING"
 
     # cancel the scan
-    await bbot_server.cancel_scan(scan_id=scan.id)
+    await bbot_server.cancel_scan(id=scan.id)
 
     # wait until the scan is cancelled
     for _ in range(120):
@@ -262,7 +262,7 @@ async def test_running_scan_cancellation(bbot_agent, bbot_watchdog):
 
     # cancelling the scan again should raise an error
     with pytest.raises(BBOTServerValueError):
-        await bbot_server.cancel_scan(scan_id=scan.id)
+        await bbot_server.cancel_scan(id=scan.id)
 
     # make sure the agent is still running and ready to pick up the next scan
     for _ in range(120):

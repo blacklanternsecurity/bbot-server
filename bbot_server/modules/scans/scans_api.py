@@ -116,9 +116,9 @@ class ScansApplet(BaseApplet):
         return [Scan(**run) for run in await cursor.to_list(length=None)]
 
     @api_endpoint("/cancel/{id}", methods=["POST"], summary="Cancel a scan by its name or ID")
-    async def cancel_scan(self, scan_id: str, force: bool = False):
+    async def cancel_scan(self, id: str, force: bool = False):
         # get the scan
-        scan = await self.get_scan(scan_id)
+        scan = await self.get_scan(id)
 
         existing_scan_status_code = get_scan_status_code(getattr(scan, "status_code", SCAN_STATUS_QUEUED))
         if existing_scan_status_code >= SCAN_STATUS_FINISHED:
