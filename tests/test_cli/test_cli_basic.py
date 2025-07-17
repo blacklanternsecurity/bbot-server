@@ -10,7 +10,7 @@ from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR, BBCTL_FILE
 def test_cli_debugging():
     bogus_server_url = "http://localhost:58777"
     error_message = (
-        f"[ERROR] Error making GET request -> {bogus_server_url}/events/list: All connection attempts failed\n"
+        f"[ERROR] Error making GET request -> {bogus_server_url}/events/list?active=True&archived=False: All connection attempts failed\n"
     )
 
     # induce an error with a bogus server URL
