@@ -159,4 +159,4 @@ async def test_applet_stats(bbot_server, bbot_events):
         await asyncio.sleep(0.5)
 
     else:
-        assert global_stats 
+        assert global_stats
