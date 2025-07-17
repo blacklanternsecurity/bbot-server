@@ -6,8 +6,6 @@ from bbot_server.applets.base import BaseApplet
 class RootApplet(BaseApplet):
     name = "Root Applet"
 
-    attach_to = ""
-
     _nested = False
 
     _route_prefix = ""

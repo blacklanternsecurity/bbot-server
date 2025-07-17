@@ -17,30 +17,46 @@ class TechnologiesApplet(BaseApplet):
     attach_to = "assets"
     model = Technology
 
-    @api_endpoint("/get/{id}", methods=["GET"], summary="Get a technology by ID")
+    @api_endpoint(
+        "/get/{id}",
+        methods=["GET"],
+        summary="Get a technology by ID. This returns a single technology for a single host.",
+    )
     async def get_technology(self, id: str) -> Technology:
         return Technology(**(await self.root._get_asset(type="Technology", id=id)))
 
     @api_endpoint(
         "/list", methods=["GET"], type="http_stream", response_model=Technology, summary="List all technologies"
     )
-    async def get_technologies(self, domain: str = None, target_id: str = None):
-        async for technology in self.root._get_assets(type="Technology", domain=domain, target_id=target_id):
+    async def get_technologies(
+        self,
+        domain: str = None,
+        host: str = None,
+        technology: str = None,
+        target_id: str = None,
+        archived: bool = False,
+        active: bool = True,
+    ):
+        query = {"type": "Technology"}
+        if host:
+            query["host"] = host
+        if technology:
+            query["technology"] = technology
+        if target_id:
+            target = await self.root._get_target(id=target_id, fields=["id"])
+            query["target_id"] = target["id"]
+        async for technology in self.root._query_assets(query, domain=domain, archived=archived, active=active):
             yield Technology(**technology)
 
-    @api_endpoint("/list/{host}", methods=["GET"], summary="Get all the technologies on a given host")
-    async def get_technologies_for_host(self, host: str) -> list[Technology]:
-        return [Technology(**t) async for t in self.root._get_assets(type="Technology", host=host)]
-
     @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database")
-    async def get_technologies_summary(self, domain: str = None, target_id: str = None) -> list[dict[str, Any]]:
+    async def get_technologies_summary(
+        self, domain: str = None, host: str = None, technology: str = None, target_id: str = None
+    ) -> list[dict[str, Any]]:
         technologies = {}
-        async for t in self.root._get_assets(
-            type="Technology", domain=domain, target_id=target_id, fields=["technology", "host", "last_seen"]
-        ):
-            technology = t["technology"]
-            host = t["host"]
-            last_seen = t["last_seen"]
+        async for t in self.get_technologies(domain=domain, host=host, technology=technology, target_id=target_id):
+            technology = t.technology
+            host = t.host
+            last_seen = t.last_seen
             try:
                 existing = technologies[technology]
                 existing["last_seen"] = max(last_seen, existing["last_seen"])
@@ -61,13 +77,15 @@ class TechnologiesApplet(BaseApplet):
         summary="Get all active technologies by domain or target id.",
         mcp=True,
     )
-    async def get_technologies_brief(self, domain: str = "", target_id: str = "") -> dict[str, int]:
+    async def get_technologies_brief(
+        self, domain: str = None, host: str = None, target_id: str = None
+    ) -> dict[str, int]:
         # AI like to pass empty strings for some godforsaken reason
         domain = domain or None
         target_id = target_id or None
         technologies = {}
         async for asset in self.parent._get_assets(
-            domain=domain, target_id=target_id, fields=["technologies", "host"]
+            domain=domain, host=host, target_id=target_id, fields=["technologies", "host"]
         ):
             for technology in asset.get("technologies", []):
                 technologies[technology] = technologies.get(technology, 0) + 1
@@ -79,7 +97,7 @@ class TechnologiesApplet(BaseApplet):
         methods=["GET"],
         type="http_stream",
         response_model=Technology,
-        summary="Search for a technology",
+        summary="Fuzzy search by technology (e.g. 'wordpress')",
     )
     async def search_technology(self, technology: str, domain: str = None, target_id: str = None):
         async for technology in self.root._get_assets(

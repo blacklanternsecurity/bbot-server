@@ -252,7 +252,7 @@ class AgentsApplet(BaseApplet):
         return 0
 
     async def _kickoff_queued_scans_loop(self):
-        for i in range(1000):
+        while True:
             online_agents = await self.get_online_agents()
             online_agents = [str(agent.id) for agent in online_agents]
             if not online_agents:

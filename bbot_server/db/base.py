@@ -33,7 +33,10 @@ class BaseDB:
 
     @property
     def uri(self):
-        return self.db_config.get("uri", "")
+        uri = self.db_config.get("uri", "")
+        if not uri:
+            raise BBOTServerValueError(f"Database URI is missing from config: {self.db_config}")
+        return uri
 
     @property
     def db_name(self):

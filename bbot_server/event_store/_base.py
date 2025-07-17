@@ -7,9 +7,8 @@ class BaseEventStore(BaseDB):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.event_store_config = self.config.get("event_store", {})
-        self.archive_after_days = self.event_store_config.get("archive_after", 90)
-        self.archive_cron = self.event_store_config.get("archive_cron", "0 0 * * *")
+        self.archive_after_days = self.db_config.get("archive_after", 90)
+        self.archive_cron = self.db_config.get("archive_cron", "0 0 * * *")
 
     async def insert_event(self, event):
         if not isinstance(event, Event):
@@ -20,9 +19,26 @@ class BaseEventStore(BaseDB):
         event = await self._get_event(uuid)
         return Event(**event)
 
-    async def get_events(self, host: str = None, type=None, min_timestamp=None, archived=False, active=True):
+    async def get_events(
+        self,
+        host: str = None,
+        domain: str = None,
+        type: str = None,
+        scan: str = None,
+        min_timestamp: float = None,
+        max_timestamp: float = None,
+        archived: bool = False,
+        active: bool = True,
+    ):
         async for event in self._get_events(
-            host=host, type=type, min_timestamp=min_timestamp, archived=archived, active=active
+            host=host,
+            domain=domain,
+            type=type,
+            scan=scan,
+            min_timestamp=min_timestamp,
+            max_timestamp=max_timestamp,
+            archived=archived,
+            active=active,
         ):
             yield Event(**event)
 

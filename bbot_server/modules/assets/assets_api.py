@@ -6,7 +6,6 @@ from bbot_server.applets.base import BaseApplet, api_endpoint
 class AssetsApplet(BaseApplet):
     name = "Assets"
     description = "hostnames and IP addresses discovered during scans"
-    attach_to = "root_applet"
 
     model = Asset
 
@@ -125,10 +124,6 @@ class AssetsApplet(BaseApplet):
             query["type"] = type
         if host is not None:
             query["host"] = host
-        if domain is not None:
-            reversed_host = domain[::-1]
-            # Match exact domain or subdomains (with dot separator)
-            query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
         if target_id is not None:
             target_query_kwargs = {}
             if target_id != "DEFAULT":
@@ -137,7 +132,8 @@ class AssetsApplet(BaseApplet):
             query["scope"] = target["id"]
         if search is not None:
             query["$text"] = {"$search": search}
-        async for asset in self._query_assets(query, fields, sort):
+        self.log.debug(f"Querying assets: query={query} / fields={fields}")
+        async for asset in self._query_assets(query, fields, domain=domain, sort=sort):
             yield asset
 
     async def _get_asset(
@@ -154,17 +150,42 @@ class AssetsApplet(BaseApplet):
             query["host"] = host
         return await self.collection.find_one(query, fields)
 
-    async def _query_assets(self, query: dict, fields: list[str] = None, sort: list[tuple[str, int]] = None):
+    async def _query_assets(
+        self,
+        query: dict,
+        fields: list[str] = None,
+        domain: str = None,
+        sort: list[tuple[str, int]] = None,
+        archived: bool = False,
+        active: bool = True,
+    ):
         """
         Lowest-level query function for getting assets from the database.
+
+        Lets you specify your own custom query, but also provides some convenience filters.
 
         Args:
             query: Additional query parameters (mongo)
             fields: List of fields to return
+            domain: Filter assets by domain (including subdomains)
+            archived: Return archived assets (default: False)
+            active: Return active assets (default: True)
             sort: Fields and direction to sort by, e.g. sort=[("last_seen", -1)]
         """
-        self.log.debug(f"Querying assets: query={query} / fields={fields}")
+        query = dict(query or {})
         fields = {f: 1 for f in fields} if fields else None
+        if domain is not None:
+            reversed_host = domain[::-1]
+            # Match exact domain or subdomains (with dot separator)
+            query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
+        # if both active and archived are true, we don't need to filter anything, because we are returning all assets
+        if not (active and archived):
+            # if both are false, we need to raise an error
+            if not (active or archived):
+                raise ValueError("Must query at least one of active or archived")
+            # only one should be true
+            query["archived"] = {"$eq": archived}
+        self.log.debug(f"Querying assets: domain={domain} / query={query} / fields={fields}")
         cursor = self.collection.find(query, fields)
         if sort:
             cursor = cursor.sort(sort)

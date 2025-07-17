@@ -15,15 +15,19 @@ class TechnologyCTL(BaseBBCTL):
     def list(
         self,
         json: common.json = False,
-        domain: Annotated[
-            str, typer.Option("--domain", "-d", help="limit results to this domain (subdomains included)")
+        domain: Annotated[str, typer.Option("--domain", "-d", help="filter by domain (subdomains included)")] = None,
+        host: Annotated[str, typer.Option("--host", "-h", help="filter by host")] = None,
+        technology: Annotated[
+            str, typer.Option("--technology", "-t", help="filter by technology (must match exactly)")
         ] = None,
         target_id: Annotated[
-            str, typer.Option("--target", "-t", help="limit results to this target (can be either name or ID)")
+            str, typer.Option("--target", "-t", help="filter by target (can be either name or ID)")
         ] = None,
     ):
         if json:
-            for technology in self.bbot_server.get_technologies(domain=domain, target_id=target_id):
+            for technology in self.bbot_server.get_technologies(
+                domain=domain, host=host, technology=technology, target_id=target_id
+            ):
                 self.print_pydantic_json(technology)
             return
 
@@ -32,7 +36,9 @@ class TechnologyCTL(BaseBBCTL):
         table.add_column("Number of Hosts")
         table.add_column("Hosts", style="bold")
         table.add_column("Last Seen", style=self.DARK_COLOR)
-        for t in self.bbot_server.get_technologies_summary(domain=domain, target_id=target_id):
+        for t in self.bbot_server.get_technologies_summary(
+            domain=domain, host=host, technology=technology, target_id=target_id
+        ):
             table.add_row(
                 t["technology"],
                 f"{len(t['hosts']):,}",

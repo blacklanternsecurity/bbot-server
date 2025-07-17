@@ -12,7 +12,6 @@ class EventsApplet(BaseApplet):
     name = "Events"
     watched_events = ["*"]
     description = "query raw BBOT scan events"
-    attach_to = "root_applet"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -59,8 +58,27 @@ class EventsApplet(BaseApplet):
         self._archive_events_task = asyncio.create_task(self._archive_events(older_than=older_than))
 
     @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Event, summary="Stream all events")
-    async def get_events(self, type: str = None, host: str = None, archived: bool = False, active: bool = True):
-        async for event in self.event_store.get_events(type=type, host=host, archived=archived, active=active):
+    async def get_events(
+        self,
+        type: str = None,
+        host: str = None,
+        domain: str = None,
+        scan: str = None,
+        min_timestamp: float = None,
+        max_timestamp: float = None,
+        active: bool = True,
+        archived: bool = False,
+    ):
+        async for event in self.event_store.get_events(
+            type=type,
+            host=host,
+            domain=domain,
+            scan=scan,
+            min_timestamp=min_timestamp,
+            max_timestamp=max_timestamp,
+            archived=archived,
+            active=active,
+        ):
             yield event
 
     @api_endpoint(

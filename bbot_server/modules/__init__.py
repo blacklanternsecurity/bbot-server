@@ -133,7 +133,7 @@ def load_python_file(file, namespace, module_dict, base_class_name, module_key_a
                         log.error(f"Module {value.__name__} does not define required attribute{module_key_attr}")
                     parent_name = getattr(value, "attach_to", "")
                     if not parent_name:
-                        log.error(f"Module {value.__name__} does not define required attribute 'attach_to'")
+                        parent_name = "root_applet"
                     module_family = module_dict.get(parent_name, {})
                     # if we get a duplicate module name, raise an error
                     if module_name in module_family:

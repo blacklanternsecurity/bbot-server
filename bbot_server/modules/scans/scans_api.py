@@ -28,7 +28,6 @@ class ScansApplet(BaseApplet):
     description = "scans"
     watched_events = ["SCAN"]
     watched_activities = ["SCAN_STATUS"]
-    attach_to = "root_applet"
     model = Scan
 
     async def setup(self):

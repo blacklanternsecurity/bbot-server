@@ -51,14 +51,21 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
     # wait for events to be processed
     for _ in range(120):
         scans = [s async for s in bbot_server.get_scans()]
-        if len(scans) == 1 and scans[0].status == "FINISHED":
+
+        scan_activities = [a for a in activities if a.type.startswith("SCAN_")]
+        scan_statuses = [a.detail["scan_status"] for a in scan_activities]
+
+        if (
+            len(scans) == 1
+            and scans[0].status == "FINISHED"
+            and [s.type for s in scan_activities] == ["SCAN_STATUS", "SCAN_STATUS"]
+            and [s.detail["scan_status"] for s in scan_activities] == ["RUNNING", "FINISHED"]
+        ):
             break
+
         await asyncio.sleep(0.5)
     else:
-        assert False, "Scan did not finish"
-
-    assert [a.type for a in activities if a.type.startswith("SCAN_")] == ["SCAN_STATUS", "SCAN_STATUS"]
-    assert [a.detail["scan_status"] for a in activities if a.type.startswith("SCAN_")] == ["RUNNING", "FINISHED"]
+        assert False, f"Scan did not finish. Scan activities: {scan_activities}, Scan statuses: {scan_statuses}"
 
     activity_task.cancel()
     with suppress(asyncio.CancelledError):
@@ -164,6 +171,8 @@ async def test_basic_scan_run(bbot_server):
         # agent should be ready again
         agents = await bbot_server.get_agents()
         agent_status_match_2 = len(agents) == 1 and agents[0].status == "READY"
+
+        print(f"Agent statuses: {agent_statuses}, Agents: {agents}")
 
         if agent_status_match and agent_status_match_2:
             break

@@ -29,7 +29,7 @@ class RedisMessageQueue(BaseMessageQueue):
     - bbot:stream:{subject}: for persistent, tailable streams - e.g. events, activities
     - bbot:work:{subject}: for one-time messages, e.g. tasks
 
-    docker run --rm -p 6379:6379 redis
+    docker run --rm -p 127.0.0.1:6379:6379 redis
     """
 
     def __init__(self, *args, **kwargs):
