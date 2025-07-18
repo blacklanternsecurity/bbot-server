@@ -106,7 +106,7 @@ class TechnologiesApplet(BaseApplet):
             last_seen=event.timestamp,
         )
         # inherit scope from the parent asset so as to make sure that target_id filtering works
-        if asset and hasattr(asset, 'scope'):
+        if asset and hasattr(asset, "scope"):
             t.scope = asset.scope
         # insert the technology into the database
         await self._update_or_insert_technology(t)
