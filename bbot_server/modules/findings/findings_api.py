@@ -126,6 +126,9 @@ class FindingsApplet(BaseApplet):
             cves=cves,
             event=event,
         )
+        # inherit scope from the parent asset so as to make sure that target_id filtering works
+        if asset and hasattr(asset, "scope"):
+            finding.scope = asset.scope
         # update finding names
         findings = set(getattr(asset, "findings", []))
         findings.add(finding.name)
