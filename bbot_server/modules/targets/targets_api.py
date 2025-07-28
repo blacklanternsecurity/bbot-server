@@ -108,7 +108,7 @@ class TargetsApplet(BaseApplet):
                 asset_scope = sorted(set(asset_scope) - set([target_id]))
             results = await self.root.assets.collection.update_many(
                 {"host": host},
-                {"$set": {"scope": [str(target_id) for target_id in asset_scope]}},
+                {"$set": {"scope": [str(_target_id) for _target_id in asset_scope]}},
             )
             print(f"Updated {results.modified_count} assets for host {host}")
             if emit_activity:

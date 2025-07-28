@@ -1,12 +1,12 @@
 import uuid
+from pydantic import BaseModel, Field
 from typing import Annotated, Any, Optional
-from pydantic import BaseModel, Field, UUID4
 from bbot_server.models.base import BaseBBOTServerModel
 
 
 class Agent(BaseBBOTServerModel):
     __tablename__ = "agents"
-    id: Annotated[UUID4, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
+    id: Annotated[uuid.UUID, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
     name: Annotated[str, "indexed", "unique"]
     description: str
     connected: Annotated[bool, "indexed"] = False

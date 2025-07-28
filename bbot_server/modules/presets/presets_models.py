@@ -1,6 +1,6 @@
 import uuid
 from typing import Annotated, Any
-from pydantic import UUID4, Field, computed_field, field_validator
+from pydantic import Field, computed_field, field_validator
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.models.base import BaseBBOTServerModel
@@ -9,7 +9,7 @@ from bbot_server.models.base import BaseBBOTServerModel
 class Preset(BaseBBOTServerModel):
     __tablename__ = "presets"
     __user__ = True
-    id: Annotated[UUID4, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
+    id: Annotated[uuid.UUID, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
     preset: dict[str, Any] = Field(default_factory=dict)
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)

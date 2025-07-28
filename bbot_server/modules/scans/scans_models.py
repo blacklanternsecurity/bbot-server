@@ -1,6 +1,6 @@
 import uuid
 from typing import Annotated, Optional
-from pydantic import UUID4, Field, computed_field
+from pydantic import Field, computed_field
 
 from bbot.constants import get_scan_status_name, SCAN_STATUS_CODES
 
@@ -18,7 +18,7 @@ class Scan(BaseBBOTServerModel):
     name: Annotated[str, "indexed", "unique"]
     description: Annotated[Optional[str], "indexed"] = None
     status_code: Annotated[int, "indexed", Field(ge=min(SCAN_STATUS_CODES), le=max(SCAN_STATUS_CODES))] = 0
-    agent_id: Annotated[Optional[UUID4], "indexed"] = None
+    agent_id: Annotated[Optional[uuid.UUID], "indexed"] = None
     target: Target
     preset: Preset
     seed_with_current_assets: bool = False
