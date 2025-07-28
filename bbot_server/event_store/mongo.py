@@ -80,5 +80,5 @@ class MongoEventStore(BaseEventStore):
         await self.collection.delete_many({})
 
     async def cleanup(self):
-        self.client.close()
+        await self.client.close()
         await super().cleanup()
