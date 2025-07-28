@@ -12,11 +12,7 @@ class PresetsApplet(BaseApplet):
     model = Preset
     attach_to = "scans"
 
-    @api_endpoint(
-        "/get/{preset_id}",
-        methods=["GET"],
-        summary="Get a preset by its name or id"
-    )
+    @api_endpoint("/get/{preset_id}", methods=["GET"], summary="Get a preset by its name or id")
     async def get_preset(self, preset_id: UUID | str) -> Preset:
         try:
             query = {"id": str(UUID(str(preset_id)))}
