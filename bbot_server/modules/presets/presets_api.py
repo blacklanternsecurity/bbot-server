@@ -1,6 +1,5 @@
 from uuid import UUID
 from typing import Any
-from pydantic import UUID4
 from pymongo.errors import DuplicateKeyError
 
 from bbot_server.modules.presets.presets_models import Preset
@@ -14,7 +13,7 @@ class PresetsApplet(BaseApplet):
     attach_to = "scans"
 
     @api_endpoint("/get/{preset_id}", methods=["GET"], summary="Get a preset by its name or id")
-    async def get_preset(self, preset_id: UUID4 | str) -> Preset:
+    async def get_preset(self, preset_id: UUID | str) -> Preset:
         try:
             query = {"id": str(UUID(str(preset_id)))}
         except Exception:
@@ -41,7 +40,7 @@ class PresetsApplet(BaseApplet):
         return preset
 
     @api_endpoint("/update/{preset_id}", methods=["PATCH"], summary="Update a preset by its name or id")
-    async def update_preset(self, preset_id: UUID4 | str, preset: dict[str, Any]) -> Preset:
+    async def update_preset(self, preset_id: UUID | str, preset: dict[str, Any]) -> Preset:
         existing_preset = await self.get_preset(preset_id)
         # Create new preset with the updated dictionary
         new_preset = Preset(preset=preset)
@@ -54,7 +53,7 @@ class PresetsApplet(BaseApplet):
         return new_preset
 
     @api_endpoint("/delete/{preset_id}", methods=["DELETE"], summary="Delete a preset by its name or id")
-    async def delete_preset(self, preset_id: UUID4 | str) -> None:
+    async def delete_preset(self, preset_id: UUID | str) -> None:
         existing_preset = await self.get_preset(preset_id)
         await self.collection.delete_one({"id": str(existing_preset.id)})
 

@@ -1,7 +1,7 @@
 import random
 import asyncio
 import traceback
-from pydantic import UUID4
+from uuid import UUID
 from pymongo import ASCENDING
 from contextlib import suppress
 from pymongo.errors import DuplicateKeyError
@@ -49,7 +49,7 @@ class ScansApplet(BaseApplet):
         target_id: str,
         preset_id: str,
         name: str = None,
-        agent_id: UUID4 = None,
+        agent_id: UUID = None,
         seed_with_current_assets: bool = False,
     ) -> Scan:
         target = await self.get_target(target_id)
