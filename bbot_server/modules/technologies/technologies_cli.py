@@ -20,13 +20,14 @@ class TechnologyCTL(BaseBBCTL):
         technology: Annotated[
             str, typer.Option("--technology", "-t", help="filter by technology (must match exactly)")
         ] = None,
+        search: Annotated[str, typer.Option("--search", "-s", help="search for a technology (fuzzy match)")] = None,
         target_id: Annotated[
             str, typer.Option("--target", "-t", help="filter by target (can be either name or ID)")
         ] = None,
     ):
         if json:
             for technology in self.bbot_server.get_technologies(
-                domain=domain, host=host, technology=technology, target_id=target_id
+                domain=domain, host=host, technology=technology, target_id=target_id, search=search
             ):
                 self.print_pydantic_json(technology)
             return
@@ -44,34 +45,5 @@ class TechnologyCTL(BaseBBCTL):
                 f"{len(t['hosts']):,}",
                 ", ".join(t["hosts"]),
                 self.timestamp_to_human(t["last_seen"]),
-            )
-        self.stdout.print(table)
-
-    @subcommand(help="Search for a technology")
-    def search(
-        self,
-        technology: Annotated[str, typer.Argument(help="technology to search for")] = None,
-        domain: Annotated[
-            str, typer.Option("--domain", "-d", help="limit results to this domain (subdomains included)")
-        ] = None,
-        target_id: Annotated[
-            str, typer.Option("--target", "-t", help="limit results to this target (either name or ID)")
-        ] = None,
-        json: common.json = False,
-    ):
-        if json:
-            for technology in self.bbot_server.search_technology(technology, domain=domain, target_id=target_id):
-                self.print_pydantic_json(technology)
-            return
-
-        table = self.Table()
-        table.add_column("Technology", style=self.COLOR)
-        table.add_column("Host and Port", style="bold")
-        table.add_column("Last Seen", style=self.DARK_COLOR)
-        for technology in self.bbot_server.search_technology(technology, domain=domain, target_id=target_id):
-            table.add_row(
-                technology.technology,
-                technology.netloc,
-                self.timestamp_to_human(technology.last_seen),
             )
         self.stdout.print(table)
