@@ -51,17 +51,18 @@ class FindingsApplet(BaseApplet):
         if min_severity > max_severity:
             raise self.BBOTServerValueError("min_severity must be less than or equal to max_severity")
 
+        query = {
+            "severity_score": {
+                "$gte": min_severity,
+                "$lte": max_severity,
+            },
+        }
         async for finding in self.root._get_assets(
             type="Finding",
+            query=query,
             host=host,
             domain=domain,
             target_id=target_id,
-            query={
-                "severity_score": {
-                    "$gte": min_severity,
-                    "$lte": max_severity,
-                },
-            },
             search=search,
             sort=[("severity_score", -1)],
         ):
@@ -126,6 +127,9 @@ class FindingsApplet(BaseApplet):
             cves=cves,
             event=event,
         )
+        # inherit scope from the parent asset so as to make sure that target_id filtering works
+        if asset and hasattr(asset, "scope"):
+            finding.scope = asset.scope
         # update finding names
         findings = set(getattr(asset, "findings", []))
         findings.add(finding.name)

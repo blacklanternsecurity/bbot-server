@@ -1,4 +1,4 @@
-from pydantic import UUID4
+from uuid import UUID
 from omegaconf import OmegaConf
 
 from bbot_server.cli import common
@@ -36,7 +36,7 @@ class APIKeyCTL(BaseBBCTL):
         self.log.info(f"    - API KEY: {api_key}")
 
     @subcommand(help="Revoke an API key")
-    def delete(self, api_key: UUID4):
+    def delete(self, api_key: UUID):
         try:
             self.bbcfg.revoke_api_key(api_key)
         except KeyError:

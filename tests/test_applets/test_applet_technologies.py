@@ -1,3 +1,4 @@
+import asyncio
 from tests.test_applets.base import BaseAppletTest
 
 
@@ -70,7 +71,7 @@ class TestAppletTechnologies(BaseAppletTest):
         }
 
         # search for apache
-        techs = [t async for t in self.bbot_server.search_technology("apache")]
+        techs = [t async for t in self.bbot_server.get_technologies(search="apache")]
         assert len(techs) == 3
         assert set([(t.netloc, t.technology) for t in techs]) == {
             ("t1.tech.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
@@ -108,16 +109,19 @@ class TestAppletTechnologies(BaseAppletTest):
             ("t2.tech.evilcorp.com:443", "cpe:/a:microsoft:internet_information_services"),
         }
 
-        # # TODO: filter technologies by target id
-        # await self.bbot_server.create_target(seeds=["t1.tech.evilcorp.com"], name="target1")
-        # # wait for a sec for the target to be processed
-        # await asyncio.sleep(1)
-        # techs = [t async for t in self.bbot_server.get_technologies(target_id="target1")]
-        # assert len(techs) == 2
-        # assert {(t.netloc, t.technology) for t in techs} == {
-        #     ("t1.tech.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
-        #     ("t1.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
-        # }
+        # create a new target that matches two technologies
+        await self.bbot_server.create_target(seeds=["t1.tech.evilcorp.com"], name="target1")
+        # the technologies should be automatically associated with the target
+        for _ in range(60):
+            techs = [t async for t in self.bbot_server.get_technologies(target_id="target1")]
+            if len(techs) == 2 and {(t.netloc, t.technology) for t in techs} == {
+                ("t1.tech.evilcorp.com:80", "cpe:/a:apache:http_server:2.4.12"),
+                ("t1.tech.evilcorp.com:443", "cpe:/a:apache:http_server:2.4.12"),
+            }:
+                break
+            await asyncio.sleep(0.5)
+        else:
+            assert False, f"Technologies for target1 are not ok. techs: {techs}"
 
         # by exact match
         techs = [t async for t in self.bbot_server.get_technologies(technology="apache")]

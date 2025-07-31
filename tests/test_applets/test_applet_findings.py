@@ -1,3 +1,4 @@
+import asyncio
 from hashlib import sha1
 from tests.test_applets.base import BaseAppletTest
 
@@ -92,6 +93,17 @@ class TestAppletFindings(BaseAppletTest):
         assert len(findings2) == 2
         assert {f.name for f in findings2} == {"CVE-2024-12345", "CVE-2025-54321"}
         assert {f.host for f in findings2} == {"www.evilcorp.com", "api.evilcorp.com"}
+
+        # create a new target that matches one finding
+        await self.bbot_server.create_target(name="evilcorp3", seeds=["www.evilcorp.com"])
+        # the finding should be automatically associated with the target
+        for _ in range(60):
+            findings = [f async for f in self.bbot_server.get_findings(target_id="evilcorp3")]
+            if len(findings) == 1 and {f.name for f in findings} == {"CVE-2024-12345"}:
+                break
+            await asyncio.sleep(0.5)
+        else:
+            assert False, f"Findings for target3 are not ok. findings: {findings}"
 
         # filter findings by domain
         findings = [f async for f in self.bbot_server.get_findings(domain="evilcorp.com")]

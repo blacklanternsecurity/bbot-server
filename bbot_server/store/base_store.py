@@ -1,14 +1,14 @@
 from bbot_server.db.base import BaseDB
 
-
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorGridFSBucket
+from pymongo import AsyncMongoClient
+from gridfs import AsyncGridFSBucket
 
 
 class BaseMongoStore(BaseDB):
     async def setup(self):
-        self.client = AsyncIOMotorClient(self.uri)
+        self.client = AsyncMongoClient(self.uri)
         self.db = self.client.get_database(self.db_name)
-        self.fs = AsyncIOMotorGridFSBucket(self.db)
+        self.fs = AsyncGridFSBucket(self.db)
 
     async def cleanup(self):
-        self.client.close()
+        await self.client.close()

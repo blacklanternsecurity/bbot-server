@@ -1,5 +1,4 @@
-from pymongo import WriteConcern
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import WriteConcern, AsyncMongoClient
 
 
 from bbot_server.errors import BBOTServerNotFoundError, BBOTServerValueError
@@ -12,7 +11,7 @@ class MongoEventStore(BaseEventStore):
     """
 
     async def _setup(self):
-        self.client = AsyncIOMotorClient(self.uri)
+        self.client = AsyncMongoClient(self.uri)
         self.db = self.client[self.db_name]
         self.collection = self.db[self.table_name]
         self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
@@ -81,5 +80,5 @@ class MongoEventStore(BaseEventStore):
         await self.collection.delete_many({})
 
     async def cleanup(self):
-        self.client.close()
+        await self.client.close()
         await super().cleanup()
