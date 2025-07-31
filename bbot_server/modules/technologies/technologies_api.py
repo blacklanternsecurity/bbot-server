@@ -1,4 +1,5 @@
 from typing import Any
+from fastapi import Query
 
 from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint, Annotated
@@ -32,20 +33,29 @@ class TechnologiesApplet(BaseApplet):
         self,
         domain: str = None,
         host: str = None,
-        technology: str = None,
+        technology: Annotated[str, Query(description="filter by technology (must match exactly)")] = None,
+        search: Annotated[str, Query(description="search for a technology (fuzzy match)")] = None,
         target_id: str = None,
         archived: bool = False,
         active: bool = True,
+        sort: Annotated[list[str], Query(description="fields to sort by")] = ["-last_seen"],
     ):
-        query = {"type": "Technology"}
-        if host:
-            query["host"] = host
+        if technology and search:
+            raise self.BBOTServerValueError("Cannot filter by both technology and search")
+        query = {}
         if technology:
             query["technology"] = technology
-        if target_id:
-            target = await self.root._get_target(id=target_id, fields=["id"])
-            query["target_id"] = target["id"]
-        async for technology in self.root._query_assets(query, domain=domain, archived=archived, active=active):
+        async for technology in self.root._get_assets(
+            type="Technology",
+            query=query,
+            domain=domain,
+            host=host,
+            target_id=target_id,
+            archived=archived,
+            active=active,
+            search=search,
+            sort=sort,
+        ):
             yield Technology(**technology)
 
     @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database")
@@ -99,16 +109,6 @@ class TechnologiesApplet(BaseApplet):
         response_model=Technology,
         summary="Fuzzy search by technology (e.g. 'wordpress')",
     )
-    async def search_technology(self, technology: str, domain: str = None, target_id: str = None):
-        async for technology in self.root._get_assets(
-            type="Technology",
-            search=technology,
-            domain=domain,
-            target_id=target_id,
-            sort=[("last_seen", -1)],
-        ):
-            yield Technology(**technology)
-
     async def handle_event(self, event, asset):
         """
         When a new TECHNOLOGY event comes in, we check if it's been seen before. if not, we raise an activity.

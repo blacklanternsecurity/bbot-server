@@ -79,7 +79,9 @@ class TargetsApplet(BaseApplet):
         # when a target is created or modified, we run a scope refresh on all the assets
         # debounce is set to 0.0 here because it's critical we're using the latest version of the target
         if activity.type in ("TARGET_CREATED", "TARGET_UPDATED"):
-            for target_id in await self.get_target_ids(debounce=0.0):
+            self.log.debug(f"Target created or updated. Refreshing asset scope")
+            target_ids = await self.get_target_ids(debounce=0.0)
+            for target_id in target_ids:
                 target = await self._get_bbot_target(target_id, debounce=0.0)
                 for host in await self.root.get_hosts():
                     await self.refresh_asset_scope(host, target, target_id, emit_activity=True)
@@ -94,7 +96,14 @@ class TargetsApplet(BaseApplet):
     async def refresh_asset_scope(self, host: str, target: BBOTTarget, target_id: UUID, emit_activity: bool = False):
         """
         Given a host, evaluate it against all the current targets and tag it with each matching target's ID
+
+        Args:
+            host: the host to refresh the scope for
+            target: the target to check against (BBOTTarget instance, this is passed in for performance reasons)
+            target_id: the target ID
+            emit_activity: whether to emit an activity when a change is detected in the asset's scope
         """
+        self.log.debug(f"Refreshing asset scope for host {host}")
         asset = await self.root._get_asset(host=host, fields=["scope", "dns_links"])
         if asset is None:
             raise self.BBOTServerNotFoundError(f"Asset not found for host {host}")
@@ -110,7 +119,7 @@ class TargetsApplet(BaseApplet):
                 {"host": host},
                 {"$set": {"scope": [str(_target_id) for _target_id in asset_scope]}},
             )
-            print(f"Updated {results.modified_count} assets for host {host}")
+            self.log.debug(f"Updated {results.modified_count} assets for host {host}")
             if emit_activity:
                 await self.emit_activity(scope_result)
 
@@ -288,7 +297,7 @@ class TargetsApplet(BaseApplet):
             counter += 1
         return f"Target {counter}"
 
-    def _check_scope(self, host, resolved_hosts, target, target_id, asset_scope=None) -> Activity:
+    def _check_scope(self, host, resolved_hosts, target: BBOTTarget, target_id, asset_scope=None) -> Activity:
         """
         Given a host and its DNS records, check whether it's in scope for a given target
 
@@ -338,6 +347,7 @@ class TargetsApplet(BaseApplet):
             scope_after = sorted(set(asset_scope) - set([target_id]))
             # it used to be in-scope, but not anymore
             if scope_after != asset_scope:
+                self.log.debug(f"Host {host} used to be in scope for target {target_id}, but is now blacklisted")
                 reason = f"blacklisted host {blacklisted_reason}"
                 description = f"Host [COLOR]{host}[/COLOR] became out-of-scope due to {reason}"
                 return self.make_activity(
@@ -357,6 +367,7 @@ class TargetsApplet(BaseApplet):
             scope_after = sorted(set(asset_scope) | set([target_id]))
             # it wasn't in-scope, but now it is
             if scope_after != asset_scope:
+                self.log.debug(f"Host {host} used to be out-of-scope for target {target_id}, but is now whitelisted")
                 reason = f"whitelisted host {whitelisted_reason}"
                 description = f"Host [COLOR]{host}[/COLOR] became in-scope due to {reason}"
                 return self.make_activity(
