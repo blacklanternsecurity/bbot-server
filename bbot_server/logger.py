@@ -22,10 +22,12 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(logging.Formatter(FORMAT, datefmt="[%X]"))
 logger.addHandler(console_handler)
 
-# Create file handler for debug logs in ~/.bbot_server/debug.log
+# Create file handler for debug logs in ~/.bbot_server/debug.log (plain text)
+# We only compress the rotated log files, not the active one, so keep the
+# base file extension as .log rather than .log.gz.
 log_dir = Path.home() / ".bbot_server"
 log_dir.mkdir(exist_ok=True)
-log_file = log_dir / "debug.log.gz"
+log_file = log_dir / "debug.log"
 
 
 class GzipRotatingFileHandler(RotatingFileHandler):
@@ -41,9 +43,11 @@ class GzipRotatingFileHandler(RotatingFileHandler):
 
     def rotation_filename(self, default_name):
         """
-        Modify the rotated filename to include .gz extension
+        Ensure the rotated filename ends with `.gz` so that the compressed
+        file is easy to identify. If the default_name already includes the
+        suffix (it should not, but guard just in case) we leave it untouched.
         """
-        return default_name + ".gz"
+        return default_name if default_name.endswith(".gz") else default_name + ".gz"
 
     def rotate(self, source, dest):
         """

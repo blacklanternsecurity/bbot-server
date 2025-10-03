@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from omegaconf import OmegaConf
 
-from bbot_server.errors import BBOTServerError
+from bbot_server.errors import BBOTServerError, BBOTServerValueError
 
 
 log = logging.getLogger("bbot_server.config")
@@ -96,7 +96,10 @@ def refresh_api_keys():
         if keys:
             if isinstance(keys, str):
                 keys = [keys]
-            api_keys.update(keys)
+            try:
+                api_keys.update([uuid.UUID(key) for key in keys])
+            except ValueError as e:
+                raise BBOTServerValueError(f"Invalid API key in config") from e
     VALID_API_KEYS = api_keys
 
 
@@ -108,12 +111,17 @@ def get_api_keys():
 
 
 def get_api_key():
+    # prioritize single api key if set
     try:
-        return next(iter(VALID_API_KEYS))
-    except StopIteration:
-        raise BBOTServerError(
-            f"No API keys found in the config. Please set `api_keys` in your config file or run `bbctl server apikey add`"
-        )
+        return str(uuid.UUID(BBOT_SERVER_CONFIG.get("api_key", "")))
+    except ValueError:
+        # otherwise, return the first valid API key
+        try:
+            return str(next(iter(VALID_API_KEYS)))
+        except StopIteration:
+            raise BBOTServerError(
+                f"No API keys found in the config. Please set `api_keys` in your config file or run `bbctl server apikey add`"
+            )
 
 
 def check_api_key(api_key: str):
@@ -124,14 +132,14 @@ def check_api_key(api_key: str):
     if not api_key:
         return False, "API key is required"
     try:
-        api_key = str(uuid.UUID(api_key))
+        api_key = uuid.UUID(api_key)
     except Exception:
         return False, "API key must be a valid UUID"
     # if the API key is invalid, try refreshing the config
     if api_key not in VALID_API_KEYS:
         refresh_config()
         if api_key not in VALID_API_KEYS:
-            return False, f'Invalid API key "{api_key}" not in {VALID_API_KEYS}'
+            return False, f'Invalid API key "{api_key}"'
     return True, "Valid API key"
 
 
@@ -142,14 +150,14 @@ def add_api_key():
     Note: writes the config to disk
     """
     global VALID_API_KEYS
-    api_key = str(uuid.uuid4())
+    api_key = uuid.uuid4()
     VALID_API_KEYS.add(api_key)
-    BBOT_SERVER_CONFIG["api_keys"] = sorted(VALID_API_KEYS)
+    BBOT_SERVER_CONFIG["api_keys"] = sorted([str(key) for key in VALID_API_KEYS])
 
     # write new API key to config
     existing_config = OmegaConf.load(BBOT_SERVER_CONFIG_PATH)
     existing_api_keys = set(existing_config.get("api_keys", []))
-    existing_api_keys.add(api_key)
+    existing_api_keys.add(str(api_key))
     existing_config["api_keys"] = sorted(existing_api_keys)
     OmegaConf.save(existing_config, BBOT_SERVER_CONFIG_PATH)
 
@@ -163,7 +171,11 @@ def revoke_api_key(api_key: str):
     Revoke an API key from the config.
     """
     global VALID_API_KEYS
-    VALID_API_KEYS.remove(str(api_key))
+    try:
+        api_key = str(uuid.UUID(api_key))
+    except ValueError as e:
+        raise BBOTServerValueError(f"Invalid API key") from e
+    VALID_API_KEYS.remove(api_key)
     refresh_config()
 
 
