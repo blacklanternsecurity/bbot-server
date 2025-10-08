@@ -1,5 +1,7 @@
 import asyncio
 
+from bbot_server.assets import Asset
+
 from tests.test_applets.base import BaseAppletTest
 from ..conftest import INGEST_PROCESSING_DELAY
 
@@ -49,8 +51,15 @@ class TestAppletAssets(BaseAppletTest):
         else:
             assert hosts == expected_hosts, "Hosts don't match expected hosts"
 
+        assets = [a async for a in self.bbot_server.get_assets()]
+        assert len(assets) == len(expected_hosts)
+        assert all(isinstance(a, Asset) for a in assets)
+        assets = [a async for a in self.bbot_server.query_assets()]
+        assert len(assets) == len(expected_hosts)
+        assert all(isinstance(a, dict) for a in assets)
+
     async def after_scan_2(self):
-        assert set(await self.bbot_server.get_hosts()) == {
+        expected_hosts = {
             "1.2.3.4",
             "127.0.0.1",
             "127.0.0.2",
@@ -69,6 +78,14 @@ class TestAppletAssets(BaseAppletTest):
             "t2.tech.evilcorp.com",
             "testevilcorp.com",
         }
+        assert set(await self.bbot_server.get_hosts()) == expected_hosts
+
+        assets = [a async for a in self.bbot_server.get_assets()]
+        assert len(assets) == len(expected_hosts)
+        assert all(isinstance(a, Asset) for a in assets)
+        assets = [a async for a in self.bbot_server.query_assets()]
+        assert len(assets) == len(expected_hosts)
+        assert all(isinstance(a, dict) for a in assets)
 
     async def after_archive(self):
         assert set(await self.bbot_server.get_hosts()) == {

@@ -1,5 +1,6 @@
 import orjson
 import logging
+from bson import ObjectId
 from pydantic import BaseModel, create_model
 from datetime import datetime, timezone, timedelta
 
@@ -52,6 +53,15 @@ def timestamp_to_human(timestamp: float, include_hours: bool = True) -> str:
     return datetime.fromtimestamp(timestamp).strftime(format_str)
 
 
+def orjson_serializer(obj):
+    """
+    Enable orjson to serialize Mongo's ObjectIds
+    """
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    return obj
+
+
 def smart_encode(obj):
     # handle both python and pydantic objects, as well as strings
     if isinstance(obj, BaseModel):
@@ -61,7 +71,7 @@ def smart_encode(obj):
     elif isinstance(obj, bytes):
         return obj
     else:
-        return orjson.dumps(obj)
+        return orjson.dumps(obj, default=orjson_serializer)
 
 
 def combine_pydantic_models(models, model_name, base_model=BaseModel):
