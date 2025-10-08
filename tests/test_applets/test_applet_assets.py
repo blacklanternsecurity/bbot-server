@@ -15,7 +15,11 @@ class TestAppletAssets(BaseAppletTest):
         #     if field_info.default_factory is None:
         #         raise ValueError(f"Field '{field}' has no default factory")
 
+        # hosts should be empty
         assert await self.bbot_server.get_hosts() == []
+        # assets should be empty
+        assert [a async for a in self.bbot_server.get_assets()] == []
+        assert [a async for a in self.bbot_server.query_assets()] == []
 
     async def after_scan_1(self):
         # since this is our first test, and runners are dog slow, it can take a while for the watchdog etc. to get ready

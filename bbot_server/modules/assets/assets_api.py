@@ -12,6 +12,22 @@ class AssetsApplet(BaseApplet):
     @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
     async def get_assets(
         self,
+        domain: str = None,
+        target_id: str = None,
+    ):
+        """
+        Stream all assets. A simple, high
+
+        Args:
+            domain: Filter assets by domain or subdomain
+            target_id: Filter assets by target ID or name
+        """
+        async for asset in self._get_assets(domain=domain, target_id=target_id):
+            yield self.model(**asset)
+
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query assets")
+    async def query_assets(
+        self,
         query: dict = None,
         search: str = None,
         host: str = None,
@@ -23,19 +39,29 @@ class AssetsApplet(BaseApplet):
         ignored: bool = False,
         fields: list[str] = None,
         sort: list[str | tuple[str, int]] = None,
-    ):
+    ) -> list[Asset]:
         """
-        Stream all assets.
+        Advanced querying of assets. Choose your own filters and fields.
 
         Args:
-            domain: Filter assets by domain or subdomain
-            target_id: Filter assets by target ID or name
+            query: Additional query parameters (mongo)
+            search: Search using mongo's text index
+            host: Filter assets by host (exact match only)
+            domain: Filter assets by domain (subdomains allowed)
+            type: Filter assets by type (Asset, Technology, Vulnerability, etc.)
+            target_id: Filter assets by target ID
+            archived: Filter archived assets
+            active: Filter active assets
+            ignored: Filter ignored assets
+            fields: List of fields to return
+            sort: Fields and direction to sort by. Accepts either a list of field names or a list of tuples (field, direction).
+                E.g. sort=["-last_seen", "technology"] or sort=[("last_seen", -1), ("technology", 1)]
         """
         async for asset in self._get_assets(
-            domain=domain,
             query=query,
             search=search,
             host=host,
+            domain=domain,
             type=type,
             target_id=target_id,
             archived=archived,
@@ -44,7 +70,8 @@ class AssetsApplet(BaseApplet):
             fields=fields,
             sort=sort,
         ):
-            yield self.model(**asset)
+            yield asset
+
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: str) -> Asset:
