@@ -72,7 +72,6 @@ class AssetsApplet(BaseApplet):
         ):
             yield asset
 
-
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: str) -> Asset:
         asset = await self.collection.find_one({"host": host})
