@@ -108,7 +108,6 @@ class AssetsApplet(BaseApplet):
 
         Lets you specify your own custom query, but also provides some convenience filters.
 
-
         Args:
             query: Additional query parameters (mongo)
             search: Search using mongo's text index
@@ -153,6 +152,8 @@ class AssetsApplet(BaseApplet):
             query["archived"] = {"$eq": archived}
 
         self.log.debug(f"Querying assets: query={query} / fields={fields}")
+
+        # TODO: sanitize query
 
         cursor = self.collection.find(query, fields)
         if sort:
