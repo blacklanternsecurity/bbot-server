@@ -10,7 +10,20 @@ class AssetsApplet(BaseApplet):
     model = Asset
 
     @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
-    async def get_assets(self, domain: str = None, target_id: str = None):
+    async def get_assets(
+        self,
+        query: dict = None,
+        search: str = None,
+        host: str = None,
+        domain: str = None,
+        type: str = "Asset",
+        target_id: str = None,
+        archived: bool = False,
+        active: bool = True,
+        ignored: bool = False,
+        fields: list[str] = None,
+        sort: list[str | tuple[str, int]] = None,
+    ):
         """
         Stream all assets.
 
@@ -18,7 +31,19 @@ class AssetsApplet(BaseApplet):
             domain: Filter assets by domain or subdomain
             target_id: Filter assets by target ID or name
         """
-        async for asset in self._get_assets(domain=domain, target_id=target_id):
+        async for asset in self._get_assets(
+            domain=domain,
+            query=query,
+            search=search,
+            host=host,
+            type=type,
+            target_id=target_id,
+            archived=archived,
+            active=active,
+            ignored=ignored,
+            fields=fields,
+            sort=sort,
+        ):
             yield self.model(**asset)
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
