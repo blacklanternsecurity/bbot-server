@@ -168,6 +168,7 @@ class AssetsApplet(BaseApplet):
             target_id: Filter assets by target ID
             archived: Filter archived assets
             active: Filter active assets
+
             ignored: Filter ignored assets
             fields: List of fields to return
             sort: Fields and direction to sort by. Accepts either a list of field names or a list of tuples (field, direction).
@@ -175,9 +176,9 @@ class AssetsApplet(BaseApplet):
         """
         query = dict(query or {})
         query["ignored"] = ignored
-        if type is not None:
+        if ("type" not in query) and (type is not None):
             query["type"] = type
-        if host is not None:
+        if ("host" not in query) and (host is not None):
             query["host"] = host
         if domain is not None:
             reversed_host = domain[::-1]
