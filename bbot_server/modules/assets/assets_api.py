@@ -168,7 +168,6 @@ class AssetsApplet(BaseApplet):
             target_id: Filter assets by target ID
             archived: Filter archived assets
             active: Filter active assets
-
             ignored: Filter ignored assets
             fields: List of fields to return
             sort: Fields and direction to sort by. Accepts either a list of field names or a list of tuples (field, direction).
