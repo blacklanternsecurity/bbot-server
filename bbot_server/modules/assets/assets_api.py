@@ -175,9 +175,9 @@ class AssetsApplet(BaseApplet):
         """
         query = dict(query or {})
         query["ignored"] = ignored
-        if type is not None:
+        if ("type" not in query) and (type is not None):
             query["type"] = type
-        if host is not None:
+        if ("host" not in query) and (host is not None):
             query["host"] = host
         if domain is not None:
             reversed_host = domain[::-1]
