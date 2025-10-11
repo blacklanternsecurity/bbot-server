@@ -39,6 +39,7 @@ class AssetsApplet(BaseApplet):
         ignored: bool = False,
         fields: list[str] = None,
         sort: list[str | tuple[str, int]] = None,
+        aggregate: list[dict] = None,
     ) -> list[Asset]:
         """
         Advanced querying of assets. Choose your own filters and fields.
@@ -69,8 +70,13 @@ class AssetsApplet(BaseApplet):
             ignored=ignored,
             fields=fields,
             sort=sort,
+            aggregate=aggregate,
         ):
             yield asset
+
+    @api_endpoint("/aggregate", methods=["POST"], summary="Aggregate assets")
+    async def aggregate_assets(self, aggregate: list[dict]):
+        return await self._aggregate_assets(aggregate)
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: str) -> Asset:
@@ -153,6 +159,7 @@ class AssetsApplet(BaseApplet):
         ignored: bool = False,
         fields: list[str] = None,
         sort: list[str | tuple[str, int]] = None,
+        aggregate: list[dict] = None,
     ):
         """
         Lowest-level query function for getting assets from the database.
@@ -174,20 +181,21 @@ class AssetsApplet(BaseApplet):
                 E.g. sort=["-last_seen", "technology"] or sort=[("last_seen", -1), ("technology", 1)]
         """
         query = dict(query or {})
-        query["ignored"] = ignored
+        if not "ignored" in query:
+            query["ignored"] = ignored
         if ("type" not in query) and (type is not None):
             query["type"] = type
         if ("host" not in query) and (host is not None):
             query["host"] = host
-        if domain is not None:
+        if ("reverse_host" not in query) and (domain is not None):
             reversed_host = domain[::-1]
             # Match exact domain or subdomains (with dot separator)
             query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
-        if search is not None:
+        if ("$text" not in query) and (search is not None):
             query["$text"] = {"$search": search}
         fields = {f: 1 for f in fields} if fields else None
 
-        if target_id is not None:
+        if ("scope" not in query) and (target_id is not None):
             target_query_kwargs = {}
             if target_id != "DEFAULT":
                 target_query_kwargs["id"] = target_id
@@ -195,7 +203,7 @@ class AssetsApplet(BaseApplet):
             query["scope"] = target["id"]
 
         # if both active and archived are true, we don't need to filter anything, because we are returning all assets
-        if not (active and archived):
+        if not (active and archived) and ("archived" not in query):
             # if both are false, we need to raise an error
             if not (active or archived):
                 raise ValueError("Must query at least one of active or archived")
@@ -206,18 +214,24 @@ class AssetsApplet(BaseApplet):
 
         # TODO: sanitize query
 
-        cursor = self.collection.find(query, fields)
-        if sort:
-            processed_sort = []
-            for field in sort:
-                if isinstance(field, str):
-                    processed_sort.append((field.lstrip("+-"), -1 if field.startswith("-") else 1))
-                else:
-                    # assume it's already a tuple (field, direction)
-                    processed_sort.append(tuple(field))
-            cursor = cursor.sort(processed_sort)
-        async for asset in cursor:
-            yield asset
+        if aggregate is not None:
+            aggregate_pipeline = [{"$match": query}] + aggregate
+            cursor = await self.collection.aggregate(aggregate_pipeline)
+            async for agg in cursor:
+                yield agg
+        else:
+            cursor = self.collection.find(query, fields)
+            if sort:
+                processed_sort = []
+                for field in sort:
+                    if isinstance(field, str):
+                        processed_sort.append((field.lstrip("+-"), -1 if field.startswith("-") else 1))
+                    else:
+                        # assume it's already a tuple (field, direction)
+                        processed_sort.append(tuple(field))
+                cursor = cursor.sort(processed_sort)
+            async for asset in cursor:
+                yield asset
 
     async def _get_asset(
         self,
@@ -232,6 +246,10 @@ class AssetsApplet(BaseApplet):
         if host is not None:
             query["host"] = host
         return await self.collection.find_one(query, fields)
+
+    async def _aggregate_assets(self, aggregate: list[dict]):
+        cursor = self.collection.aggregate(aggregate)
+        return await cursor.to_list(length=None)
 
     async def _update_asset(self, host: str, update: dict):
         return await self.strict_collection.update_many({"host": host}, {"$set": update})

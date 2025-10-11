@@ -87,6 +87,33 @@ class TestAppletAssets(BaseAppletTest):
         assert len(assets) == len(expected_hosts)
         assert all(isinstance(a, dict) for a in assets)
 
+        # asset types other than findings
+        technologies = [a async for a in self.bbot_server.query_assets(type="Technology")]
+        assert technologies
+        assert all([a["type"] == "Technology" for a in technologies])
+
+        # query should override type
+        findings = [a async for a in self.bbot_server.query_assets(type="Technology", query={"type": "Finding"})]
+        assert findings
+        assert all([a["type"] == "Finding" for a in findings])
+        # same with host
+        assets = [a async for a in self.bbot_server.query_assets(host="t1.tech.evilcorp.com", query={"host": "t2.tech.evilcorp.com"})]
+        assert assets
+        assert all([a["host"] == "t2.tech.evilcorp.com" for a in assets])
+        # same with domain
+        assets = [a async for a in self.bbot_server.query_assets(domain="evilcorp.com", query={"reverse_host": {"$regex": "^moc.swanozama"}})]
+        assert assets
+        assert all([a["host"].endswith("amazonaws.com") for a in assets])
+
+        # test aggregation feature
+        aggregate_result = [a async for a in self.bbot_server.query_assets(
+            type="Finding",
+            aggregate=[
+                {"$group": {"_id": "$name", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}}
+            ])]
+        assert aggregate_result == [{'_id': 'CVE-2025-54321', 'count': 2}, {'_id': 'CVE-2024-12345', 'count': 2}]
+
     async def after_archive(self):
         assert set(await self.bbot_server.get_hosts()) == {
             "1.2.3.4",
