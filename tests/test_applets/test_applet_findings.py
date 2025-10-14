@@ -140,7 +140,7 @@ class TestAppletFindings(BaseAppletTest):
         aggregate_result = [
             f
             async for f in self.bbot_server.query_findings(
-                aggregate=[{"$group": {"_id": "$name", "count": {"$sum": 1}}}, {"$sort": {"_id": -1}}]
+                aggregate=[{"$group": {"_id": "$name", "count": {"$sum": 1}}}, {"$sort": {"_id": 1}}]
             )
         ]
         assert aggregate_result == [{"_id": "CVE-2024-12345", "count": 2}, {"_id": "CVE-2025-54321", "count": 2}]

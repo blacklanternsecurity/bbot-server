@@ -62,7 +62,9 @@ class CloudApplet(BaseApplet):
     ) -> dict[str, int]:
         stats = {}
         domain = domain or None
-        async for asset in self.root._get_assets(domain=domain, target_id=target_id, fields=["cloud_providers"]):
+        async for asset in self.root._get_assets(
+            type="Asset", domain=domain, target_id=target_id, fields=["cloud_providers"]
+        ):
             cloud_providers = asset.get("cloud_providers", [])
             for provider in cloud_providers:
                 try:

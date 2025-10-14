@@ -53,6 +53,9 @@ class TestAppletAssets(BaseAppletTest):
         else:
             assert hosts == expected_hosts, "Hosts don't match expected hosts"
 
+        hosts = {a.host async for a in self.bbot_server.list_assets()}
+        assert hosts == expected_hosts
+
         assets = [a async for a in self.bbot_server.list_assets()]
         assert len(assets) == len(expected_hosts)
         assert all(isinstance(a, Asset) for a in assets)
@@ -122,7 +125,7 @@ class TestAppletAssets(BaseAppletTest):
             a
             async for a in self.bbot_server.query_assets(
                 type="Finding",
-                aggregate=[{"$group": {"_id": "$name", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}],
+                aggregate=[{"$group": {"_id": "$name", "count": {"$sum": 1}}}, {"$sort": {"_id": -1}}],
             )
         ]
         assert aggregate_result == [{"_id": "CVE-2025-54321", "count": 2}, {"_id": "CVE-2024-12345", "count": 2}]
@@ -132,11 +135,15 @@ class TestAppletAssets(BaseAppletTest):
             [a async for a in self.bbot_server.query_assets(query={"host": {"$where": "js"}})]
 
         # ensure aggregation sanitization is working
-        with pytest.raises(BBOTServerValueError, match=r"Unauthorized MongoDB aggregation operator: \$where"):
+        with pytest.raises(BBOTServerValueError, match=r"Unauthorized MongoDB aggregation operator: \$out"):
             [
                 a
                 async for a in self.bbot_server.query_assets(
-                    aggregate=[{"$group": {"_id": "$name", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]
+                    aggregate=[
+                        {"$group": {"_id": "$name", "count": {"$sum": 1}}},
+                        {"$sort": {"count": -1}},
+                        {"$out": "assets_test"},
+                    ]
                 )
             ]
 

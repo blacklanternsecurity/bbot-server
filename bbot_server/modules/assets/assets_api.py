@@ -23,7 +23,7 @@ class AssetsApplet(BaseApplet):
             domain: Filter assets by domain or subdomain
             target_id: Filter assets by target ID or name
         """
-        async for asset in self._get_assets(domain=domain, target_id=target_id):
+        async for asset in self._get_assets(type="Asset", domain=domain, target_id=target_id):
             yield self.model(**asset)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query assets")
@@ -75,10 +75,6 @@ class AssetsApplet(BaseApplet):
             aggregate=aggregate,
         ):
             yield asset
-
-    @api_endpoint("/aggregate", methods=["POST"], summary="Aggregate assets")
-    async def aggregate_assets(self, aggregate: list[dict]):
-        return await self._aggregate_assets(aggregate)
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: str) -> Asset:
@@ -142,7 +138,7 @@ class AssetsApplet(BaseApplet):
             target_id: Only return hosts belonging to this target (can be either name or ID)
         """
         hosts = []
-        async for asset in self._get_assets(domain=domain, target_id=target_id, fields=["host"]):
+        async for asset in self._get_assets(type="Asset", domain=domain, target_id=target_id, fields=["host"]):
             host = asset.get("host", None)
             if host is not None:
                 hosts.append(host)
@@ -251,10 +247,6 @@ class AssetsApplet(BaseApplet):
         if host is not None:
             query["host"] = host
         return await self.collection.find_one(query, fields)
-
-    async def _aggregate_assets(self, aggregate: list[dict]):
-        cursor = self.collection.aggregate(aggregate)
-        return await cursor.to_list(length=None)
 
     async def _update_asset(self, host: str, update: dict):
         return await self.strict_collection.update_many({"host": host}, {"$set": update})
