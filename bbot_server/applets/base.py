@@ -397,7 +397,7 @@ class BaseApplet:
 
         This is meant to be a base method with only query logic common to all collections in BBOT server.
 
-        For any additional custom logic like differnt default kwarg values, etc., override this method on applet-by-applet basis.
+        For any additional custom logic like different default kwarg values, etc., override this method on applet-by-applet basis.
 
         Example:
             async def make_bbot_query(self, type: str = "Asset", query: dict = None, ignored: bool = False, **kwargs):

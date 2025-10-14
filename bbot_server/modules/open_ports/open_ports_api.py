@@ -49,12 +49,12 @@ class OpenPortsApplet(BaseApplet):
     @api_endpoint("/list", methods=["GET"], summary="Get all the open ports for all hosts")
     async def get_open_ports(self, domain: str = None, target_id: str = None) -> dict[str, list[int]]:
         open_ports = {}
-        query = await self.root._make_asset_query(
+        async for asset in self.mongo_iter(
             query={"open_ports": {"$exists": True, "$ne": []}},
             domain=domain,
             target_id=target_id,
-        )
-        async for asset in self._mongo_query(query=query, fields=["host", "open_ports"]):
+            fields=["host", "open_ports"],
+        ):
             open_ports[asset["host"]] = asset["open_ports"]
         return open_ports
 
@@ -67,11 +67,14 @@ class OpenPortsApplet(BaseApplet):
 
     @api_endpoint("/search/{port}", methods=["POST"], summary="Search for assets with a given open port", mcp=True)
     async def search_by_open_port(self, port: int, target_id: str = None) -> list[str]:
-        query = await self.root._make_asset_query(
-            query={"open_ports": port},
-            target_id=target_id,
-        )
-        assets = [a async for a in self._mongo_query(query=query, fields=["host"])]
+        assets = [
+            a
+            async for a in self.mongo_iter(
+                query={"open_ports": port},
+                target_id=target_id,
+                fields=["host"],
+            )
+        ]
         return [a.get("host") for a in assets]
 
     async def refresh(self, asset, events_by_type):
