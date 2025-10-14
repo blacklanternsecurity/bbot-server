@@ -14,11 +14,12 @@ from pymongo.errors import OperationFailure
 from bbot_server.assets import Asset
 from bbot.models.pydantic import Event
 from bbot_server.modules import API_MODULES
-from bbot_server.errors import BBOTServerError
 from bbot.core.helpers import misc as bbot_misc
 from bbot_server.applets._routing import ROUTE_TYPES
 from bbot_server.utils import misc as bbot_server_misc
 from bbot_server.modules.activity.activity_models import Activity
+from bbot_server.errors import BBOTServerError, BBOTServerValueError
+from bbot_server.utils.misc import _sanitize_mongo_query, _sanitize_mongo_aggregation
 
 word_regex = re.compile(r"\W+")
 
@@ -379,6 +380,110 @@ class BaseApplet:
     async def _emit_activity(self, activity: Activity):
         self.log.info(f"Emitting activity: {activity.type} - {activity.description}")
         await self.root.message_queue.publish_asset(activity)
+
+    async def make_bbot_query(
+        self,
+        query: dict = None,
+        search: str = None,
+        host: str = None,
+        domain: str = None,
+        type: str = None,
+        target_id: str = None,
+        archived: bool = False,
+        active: bool = True,
+    ):
+        """
+        Streamlines querying of a Mongo collection with BBOT-specific filters like "host", "reverse_host", etc.
+
+        This is meant to be a base method with only query logic common to all collections in BBOT server.
+
+        For any additional custom logic like differnt default kwarg values, etc., override this method on applet-by-applet basis.
+
+        Example:
+            async def make_bbot_query(self, type: str = "Asset", query: dict = None, ignored: bool = False, **kwargs):
+                query = dict(query or {})
+                if ignored is not None and "ignored" not in query:
+                    query["ignored"] = ignored
+                return await super().make_bbot_query(type=type, query=query, **kwargs)
+        """
+        query = dict(query or {})
+        # AI is dumb and likes to pass in blank strings for stuff
+        domain = domain or None
+        target_id = target_id or None
+        type = type or None
+        host = host or None
+        search = search or None
+
+        if ("type" not in query) and (type is not None):
+            query["type"] = type
+        if ("host" not in query) and (host is not None):
+            query["host"] = host
+        if ("reverse_host" not in query) and (domain is not None):
+            reversed_host = domain[::-1]
+            # Match exact domain or subdomains (with dot separator)
+            query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
+        if ("$text" not in query) and (search is not None):
+            query["$text"] = {"$search": search}
+
+        if ("scope" not in query) and (target_id is not None):
+            target_query_kwargs = {}
+            if target_id != "DEFAULT":
+                target_query_kwargs["id"] = target_id
+            target = await self.root.targets._get_target(**target_query_kwargs, fields=["id"])
+            query["scope"] = target["id"]
+
+        # if both active and archived are true, we don't need to filter anything, because we are returning all assets
+        if not (active and archived) and ("archived" not in query):
+            # if both are false, we need to raise an error
+            if not (active or archived):
+                raise BBOTServerValueError("Must query at least one of active or archived")
+            # only one should be true
+            query["archived"] = {"$eq": archived}
+
+        return _sanitize_mongo_query(query)
+
+    async def mongo_iter(
+        self,
+        query: dict = None,
+        aggregate: list[dict] = None,
+        sort: list[str | tuple[str, int]] = None,
+        fields: list[str] = None,
+        limit: int = None,
+        **kwargs,
+    ):
+        """
+        Lazy iterator over a Mongo collection with BBOT-specific filters and aggregation
+        """
+        query = await self.make_bbot_query(query=query, **kwargs)
+        fields = {f: 1 for f in fields} if fields else None
+
+        log.info(f"Querying {self.collection.name}: query={query}, fields={fields}")
+
+        if aggregate is not None:
+            # sanitize aggregation pipeline
+            aggregate = _sanitize_mongo_aggregation(aggregate)
+            aggregate_pipeline = [{"$match": query}] + aggregate
+            if limit is not None:
+                aggregate_pipeline.append({"$limit": limit})
+            log.info(f"Querying {self.collection.name}: aggregate={aggregate_pipeline}")
+            cursor = await self.collection.aggregate(aggregate_pipeline)
+            async for agg in cursor:
+                yield agg
+        else:
+            cursor = self.collection.find(query, fields)
+            if sort:
+                processed_sort = []
+                for field in sort:
+                    if isinstance(field, str):
+                        processed_sort.append((field.lstrip("+-"), -1 if field.startswith("-") else 1))
+                    else:
+                        # assume it's already a tuple (field, direction)
+                        processed_sort.append(tuple(field))
+                cursor = cursor.sort(processed_sort)
+            if limit is not None:
+                cursor = cursor.limit(limit)
+            async for asset in cursor:
+                yield asset
 
     def include_app(self, app_class):
         self.log.debug(f"{self.name_lowercase} including applet {app_class.name_lowercase}")

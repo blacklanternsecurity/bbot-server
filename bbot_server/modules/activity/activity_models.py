@@ -31,6 +31,7 @@ class Activity(BaseBBOTServerModel):
     type: Annotated[str, "indexed"]
     timestamp: Annotated[float, "indexed"]
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
+    archived: Annotated[bool, "indexed"] = False
     description: Annotated[str, "indexed"]
     description_colored: str = Field(default="")
     detail: dict[str, Any] = {}

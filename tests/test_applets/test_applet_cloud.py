@@ -39,7 +39,7 @@ class TestAppletCloud(BaseAppletTest):
             "Amazon": 1,
         }
 
-        activities = [a async for a in self.bbot_server.get_activities(type="CLOUD_PROVIDER_CHANGE")]
+        activities = [a async for a in self.bbot_server.list_activities(type="CLOUD_PROVIDER_CHANGE")]
         assert len(activities) == 4
         activity1, activity2, activity3, activity4 = activities
         assert activity1.host == "cname.evilcorp.com"

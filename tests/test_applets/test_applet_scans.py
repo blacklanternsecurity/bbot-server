@@ -85,7 +85,7 @@ async def test_scan_with_invalid_preset(bbot_server, bbot_agent):
     await bbot_server.start_scan(name="scan1", preset_id=preset.id, target_id=target.id)
 
     for _ in range(30):
-        activities = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
+        activities = [a async for a in bbot_server.list_activities(type="SCAN_STATUS")]
         if any(a.detail["scan_status"] == "FAILED" for a in activities):
             break
         await asyncio.sleep(0.5)
@@ -130,7 +130,7 @@ async def test_basic_scan_run(bbot_server):
         scans = [a async for a in bbot_server.get_scans()]
         scan_status_finished = len(scans) == 1 and scans[0].status == "FINISHED"
 
-        scan_status_activities = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
+        scan_status_activities = [a async for a in bbot_server.list_activities(type="SCAN_STATUS")]
         scan_statuses = [a.detail["scan_status"] for a in scan_status_activities]
         scan_status_match = scan_statuses == [
             "STARTING",
@@ -164,7 +164,7 @@ async def test_basic_scan_run(bbot_server):
 
     for _ in range(120):
         # wait for agent to be ready again
-        agent_statuses = [a async for a in bbot_server.get_activities(type="AGENT_STATUS")]
+        agent_statuses = [a async for a in bbot_server.list_activities(type="AGENT_STATUS")]
         agent_statuses = [a.detail["status"] for a in agent_statuses]
         agent_status_match = agent_statuses == ["ONLINE", "READY", "BUSY", "READY"]
 

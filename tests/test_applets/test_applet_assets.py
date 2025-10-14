@@ -120,6 +120,10 @@ class TestAppletAssets(BaseAppletTest):
         assert assets
         assert all([a["host"].endswith("amazonaws.com") for a in assets])
 
+        # test limit feature
+        assets = [a async for a in self.bbot_server.query_assets(limit=1)]
+        assert len(assets) == 1
+
         # test aggregation feature
         aggregate_result = [
             a

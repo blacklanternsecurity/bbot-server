@@ -61,19 +61,12 @@ class CloudApplet(BaseApplet):
         target_id: str = None,
     ) -> dict[str, int]:
         stats = {}
-        domain = domain or None
-        async for asset in self.root._get_assets(
-            type="Asset", domain=domain, target_id=target_id, fields=["cloud_providers"]
-        ):
+        query = self._make_bbot_query(type="Asset", domain=domain, target_id=target_id)
+        async for asset in self._mongo_query(query=query, fields=["cloud_providers"]):
             cloud_providers = asset.get("cloud_providers", [])
             for provider in cloud_providers:
-                try:
-                    stats[provider] += 1
-                except KeyError:
-                    stats[provider] = 1
-        # sort by number of assets, descending
-        stats = sorted(stats.items(), key=lambda x: x[1], reverse=True)
-        return dict(stats)
+                stats[provider] = stats.get(provider, 0) + 1
+        return dict(sorted(stats.items(), key=lambda x: x[1], reverse=True))
 
     async def handle_activity(self, activity, asset):
         """

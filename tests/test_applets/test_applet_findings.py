@@ -76,7 +76,7 @@ class TestAppletFindings(BaseAppletTest):
         assert {f.host for f in findings} == {"www.evilcorp.com", "www2.evilcorp.com"}
 
         # activities
-        activities = [a async for a in self.bbot_server.get_activities() if a.type == "NEW_FINDING"]
+        activities = [a async for a in self.bbot_server.list_activities() if a.type == "NEW_FINDING"]
         www_activity = [a for a in activities if a.host == "www.evilcorp.com"][0]
         assert www_activity.description == "New finding with severity HIGH: [CVE-2024-12345] on www.evilcorp.com"
         assert (
