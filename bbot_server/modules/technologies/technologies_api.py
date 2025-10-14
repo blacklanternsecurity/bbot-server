@@ -29,7 +29,7 @@ class TechnologiesApplet(BaseApplet):
     @api_endpoint(
         "/list", methods=["GET"], type="http_stream", response_model=Technology, summary="List all technologies"
     )
-    async def get_technologies(
+    async def list_technologies(
         self,
         domain: str = None,
         host: str = None,
@@ -58,12 +58,63 @@ class TechnologiesApplet(BaseApplet):
         ):
             yield Technology(**technology)
 
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query technologies")
+    async def query_technologies(
+        self,
+        query: dict = None,
+        search: str = None,
+        host: str = None,
+        domain: str = None,
+        target_id: str = None,
+        archived: bool = False,
+        active: bool = True,
+        ignored: bool = False,
+        fields: list[str] = None,
+        sort: list[str | tuple[str, int]] = None,
+        aggregate: list[dict] = None,
+    ):
+        """
+        Advanced querying of technologies. Choose your own filters and fields.
+
+        Args:
+            query: Additional query parameters (mongo)
+            search: Search using mongo's text index
+            host: Filter technologies by host (exact match only)
+            domain: Filter technologies by domain (subdomains allowed)
+            target_id: Filter technologies by target ID
+            archived: Optionally return archived technologies
+            active: Whether to include active (non-archived) technologies
+            ignored: Filter on whether the technology is ignored
+            fields: List of fields to return
+            sort: Fields and direction to sort by. Accepts either a list of field names or a list of tuples (field, direction).
+                E.g. sort=["-last_seen", "technology"] or sort=[("last_seen", -1), ("technology", 1)]
+            aggregate: Optional custom MongoDB aggregation pipeline
+        """
+        # this endpoint is only for technologies, so we need to remove the type filter
+        if query is not None:
+            query.pop("type", None)
+        async for technology in self.root._get_assets(
+            query=query,
+            search=search,
+            host=host,
+            domain=domain,
+            type="Technology",
+            target_id=target_id,
+            archived=archived,
+            active=active,
+            ignored=ignored,
+            fields=fields,
+            sort=sort,
+            aggregate=aggregate,
+        ):
+            yield technology
+
     @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database")
     async def get_technologies_summary(
         self, domain: str = None, host: str = None, technology: str = None, target_id: str = None
     ) -> list[dict[str, Any]]:
         technologies = {}
-        async for t in self.get_technologies(domain=domain, host=host, technology=technology, target_id=target_id):
+        async for t in self.list_technologies(domain=domain, host=host, technology=technology, target_id=target_id):
             technology = t.technology
             host = t.host
             last_seen = t.last_seen

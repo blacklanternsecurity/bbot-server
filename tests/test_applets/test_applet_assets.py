@@ -1,6 +1,8 @@
 import asyncio
+import pytest
 
 from bbot_server.assets import Asset
+from bbot_server.errors import BBOTServerValueError
 
 from tests.test_applets.base import BaseAppletTest
 from ..conftest import INGEST_PROCESSING_DELAY
@@ -20,7 +22,7 @@ class TestAppletAssets(BaseAppletTest):
         # hosts should be empty
         assert await self.bbot_server.get_hosts() == []
         # assets should be empty
-        assert [a async for a in self.bbot_server.get_assets()] == []
+        assert [a async for a in self.bbot_server.list_assets()] == []
         assert [a async for a in self.bbot_server.query_assets()] == []
 
     async def after_scan_1(self):
@@ -51,7 +53,7 @@ class TestAppletAssets(BaseAppletTest):
         else:
             assert hosts == expected_hosts, "Hosts don't match expected hosts"
 
-        assets = [a async for a in self.bbot_server.get_assets()]
+        assets = [a async for a in self.bbot_server.list_assets()]
         assert len(assets) == len(expected_hosts)
         assert all(isinstance(a, Asset) for a in assets)
         assets = [a async for a in self.bbot_server.query_assets()]
@@ -80,7 +82,7 @@ class TestAppletAssets(BaseAppletTest):
         }
         assert set(await self.bbot_server.get_hosts()) == expected_hosts
 
-        assets = [a async for a in self.bbot_server.get_assets()]
+        assets = [a async for a in self.bbot_server.list_assets()]
         assert len(assets) == len(expected_hosts)
         assert all(isinstance(a, Asset) for a in assets)
         assets = [a async for a in self.bbot_server.query_assets()]
@@ -97,22 +99,46 @@ class TestAppletAssets(BaseAppletTest):
         assert findings
         assert all([a["type"] == "Finding" for a in findings])
         # same with host
-        assets = [a async for a in self.bbot_server.query_assets(host="t1.tech.evilcorp.com", query={"host": "t2.tech.evilcorp.com"})]
+        assets = [
+            a
+            async for a in self.bbot_server.query_assets(
+                host="t1.tech.evilcorp.com", query={"host": "t2.tech.evilcorp.com"}
+            )
+        ]
         assert assets
         assert all([a["host"] == "t2.tech.evilcorp.com" for a in assets])
         # same with domain
-        assets = [a async for a in self.bbot_server.query_assets(domain="evilcorp.com", query={"reverse_host": {"$regex": "^moc.swanozama"}})]
+        assets = [
+            a
+            async for a in self.bbot_server.query_assets(
+                domain="evilcorp.com", query={"reverse_host": {"$regex": "^moc.swanozama"}}
+            )
+        ]
         assert assets
         assert all([a["host"].endswith("amazonaws.com") for a in assets])
 
         # test aggregation feature
-        aggregate_result = [a async for a in self.bbot_server.query_assets(
-            type="Finding",
-            aggregate=[
-                {"$group": {"_id": "$name", "count": {"$sum": 1}}},
-                {"$sort": {"count": -1}}
-            ])]
-        assert aggregate_result == [{'_id': 'CVE-2025-54321', 'count': 2}, {'_id': 'CVE-2024-12345', 'count': 2}]
+        aggregate_result = [
+            a
+            async for a in self.bbot_server.query_assets(
+                type="Finding",
+                aggregate=[{"$group": {"_id": "$name", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}],
+            )
+        ]
+        assert aggregate_result == [{"_id": "CVE-2025-54321", "count": 2}, {"_id": "CVE-2024-12345", "count": 2}]
+
+        # ensure sanitization is working
+        with pytest.raises(BBOTServerValueError, match=r"Unauthorized MongoDB query operator: \$where"):
+            [a async for a in self.bbot_server.query_assets(query={"host": {"$where": "js"}})]
+
+        # ensure aggregation sanitization is working
+        with pytest.raises(BBOTServerValueError, match=r"Unauthorized MongoDB aggregation operator: \$where"):
+            [
+                a
+                async for a in self.bbot_server.query_assets(
+                    aggregate=[{"$group": {"_id": "$name", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]
+                )
+            ]
 
     async def after_archive(self):
         assert set(await self.bbot_server.get_hosts()) == {
@@ -223,19 +249,19 @@ async def test_applet_target_filter(bbot_server, bbot_events):
     }
 
     # get assets (without target filter)
-    assets = [a.host async for a in bbot_server.get_assets()]
+    assets = [a.host async for a in bbot_server.list_assets()]
     assert set(assets) == all_hosts
     hosts = await bbot_server.get_hosts()
     assert set(hosts) == all_hosts
 
     # get assets (with default target filter)
-    assets = [a.host async for a in bbot_server.get_assets(target_id="DEFAULT")]
+    assets = [a.host async for a in bbot_server.list_assets(target_id="DEFAULT")]
     assert set(assets) == all_hosts_target1
     hosts = await bbot_server.get_hosts(target_id="DEFAULT")
     assert set(hosts) == all_hosts_target1
 
     # get assets (with target filter)
-    assets = [a.host async for a in bbot_server.get_assets(target_id=target1.id)]
+    assets = [a.host async for a in bbot_server.list_assets(target_id=target1.id)]
     assert set(assets) == all_hosts_target1
     hosts = await bbot_server.get_hosts(target_id=target1.id)
     assert set(hosts) == all_hosts_target1
@@ -250,7 +276,7 @@ async def test_applet_target_filter(bbot_server, bbot_events):
     await asyncio.sleep(1)
 
     # get assets (with new target filter)
-    assets = [a.host async for a in bbot_server.get_assets(target_id=target.id)]
+    assets = [a.host async for a in bbot_server.list_assets(target_id=target.id)]
     assert set(assets) == all_hosts_target2
     hosts = await bbot_server.get_hosts(target_id=target.id)
     assert set(hosts) == all_hosts_target2

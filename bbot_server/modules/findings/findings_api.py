@@ -37,9 +37,9 @@ class FindingsApplet(BaseApplet):
         methods=["GET"],
         type="http_stream",
         response_model=Finding,
-        summary="Search and filter findings by domain, target, severity, etc.",
+        summary="Simple, easily-curlable endpoint for listing findings, with basic filters",
     )
-    async def get_findings(
+    async def list_findings(
         self,
         search: Annotated[str, Query(description="search finding name or description")] = None,
         host: Annotated[str, Query(description="filter by exact hostname or IP address")] = None,
@@ -67,6 +67,57 @@ class FindingsApplet(BaseApplet):
             sort=[("severity_score", -1)],
         ):
             yield Finding(**finding)
+
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
+    async def query_findings(
+        self,
+        query: dict = None,
+        search: str = None,
+        host: str = None,
+        domain: str = None,
+        target_id: str = None,
+        archived: bool = False,
+        active: bool = True,
+        ignored: bool = False,
+        fields: list[str] = None,
+        sort: list[str | tuple[str, int]] = None,
+        aggregate: list[dict] = None,
+    ):
+        """
+        Advanced querying of findings. Choose your own filters and fields.
+
+        Args:
+            query: Additional query parameters (mongo)
+            search: Search using mongo's text index
+            host: Filter findings by host (exact match only)
+            domain: Filter findings by domain (subdomains allowed)
+            target_id: Filter findings by target ID
+            archived: Optionally return archived findings
+            active: Whether to include active (non-archived) findings
+            ignored: Filter on whether the finding is ignored
+            fields: List of fields to return
+            sort: Fields and direction to sort by. Accepts either a list of field names or a list of tuples (field, direction).
+                E.g. sort=["-last_seen", "technology"] or sort=[("last_seen", -1), ("technology", 1)]
+            aggregate: Optional custom MongoDB aggregation pipeline
+        """
+        # this endpoint is only for findings, so we need to remove the type filter
+        if query is not None:
+            query.pop("type", None)
+        async for finding in self.root._get_assets(
+            query=query,
+            search=search,
+            host=host,
+            domain=domain,
+            type="Finding",
+            target_id=target_id,
+            archived=archived,
+            active=active,
+            ignored=ignored,
+            fields=fields,
+            sort=sort,
+            aggregate=aggregate,
+        ):
+            yield finding
 
     @api_endpoint(
         "/stats_by_name",

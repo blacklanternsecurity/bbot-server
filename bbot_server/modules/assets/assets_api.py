@@ -1,6 +1,7 @@
 from bbot_server.assets import Asset
 from bbot_server.utils.misc import utc_now
 from bbot_server.applets.base import BaseApplet, api_endpoint
+from bbot_server.utils.misc import _sanitize_mongo_query, _sanitize_mongo_aggregation
 
 
 class AssetsApplet(BaseApplet):
@@ -10,13 +11,13 @@ class AssetsApplet(BaseApplet):
     model = Asset
 
     @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
-    async def get_assets(
+    async def list_assets(
         self,
         domain: str = None,
         target_id: str = None,
     ):
         """
-        Stream all assets. A simple, high
+        A simple, easily-curlable endpoint for listing assets, with basic filters
 
         Args:
             domain: Filter assets by domain or subdomain
@@ -57,6 +58,7 @@ class AssetsApplet(BaseApplet):
             fields: List of fields to return
             sort: Fields and direction to sort by. Accepts either a list of field names or a list of tuples (field, direction).
                 E.g. sort=["-last_seen", "technology"] or sort=[("last_seen", -1), ("technology", 1)]
+            aggregate: Optional custom MongoDB aggregation pipeline
         """
         async for asset in self._get_assets(
             query=query,
@@ -152,7 +154,7 @@ class AssetsApplet(BaseApplet):
         search: str = None,
         host: str = None,
         domain: str = None,
-        type: str = "Asset",
+        type: str = None,
         target_id: str = None,
         archived: bool = False,
         active: bool = True,
@@ -212,9 +214,12 @@ class AssetsApplet(BaseApplet):
 
         self.log.debug(f"Querying assets: query={query} / fields={fields}")
 
-        # TODO: sanitize query
+        # sanitize query
+        query = _sanitize_mongo_query(query)
 
         if aggregate is not None:
+            # sanitize aggregation pipeline
+            aggregate = _sanitize_mongo_aggregation(aggregate)
             aggregate_pipeline = [{"$match": query}] + aggregate
             cursor = await self.collection.aggregate(aggregate_pipeline)
             async for agg in cursor:

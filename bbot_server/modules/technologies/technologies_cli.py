@@ -26,7 +26,7 @@ class TechnologyCTL(BaseBBCTL):
         ] = None,
         sort: Annotated[str, typer.Option("--sort", help="field to sort by")] = ["-last_seen"],
     ):
-        technologies = self.bbot_server.get_technologies(
+        technologies = self.bbot_server.list_technologies(
             domain=domain, host=host, technology=technology, target_id=target_id, search=search, sort=sort
         )
 

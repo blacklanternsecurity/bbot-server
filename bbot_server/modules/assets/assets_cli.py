@@ -21,7 +21,7 @@ class AssetCTL(BaseBBCTL):
     ):
         if target is None and in_scope_only:
             target = "DEFAULT"
-        asset_list = self.bbot_server.get_assets(domain=domain, target_id=target)
+        asset_list = self.bbot_server.list_assets(domain=domain, target_id=target)
 
         if json:
             for asset in asset_list:

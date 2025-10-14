@@ -314,7 +314,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         )
 
     async def after_scan_1(self):
-        assets = [a async for a in self.bbot_server.get_assets()]
+        assets = [a async for a in self.bbot_server.list_assets()]
         target_1_assets = {a.host for a in assets if self.target1.id in a.scope}
         target_2_assets = {a.host for a in assets if self.target2.id in a.scope}
 
@@ -334,7 +334,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         }
 
     async def after_scan_2(self):
-        assets = [a async for a in self.bbot_server.get_assets()]
+        assets = [a async for a in self.bbot_server.list_assets()]
         target_1_assets = {a.host for a in assets if self.target1.id in a.scope}
         target_2_assets = {a.host for a in assets if self.target2.id in a.scope}
 
@@ -358,7 +358,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         await self.bbot_server.update_target(self.target2.id, self.target2)
         await asyncio.sleep(1.0)
 
-        assets = [a async for a in self.bbot_server.get_assets()]
+        assets = [a async for a in self.bbot_server.list_assets()]
 
         # evilcorp.azure.com (127.0.0.3) and b.com (127.0.0.4) are now part of the target
         target_2_assets = {a.host for a in assets if self.target2.id in a.scope}
