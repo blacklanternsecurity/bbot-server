@@ -105,29 +105,33 @@ class BBOTWatchdog:
         """
         Consume activities from the queue and distribute them to the applets
         """
-        activity = Activity(**message)
-        activity_json = activity.model_dump()
-        activities = []
-        asset, _activities = await self._get_or_create_asset(activity.host, parent_activity=activity)
-        activities.extend(_activities)
+        try:
+            activity = Activity(**message)
+            activity_json = activity.model_dump()
+            activities = []
+            asset, _activities = await self._get_or_create_asset(activity.host, parent_activity=activity)
+            activities.extend(_activities)
 
-        # let each applet process the activity
-        for applet in self.bbot_server.all_child_applets(include_self=True):
-            if await applet.watches_activity(activity, activity_json):
-                try:
-                    _activities = await applet.handle_activity(activity, asset) or []
-                    activities.extend(_activities)
-                except Exception as e:
-                    self.log.error(f"Error processing activity {activity.type} for applet {applet.name}: {e}")
-                    self.log.error(traceback.format_exc())
+            # let each applet process the activity
+            for applet in self.bbot_server.all_child_applets(include_self=True):
+                if await applet.watches_activity(activity, activity_json):
+                    try:
+                        _activities = await applet.handle_activity(activity, asset) or []
+                        activities.extend(_activities)
+                    except Exception as e:
+                        self.log.error(f"Error processing activity {activity.type} for applet {applet.name}: {e}")
+                        self.log.error(traceback.format_exc())
 
-        # publish new activities to the message queue
-        for activity in activities:
-            await self.bbot_server._emit_activity(activity)
+            # publish new activities to the message queue
+            for activity in activities:
+                await self.bbot_server._emit_activity(activity)
 
-        # update the asset in the database
-        if activities and asset is not None:
-            await self.bbot_server.assets.update_asset(asset)
+            # update the asset in the database
+            if activities and asset is not None:
+                await self.bbot_server.assets.update_asset(asset)
+        except Exception:
+            self.log.error(f"Error ingesting activity {message}")
+            self.log.error(traceback.format_exc())
 
     async def _get_or_create_asset(self, host: str, event: Event = None, parent_activity: Activity = None) -> Asset:
         """

@@ -117,9 +117,9 @@ class TechnologiesApplet(BaseApplet):
             target_id=target_id,
             fields=["technology", "host", "last_seen"],
         ):
-            technology = t.technology
-            host = t.host
-            last_seen = t.last_seen
+            technology = t["technology"]
+            host = t["host"]
+            last_seen = t["last_seen"]
             try:
                 existing = technologies[technology]
                 existing["last_seen"] = max(last_seen, existing["last_seen"])

@@ -23,7 +23,6 @@ from bbot_server.utils.misc import _sanitize_mongo_query, _sanitize_mongo_aggreg
 
 word_regex = re.compile(r"\W+")
 
-
 log = logging.getLogger(__name__)
 
 
@@ -456,6 +455,9 @@ class BaseApplet:
         """
         query = await self.make_bbot_query(query=query, **kwargs)
         fields = {f: 1 for f in fields} if fields else None
+
+        if self.collection is None:
+            raise BBOTServerError(f"Collection is not set for {self.name}")
 
         log.info(f"Querying {self.collection.name}: query={query}, fields={fields}")
 

@@ -169,6 +169,12 @@ def load_python_file(file, namespace, module_dict, base_class_name, module_key_a
 Notably, "from fastapi import Body, Query" takes .2 seconds.
 
 But the worst culprit is "from bbot_server.applets.base import BaseApplet, api_endpoint, Annotated" which takes .45 seconds.
+
+Following the chain, "from bbot_server.applets._routing import ROUTE_TYPES" takes .3 seconds
+
+Continuing down, "from bbot_server.api.mcp import MCP_ENDPOINTS" takes .23 seconds
+
+Our main culprit then for slow import time is fastapi_mcp.
 """
 for file in python_files:
     if file.stem.endswith("_api"):

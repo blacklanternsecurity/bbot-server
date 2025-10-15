@@ -60,10 +60,7 @@ class ActivityApplet(BaseApplet):
                 E.g. sort=["-last_seen", "technology"] or sort=[("last_seen", -1), ("technology", 1)]
             aggregate: Optional custom MongoDB aggregation pipeline
         """
-        query = dict(query or {})
-        # this endpoint is only for findings, so we need to remove the type filter
-        query.pop("type", None)
-        query = await self._make_bbot_query(
+        async for activity in self.mongo_iter(
             query=query,
             search=search,
             host=host,
@@ -72,9 +69,6 @@ class ActivityApplet(BaseApplet):
             target_id=target_id,
             archived=archived,
             active=active,
-        )
-        async for activity in self._mongo_query(
-            query=query,
             fields=fields,
             sort=sort,
             aggregate=aggregate,

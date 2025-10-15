@@ -100,6 +100,7 @@ class TestAppletOpenPorts(BaseAppletTest):
 
         # test stats
         stats = await self.bbot_server.get_stats()
+        print(stats)
         assert sorted(stats["open_ports"].items()) == sorted({"80": 3, "443": 3}.items())
 
     async def after_archive(self):

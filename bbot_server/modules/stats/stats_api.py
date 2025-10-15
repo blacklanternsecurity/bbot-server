@@ -31,7 +31,7 @@ class StatsApplet(BaseApplet):
     @api_endpoint("/stats", methods=["GET"], summary="Get statistics for a given target or domain")
     async def get_stats(self, domain: str = None, host: str = None, target_id: str = None) -> dict[str, Any]:
         stats = {}
-        async for asset in self.mongo_iter(
+        async for asset in self.root.assets.mongo_iter(
             domain=domain,
             host=host,
             target_id=target_id,

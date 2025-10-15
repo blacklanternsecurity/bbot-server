@@ -13,30 +13,33 @@ class TestAppletActivity(BaseAppletTest):
         await self.bbot_server.create_target(name="evilcorp2", seeds=["www.evilcorp.com", "api.evilcorp.com"])
 
     async def after_scan_1(self):
-        # we should have 2 findings
         activities = [a async for a in self.bbot_server.list_activities()]
         assert activities
-        for a in activities:
-            print(a)
-        assert not all(a.host.endswith("evilcorp.com") for a in activities if a.host)
 
-        # query by host
         activities = [a async for a in self.bbot_server.query_activities(domain="evilcorp.com")]
         assert activities
         assert all(a.get("host", "").endswith("evilcorp.com") for a in activities)
 
-    # async def after_scan_2(self):
-    #     # advanced findings query
-    #     query = {"name": {"$regex": "^CVE-2024-12"}}
-    #     findings = [f async for f in self.bbot_server.query_findings(query=query)]
-    #     assert len(findings) == 2
-    #     assert all(f["name"] == "CVE-2024-12345" for f in findings)
+    async def after_scan_2(self):
+        # listing
+        activities = [a async for a in self.bbot_server.list_activities()]
+        assert activities
+        assert not all(a.host.endswith("evilcorp.com") for a in activities if a.host)
 
-    #     # findings aggregation
-    #     aggregate_result = [
-    #         f
-    #         async for f in self.bbot_server.query_findings(
-    #             aggregate=[{"$group": {"_id": "$name", "count": {"$sum": 1}}}, {"$sort": {"_id": 1}}]
-    #         )
-    #     ]
-    #     assert aggregate_result == [{"_id": "CVE-2024-12345", "count": 2}, {"_id": "CVE-2025-54321", "count": 2}]
+        # querying
+        activities = [a async for a in self.bbot_server.query_activities(domain="evilcorp.amazonaws.com")]
+        assert activities
+        assert all(a.get("host", "").endswith("evilcorp.amazonaws.com") for a in activities)
+
+        # activities aggregation
+        aggregate_result = [
+            a
+            async for a in self.bbot_server.query_activities(
+                domain="tech.evilcorp.com",
+                aggregate=[{"$group": {"_id": "$host", "count": {"$sum": 1}}}, {"$sort": {"_id": 1}}],
+            )
+        ]
+        assert aggregate_result == [
+            {"_id": "t1.tech.evilcorp.com", "count": 5},
+            {"_id": "t2.tech.evilcorp.com", "count": 5},
+        ]

@@ -7,10 +7,10 @@ from fastapi import WebSocket
 from contextlib import suppress
 from fastapi.responses import StreamingResponse
 from starlette.websockets import WebSocketDisconnect
-
 import bbot_server.config as bbcfg
 from bbot_server.api.mcp import MCP_ENDPOINTS
 from bbot_server.utils.misc import smart_encode
+
 
 log = logging.getLogger("bbot_server.applets.routing")
 
