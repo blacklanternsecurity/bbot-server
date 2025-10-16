@@ -54,16 +54,16 @@ def timestamp_to_human(timestamp: float, include_hours: bool = True) -> str:
     return datetime.fromtimestamp(timestamp).strftime(format_str)
 
 
-def orjson_serializer(obj):
+def orjson_serializer(obj: Any) -> Any:
     """
-    Enable orjson to serialize Mongo"s ObjectIds
+    Enable orjson to serialize Mongo's ObjectIds
     """
     if isinstance(obj, ObjectId):
         return str(obj)
     return obj
 
 
-def smart_encode(obj):
+def smart_encode(obj: Any) -> bytes:
     # handle both python and pydantic objects, as well as strings
     if isinstance(obj, BaseModel):
         return obj.model_dump_json().encode()
@@ -125,7 +125,7 @@ ALLOWED_QUERY_OPERATORS = {
 # fmt: on
 
 
-def _sanitize_mongo_query(data: dict) -> dict:
+def _sanitize_mongo_query(data: Any) -> Any:
     """
     Sanitizes a MongoDB query dictionary using a whitelist approach.
     Throws a ValueError if any unauthorized operator (key starting with $) is found.
@@ -241,7 +241,7 @@ ALLOWED_AGG_OPERATORS = {
 # fmt: on
 
 
-def _sanitize_mongo_aggregation(data):
+def _sanitize_mongo_aggregation(data: Any) -> Any:
     """
     Sanitizes a MongoDB aggregation pipeline or expression dictionary using a whitelist approach.
     Throws a ValueError if any unauthorized operator or stage (key starting with $) is found.
