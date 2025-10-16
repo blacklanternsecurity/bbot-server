@@ -12,3 +12,15 @@ class BaseMongoStore(BaseDB):
 
     async def cleanup(self):
         await self.client.close()
+
+
+class AssetStore(BaseMongoStore):
+    config_key = "asset_store"
+
+
+class UserStore(BaseMongoStore):
+    config_key = "user_store"
+
+
+class EventStore(BaseMongoStore):
+    config_key = "event_store"

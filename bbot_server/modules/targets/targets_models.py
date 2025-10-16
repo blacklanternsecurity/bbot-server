@@ -43,8 +43,8 @@ class BaseTarget(BaseBBOTServerModel):
 
 
 class Target(BaseTarget):
-    __tablename__ = "targets"
-    __user__ = True
+    __table_name__ = "targets"
+    __store_type__ = "user"
     id: Annotated[uuid.UUID, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
     name: Annotated[str, "indexed", "unique"]
     default: Annotated[bool, "indexed"] = False

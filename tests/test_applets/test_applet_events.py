@@ -9,6 +9,7 @@ async def test_events_websocket_ingest(bbot_server, bbot_events):
 
     bbot_server = await bbot_server()
 
+    # list all events
     events = [e async for e in bbot_server.get_events()]
     assert events == []
 
@@ -108,3 +109,16 @@ class TestAppletEvents(BaseAppletTest):
 
         domain_events = [e async for e in self.bbot_server.get_events(domain="asdf.t1.tech.evilcorp.com")]
         assert domain_events == []
+
+        # advanced querying
+        events = [
+            e
+            async for e in self.bbot_server.query_events(
+                query={"technology": {"$regex": "apache"}}, domain="tech.evilcorp.com"
+            )
+        ]
+        assert events
+        assert all(e["host"].endswith(".tech.evilcorp.com" and "apache" in e["technology"]) for e in events)
+        for e in events:
+            print(e)
+        assert events

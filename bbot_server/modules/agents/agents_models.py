@@ -5,7 +5,8 @@ from bbot_server.models.base import BaseBBOTServerModel
 
 
 class Agent(BaseBBOTServerModel):
-    __tablename__ = "agents"
+    __table_name__ = "agents"
+    __store_type__ = "user"
     id: Annotated[uuid.UUID, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
     name: Annotated[str, "indexed", "unique"]
     description: str

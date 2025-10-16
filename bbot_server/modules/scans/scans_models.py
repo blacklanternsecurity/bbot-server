@@ -11,8 +11,8 @@ from bbot_server.utils.misc import utc_now, timestamp_to_human
 
 
 class Scan(BaseBBOTServerModel):
-    __tablename__ = "scans"
-    __user__ = True
+    __table_name__ = "scans"
+    __store_type__ = "user"
 
     id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: f"SCAN:{uuid.uuid4()}")
     name: Annotated[str, "indexed", "unique"]

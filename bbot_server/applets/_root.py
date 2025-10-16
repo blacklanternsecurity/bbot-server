@@ -28,24 +28,18 @@ class RootApplet(BaseApplet):
             if self.asset_store is None:
                 from bbot_server.store.user_store import UserStore
                 from bbot_server.store.asset_store import AssetStore
+                from bbot_server.event_store import EventStore
 
                 self.asset_store = AssetStore()
                 await self.asset_store.setup()
-                self.asset_db = self.asset_store.db
-                self.asset_fs = self.asset_store.fs
 
                 self.user_store = UserStore()
                 await self.user_store.setup()
-                self.user_db = self.user_store.db
-                self.user_fs = self.user_store.fs
 
-            # set up event store
-            from bbot_server.event_store import EventStore
+                self.event_store = EventStore()
+                await self.event_store.setup()
 
-            self.event_store = EventStore()
-            await self.event_store.setup()
-
-            # set up NATS client
+            # set up message queue
             from bbot_server.message_queue import MessageQueue
 
             self.message_queue = MessageQueue()

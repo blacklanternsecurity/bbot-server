@@ -70,7 +70,7 @@ def check_for_asset_field_models(source_code, filename):
         fields_class = local_namespace[asset_fields_class.name]
 
         # we're only interested in classes that
-        if getattr(fields_class, "__tablename__", None) is None:
+        if getattr(fields_class, "__table_name__", None) is None:
             # Add the class itself to the models
             ASSET_FIELD_MODELS.append(fields_class)
 
@@ -98,7 +98,8 @@ import bbot_server.assets as assetlib
 
 
 class Asset(BaseAssetFacet):
-    __tablename__ = "assets"
+    __table_name__ = "assets"
+    __store_type__ = "asset"
 
 
 # merge all the custom asset fields into the master asset model

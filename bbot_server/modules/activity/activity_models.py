@@ -25,7 +25,8 @@ class Activity(BaseBBOTServerModel):
     They are usually associated with an asset, and can be traced back to a specific BBOT event.
     """
 
-    __tablename__ = "history"
+    __table_name__ = "history"
+    __store_type__ = "asset"
     # id is a UUID
     id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Annotated[str, "indexed"]
