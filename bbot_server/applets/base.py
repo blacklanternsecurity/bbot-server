@@ -199,8 +199,14 @@ class BaseApplet:
                 self.store_type = getattr(self.model, "__store_type__", None)
                 if self.store_type not in ("user", "asset", "event"):
                     raise BBOTServerValueError(
-                        f"Invalid store type: {self.store_type} - must be one of: user, asset, event"
+                        f"Invalid store type: {self.store_type} on model {self.model.__name__} - must be one of: user, asset, event"
                     )
+                if self.store_type == "user":
+                    self.db = self.user_store.db
+                elif self.store_type == "asset":
+                    self.db = self.asset_store.db
+                elif self.store_type == "event":
+                    self.db = self.event_store.db
 
                 # if this applet doesn't have its own table, inherit from parent
                 if self.table_name is None:

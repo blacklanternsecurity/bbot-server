@@ -28,7 +28,7 @@ async def test_watchdog(bbot_events):
             await context.state.bbot_server.insert_event(event)
 
         # make sure there aren't any events in the database
-        db_events = [e async for e in bbot_server.get_events()]
+        db_events = [e async for e in bbot_server.list_events()]
         assert len(db_events) == 0
 
         # spawn tasks to insert events
@@ -38,7 +38,7 @@ async def test_watchdog(bbot_events):
 
         await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
-        db_events = [e async for e in bbot_server.get_events()]
+        db_events = [e async for e in bbot_server.list_events()]
         assert db_events
         assert len(db_events) == len(scan1_events)
     finally:

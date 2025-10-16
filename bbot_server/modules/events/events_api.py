@@ -1,8 +1,8 @@
 import asyncio
 from fastapi import Query, Body
 from contextlib import suppress
-from bbot.models.pydantic import Event
 from typing import AsyncGenerator, Annotated
+from bbot_server.models.event_models import Event
 from datetime import datetime, timezone, timedelta
 
 from bbot_server.applets.base import BaseApplet, api_endpoint
@@ -38,27 +38,8 @@ class EventsApplet(BaseApplet):
             raise self.BBOTServerNotFoundError(f"Event {uuid} not found")
         return self.model(**event)
 
-    @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)
-    async def tail_events(self, n: int = 0):
-        async for event in self.message_queue.tail_events(n=n):
-            yield event
-
-    @api_endpoint("/archive", methods=["POST"], summary="Archive old events")
-    async def archive_old_events(
-        self,
-        older_than: Annotated[int, Query(description="Archive events older than this many days")],
-    ):
-        # cancel the current archiving task if one is in progress
-        if self._archive_events_task is not None:
-            self.log.info(f"Archive is already in progress, cancelling")
-            self._archive_events_task.cancel()
-            with suppress(BaseException):
-                await asyncio.wait_for(self._archive_events_task, 0.5)
-            self._archive_events_task = None
-        self._archive_events_task = asyncio.create_task(self._archive_events(older_than=older_than))
-
     @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Event, summary="Stream all events")
-    async def get_events(
+    async def list_events(
         self,
         type: str = None,
         host: str = None,
@@ -79,7 +60,7 @@ class EventsApplet(BaseApplet):
             archived=archived,
             active=active,
         ):
-            yield event
+            yield self.model(**event)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
     async def query_events(
@@ -115,6 +96,25 @@ class EventsApplet(BaseApplet):
             aggregate=aggregate,
         ):
             yield event
+
+    @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)
+    async def tail_events(self, n: int = 0):
+        async for event in self.message_queue.tail_events(n=n):
+            yield event
+
+    @api_endpoint("/archive", methods=["POST"], summary="Archive old events")
+    async def archive_old_events(
+        self,
+        older_than: Annotated[int, Query(description="Archive events older than this many days")],
+    ):
+        # cancel the current archiving task if one is in progress
+        if self._archive_events_task is not None:
+            self.log.info(f"Archive is already in progress, cancelling")
+            self._archive_events_task.cancel()
+            with suppress(BaseException):
+                await asyncio.wait_for(self._archive_events_task, 0.5)
+            self._archive_events_task = None
+        self._archive_events_task = asyncio.create_task(self._archive_events(older_than=older_than))
 
     @api_endpoint(
         "/ingest", type="websocket_stream_incoming", response_model=Event, summary="Ingest events via websocket"

@@ -20,6 +20,10 @@ class BaseAssetFacet(BaseBBOTServerModel):
     A facet typically corresponds to an applet.
     """
 
+    # unless overridden, all asset facets are stored in the asset store
+    __store_type__ = "asset"
+    __table_name__ = "assets"
+
     # id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Annotated[Optional[str], "indexed"] = None
     host: Annotated[str, "indexed"]

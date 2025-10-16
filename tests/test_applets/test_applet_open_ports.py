@@ -10,7 +10,7 @@ class TestAppletOpenPorts(BaseAppletTest):
         assert await self.bbot_server.get_open_ports_by_host("www2.evilcorp.com") == []
         assert await self.bbot_server.get_open_ports_by_host("api.evilcorp.com") == []
 
-        open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
+        open_port_events = [a async for a in self.bbot_server.list_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 0
 
         assert [a.type for a in self.asset_messages] == []
@@ -40,7 +40,7 @@ class TestAppletOpenPorts(BaseAppletTest):
         assert await self.bbot_server.get_open_ports_by_host("t1.tech.evilcorp.com") == [80, 443]
         assert await self.bbot_server.get_open_ports_by_host("t2.tech.evilcorp.com") == [443]
 
-        open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
+        open_port_events = [a async for a in self.bbot_server.list_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 5
 
         port_asset_messages = [a for a in self.asset_messages if a.type.startswith("PORT_")]
@@ -77,7 +77,7 @@ class TestAppletOpenPorts(BaseAppletTest):
         assert await self.bbot_server.get_open_ports_by_host("www.evilcorp.com") == [80]
         assert await self.bbot_server.get_open_ports_by_host("www2.evilcorp.com") == [80]
 
-        open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
+        open_port_events = [a async for a in self.bbot_server.list_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 8
 
         port_asset_messages = [a for a in self.asset_messages if a.type.startswith("PORT_")]
@@ -118,7 +118,7 @@ class TestAppletOpenPorts(BaseAppletTest):
             "t2.tech.evilcorp.com": [443],
         }
 
-        open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
+        open_port_events = [a async for a in self.bbot_server.list_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 3
 
         port_asset_messages = [a for a in self.asset_messages if a.type.startswith("PORT_")]

@@ -101,7 +101,7 @@ def _test_synchronous_api(interface, bbot_events):
         bbot_event = bbot_events[0][0]
 
         # event store should be empty
-        assert list(bbot_server.get_events()) == []
+        assert list(bbot_server.list_events()) == []
         with pytest.raises(BBOTServerNotFoundError, match=f"Event {bbot_event.uuid} not found"):
             bbot_server.get_event(bbot_event.uuid)
 
@@ -110,7 +110,7 @@ def _test_synchronous_api(interface, bbot_events):
         sleep(0.5)
 
         # we should now have one event
-        events = list(bbot_server.get_events())
+        events = list(bbot_server.list_events())
         assert events == [bbot_event]
 
         event = bbot_server.get_event(bbot_event.uuid)

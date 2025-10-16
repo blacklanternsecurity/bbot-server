@@ -114,7 +114,7 @@ class AssetsApplet(BaseApplet):
         for host in await self.get_hosts():
             # get all the events for this host, and group them by type
             events_by_type = {}
-            async for event in self.event_store.get_events(host=host):
+            async for event in self.root.list_events(host=host):
                 try:
                     events_by_type[event.type].add(event)
                 except KeyError:

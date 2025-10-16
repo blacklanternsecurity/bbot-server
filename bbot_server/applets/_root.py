@@ -26,9 +26,7 @@ class RootApplet(BaseApplet):
         if self.is_native:
             # set up asset store, user store, and gridfs buckets
             if self.asset_store is None:
-                from bbot_server.store.user_store import UserStore
-                from bbot_server.store.asset_store import AssetStore
-                from bbot_server.event_store import EventStore
+                from bbot_server.store import UserStore, AssetStore, EventStore
 
                 self.asset_store = AssetStore()
                 await self.asset_store.setup()

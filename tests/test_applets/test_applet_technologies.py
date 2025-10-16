@@ -11,7 +11,7 @@ class TestAppletTechnologies(BaseAppletTest):
         assert [t async for t in self.bbot_server.list_technologies(host="t2.tech.evilcorp.com")] == []
         assert [t async for t in self.bbot_server.list_technologies()] == []
 
-        technology_events = [a async for a in self.bbot_server.get_events(type="TECHNOLOGY")]
+        technology_events = [a async for a in self.bbot_server.list_events(type="TECHNOLOGY")]
         assert len(technology_events) == 0
 
         assert [a.type for a in self.asset_messages] == []
