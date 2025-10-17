@@ -151,6 +151,17 @@ class TestAppletAssets(BaseAppletTest):
                 )
             ]
 
+        # test pagination
+        assets_page_1 = [a async for a in self.bbot_server.query_assets(limit=10)]
+        assert len(assets_page_1) == 10
+        assets_page_2 = [a async for a in self.bbot_server.query_assets(limit=10, skip=10)]
+        # page 2 should have all the hosts that page 1 doesn't
+        assert len(assets_page_2) == len(expected_hosts) - 10
+        # there should be no overlap between the two pages
+        assert set([a["host"] for a in assets_page_1]) & set([a["host"] for a in assets_page_2]) == set()
+
+        assert set([a["host"] for a in assets_page_1 + assets_page_2]) == expected_hosts
+
     async def after_archive(self):
         assert set(await self.bbot_server.get_hosts()) == {
             "1.2.3.4",

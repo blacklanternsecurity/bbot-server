@@ -60,6 +60,7 @@ class AssetsApplet(BaseApplet):
             ignored=ignored,
             fields=fields,
             limit=limit,
+            skip=skip,
             sort=sort,
             aggregate=aggregate,
         ):
