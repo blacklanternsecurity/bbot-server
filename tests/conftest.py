@@ -268,7 +268,7 @@ async def mongo_cleanup(bbot_server_config):
 
     await clear_everything()
     yield
-    await clear_everything()
+    # await clear_everything()
 
 
 @pytest_asyncio.fixture

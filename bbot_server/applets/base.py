@@ -182,31 +182,33 @@ class BaseApplet:
         # inherit config, db, message queue, etc. from parent applet
         if self.parent is not None:
             self.asset_store = self.parent.asset_store
-            self.asset_db = self.parent.asset_db
-            self.asset_fs = self.parent.asset_fs
-
             self.user_store = self.parent.user_store
-            self.user_db = self.parent.user_db
-            self.user_fs = self.parent.user_fs
-
             self.event_store = self.parent.event_store
             self.message_queue = self.parent.message_queue
             self.task_broker = self.parent.task_broker
 
-            # if model isn't defined, inherit from parent
+            # if model isn't defined, inherit collection from parent
             if self.model is None:
                 self.model = self.parent.model
+                self.db = self.parent.db
                 self.collection = self.parent.collection
                 self.strict_collection = self.parent.strict_collection
             else:
                 # otherwise, set up applet-specific db tables
-                self.table_name = getattr(self.model, "__tablename__", None)
-                self.is_user_data = getattr(self.model, "__user__", False)
-                if self.is_user_data:
-                    self.db = self.user_db
-                else:
-                    self.db = self.asset_db
+                self.table_name = getattr(self.model, "__table_name__", None)
+                self.store_type = getattr(self.model, "__store_type__", None)
+                if self.store_type not in ("user", "asset", "event"):
+                    raise BBOTServerValueError(
+                        f"Invalid store type: {self.store_type} on model {self.model.__name__} - must be one of: user, asset, event"
+                    )
+                if self.store_type == "user":
+                    self.db = self.user_store.db
+                elif self.store_type == "asset":
+                    self.db = self.asset_store.db
+                elif self.store_type == "event":
+                    self.db = self.event_store.db
 
+                # if this applet doesn't have its own table, inherit from parent
                 if self.table_name is None:
                     self.collection = self.parent.collection
                     self.strict_collection = self.parent.strict_collection
@@ -390,6 +392,12 @@ class BaseApplet:
         target_id: str = None,
         archived: bool = False,
         active: bool = True,
+        min_timestamp: float = None,
+        max_timestamp: float = None,
+        min_created_timestamp: float = None,
+        max_created_timestamp: float = None,
+        min_modified_timestamp: float = None,
+        max_modified_timestamp: float = None,
     ):
         """
         Streamlines querying of a Mongo collection with BBOT-specific filters like "host", "reverse_host", etc.
@@ -424,6 +432,30 @@ class BaseApplet:
         if ("$text" not in query) and (search is not None):
             query["$text"] = {"$search": search}
 
+        # timestamps
+        if "timestamp" not in query and (min_timestamp is not None or max_timestamp is not None):
+            query["timestamp"] = {}
+            if min_timestamp is not None:
+                query["timestamp"]["$gte"] = min_timestamp
+            if max_timestamp is not None:
+                query["timestamp"]["$lte"] = max_timestamp
+
+        # created timestamps
+        if "created" not in query and (min_created_timestamp is not None or max_created_timestamp is not None):
+            query["created"] = {}
+            if min_created_timestamp is not None:
+                query["created"]["$gte"] = min_created_timestamp
+            if max_created_timestamp is not None:
+                query["created"]["$lte"] = max_created_timestamp
+
+        # modified timestamps
+        if "modified" not in query and (min_modified_timestamp is not None or max_modified_timestamp is not None):
+            query["modified"] = {}
+            if min_modified_timestamp is not None:
+                query["modified"]["$gte"] = min_modified_timestamp
+            if max_modified_timestamp is not None:
+                query["modified"]["$lte"] = max_modified_timestamp
+
         if ("scope" not in query) and (target_id is not None):
             target_query_kwargs = {}
             if target_id != "DEFAULT":
@@ -448,6 +480,7 @@ class BaseApplet:
         sort: list[str | tuple[str, int]] = None,
         fields: list[str] = None,
         limit: int = None,
+        collection=None,
         **kwargs,
     ):
         """
@@ -456,10 +489,15 @@ class BaseApplet:
         query = await self.make_bbot_query(query=query, **kwargs)
         fields = {f: 1 for f in fields} if fields else None
 
-        if self.collection is None:
+        # collection defaults to self.collection
+        if collection is None:
+            collection = self.collection
+
+        # if we don't have a default collection and none was passed in, raise an error
+        if collection is None:
             raise BBOTServerError(f"Collection is not set for {self.name}")
 
-        log.info(f"Querying {self.collection.name}: query={query}, fields={fields}")
+        log.info(f"Querying {collection.name}: query={query}, fields={fields}")
 
         if aggregate is not None:
             # sanitize aggregation pipeline
@@ -467,12 +505,12 @@ class BaseApplet:
             aggregate_pipeline = [{"$match": query}] + aggregate
             if limit is not None:
                 aggregate_pipeline.append({"$limit": limit})
-            log.info(f"Querying {self.collection.name}: aggregate={aggregate_pipeline}")
-            cursor = await self.collection.aggregate(aggregate_pipeline)
+            log.info(f"Querying {collection.name}: aggregate={aggregate_pipeline}")
+            cursor = await collection.aggregate(aggregate_pipeline)
             async for agg in cursor:
                 yield agg
         else:
-            cursor = self.collection.find(query, fields)
+            cursor = collection.find(query, fields)
             if sort:
                 processed_sort = []
                 for field in sort:

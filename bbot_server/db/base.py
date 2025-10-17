@@ -47,13 +47,6 @@ class BaseDB:
             return db_name
         raise BBOTServerValueError(f"Invalid URI: {self.uri} - Database name must be included.")
 
-    @property
-    def table_name(self):
-        table_name = self.db_config.get("table_name", "")
-        if not table_name:
-            raise BBOTServerValueError("Table name must be included in the configuration.")
-        return table_name
-
     async def setup(self):
         if not self._setup_finished:
             await self._setup()

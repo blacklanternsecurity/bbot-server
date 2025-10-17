@@ -7,8 +7,8 @@ from bbot_server.models.base import BaseBBOTServerModel
 
 
 class Preset(BaseBBOTServerModel):
-    __tablename__ = "presets"
-    __user__ = True
+    __table_name__ = "presets"
+    __store_type__ = "user"
     id: Annotated[uuid.UUID, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
     preset: dict[str, Any] = Field(default_factory=dict)
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
