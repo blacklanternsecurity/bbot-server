@@ -41,6 +41,7 @@ class Activity(BaseBBOTServerModel):
     netloc: Annotated[Optional[str], "indexed"] = None
     url: Annotated[Optional[str], "indexed"] = None
     module: Annotated[Optional[str], "indexed"] = None
+    scan: Annotated[Optional[str], "indexed"] = None
     parent_event_uuid: Annotated[Optional[str], "indexed"] = None
     parent_event_id: Annotated[Optional[str], "indexed"] = None
     parent_scan_run_id: Annotated[Optional[str], "indexed"] = None
@@ -82,6 +83,8 @@ class Activity(BaseBBOTServerModel):
             self.port = event.port
         if event.netloc and not self.netloc:
             self.netloc = event.netloc
+        if event.scan and not self.scan:
+            self.scan = event.scan
         # handle url
         event_data_json = getattr(event, "data_json", None)
         if event_data_json is not None:
@@ -100,6 +103,7 @@ class Activity(BaseBBOTServerModel):
             "port",
             "module",
             "netloc",
+            "scan",
             "parent_event_id",
             "parent_event_uuid",
             "parent_scan_run_id",
