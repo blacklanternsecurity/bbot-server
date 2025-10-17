@@ -41,6 +41,7 @@ class AssetsApplet(BaseApplet):
         ignored: Annotated[bool, Body(description="Filter on whether the asset is ignored")] = False,
         fields: Annotated[list[str], Body(description="List of fields to return")] = None,
         limit: Annotated[int, Body(description="Limit the number of assets returned")] = None,
+        skip: Annotated[int, Body(description="Skip the first N assets")] = None,
         sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
         aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
     ) -> list[Asset]:

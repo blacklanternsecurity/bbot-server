@@ -30,35 +30,22 @@ class ActivityApplet(BaseApplet):
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="List activities")
     async def query_activities(
         self,
-        query: dict = None,
-        search: str = None,
-        host: str = None,
-        domain: str = None,
-        type: str = None,
-        target_id: str = None,
-        archived: bool = False,
-        active: bool = True,
-        ignored: bool = False,
-        fields: list[str] = None,
-        sort: list[str | tuple[str, int]] = None,
-        aggregate: list[dict] = None,
+        query: Annotated[dict, Body(description="Raw mongo query")] = None,
+        search: Annotated[str, Body(description="Search using mongo's text index")] = None,
+        host: Annotated[str, Body(description="Filter activities by host (exact match only)")] = None,
+        domain: Annotated[str, Body(description="Filter activities by domain (subdomains allowed)")] = None,
+        type: Annotated[str, Body(description="Filter activities by type")] = None,
+        target_id: Annotated[str, Body(description="Filter activities by target ID")] = None,
+        archived: Annotated[bool, Body(description="Whether to include archived activities")] = False,
+        active: Annotated[bool, Body(description="Whether to include active activities")] = True,
+        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
+        limit: Annotated[int, Body(description="Limit the number of activities returned")] = None,
+        skip: Annotated[int, Body(description="Skip the first N activities")] = None,
+        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
+        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
     ):
         """
         Advanced querying of activities. Choose your own filters and fields.
-
-        Args:
-            query: Additional query parameters (mongo)
-            search: Search using mongo's text index
-            host: Filter activities by host (exact match only)
-            domain: Filter activities by domain (subdomains allowed)
-            type: Filter activities by type
-            target_id: Filter activities by target ID
-            archived: Optionally return archived activities
-            active: Whether to include active (non-archived) activities
-            fields: List of fields to return
-            sort: Fields and direction to sort by. Accepts either a list of field names or a list of tuples (field, direction).
-                E.g. sort=["-last_seen", "technology"] or sort=[("last_seen", -1), ("technology", 1)]
-            aggregate: Optional custom MongoDB aggregation pipeline
         """
         async for activity in self.mongo_iter(
             query=query,
@@ -70,6 +57,8 @@ class ActivityApplet(BaseApplet):
             archived=archived,
             active=active,
             fields=fields,
+            limit=limit,
+            skip=skip,
             sort=sort,
             aggregate=aggregate,
         ):

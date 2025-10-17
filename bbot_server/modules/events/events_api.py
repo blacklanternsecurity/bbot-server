@@ -75,6 +75,8 @@ class EventsApplet(BaseApplet):
         min_timestamp: Annotated[float, Body(description="Filter by minimum timestamp")] = None,
         max_timestamp: Annotated[float, Body(description="Filter by maximum timestamp")] = None,
         fields: Annotated[list[str], Body(description="List of fields to return")] = None,
+        limit: Annotated[int, Body(description="Limit the number of events returned")] = None,
+        skip: Annotated[int, Body(description="Skip the first N events")] = None,
         sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
         aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
     ):
@@ -92,6 +94,8 @@ class EventsApplet(BaseApplet):
             min_timestamp=min_timestamp,
             max_timestamp=max_timestamp,
             fields=fields,
+            limit=limit,
+            skip=skip,
             sort=sort,
             aggregate=aggregate,
         ):

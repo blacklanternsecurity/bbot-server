@@ -65,6 +65,8 @@ class TechnologiesApplet(BaseApplet):
         active: Annotated[bool, Body(description="whether to include active (non-archived) technologies")] = True,
         ignored: Annotated[bool, Body(description="filter on whether the technology is ignored")] = False,
         fields: Annotated[list[str], Body(description="list of fields to return")] = None,
+        limit: Annotated[int, Body(description="Limit the number of technologies returned")] = None,
+        skip: Annotated[int, Body(description="Skip the first N technologies")] = None,
         sort: Annotated[list[str | tuple[str, int]], Body(description="fields and direction to sort by")] = None,
         aggregate: Annotated[list[dict], Body(description="optional custom MongoDB aggregation pipeline")] = None,
     ):
@@ -82,6 +84,8 @@ class TechnologiesApplet(BaseApplet):
             active=active,
             ignored=ignored,
             fields=fields,
+            limit=limit,
+            skip=skip,
             sort=sort,
             aggregate=aggregate,
         ):

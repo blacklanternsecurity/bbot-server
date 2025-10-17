@@ -81,6 +81,8 @@ class FindingsApplet(BaseApplet):
             int, Body(description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
         ] = 5,
         fields: Annotated[list[str], Body(description="List of fields to return")] = None,
+        limit: Annotated[int, Body(description="Limit the number of findings returned")] = None,
+        skip: Annotated[int, Body(description="Skip the first N findings")] = None,
         sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
         aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
     ):
@@ -99,6 +101,8 @@ class FindingsApplet(BaseApplet):
             min_severity=min_severity,
             max_severity=max_severity,
             fields=fields,
+            limit=limit,
+            skip=skip,
             sort=sort,
             aggregate=aggregate,
         ):

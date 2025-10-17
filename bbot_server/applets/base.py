@@ -479,6 +479,7 @@ class BaseApplet:
         aggregate: list[dict] = None,
         sort: list[str | tuple[str, int]] = None,
         fields: list[str] = None,
+        skip: int = None,
         limit: int = None,
         collection=None,
         **kwargs,
@@ -522,6 +523,8 @@ class BaseApplet:
                 cursor = cursor.sort(processed_sort)
             if limit is not None:
                 cursor = cursor.limit(limit)
+            if skip is not None:
+                cursor = cursor.skip(skip)
             async for asset in cursor:
                 yield asset
 
