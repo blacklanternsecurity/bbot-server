@@ -1,4 +1,4 @@
-from fastapi import Query
+from fastapi import Body, Query
 from typing import Annotated, Optional
 
 from bbot_server.assets import CustomAssetFields
@@ -37,36 +37,76 @@ class FindingsApplet(BaseApplet):
         methods=["GET"],
         type="http_stream",
         response_model=Finding,
-        summary="Search and filter findings by domain, target, severity, etc.",
+        summary="Simple, easily-curlable endpoint for listing findings, with basic filters",
     )
-    async def get_findings(
+    async def list_findings(
         self,
-        search: Annotated[str, Query(description="search finding name or description")] = None,
-        host: Annotated[str, Query(description="filter by exact hostname or IP address")] = None,
-        domain: Annotated[str, Query(description="domain or subdomain")] = None,
-        target_id: Annotated[str, Query(description="target name or id")] = None,
-        min_severity: Annotated[int, Query(description="minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 1,
-        max_severity: Annotated[int, Query(description="maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 5,
+        search: Annotated[str, Query(description="Search finding name or description")] = None,
+        host: Annotated[str, Query(description="Filter by exact hostname or IP address")] = None,
+        domain: Annotated[str, Query(description="Filter by domain or subdomain")] = None,
+        target_id: Annotated[str, Query(description="Filter by target name or id")] = None,
+        min_severity: Annotated[
+            int, Query(description="Filter by minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
+        ] = 1,
+        max_severity: Annotated[
+            int, Query(description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
+        ] = 5,
     ):
-        if min_severity > max_severity:
-            raise self.BBOTServerValueError("min_severity must be less than or equal to max_severity")
-
-        query = {
-            "severity_score": {
-                "$gte": min_severity,
-                "$lte": max_severity,
-            },
-        }
-        async for finding in self.root._get_assets(
-            type="Finding",
-            query=query,
+        async for finding in self.mongo_iter(
             host=host,
             domain=domain,
             target_id=target_id,
             search=search,
+            min_severity=min_severity,
+            max_severity=max_severity,
             sort=[("severity_score", -1)],
         ):
             yield Finding(**finding)
+
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
+    async def query_findings(
+        self,
+        query: Annotated[dict, Body(description="Raw mongo query")] = None,
+        search: Annotated[str, Body(description="Search using mongo's text index")] = None,
+        host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
+        domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
+        target_id: Annotated[str, Body(description="Filter by target name or id")] = None,
+        archived: Annotated[bool, Body(description="Whether to include archived findings")] = False,
+        active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True,
+        ignored: Annotated[bool, Body(description="Filter on whether the finding is ignored")] = False,
+        min_severity: Annotated[
+            int, Body(description="Filter by minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
+        ] = 1,
+        max_severity: Annotated[
+            int, Body(description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
+        ] = 5,
+        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
+        limit: Annotated[int, Body(description="Limit the number of findings returned")] = None,
+        skip: Annotated[int, Body(description="Skip the first N findings")] = None,
+        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
+        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
+    ):
+        """
+        Advanced querying of findings. Choose your own filters and fields.
+        """
+        async for finding in self.mongo_iter(
+            query=query,
+            search=search,
+            host=host,
+            domain=domain,
+            target_id=target_id,
+            archived=archived,
+            active=active,
+            ignored=ignored,
+            min_severity=min_severity,
+            max_severity=max_severity,
+            fields=fields,
+            limit=limit,
+            skip=skip,
+            sort=sort,
+            aggregate=aggregate,
+        ):
+            yield finding
 
     @api_endpoint(
         "/stats_by_name",
@@ -81,9 +121,12 @@ class FindingsApplet(BaseApplet):
         min_severity: Annotated[int, Query(description="minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 1,
         max_severity: Annotated[int, Query(description="maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 5,
     ) -> dict[str, int]:
+        """
+        Return a high-level count of findings by name
+        """
         findings = {}
-        async for finding in self.parent._get_assets(
-            type="Finding", domain=domain, target_id=target_id, fields=["name"]
+        async for finding in self.mongo_iter(
+            domain=domain, target_id=target_id, min_severity=min_severity, max_severity=max_severity, fields=["name"]
         ):
             finding_name = finding["name"]
             findings[finding_name] = findings.get(finding_name, 0) + 1
@@ -104,10 +147,14 @@ class FindingsApplet(BaseApplet):
         max_severity: Annotated[int, Query(description="maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 5,
     ) -> dict[str, int]:
         findings = {}
-        async for finding in self.parent._get_assets(
-            type="Finding", domain=domain, target_id=target_id, fields=["severity"]
+        async for finding in self.mongo_iter(
+            domain=domain,
+            target_id=target_id,
+            min_severity=min_severity,
+            max_severity=max_severity,
+            fields=["severity"],
         ):
-            severity = finding.get("severity", "INFO")
+            severity = finding["severity"]
             findings[severity] = findings.get(severity, 0) + 1
         findings = dict(sorted(findings.items(), key=lambda x: x[1], reverse=True))
         return findings
@@ -182,6 +229,22 @@ class FindingsApplet(BaseApplet):
         stats["findings"] = finding_stats
 
         return stats
+
+    async def make_bbot_query(
+        self, query: dict = None, ignored: bool = False, min_severity: int = 1, max_severity: int = 5, **kwargs
+    ):
+        if min_severity > max_severity:
+            raise self.BBOTServerValueError("min_severity must be less than or equal to max_severity")
+        query = dict(query or {})
+        # we are only querying findings
+        query["type"] = "Finding"
+        query["severity_score"] = {
+            "$gte": min_severity,
+            "$lte": max_severity,
+        }
+        if ignored is not None and "ignored" not in query:
+            query["ignored"] = ignored
+        return await super().make_bbot_query(query=query, **kwargs)
 
     async def _insert_or_update_finding(self, finding: Finding, asset, event=None):
         """

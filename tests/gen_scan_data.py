@@ -32,7 +32,7 @@ Below is a list of the events and how they change between the two scans.
     t2.tech.evilcorp.com        Technology: IIS -> apache                               technologies
 
     evilcorp.azure.com          None
-    evilcorp.amazonaws.com      None
+    evilcorp.amazonaws.com      Not discovered in first scan
 
 """
 

@@ -19,7 +19,7 @@ from .gen_scan_data import *
 
 # how long to wait for new events to be ingested
 # this can take a long time on CI because of the tiny instance size
-INGEST_PROCESSING_DELAY = 5.0
+INGEST_PROCESSING_DELAY = 1.0
 
 
 # set root logger to include date in the format
@@ -268,7 +268,7 @@ async def mongo_cleanup(bbot_server_config):
 
     await clear_everything()
     yield
-    await clear_everything()
+    # await clear_everything()
 
 
 @pytest_asyncio.fixture

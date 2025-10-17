@@ -14,6 +14,7 @@ class CloudApplet(BaseApplet):
     name = "Cloud"
     watched_activities = ["NEW_DNS_LINK", "DNS_LINK_REMOVED"]
     description = "Cloud providers discovered during scans. Makes use of the cloudcheck library (https://github.com/blacklanternsecurity/cloudcheck)"
+    attach_to = "assets"
 
     async def setup(self):
         import cloudcheck
@@ -48,7 +49,8 @@ class CloudApplet(BaseApplet):
     )
     async def cloudcheck(self, host: str) -> list[dict[str, str]]:
         # update the cloudcheck database
-        await self._cloudcheck.update(cache_hrs=24)
+        # TODO: why is this taking so long? (6 seconds??)
+        # await self._cloudcheck.update(cache_hrs=24)
         result = []
         for provider, provider_type, parent in self._cloudcheck.check(host):
             result.append({"provider": provider, "provider_type": provider_type, "belongs_to": str(parent)})
@@ -61,17 +63,13 @@ class CloudApplet(BaseApplet):
         target_id: str = None,
     ) -> dict[str, int]:
         stats = {}
-        domain = domain or None
-        async for asset in self.root._get_assets(domain=domain, target_id=target_id, fields=["cloud_providers"]):
+        async for asset in self.mongo_iter(
+            type="Asset", domain=domain, target_id=target_id, fields=["cloud_providers"]
+        ):
             cloud_providers = asset.get("cloud_providers", [])
             for provider in cloud_providers:
-                try:
-                    stats[provider] += 1
-                except KeyError:
-                    stats[provider] = 1
-        # sort by number of assets, descending
-        stats = sorted(stats.items(), key=lambda x: x[1], reverse=True)
-        return dict(stats)
+                stats[provider] = stats.get(provider, 0) + 1
+        return dict(sorted(stats.items(), key=lambda x: x[1], reverse=True))
 
     async def handle_activity(self, activity, asset):
         """

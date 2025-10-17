@@ -45,7 +45,7 @@ def test_combine_pydantic_models():
         assert combined_model.field5 == "test"
 
     # Test combining models with conflicting field types
-    with pytest.raises(ValueError, match="Field 'field1' on ModelD already exists, but with a different annotation:"):
+    with pytest.raises(ValueError, match='Field "field1" on ModelD already exists, but with a different annotation:'):
         combine_pydantic_models([ModelA, ModelD], "ConflictingModel")
 
     # Test combining models with no fields

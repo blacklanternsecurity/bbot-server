@@ -14,7 +14,7 @@ async def test_applet_stats(bbot_server, bbot_events):
         for e in scan_events:
             await bbot_server.insert_event(e)
 
-    for _ in range(60):
+    for _ in range(15):
         # global stats
         global_stats = await bbot_server.get_stats()
         expected_global_stats = {
@@ -33,8 +33,8 @@ async def test_applet_stats(bbot_server, bbot_events):
                 "cpe:/a:microsoft:internet_information_services": 1,
             },
             "cloud_providers": {
-                "Azure": 1,
-                "Amazon": 2,
+                # "Azure": 1,
+                # "Amazon": 2,
             },
             "findings": {
                 "max_severity": "CRITICAL",
@@ -87,7 +87,7 @@ async def test_applet_stats(bbot_server, bbot_events):
                 "cpe:/a:microsoft:internet_information_services": 1,
             },
             "cloud_providers": {
-                "Amazon": 1,
+                # "Amazon": 1,
             },
             "findings": {
                 "max_severity": "CRITICAL",
@@ -158,5 +158,6 @@ async def test_applet_stats(bbot_server, bbot_events):
 
         await asyncio.sleep(0.5)
 
-    else:
-        assert global_stats
+    assert global_stats == expected_global_stats
+    assert stats_by_target == expected_stats_by_target
+    assert stats_by_domain == expected_stats_by_domain

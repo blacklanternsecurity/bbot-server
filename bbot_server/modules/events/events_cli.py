@@ -25,7 +25,7 @@ class EventCTL(BaseBBCTL):
         json: common.json = False,
         csv: common.csv = False,
     ):
-        event_list = self.bbot_server.get_events(
+        event_list = self.bbot_server.list_events(
             type=type, host=host, domain=domain, scan=scan, active=active, archived=archived
         )
 

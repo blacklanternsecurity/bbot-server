@@ -28,7 +28,7 @@ class FindingCTL(BaseBBCTL):
         min_severity = SeverityScore.to_score(min_severity.strip().upper())
         max_severity = SeverityScore.to_score(max_severity.strip().upper())
 
-        findings = self.bbot_server.get_findings(
+        findings = self.bbot_server.list_findings(
             host=host,
             domain=domain,
             target_id=target_id,
