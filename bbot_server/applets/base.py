@@ -498,18 +498,16 @@ class BaseApplet:
         if collection is None:
             raise BBOTServerError(f"Collection is not set for {self.name}")
 
-        log.info(f"Querying {collection.name}: query={query}, fields={fields}")
+        self.log.info(f"Querying {collection.name}: query={query}, fields={fields}")
 
-        if aggregate is not None:
+        if aggregate:
             # sanitize aggregation pipeline
             aggregate = _sanitize_mongo_aggregation(aggregate)
             aggregate_pipeline = [{"$match": query}] + aggregate
             if limit is not None:
                 aggregate_pipeline.append({"$limit": limit})
-            log.info(f"Querying {collection.name}: aggregate={aggregate_pipeline}")
+            self.log.info(f"Querying {collection.name}: aggregate={aggregate_pipeline}")
             cursor = await collection.aggregate(aggregate_pipeline)
-            async for agg in cursor:
-                yield agg
         else:
             cursor = collection.find(query, fields)
             if sort:
@@ -521,12 +519,13 @@ class BaseApplet:
                         # assume it's already a tuple (field, direction)
                         processed_sort.append(tuple(field))
                 cursor = cursor.sort(processed_sort)
-            if limit is not None:
-                cursor = cursor.limit(limit)
-            if skip is not None:
-                cursor = cursor.skip(skip)
-            async for asset in cursor:
-                yield asset
+
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        if skip is not None:
+            cursor = cursor.skip(skip)
+        async for asset in cursor:
+            yield asset
 
     def include_app(self, app_class):
         self.log.debug(f"{self.name_lowercase} including applet {app_class.name_lowercase}")
