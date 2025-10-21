@@ -498,7 +498,7 @@ class BaseApplet:
         if collection is None:
             raise BBOTServerError(f"Collection is not set for {self.name}")
 
-        log.info(f"Querying {collection.name}: query={query}, fields={fields}")
+        self.log.info(f"Querying {collection.name}: query={query}, fields={fields}")
 
         if aggregate:
             # sanitize aggregation pipeline
@@ -506,7 +506,7 @@ class BaseApplet:
             aggregate_pipeline = [{"$match": query}] + aggregate
             if limit is not None:
                 aggregate_pipeline.append({"$limit": limit})
-            log.info(f"Querying {collection.name}: aggregate={aggregate_pipeline}")
+            self.log.info(f"Querying {collection.name}: aggregate={aggregate_pipeline}")
             cursor = await collection.aggregate(aggregate_pipeline)
         else:
             cursor = collection.find(query, fields)
