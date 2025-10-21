@@ -97,20 +97,22 @@ class TestAppletAssets(BaseAppletTest):
         assert technologies
         assert all([a["type"] == "Technology" for a in technologies])
 
-        kwargs = {'active': True,
- 'aggregate': None,
- 'archived': False,
- 'domain': None,
- 'fields': None,
- 'host': None,
- 'ignored': False,
- 'limit': None,
- 'query': {'cloud_providers': 'Akamai'},
- 'search': None,
- 'skip': None,
- 'sort': None,
- 'target_id': None,
- 'type': 'Asset'}
+        kwargs = {
+            "active": True,
+            "aggregate": None,
+            "archived": False,
+            "domain": None,
+            "fields": None,
+            "host": None,
+            "ignored": False,
+            "limit": None,
+            "query": {"cloud_providers": "Akamai"},
+            "search": None,
+            "skip": None,
+            "sort": None,
+            "target_id": None,
+            "type": "Asset",
+        }
         assets = [a async for a in self.bbot_server.query_assets(**kwargs)]
         assert not assets
 
