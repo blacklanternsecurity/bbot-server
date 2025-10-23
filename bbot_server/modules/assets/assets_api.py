@@ -44,7 +44,7 @@ class AssetsApplet(BaseApplet):
         skip: Annotated[int, Body(description="Skip the first N assets")] = None,
         sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
         aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
-    ) -> int:
+    ) -> list[Asset]:
         """
         Advanced querying of assets. Choose your own filters and fields.
         """
