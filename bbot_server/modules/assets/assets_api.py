@@ -66,6 +66,36 @@ class AssetsApplet(BaseApplet):
         ):
             yield asset
 
+    @api_endpoint("/count", methods=["POST"], summary="Count assets")
+    async def count_assets(
+        self,
+        query: Annotated[dict, Body(description="Raw mongo query")] = None,
+        search: Annotated[str, Body(description="Search using mongo's text index")] = None,
+        host: Annotated[str, Body(description="Filter assets by host (exact match only)")] = None,
+        domain: Annotated[str, Body(description="Filter assets by domain (subdomains allowed)")] = None,
+        type: Annotated[
+            str, Body(description="Filter assets by type (Asset, Technology, Vulnerability, etc.)")
+        ] = "Asset",
+        target_id: Annotated[str, Body(description="Filter assets by target ID")] = None,
+        archived: Annotated[bool, Body(description="Whether to include archived assets")] = False,
+        active: Annotated[bool, Body(description="Whether to include active assets")] = True,
+        ignored: Annotated[bool, Body(description="Filter on whether the asset is ignored")] = False,
+    ) -> int:
+        """
+        Same as query_assets, except only returns the count
+        """
+        return await self.mongo_count(
+            query=query,
+            search=search,
+            host=host,
+            domain=domain,
+            type=type,
+            target_id=target_id,
+            archived=archived,
+            active=active,
+            ignored=ignored,
+        )
+
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: Annotated[str, Path(description="The host of the asset to get")]) -> Asset:
         asset = await self.collection.find_one({"host": host})

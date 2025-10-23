@@ -144,3 +144,7 @@ class TestAppletFindings(BaseAppletTest):
             )
         ]
         assert aggregate_result == [{"_id": "CVE-2024-12345", "count": 2}, {"_id": "CVE-2025-54321", "count": 2}]
+
+        # test count
+        count = await self.bbot_server.count_findings(query={"name": "CVE-2024-12345"})
+        assert count == 2

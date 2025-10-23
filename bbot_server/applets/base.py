@@ -473,7 +473,19 @@ class BaseApplet:
 
         return _sanitize_mongo_query(query)
 
-    async def mongo_iter(
+    async def mongo_iter(self, *args, **kwargs):
+        """
+        Lazy iterator over a Mongo collection with BBOT-specific filters and aggregation
+        """
+        cursor = await self._make_mongo_cursor(*args, **kwargs)
+        async for asset in cursor:
+            yield asset
+
+    async def mongo_count(self, *args, **kwargs):
+        query = await self.make_bbot_query(*args, **kwargs)
+        return await self.collection.count_documents(query)
+
+    async def _make_mongo_cursor(
         self,
         query: dict = None,
         aggregate: list[dict] = None,
@@ -484,9 +496,6 @@ class BaseApplet:
         collection=None,
         **kwargs,
     ):
-        """
-        Lazy iterator over a Mongo collection with BBOT-specific filters and aggregation
-        """
         query = await self.make_bbot_query(query=query, **kwargs)
         fields = {f: 1 for f in fields} if fields else None
 
@@ -524,8 +533,7 @@ class BaseApplet:
             cursor = cursor.limit(limit)
         if skip is not None:
             cursor = cursor.skip(skip)
-        async for asset in cursor:
-            yield asset
+        return cursor
 
     def include_app(self, app_class):
         self.log.debug(f"{self.name_lowercase} including applet {app_class.name_lowercase}")

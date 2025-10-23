@@ -108,6 +108,40 @@ class FindingsApplet(BaseApplet):
         ):
             yield finding
 
+    @api_endpoint("/count", methods=["POST"], summary="Count findings")
+    async def count_findings(
+        self,
+        query: Annotated[dict, Body(description="Raw mongo query")] = None,
+        search: Annotated[str, Body(description="Search using mongo's text index")] = None,
+        host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
+        domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
+        target_id: Annotated[str, Body(description="Filter by target name or id")] = None,
+        archived: Annotated[bool, Body(description="Whether to include archived findings")] = False,
+        active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True,
+        ignored: Annotated[bool, Body(description="Filter on whether the finding is ignored")] = False,
+        min_severity: Annotated[
+            int, Body(description="Filter by minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
+        ] = 1,
+        max_severity: Annotated[
+            int, Body(description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
+        ] = 5,
+    ) -> int:
+        """
+        Same as query_findings, except only returns the count
+        """
+        return await self.mongo_count(
+            query=query,
+            search=search,
+            host=host,
+            domain=domain,
+            target_id=target_id,
+            archived=archived,
+            active=active,
+            ignored=ignored,
+            min_severity=min_severity,
+            max_severity=max_severity,
+        )
+
     @api_endpoint(
         "/stats_by_name",
         methods=["GET"],
