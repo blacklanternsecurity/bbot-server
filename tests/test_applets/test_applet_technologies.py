@@ -153,6 +153,10 @@ class TestAppletTechnologies(BaseAppletTest):
             {"_id": "cpe:/a:microsoft:internet_information_services", "count": 1},
         ]
 
+        # test count
+        count = await self.bbot_server.count_technologies(search="apache")
+        assert count == 3
+
     async def after_archive(self):
         # after archiving, tech1 loses all its technologies
         tech1 = [t async for t in self.bbot_server.list_technologies(host="t1.tech.evilcorp.com")]

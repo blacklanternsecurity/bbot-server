@@ -101,6 +101,34 @@ class EventsApplet(BaseApplet):
         ):
             yield event
 
+    @api_endpoint("/count", methods=["POST"], summary="Count findings")
+    async def count_events(
+        self,
+        query: Annotated[dict, Body(description="Raw mongo query")] = None,
+        search: Annotated[str, Body(description="Search using mongo's text index")] = None,
+        host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
+        domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
+        target_id: Annotated[str, Body(description="Filter by target name or id")] = None,
+        archived: Annotated[bool, Body(description="Whether to include archived findings")] = False,
+        active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True,
+        min_timestamp: Annotated[float, Body(description="Filter by minimum timestamp")] = None,
+        max_timestamp: Annotated[float, Body(description="Filter by maximum timestamp")] = None,
+    ) -> int:
+        """
+        Same as query_events, except only returns the count
+        """
+        return await self.mongo_count(
+            query=query,
+            search=search,
+            host=host,
+            domain=domain,
+            target_id=target_id,
+            archived=archived,
+            active=active,
+            min_timestamp=min_timestamp,
+            max_timestamp=max_timestamp,
+        )
+
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)
     async def tail_events(self, n: int = 0):
         async for event in self.message_queue.tail_events(n=n):

@@ -43,3 +43,7 @@ class TestAppletActivity(BaseAppletTest):
             {"_id": "t1.tech.evilcorp.com", "count": 5},
             {"_id": "t2.tech.evilcorp.com", "count": 5},
         ]
+
+        # test count
+        count = await self.bbot_server.count_activities(domain="tech.evilcorp.com")
+        assert count == 10

@@ -66,6 +66,32 @@ class ActivityApplet(BaseApplet):
         ):
             yield activity
 
+    @api_endpoint("/count", methods=["POST"], summary="Count activities")
+    async def count_activities(
+        self,
+        query: Annotated[dict, Body(description="Raw mongo query")] = None,
+        search: Annotated[str, Body(description="Search using mongo's text index")] = None,
+        host: Annotated[str, Body(description="Filter activities by host (exact match only)")] = None,
+        domain: Annotated[str, Body(description="Filter activities by domain (subdomains allowed)")] = None,
+        type: Annotated[str, Body(description="Filter activities by type")] = None,
+        target_id: Annotated[str, Body(description="Filter activities by target ID")] = None,
+        archived: Annotated[bool, Body(description="Whether to include archived activities")] = False,
+        active: Annotated[bool, Body(description="Whether to include active activities")] = True,
+    ) -> int:
+        """
+        Same as query_activities, except only returns the count
+        """
+        return await self.mongo_count(
+            query=query,
+            search=search,
+            host=host,
+            domain=domain,
+            type=type,
+            target_id=target_id,
+            archived=archived,
+            active=active,
+        )
+
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Activity)
     async def tail_activities(self, n: int = 0):
         agen = self.message_queue.tail_activities(n=n)

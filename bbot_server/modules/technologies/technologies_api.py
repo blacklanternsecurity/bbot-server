@@ -91,6 +91,34 @@ class TechnologiesApplet(BaseApplet):
         ):
             yield technology
 
+    @api_endpoint("/count", methods=["POST"], summary="Count technologies")
+    async def count_technologies(
+        self,
+        query: Annotated[dict, Body(description="Raw mongo query")] = None,
+        technology: Annotated[str, Body(description="filter by technology (must match exactly)")] = None,
+        search: Annotated[str, Body(description="search for a technology (fuzzy match)")] = None,
+        host: Annotated[str, Body(description="filter by host (exact match only)")] = None,
+        domain: Annotated[str, Body(description="filter by domain (subdomains allowed)")] = None,
+        target_id: Annotated[str, Body(description="filter by target (can be either name or ID)")] = None,
+        archived: Annotated[bool, Body(description="whether to include archived technologies")] = False,
+        active: Annotated[bool, Body(description="whether to include active (non-archived) technologies")] = True,
+        ignored: Annotated[bool, Body(description="filter on whether the technology is ignored")] = False,
+    ) -> int:
+        """
+        Same as query_technologies, except only returns the count
+        """
+        return await self.mongo_count(
+            query=query,
+            technology=technology,
+            search=search,
+            host=host,
+            domain=domain,
+            target_id=target_id,
+            archived=archived,
+            active=active,
+            ignored=ignored,
+        )
+
     @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database")
     async def get_technologies_summary(
         self,

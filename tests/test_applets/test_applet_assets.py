@@ -181,6 +181,10 @@ class TestAppletAssets(BaseAppletTest):
 
         assert set([a["host"] for a in assets_page_1 + assets_page_2]) == expected_hosts
 
+        # test count
+        count = await self.bbot_server.count_assets(domain="tech.evilcorp.com")
+        assert count == 2
+
     async def after_archive(self):
         assert set(await self.bbot_server.get_hosts()) == {
             "1.2.3.4",

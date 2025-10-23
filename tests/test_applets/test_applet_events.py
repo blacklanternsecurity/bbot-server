@@ -121,3 +121,7 @@ class TestAppletEvents(BaseAppletTest):
         assert all(
             e["host"].endswith(".tech.evilcorp.com") and "apache" in e["data_json"]["technology"] for e in events
         )
+
+        # test count
+        count = await self.bbot_server.count_events(domain="tech.evilcorp.com")
+        assert count == 12
