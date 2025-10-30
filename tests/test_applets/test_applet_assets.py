@@ -185,9 +185,9 @@ class TestAppletAssets(BaseAppletTest):
         count = await self.bbot_server.count_assets(domain="tech.evilcorp.com")
         assert count == 2
 
-        # make sure host_parts works is present
-        tech1 = await self.bbot_server.get_asset(host="tech1.evilcorp.com")
-        assert tech1.host_parts == ["tech1", "evilcorp", "com"]
+        # make sure host_parts field is present
+        tech1 = await self.bbot_server.get_asset(host="t1.tech.evilcorp.com")
+        assert tech1.host_parts == ["t1", "tech", "evilcorp", "com"]
 
     async def after_archive(self):
         assert set(await self.bbot_server.get_hosts()) == {
