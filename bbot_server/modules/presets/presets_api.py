@@ -45,6 +45,8 @@ class PresetsApplet(BaseApplet):
         # Create new preset with the updated dictionary
         new_preset = Preset(preset=preset)
         new_preset.id = existing_preset.id
+        if not new_preset.name:
+            new_preset.name = existing_preset.name
         new_preset.modified = self.helpers.utc_now()
         try:
             await self.collection.replace_one({"id": str(existing_preset.id)}, new_preset.model_dump())
