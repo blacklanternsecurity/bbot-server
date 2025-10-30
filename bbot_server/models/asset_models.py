@@ -1,3 +1,4 @@
+import re
 from uuid import UUID
 from typing import Optional, Annotated
 from pydantic import Field, computed_field
@@ -5,6 +6,8 @@ from pydantic import Field, computed_field
 from bbot_server.utils.misc import utc_now
 from bbot.core.helpers.misc import make_netloc
 from bbot_server.models.base import BaseBBOTServerModel
+
+host_split_regex = re.compile(r"[^a-z0-9]")
 
 
 class BaseAssetFacet(BaseBBOTServerModel):
@@ -66,6 +69,11 @@ class BaseAssetFacet(BaseBBOTServerModel):
     @property
     def reverse_host(self) -> Annotated[str, "indexed"]:
         return self.host[::-1]
+
+    @computed_field
+    @property
+    def host_parts(self) -> Annotated[list[str], "indexed"]:
+        return host_split_regex.split(self.host)
 
     # def _ingest_event(self, event) -> list[Activity]:
     #     self_before = self.__class__.model_validate(self)
