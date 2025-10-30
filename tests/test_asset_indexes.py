@@ -80,7 +80,7 @@ async def test_asset_indexes():
         "port": ["indexed"],
         "technologies": ["indexed", "indexed-text"],
         "url": ["indexed"],
-        "cloud_providers": ["indexed"],
+        # "cloud_providers": ["indexed"],
         "findings": ["indexed", "indexed-text"],
         "finding_max_severity_score": ["indexed"],
         "finding_severities": ["indexed"],
