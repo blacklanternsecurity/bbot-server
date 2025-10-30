@@ -75,6 +75,7 @@ async def test_asset_indexes():
         "open_ports": ["indexed"],
         "netloc": ["indexed"],
         "reverse_host": ["indexed"],
+        "host_parts": ["indexed"],
         "type": ["indexed"],
         "port": ["indexed"],
         "technologies": ["indexed", "indexed-text"],
