@@ -136,45 +136,48 @@ To start a scan in BBOT server, you need to first create a **Preset** and **Targ
 
 1. Create Preset
 
-The preset defines which flags, modules, API keys, etc. will be used for the scan. It typically looks something like this:
+    The preset defines which flags, modules, API keys, etc. will be used for the scan. It typically looks something like this:
 
-**`my_preset.yml`**:
-```yaml
-include:
-  - subdomain-enum
-  - cloud-enum
-  - code-enum
+    **`my_preset.yml`**:
+    ```yaml
+    include:
+      - subdomain-enum
+      - cloud-enum
+      - code-enum
 
-modules:
-  - nuclei
+    modules:
+      - nuclei
 
-config:
-  - virustotal:
-    api_key: deadbeef
-```
+    config:
+      modules:
+        virustotal:
+          api_key: deadbeef
+    ```
 
-```bash
-# create a new scan preset
-bbctl scan preset create my_preset.yml
-```
+    ```bash
+    # create a new scan preset
+    bbctl scan preset create my_preset.yml
+    ```
+
+    For more guidance and examples on presets, check out the [bbot docs](https://www.blacklanternsecurity.com/bbot/Stable/scanning/presets/).
 
 2. Create Target
 
-A target defines what's in-scope for the scan. They can also be used when filtering assets.
+    A target defines what's in-scope for the scan. They can also be used when filtering assets.
 
-```bash
-# create a new scan target
-bbctl scan target create --seeds evilcorp.txt --name "my_target"
-```
+    ```bash
+    # create a new scan target
+    bbctl scan target create --seeds evilcorp.txt --name "my_target"
+    ```
 
 3. Start Scan
 
-Now that we've created a preset and target, we can start the scan:
+    Now that we've created a preset and target, we can start the scan:
 
-```bash
-# start the scan
-bbctl scan start --preset my_preset --target my_target --name "demonic_jimmy"
-```
+    ```bash
+    # start the scan
+    bbctl scan start --preset my_preset --target my_target --name "demonic_jimmy"
+    ```
 
 ## Monitor scan progress
 
