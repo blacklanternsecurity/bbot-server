@@ -426,7 +426,7 @@ class BaseApplet:
         if ("host" not in query) and (host is not None):
             query["host"] = host
         if ("reverse_host" not in query) and (domain is not None):
-            reversed_host = domain[::-1]
+            reversed_host = re.escape(domain[::-1])
             # Match exact domain or subdomains (with dot separator)
             query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
         if ("$text" not in query) and (search is not None):
