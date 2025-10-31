@@ -37,8 +37,8 @@ class PresetCTL(BaseBBCTL):
         id: Annotated[str, Option("--name", "-n", "--id", "-i", help="Preset name or ID")] = "",
     ):
         preset_dict = self._load_preset(preset)
-        name_from_config = preset_dict.get("name", "")
         if not id:
+            name_from_config = preset_dict.get("name", "")
             if not name_from_config:
                 raise self.BBOTServerValueError("Preset name or ID must be provided via --name/--id or in the preset file")
             id = name_from_config
