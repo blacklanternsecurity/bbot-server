@@ -34,7 +34,9 @@ class TechnologiesApplet(BaseApplet):
         domain: str = None,
         host: str = None,
         technology: Annotated[str, Query(description="filter by technology (must match exactly)")] = None,
-        search: Annotated[str, Query(description="search for a technology (fuzzy match)")] = None,
+        search: Annotated[
+            str, Query(description="A human-friendly text search (will be ANDed with other filters)")
+        ] = None,
         target_id: Annotated[str, Query(description="filter by target (can be either name or ID)")] = None,
         archived: Annotated[bool, Query(description="whether to include archived technologies")] = False,
         active: Annotated[bool, Query(description="whether to include active (non-archived) technologies")] = True,
@@ -57,7 +59,9 @@ class TechnologiesApplet(BaseApplet):
         self,
         query: Annotated[dict, Body(description="Raw mongo query")] = None,
         technology: Annotated[str, Body(description="filter by technology (must match exactly)")] = None,
-        search: Annotated[str, Body(description="search for a technology (fuzzy match)")] = None,
+        search: Annotated[
+            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
+        ] = None,
         host: Annotated[str, Body(description="filter by host (exact match only)")] = None,
         domain: Annotated[str, Body(description="filter by domain (subdomains allowed)")] = None,
         target_id: Annotated[str, Body(description="filter by target (can be either name or ID)")] = None,

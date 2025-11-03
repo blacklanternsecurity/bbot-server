@@ -419,7 +419,6 @@ class BaseApplet:
         target_id = target_id or None
         type = type or None
         host = host or None
-        search = search or None
 
         if ("type" not in query) and (type is not None):
             query["type"] = type
@@ -429,8 +428,6 @@ class BaseApplet:
             reversed_host = re.escape(domain[::-1])
             # Match exact domain or subdomains (with dot separator)
             query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
-        if ("$text" not in query) and (search is not None):
-            query["$text"] = {"$search": search}
 
         # timestamps
         if "timestamp" not in query and (min_timestamp is not None or max_timestamp is not None):
@@ -471,7 +468,28 @@ class BaseApplet:
             # only one should be true
             query["archived"] = {"$eq": archived}
 
+        if search:
+            search_query = await self.make_search_query(search)
+            if search_query:
+                query = {"$and": [query, search_query]}
+
         return _sanitize_mongo_query(query)
+
+    async def make_search_query(self, search: str):
+        """
+        Given a search term, construct a human-friendly search against multiple fields.
+        """
+        search_str = re.escape(search.strip().lower())
+        if not search_str:
+            return None
+        return {
+            "$or": [
+                {"$text": {"$search": search_str}},
+                {"host_parts": {"$regex": f"^{search_str}"}},
+                {"host": {"$regex": f"^{search_str}$"}},
+                {"reverse_host": {"$regex": f"^{search_str[::-1]}$"}},
+            ]
+        }
 
     async def mongo_iter(self, *args, **kwargs):
         """

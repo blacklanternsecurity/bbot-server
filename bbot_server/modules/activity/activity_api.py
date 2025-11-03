@@ -33,7 +33,9 @@ class ActivityApplet(BaseApplet):
     async def query_activities(
         self,
         query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[str, Body(description="Search using mongo's text index")] = None,
+        search: Annotated[
+            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
+        ] = None,
         host: Annotated[str, Body(description="Filter activities by host (exact match only)")] = None,
         domain: Annotated[str, Body(description="Filter activities by domain (subdomains allowed)")] = None,
         type: Annotated[str, Body(description="Filter activities by type")] = None,
@@ -70,7 +72,9 @@ class ActivityApplet(BaseApplet):
     async def count_activities(
         self,
         query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[str, Body(description="Search using mongo's text index")] = None,
+        search: Annotated[
+            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
+        ] = None,
         host: Annotated[str, Body(description="Filter activities by host (exact match only)")] = None,
         domain: Annotated[str, Body(description="Filter activities by domain (subdomains allowed)")] = None,
         type: Annotated[str, Body(description="Filter activities by type")] = None,
