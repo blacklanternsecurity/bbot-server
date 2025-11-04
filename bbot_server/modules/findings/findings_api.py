@@ -67,7 +67,9 @@ class FindingsApplet(BaseApplet):
     async def query_findings(
         self,
         query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[str, Body(description="Search using mongo's text index")] = None,
+        search: Annotated[
+            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
+        ] = None,
         host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
         domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
         target_id: Annotated[str, Body(description="Filter by target name or id")] = None,
@@ -112,7 +114,9 @@ class FindingsApplet(BaseApplet):
     async def count_findings(
         self,
         query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[str, Body(description="Search using mongo's text index")] = None,
+        search: Annotated[
+            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
+        ] = None,
         host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
         domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
         target_id: Annotated[str, Body(description="Filter by target name or id")] = None,

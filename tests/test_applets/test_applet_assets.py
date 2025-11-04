@@ -194,6 +194,23 @@ class TestAppletAssets(BaseAppletTest):
         assets = [a async for a in self.bbot_server.query_assets(query=query)]
         assert {a["host"] for a in assets} == {"t1.tech.evilcorp.com", "t2.tech.evilcorp.com"}
 
+        # test text search feature
+        assets = [a async for a in self.bbot_server.query_assets(search="tec")]
+        assert {a["host"] for a in assets} == {"t1.tech.evilcorp.com", "t2.tech.evilcorp.com"}
+        assets = [a async for a in self.bbot_server.query_assets(search="evilcor")]
+        assert {a["host"] for a in assets} == {
+            "api.evilcorp.com",
+            "cname.evilcorp.com",
+            "evilcorp.amazonaws.com",
+            "evilcorp.azure.com",
+            "evilcorp.com",
+            "localhost.evilcorp.com",
+            "t1.tech.evilcorp.com",
+            "t2.tech.evilcorp.com",
+            "www.evilcorp.com",
+            "www2.evilcorp.com",
+        }
+
     async def after_archive(self):
         assert set(await self.bbot_server.get_hosts()) == {
             "1.2.3.4",
