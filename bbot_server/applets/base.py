@@ -487,8 +487,8 @@ class BaseApplet:
             "$or": [
                 {"$text": {"$search": search_str}},
                 {"host_parts": {"$regex": f"^{search_str_escaped}"}},
-                {"host": {"$regex": f"^{search_str_escaped}$"}},
-                {"reverse_host": {"$regex": f"^{re.escape(search_str[::-1])}$"}},
+                {"host": {"$regex": f"^{search_str_escaped}"}},
+                {"reverse_host": {"$regex": f"^{re.escape(search_str[::-1])}"}},
             ]
         }
 
