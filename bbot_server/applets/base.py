@@ -479,7 +479,7 @@ class BaseApplet:
         """
         Given a search term, construct a human-friendly search against multiple fields.
         """
-        search_str = search_str.strip().lower()
+        search_str = search.strip().lower()
         if not search_str:
             return None
         search_str_escaped = re.escape(search_str)
