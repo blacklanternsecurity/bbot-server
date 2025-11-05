@@ -479,15 +479,16 @@ class BaseApplet:
         """
         Given a search term, construct a human-friendly search against multiple fields.
         """
-        search_str = re.escape(search.strip().lower())
+        search_str = search.strip().lower()
         if not search_str:
             return None
+        search_str_escaped = re.escape(search_str)
         return {
             "$or": [
                 {"$text": {"$search": search_str}},
-                {"host_parts": {"$regex": f"^{search_str}"}},
-                {"host": {"$regex": f"^{search_str}$"}},
-                {"reverse_host": {"$regex": f"^{search_str[::-1]}$"}},
+                {"host_parts": {"$regex": f"^{search_str_escaped}"}},
+                {"host": {"$regex": f"^{search_str_escaped}"}},
+                {"reverse_host": {"$regex": f"^{re.escape(search_str[::-1])}"}},
             ]
         }
 
