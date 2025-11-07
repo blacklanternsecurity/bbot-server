@@ -115,7 +115,7 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
 
     @property
     def function_name(self):
-        return self.function.__name__
+        return self.orig_function.__name__
 
     def add_to_applet(self, applet):
         """
