@@ -642,7 +642,7 @@ class BaseApplet:
             function = getattr(self, attr, None)
             if not callable(function):
                 continue
-            
+
             if not hasattr(function, "_endpoint"):
                 continue
 
