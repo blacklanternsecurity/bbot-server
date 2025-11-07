@@ -10,6 +10,7 @@ from starlette.websockets import WebSocketDisconnect
 import bbot_server.config as bbcfg
 from bbot_server.api.mcp import MCP_ENDPOINTS
 from bbot_server.utils.misc import smart_encode
+from bbot_server.errors import BBOTServerValueError
 
 
 log = logging.getLogger("bbot_server.applets.routing")
@@ -34,6 +35,32 @@ def _patch_websocket_signature(original_function, wrapper_function):
     )
 
 
+def make_bbotserver_route(function, tags=[]):
+    """
+    Given a BBOTServer applet method, add it to a FastAPI app as a route.
+
+    Args:
+        function: The BBOTServer applet method to add to the FastAPI app.
+        **fastapi_kwargs: Additional keyword arguments to pass to the FastAPI app. These will override any arguments specified in the @api_endpoint decorator.
+    """
+    # see if the value has an "_endpoint" attribute
+    path = getattr(function, "_endpoint", None)
+    # if it's a callable function and it has _endpoint, it's an @api_endpoint
+
+    if path is None:
+        raise BBOTServerValueError(f"Function {function.__name__} does not have an _endpoint attribute")
+
+    endpoint_kwargs = dict(getattr(function, "_kwargs", {}))
+    endpoint_type = endpoint_kwargs.pop("type", "http")
+
+    try:
+        route_class = ROUTE_TYPES[endpoint_type]
+    except KeyError:
+        raise BBOTServerValueError(f"Invalid endpoint type: {endpoint_type}")
+    
+    return route_class(function, tags=tags)
+
+
 class ServerRouteMeta(type):
     """Metaclass for registering BaseServerRoute subclasses"""
 
@@ -53,10 +80,18 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
     def __init__(self, function, tags=[]):
         self.log = logging.getLogger(f"bbot_server.routing.{self.__class__.__name__.lower()}")
         self.function = function
-        self.endpoint = getattr(function, "_endpoint", None)
-        self.function_signature = inspect.signature(function)
-        self.kwargs = dict(getattr(function, "_kwargs", {}))
-        self.kwargs.pop("type", "")
+        self.path = getattr(function, "_endpoint", None)
+        if self.path is None:
+            raise BBOTServerValueError(f"Function {function.__name__} does not have an _endpoint attribute")
+        self.function_signature = inspect.signature(self.function)
+
+        # these are the kwargs specified in the @api_endpoint decorator
+        # they are fastapi kwargs with a few extra ones which we'll pop off here
+        self.kwargs = dict(getattr(self.function, "_kwargs", {}))
+        self.kwargs.pop("type", None)
+        self.response_model = self.kwargs.pop("response_model", None)
+        if self.requires_response_model and self.response_model is None:
+            raise BBOTServerValueError(f"Function {function.__name__} {self.path}: Must specify a pydantic model used for deserializing {self.endpoint_type} streams")
         self.mcp = self.kwargs.pop("mcp", False)
         if self.mcp:
             MCP_ENDPOINTS[self.function_name] = self.function
@@ -67,12 +102,43 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
         return self.function.__name__
 
     def add_to_applet(self, applet):
+        """
+        Add this BBOT Server route to the given applet's FastAPI router
+        """
         self.add_to_router(applet.router)
         self.fastapi_route = applet.router.routes[-1]
         self.path = self.fastapi_route.path
         self.full_path = f"{applet.full_prefix()}{self.fastapi_route.path}"
         applet.route_maps[self.function_name] = self
         self.setup()
+
+    def add_to_router(self, router, **fastapi_kwargs):
+        """
+        Add this BBOT Server route to the given FastAPI router
+        """
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def _add_api_route(self, router, function, path=None, websocket=False, **fastapi_kwargs):
+        path, kwargs = self._prepare_fastapi_kwargs(path=path, **fastapi_kwargs)
+        if not "operation_id" in kwargs:
+            kwargs["operation_id"] = self.function_name
+        if not "tags" in kwargs:
+            kwargs["tags"] = self.tags
+        router.add_api_route(path, function, **kwargs)
+
+    def _add_api_websocket_route(self, router, function, path=None, **fastapi_kwargs):
+        path, kwargs = self._prepare_fastapi_kwargs(path=path, **fastapi_kwargs)
+        kwargs.pop("summary", None)
+        router.add_api_websocket_route(path, function, **kwargs)
+
+    def _prepare_fastapi_kwargs(self, **fastapi_kwargs):
+        """
+        Fills in any necessary missing defaults in the FastAPI kwargs
+        """
+        kwargs = dict(self.kwargs)
+        kwargs.update(fastapi_kwargs)
+        path = kwargs.pop("path", None) or self.path
+        return path, kwargs
 
     def setup(self):
         pass
@@ -90,12 +156,8 @@ class HTTPRoute(BaseServerRoute):
 
     endpoint_type = "http"
 
-    def __init__(self, function, tags=[]):
-        super().__init__(function, tags)
-        self.kwargs["tags"] = self.tags
-
-    def add_to_router(self, router):
-        router.add_api_route(self.endpoint, self.function, operation_id=self.function.__name__, **self.kwargs)
+    def add_to_router(self, router, **fastapi_kwargs):
+        self._add_api_route(router, self.function, **fastapi_kwargs)
 
     def setup(self):
         self.response_model = self.fastapi_route.response_model
@@ -109,12 +171,7 @@ class HTTPStreamRoute(BaseServerRoute):
     endpoint_type = "http_stream"
     requires_response_model = True
 
-    def __init__(self, function, response_model, tags=[]):
-        super().__init__(function, tags)
-        self.kwargs["tags"] = self.tags
-        self.response_model = response_model
-
-    def add_to_router(self, router):
+    def add_to_router(self, router, **fastapi_kwargs):
         """
         Here we convert a python async generator into a StreamingResponse
         """
@@ -145,7 +202,7 @@ class HTTPStreamRoute(BaseServerRoute):
         wrapper.__signature__ = sig
 
         # Add the route
-        router.add_api_route(self.endpoint, wrapper, operation_id=self.function.__name__, **self.kwargs)
+        self._add_api_route(router, wrapper, **fastapi_kwargs)
 
 
 class WebsocketRoute(BaseServerRoute):
@@ -155,7 +212,7 @@ class WebsocketRoute(BaseServerRoute):
 
     endpoint_type = "websocket"
 
-    def add_to_router(self, router):
+    def add_to_router(self, router, **fastapi_kwargs):
         @functools.wraps(self.function)
         async def websocket_auth_wrapper(websocket: WebSocket, *args, **kwargs):
             await websocket.accept()
@@ -168,7 +225,7 @@ class WebsocketRoute(BaseServerRoute):
 
         # _patch_websocket_signature(self.function, websocket_auth_wrapper)
 
-        router.add_api_websocket_route(self.endpoint, websocket_auth_wrapper, **self.kwargs)
+        self._add_api_websocket_route(router, websocket_auth_wrapper, **fastapi_kwargs)
 
 
 class WebsocketStreamOutgoingRoute(BaseServerRoute):
@@ -179,11 +236,7 @@ class WebsocketStreamOutgoingRoute(BaseServerRoute):
     endpoint_type = "websocket_stream_outgoing"
     requires_response_model = True
 
-    def __init__(self, function, response_model, tags=[]):
-        super().__init__(function, tags)
-        self.response_model = response_model
-
-    def add_to_router(self, router):
+    def add_to_router(self, router, **fastapi_kwargs):
         @functools.wraps(self.function)
         async def websocket_wrapper(websocket: WebSocket, *args, **kwargs):
             """
@@ -212,7 +265,7 @@ class WebsocketStreamOutgoingRoute(BaseServerRoute):
         # Use the helper function to set the signature
         _patch_websocket_signature(self.function, websocket_wrapper)
 
-        router.add_api_websocket_route(self.endpoint, websocket_wrapper)
+        self._add_api_websocket_route(router, websocket_wrapper, **fastapi_kwargs)
 
 
 class WebsocketStreamIncomingRoute(BaseServerRoute):
@@ -223,9 +276,8 @@ class WebsocketStreamIncomingRoute(BaseServerRoute):
     endpoint_type = "websocket_stream_incoming"
     requires_response_model = True
 
-    def __init__(self, function, response_model, tags=[]):
-        super().__init__(function, tags)
-        self.response_model = response_model
+    def __init__(self, function, **kwargs):
+        super().__init__(function, **kwargs)
         # we blank out the function signature
         self.function_signature = inspect.Signature(parameters=[], return_annotation=None)
 
@@ -257,5 +309,5 @@ class WebsocketStreamIncomingRoute(BaseServerRoute):
             with suppress(BaseException):
                 await websocket.close()
 
-    def add_to_router(self, router):
-        router.add_api_websocket_route(self.endpoint, self.websocket_wrapper)
+    def add_to_router(self, router, **fastapi_kwargs):
+        self._add_api_websocket_route(router, self.websocket_wrapper, **fastapi_kwargs)
