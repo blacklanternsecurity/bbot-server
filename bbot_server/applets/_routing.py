@@ -233,7 +233,7 @@ class WebsocketRoute(BaseServerRoute):
             api_key = websocket.headers.get(bbcfg.API_KEY_NAME, "")
             valid, reason = bbcfg.check_api_key(api_key)
             if valid:
-                await self.function(websocket, *args, **kwargs)
+                await self.orig_function(websocket, *args, **kwargs)
             else:
                 await websocket.close(code=1008, reason=reason)
 
