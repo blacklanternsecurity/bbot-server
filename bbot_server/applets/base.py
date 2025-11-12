@@ -15,8 +15,8 @@ from bbot_server.assets import Asset
 from bbot.models.pydantic import Event
 from bbot_server.modules import API_MODULES
 from bbot.core.helpers import misc as bbot_misc
-from bbot_server.applets._routing import ROUTE_TYPES
 from bbot_server.utils import misc as bbot_server_misc
+from bbot_server.applets._routing import make_bbotserver_route
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.errors import BBOTServerError, BBOTServerValueError
 from bbot_server.utils.misc import _sanitize_mongo_query, _sanitize_mongo_aggregation
@@ -642,31 +642,15 @@ class BaseApplet:
             function = getattr(self, attr, None)
             if not callable(function):
                 continue
-            # see if the value has an "_endpoint" attribute
-            endpoint = getattr(function, "_endpoint", None)
-            # if it's a callable function and it has _endpoint, it's an @api_endpoint
 
-            if endpoint is not None:
-                fastapi_kwargs = dict(getattr(function, "_kwargs", {}))
-                endpoint_type = fastapi_kwargs.pop("type", "http")
-                response_model = fastapi_kwargs.pop("response_model", None)
+            if not hasattr(function, "_endpoint"):
+                continue
 
-                try:
-                    route_class = ROUTE_TYPES[endpoint_type]
-                except KeyError:
-                    raise self.BBOTServerError(f"Invalid endpoint type: {endpoint_type}")
-
-                kwargs = {"tags": [self.tag]}
-
-                if route_class.requires_response_model:
-                    if response_model is None:
-                        raise self.BBOTServerError(
-                            f"{self.name}.{function.__name__} {endpoint}: Must specify a pydantic model used for deserializing {endpoint_type} streams"
-                        )
-                    kwargs["response_model"] = response_model
-
-                bbot_server_route = route_class(function, **kwargs)
-                bbot_server_route.add_to_applet(self)
+            try:
+                bbot_server_route = make_bbotserver_route(function, tags=[self.tag])
+            except BBOTServerValueError:
+                continue
+            bbot_server_route.add_to_applet(self)
 
     @property
     def global_config(self):
