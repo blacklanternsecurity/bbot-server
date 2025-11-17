@@ -247,7 +247,7 @@ class FindingsApplet(BaseApplet):
         max_severity_score = max([asset.finding_max_severity_score, finding_stats.get("max_severity_score", 0)])
         finding_stats["max_severity_score"] = max_severity_score
         if max_severity_score > 0:
-            max_severity = SeverityScore.to_severity(max_severity_score)
+            max_severity = SeverityScore.to_str(max_severity_score)
         else:
             max_severity = None
         finding_stats["max_severity"] = max_severity
@@ -304,8 +304,8 @@ class FindingsApplet(BaseApplet):
                 {
                     "$set": {
                         "modified": self.helpers.utc_now(),
-                        "confidence": finding.confidence,
-                        "severity": finding.severity,
+                        "confidence": finding.confidence_score,
+                        "severity_score": finding.severity_score,
                     }
                 },
             )
@@ -318,7 +318,7 @@ class FindingsApplet(BaseApplet):
         severity_scores = {SeverityScore.to_score(severity) for severity in finding_severities}
         if severity_scores:
             asset.finding_max_severity_score = max(severity_scores)
-            asset.finding_max_severity = SeverityScore.to_severity(asset.finding_max_severity_score)
+            asset.finding_max_severity = SeverityScore.to_str(asset.finding_max_severity_score)
         else:
             asset.finding_max_severity_score = 0
             asset.finding_max_severity = None
