@@ -129,11 +129,12 @@ class DummyScan1(DummyScan):
                             {
                                 "name": "CVE-2024-12345",
                                 "severity": "HIGH",
+                                "confidence": "HIGH",
                                 "description": "That's a paddlin'",
                                 "host": event.host,
                                 "url": f"{scheme}://{event.host}",
                             },
-                            "VULNERABILITY",
+                            "FINDING",
                             parent=event,
                         )
 
@@ -230,11 +231,12 @@ class DummyScan2(DummyScan):
                         {
                             "name": "CVE-2025-54321",
                             "severity": "CRITICAL",
+                            "confidence": "HIGH",
                             "description": "That's a whippin'",
                             "host": event.host,
                             "url": f"{scheme}://{event.host}",
                         },
-                        "VULNERABILITY",
+                        "FINDING",
                         parent=event,
                     )
 

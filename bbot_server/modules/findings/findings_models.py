@@ -1,11 +1,14 @@
+from typing import Annotated, Optional
 from pydantic import Field, computed_field
-from typing import Annotated, Optional, Union
 
-from bbot_server.errors import BBOTServerValueError
+from bbot_server.models.base import BaseScore
 from bbot_server.models.asset_models import BaseAssetFacet
 
 # Severity levels as constants
 SEVERITY_LEVELS = {"INFO": 1, "LOW": 2, "MEDIUM": 3, "HIGH": 4, "CRITICAL": 5}
+
+# Confidence levels as constants
+CONFIDENCE_LEVELS = {"UNKNOWN": 1, "LOW": 2, "MODERATE": 3, "HIGH": 4, "CONFIRMED": 5}
 
 # severity colors for rich, etc. (bash color names)
 SEVERITY_COLORS = {
@@ -17,31 +20,18 @@ SEVERITY_COLORS = {
 }
 
 
-class SeverityScore:
+class SeverityScore(BaseScore):
     """Maps severity levels to numeric scores and provides conversion methods."""
 
-    @classmethod
-    def to_score(cls, severity: Union[str, int]) -> int:
-        """Convert a severity level to its numeric score."""
-        if isinstance(severity, int):
-            if severity not in SEVERITY_LEVELS.values():
-                raise BBOTServerValueError(f'Invalid severity score: "{severity}". Must be between 1 and 5.')
-            return severity
-        if isinstance(severity, str):
-            severity = severity.upper()
-            if severity not in SEVERITY_LEVELS:
-                raise BBOTServerValueError(
-                    f'Invalid severity string: "{severity}". Must be one of {list(SEVERITY_LEVELS.keys())}'
-                )
-            return SEVERITY_LEVELS[severity]
+    levels = SEVERITY_LEVELS
+    name = "severity"
 
-    @classmethod
-    def to_severity(cls, score: int) -> str:
-        """Convert a numeric score to its string equivalent."""
-        for level, value in SEVERITY_LEVELS.items():
-            if value == score:
-                return level
-        raise BBOTServerValueError(f"Invalid severity score: {score}. Must be between 1 and 5.")
+
+class ConfidenceScore(BaseScore):
+    """Maps confidence levels to numeric scores and provides conversion methods."""
+
+    levels = CONFIDENCE_LEVELS
+    name = "confidence"
 
 
 class Finding(BaseAssetFacet):
@@ -53,11 +43,12 @@ class Finding(BaseAssetFacet):
         ge=1,
         le=5,
     )
-    confidence: Annotated[int, "indexed"] = Field(
-        description="Confidence level of the vulnerability (1-5)",
+    confidence_score: Annotated[int, "indexed"] = Field(
+        description="Numeric confidence score of the vulnerability (1-5)",
         ge=1,
         le=5,
         default=1,
+        alias="confidence",
     )
     temptation: Optional[Annotated[int, "indexed"]] = Field(
         description="Likelihood of an attacker taking interest in this finding (1-5)",
@@ -75,6 +66,10 @@ class Finding(BaseAssetFacet):
         severity = kwargs.pop("severity", None)
         if severity is not None:
             kwargs["severity_score"] = SeverityScore.to_score(severity)
+        # convert confidence to confidence_score
+        confidence = kwargs.pop("confidence", None)
+        if confidence is not None:
+            kwargs["confidence_score"] = ConfidenceScore.to_score(confidence)
         super().__init__(**kwargs)
 
     @computed_field
@@ -83,7 +78,15 @@ class Finding(BaseAssetFacet):
         """
         The string version of the severity score, e.g. 3 -> "MEDIUM", 4 -> "HIGH", etc.
         """
-        return SeverityScore.to_severity(self.severity_score)
+        return SeverityScore.to_str(self.severity_score)
+
+    @computed_field
+    @property
+    def confidence(self) -> str:
+        """
+        The string version of the confidence score, e.g. 1 -> "UNKNOWN", 5 -> "CONFIRMED", etc.
+        """
+        return ConfidenceScore.to_str(self.confidence_score)
 
     @computed_field
     @property
