@@ -69,7 +69,7 @@ def make_app():
         root_path="/v1",
         openapi_tags=app_root.tags_metadata,
         default_response_class=ORJSONResponse,
-        dependencies=[Depends(api_key_dependency_http), Depends(api_key_dependency_websocket)],
+        #dependencies=[Depends(api_key_dependency_http), Depends(api_key_dependency_websocket)],
         **app_kwargs,
     )
 
