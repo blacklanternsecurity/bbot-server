@@ -1,7 +1,7 @@
-import logging
 import uuid
+import logging
 from pathlib import Path
-from typing import Any, Iterable, Optional, Set, List
+from typing import Any, Iterable, Optional, Set
 
 from pydantic import BaseModel, Field, PrivateAttr
 from pydantic_settings import (
@@ -69,7 +69,7 @@ class BBOTServerSettings(BaseSettings):
     auth_enabled: bool = True
 
     # API key config
-    api_key_name: str = "X-API-Key"
+    api_key_header: str = "X-API-Key"
     api_key: Optional[str] = ""
     api_keys: Iterable[str] = Field(default_factory=list)
 
@@ -88,9 +88,6 @@ class BBOTServerSettings(BaseSettings):
 
     # runtime-only cache of parsed API keys
     _valid_api_keys: Set[uuid.UUID] = PrivateAttr(default_factory=set)
-
-    # runtime-only cache of yaml paths
-    _yaml_paths: List[str] = PrivateAttr(default_factory=list)
 
     # defaults + env wiring
     model_config = SettingsConfigDict(
