@@ -7,7 +7,7 @@ from pathlib import Path
 from subprocess import run
 from contextlib import suppress
 
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
@@ -42,7 +42,7 @@ class ServerCTL(BaseBBCTL):
             self.log.info("First run detected. Adding a new API key...")
             self.root.children["server"].children["apikey"].setup()
             self.root.children["server"].children["apikey"].add()
-        bbcfg.refresh_config()
+        bbcfg.refresh()
 
         if api_only:
             print("Starting BBOT server API")
@@ -128,7 +128,7 @@ class ServerCTL(BaseBBCTL):
             raise self.BBOTServerError(f"Must specify at least one database to clear")
 
         if event_store:
-            event_store_db = self.config.get("event_store", {}).get("uri", "").split("/")[-1]
+            event_store_db = self.config.event_store.uri.split("/")[-1]
             if not event_store_db:
                 raise self.BBOTServerError("Event store database not found in config")
             response = input(
@@ -141,7 +141,7 @@ class ServerCTL(BaseBBCTL):
             self.log.info(f"Successfully cleared event store database: {event_store_db}")
 
         if asset_store:
-            asset_store_db = self.config.get("asset_store", {}).get("uri", "").split("/")[-1]
+            asset_store_db = self.config.asset_store.uri.split("/")[-1]
             if not asset_store_db:
                 raise self.BBOTServerError("Asset store database not found in config")
             response = input(
@@ -153,7 +153,7 @@ class ServerCTL(BaseBBCTL):
             self.log.info(f"Successfully cleared asset store database: {asset_store_db}")
 
         if user_store:
-            user_store_db = self.config.get("user_store", {}).get("uri", "").split("/")[-1]
+            user_store_db = self.config.user_store.uri.split("/")[-1]
             if not user_store_db:
                 raise self.BBOTServerError("User store database not found in config")
             response = input(

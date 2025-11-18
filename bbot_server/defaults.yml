@@ -4,9 +4,9 @@ url: http://localhost:8807/v1/
 # whether to enable API key authentication
 auth_enabled: true
 # the header name to use for API key authentication
-api_key_header: X-API-Key
+auth_header: X-API-Key
 # the API key to use when in client mode
-api_key: ""
+api_key: null
 
 # event store is just a big bucket of BBOT scan events that act as a read-only time machine
 event_store:

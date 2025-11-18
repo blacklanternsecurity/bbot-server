@@ -658,7 +658,7 @@ class BaseApplet:
 
     @property
     def config(self):
-        return self.global_config.get("modules", {}).get(self.name, {})
+        return self.global_config.modules.get(self.name, {})
 
     @property
     def tag(self):

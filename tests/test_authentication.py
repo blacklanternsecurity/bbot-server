@@ -1,15 +1,16 @@
+import yaml
 import uuid
 import httpx
 import websockets
-from omegaconf import OmegaConf
 
 from .conftest import TEST_CONFIG_PATH
 
 
 async def test_authentication(bbot_server_http):
-    test_config = OmegaConf.load(TEST_CONFIG_PATH)
+    with open(TEST_CONFIG_PATH, "r") as f:
+        test_config = yaml.safe_load(f) or {}
     api_keys = test_config.get("api_keys", [])
-    assert len(api_keys) == 1, "API keys are not set in test config"
+    assert len(api_keys) == 1, f"API keys are not set in test config: (config: {test_config})"
     api_key = api_keys[0]
 
     ## NO API KEY ##

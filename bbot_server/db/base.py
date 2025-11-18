@@ -1,6 +1,6 @@
 import logging
 
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from bbot_server.errors import BBOTServerValueError
 
 
@@ -11,6 +11,7 @@ class BaseDB:
 
     def __init__(self):
         self.log = logging.getLogger(__name__)
+        self.config = bbcfg
 
         if not self.db_config:
             raise BBOTServerValueError(
@@ -24,16 +25,12 @@ class BaseDB:
         self._setup_finished = False
 
     @property
-    def config(self):
-        return bbcfg.BBOT_SERVER_CONFIG
-
-    @property
     def db_config(self):
-        return self.config.get(self.config_key, {})
+        return getattr(self.config, self.config_key, None)
 
     @property
     def uri(self):
-        uri = self.db_config.get("uri", "")
+        uri = getattr(self.db_config, "uri", "")
         if not uri:
             raise BBOTServerValueError(f"Database URI is missing from config: {self.db_config}")
         return uri

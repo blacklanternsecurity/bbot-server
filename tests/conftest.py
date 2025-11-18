@@ -48,11 +48,6 @@ if not bbcfg.get_api_keys():
     bbcfg.add_api_key()
 
 
-@pytest.fixture
-def bbot_server_config():
-    return bbcfg.BBOT_SERVER_CONFIG
-
-
 @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
 # @pytest_asyncio.fixture(params=[{"interface": "http"}])
 async def bbot_server(request, mongo_cleanup, redis_cleanup):
@@ -68,7 +63,7 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup):
         nonlocal bbot_server
 
         if config_overrides is not None:
-            bbcfg.refresh_config(config_overrides)
+            bbcfg.refresh(**config_overrides)
 
         kwargs.update(dict(request.param))
 
@@ -178,16 +173,15 @@ def bbot_server_http(mongo_cleanup, redis_cleanup):
 
     try:
         success = False
-        for i in range(1000):
-            api_key = bbcfg.get_api_key()
-            with suppress(Exception):
-                response = httpx.get(f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": api_key})
-                if getattr(response, "status_code", 0) == 200:
-                    success = True
-                    break
+        response = None
+        for i in range(100):
+            response = httpx.get(f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": str(bbcfg.get_api_key())})
+            if getattr(response, "status_code", 0) == 200:
+                success = True
+                break
             time.sleep(0.1)
         if not success:
-            raise Exception("Failed to start bbot server")
+            raise Exception(f"Failed to start bbot server. Response: {getattr(response, 'text', 'No response')}")
         time.sleep(0.5)
         yield server_process
         server_process.send_signal(signal.SIGINT)
@@ -255,13 +249,13 @@ def bbot_agent(bbot_server_http):
 
 
 @pytest_asyncio.fixture
-async def mongo_cleanup(bbot_server_config):
+async def mongo_cleanup():
     """
     Clear the mongo database before and after each test
     """
     from pymongo import AsyncMongoClient
 
-    client = AsyncMongoClient(bbot_server_config["event_store"]["uri"])
+    client = AsyncMongoClient(bbcfg.event_store.uri)
 
     async def clear_everything():
         await client.drop_database("test_bbot_server_events")
@@ -274,16 +268,14 @@ async def mongo_cleanup(bbot_server_config):
 
 
 @pytest_asyncio.fixture
-async def redis_cleanup(bbot_server_config):
+async def redis_cleanup():
     """
     Clear the redis database before and after each test
     """
     import redis.asyncio as redis
 
-    redis_uri = bbot_server_config.get("message_queue", {}).get("uri", "redis://localhost:6379/15")
-
     # Connect to Redis
-    r = redis.from_url(redis_uri)
+    r = redis.from_url(bbcfg.message_queue.uri)
 
     # Clear before test
     await r.flushdb()

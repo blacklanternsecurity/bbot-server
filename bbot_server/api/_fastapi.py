@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse, ORJSONResponse
 from fastapi import FastAPI, HTTPException, Depends, Request, WebSocket
 
 from bbot_server import modules  # noqa: F401
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from bbot_server.errors import BBOTServerError, handle_bbot_server_error
 
 log = logging.getLogger("bbot_server.api.fastapi")
@@ -19,12 +19,14 @@ app_kwargs = {
 }
 
 # API key header
-# api_key_header = APIKeyHeader(name=bbcfg.API_KEY_NAME, auto_error=False)
+# api_key_header = APIKeyHeader(name=bbcfg.auth_header, auto_error=False)
 
 
 def api_key_dependency_http(request: Request = None):
+    if not bbcfg.auth_enabled:
+        return
     if request is not None:
-        api_key = request.headers.get(bbcfg.API_KEY_NAME, "")
+        api_key = request.headers.get(bbcfg.auth_header, "")
         if not api_key:
             raise HTTPException(status_code=401, detail="API key is required")
         valid, reason = bbcfg.check_api_key(api_key)
@@ -34,8 +36,10 @@ def api_key_dependency_http(request: Request = None):
 
 
 async def api_key_dependency_websocket(websocket: WebSocket = None):
+    if not bbcfg.auth_enabled:
+        return
     if websocket is not None:
-        api_key = websocket.headers.get(bbcfg.API_KEY_NAME, "")
+        api_key = websocket.headers.get(bbcfg.auth_header, "")
         if not api_key:
             await websocket.close(code=3000, reason="API key is required")
             raise HTTPException(status_code=401, detail="API key is required")
@@ -102,7 +106,7 @@ def make_app():
             "APIKeyHeader": {
                 "type": "apiKey",
                 "in": "header",
-                "name": bbcfg.API_KEY_NAME,
+                "name": bbcfg.auth_header,
                 "description": "API key authentication",
             }
         }

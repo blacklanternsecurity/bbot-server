@@ -66,12 +66,12 @@ class BBOTServerSettings(BaseSettings):
 
     # core
     url: str
-    auth_enabled: bool = True
 
     # API key config
-    api_key_header: str = "X-API-Key"
-    api_key: Optional[str] = ""
-    api_keys: Iterable[str] = Field(default_factory=list)
+    auth_enabled: bool = True
+    auth_header: str = "X-API-Key"
+    api_key: Optional[uuid.UUID] = None
+    api_keys: Iterable[uuid.UUID] = Field(default_factory=list)
 
     # storage + mq
     event_store: StoreConfig
@@ -94,7 +94,6 @@ class BBOTServerSettings(BaseSettings):
         env_prefix="BBOT_SERVER_",
         env_nested_delimiter="__",
         extra="allow",
-        yaml_file=DEFAULT_YAML_PATHS,
     )
 
     @classmethod
@@ -150,19 +149,19 @@ class BBOTServerSettings(BaseSettings):
         """
         Populate the in-memory set of valid API keys from this config.
         """
-        api_keys: Set[uuid.UUID] = set()
+        api_keys = set()
 
         # Single api_key, if set
         if self.api_key:
             try:
-                api_keys.add(uuid.UUID(str(self.api_key)))
+                api_keys.add(self.api_key)
             except ValueError as e:
                 raise BBOTServerValueError("Invalid API key in config") from e
 
         # List of api_keys
         for key in self.api_keys:
             try:
-                api_keys.add(uuid.UUID(str(key)))
+                api_keys.add(key)
             except ValueError as e:
                 raise BBOTServerValueError("Invalid API key in config") from e
 
@@ -181,13 +180,13 @@ class BBOTServerSettings(BaseSettings):
         # prioritize single api key if set
         if self.api_key:
             try:
-                return str(uuid.UUID(str(self.api_key)))
+                return self.api_key
             except ValueError:
                 pass
 
         # otherwise, return the first valid API key
         try:
-            return str(next(iter(self._valid_api_keys)))
+            return next(iter(self._valid_api_keys))
         except StopIteration:
             raise BBOTServerError(
                 "No API keys found in the config. Please set `api_keys` in your config file "
@@ -222,7 +221,7 @@ class BBOTServerSettings(BaseSettings):
         api_key = uuid.uuid4()
         self._valid_api_keys.add(api_key)
         # keep api_keys field in sync for future refreshes
-        self.api_keys = [str(key) for key in sorted(self._valid_api_keys, key=str)]
+        self.api_keys = sorted(self._valid_api_keys, key=str)
         return api_key
 
     def revoke_api_key(self, api_key: str) -> None:

@@ -1,5 +1,4 @@
-import bbot_server.config as bbcfg
-
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from bbot_server.applets.base import BaseApplet
 
 
@@ -12,10 +11,10 @@ class RootApplet(BaseApplet):
 
     def __init__(self, config=None, **kwargs):
         """
-        "config" can be either a dictionary or an omegaconf object
+        "config" can be a dictionary of config overrides
         """
         if config is not None:
-            bbcfg.refresh_config(config)
+            bbcfg.refresh(**config)
         super().__init__(**kwargs)
         self._interface_type = "python"
         self._mcp = None
@@ -52,7 +51,7 @@ class RootApplet(BaseApplet):
 
     @property
     def _config(self):
-        return bbcfg.BBOT_SERVER_CONFIG
+        return bbcfg
 
     async def cleanup(self):
         if self.is_native:

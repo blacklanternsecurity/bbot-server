@@ -4,11 +4,10 @@ import asyncio
 import logging
 import traceback
 from pathlib import Path
-from omegaconf import OmegaConf
 from rich.console import Console
 from functools import cached_property
 
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg, BBOT_SERVER_CONFIG_PATH
 from bbot_server.cli.base import BaseBBCTL, Annotated, Option
 from bbot_server.errors import BBOTServerError, BBOTServerUnauthorizedError
 
@@ -46,14 +45,14 @@ class BBCTL(BaseBBCTL):
         if custom_config:
             try:
                 self.config_path = Path(custom_config)
-                self.bbcfg.update_config_path(self.config_path)
+                bbcfg.refresh(config_path=self.config_path)
             except Exception as e:
                 raise BBOTServerError(f"Error loading config file at {self.config_path}: {e}")
         else:
-            self.config_path = bbcfg.BBOT_SERVER_CONFIG_PATH
+            self.config_path = BBOT_SERVER_CONFIG_PATH
         if self.debug:
             logging.getLogger().setLevel(logging.DEBUG)
-        if server_url is not None and server_url != bbcfg.BBOT_SERVER_URL:
+        if server_url is not None and server_url != bbcfg.url:
             self._config.url = server_url
         self.server_url = self.config.url
 
@@ -61,7 +60,7 @@ class BBCTL(BaseBBCTL):
         self._stderr = Console(file=sys.stderr, highlight=False, color_system=("auto" if self.color else None))
 
         if current_config:
-            self.print_yaml(OmegaConf.to_yaml(self.config))
+            self.print_yaml(self.config.model_dump())
             return
 
     @cached_property
@@ -78,7 +77,7 @@ class BBCTL(BaseBBCTL):
 
     @property
     def _config(self):
-        return self.bbcfg.BBOT_SERVER_CONFIG
+        return self.bbcfg
 
 
 log = logging.getLogger("bbot_server.bbctl")

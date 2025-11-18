@@ -12,7 +12,7 @@ from contextlib import suppress
 
 async def test_scheduled_tasks(mongo_cleanup):
     from bbot_server import BBOTServer
-    import bbot_server.config as bbcfg
+    from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
     from bbot_server.watchdog import BBOTWatchdog
     from bbot_server.applets.base import BaseApplet, watchdog_task
 
@@ -37,7 +37,7 @@ async def test_scheduled_tasks(mongo_cleanup):
         async def cron_task_3(self):
             self.cron_task_3_ran = True
 
-    config = bbcfg.refresh_config({"test": {"cron_task_2": "*/1 * * * *"}})
+    config = {"test": {"cron_task_2": "*/1 * * * *"}}
 
     bbot_server = BBOTServer(config=config)
     await bbot_server.setup()
