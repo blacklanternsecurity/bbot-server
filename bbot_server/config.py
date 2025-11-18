@@ -127,19 +127,8 @@ class BBOTServerSettings(BaseSettings):
         """
         Re-read the config from disk and environment.
         """
-        # Instantiate or re-init the settings object; BaseSettings will pull in:
-        #   - init overrides
-        #   - env vars (BBOT_SERVER_*)
-        #   - YAML defaults/user config via YamlConfigSettingsSource
-
-        # preserve the existing yaml paths
-        # if not "config_path" in overrides:
-        #     overrides["config_path"] = self._yaml_paths
-
         self.__init__(**overrides)
         self.refresh_api_keys()
-
-    # --- API key helpers, all on the settings class ---
 
     def refresh_api_keys(self) -> None:
         """
