@@ -1,4 +1,5 @@
 import uuid
+import yaml
 import logging
 from pathlib import Path
 from typing import Any, Iterable, Optional, Set
@@ -18,22 +19,21 @@ log = logging.getLogger("bbot_server.config")
 
 BBOT_SERVER_DIR = Path(__file__).parent
 BBOT_SERVER_DEFAULTS_PATH = BBOT_SERVER_DIR / "defaults.yml"
-DEFAULT_CONFIG_PATH = Path.home() / ".config" / "bbot_server" / "config.yml"
-CUSTOM_YAML_PATH = None
+BBOT_SERVER_CONFIG_PATH = Path.home() / ".config" / "bbot_server" / "config.yml"
 
 # Create the config if it doesn't exist
-if not DEFAULT_CONFIG_PATH.exists():
+if not BBOT_SERVER_CONFIG_PATH.exists():
     try:
-        DEFAULT_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        DEFAULT_CONFIG_PATH.touch(mode=0o600)
+        BBOT_SERVER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        BBOT_SERVER_CONFIG_PATH.touch(mode=0o600)
         # fill with commented defaults
-        with open(DEFAULT_CONFIG_PATH, "w") as f:
+        with open(BBOT_SERVER_CONFIG_PATH, "w") as f:
             with open(BBOT_SERVER_DEFAULTS_PATH, "r") as defaults_file:
                 defaults_content = defaults_file.read()
             f.write(f"# NOTICE: This file is commented by default. Uncomment it to make changes.\n")
             f.write("\n".join([f"# {line}" for line in defaults_content.split("\n")]))
     except Exception as e:
-        log.error(f"Error creating config file at {DEFAULT_CONFIG_PATH}: {e}")
+        log.error(f"Error creating config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
 
 
 class StoreConfig(BaseModel):
@@ -88,9 +88,6 @@ class BBOTServerSettings(BaseSettings):
     # runtime-only cache of parsed API keys
     _valid_api_keys: Set[uuid.UUID] = PrivateAttr(default_factory=set)
 
-    # runtime-only value of config path
-    _config_path: Optional[Path] = PrivateAttr(default=None)
-
     # defaults + env wiring
     model_config = SettingsConfigDict(
         env_prefix="BBOT_SERVER_",
@@ -111,25 +108,18 @@ class BBOTServerSettings(BaseSettings):
         Wire up Pydantic's YAML source with our two YAML files.
         """
         # we preserve custom yaml paths for future refreshes
-        global CUSTOM_YAML_PATH
+        global BBOT_SERVER_CONFIG_PATH
 
         # if the user asked for a custom config path, use it
-        custom_yaml_path = init_settings.init_kwargs.get("config_path", CUSTOM_YAML_PATH)
-        # otherwise, if we previously had a custom config path, use it
-        if not custom_yaml_path and CUSTOM_YAML_PATH:
-            custom_yaml_path = CUSTOM_YAML_PATH
-        # if we have a custom config path, add it to the yaml paths
-        if custom_yaml_path:
-            config_path = Path(custom_yaml_path)
-            CUSTOM_YAML_PATH = custom_yaml_path
-        # otherwise, use the default config path
-        else:
-            config_path = DEFAULT_CONFIG_PATH
+        custom_config_path = init_settings.init_kwargs.get("config_path", None)
+        # if custom path is provided, override it for future refreshes
+        if custom_config_path:
+            BBOT_SERVER_CONFIG_PATH = Path(custom_config_path)
 
         return (
             init_settings,
             env_settings,
-            YamlConfigSettingsSource(settings_cls, yaml_file=[BBOT_SERVER_DEFAULTS_PATH, config_path]),
+            YamlConfigSettingsSource(settings_cls, yaml_file=[BBOT_SERVER_DEFAULTS_PATH, BBOT_SERVER_CONFIG_PATH]),
             file_secret_settings,
         )
 
@@ -228,6 +218,14 @@ class BBOTServerSettings(BaseSettings):
         self._valid_api_keys.add(api_key)
         # keep api_keys field in sync for future refreshes
         self.api_keys = sorted(self._valid_api_keys, key=str)
+        # load the config file
+        with open(BBOT_SERVER_CONFIG_PATH, "r") as f:
+            config_yaml = yaml.safe_load(f)
+        # add the new API key to the config
+        config_yaml["api_keys"] = sorted([str(key) for key in self._valid_api_keys])
+        # save the config file
+        with open(BBOT_SERVER_CONFIG_PATH, "w") as f:
+            yaml.safe_dump(config_yaml, f)
         return api_key
 
     def revoke_api_key(self, api_key: str) -> None:

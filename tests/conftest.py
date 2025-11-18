@@ -264,9 +264,16 @@ async def mongo_cleanup():
         await client.drop_database("test_bbot_server_assets")
         await client.drop_database("test_bbot_server_userdata")
 
-    await clear_everything()
-    yield
-    # await clear_everything()
+    try:
+        # Clear before test
+        await clear_everything()
+        yield
+    finally:
+        # Optionally clear again after test, then cleanly close the async client
+        with suppress(Exception):
+            await clear_everything()
+        with suppress(Exception):
+            await client.close()
 
 
 @pytest_asyncio.fixture
