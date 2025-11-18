@@ -175,7 +175,9 @@ def bbot_server_http(mongo_cleanup, redis_cleanup):
         success = False
         response = None
         for i in range(100):
-            response = httpx.get(f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": str(bbcfg.get_api_key())})
+            response = httpx.get(
+                f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": str(bbcfg.get_api_key())}
+            )
             if getattr(response, "status_code", 0) == 200:
                 success = True
                 break

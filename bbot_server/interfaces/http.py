@@ -74,7 +74,9 @@ class http(BaseInterface):
             )
 
         request_task = asyncio.create_task(
-            self.client.request(url=_url, method=method, json=body, headers={bbcfg.auth_header: str(bbcfg.get_api_key())})
+            self.client.request(
+                url=_url, method=method, json=body, headers={bbcfg.auth_header: str(bbcfg.get_api_key())}
+            )
         )
         warn_task = asyncio.create_task(warn_if_slow())
 
@@ -162,7 +164,7 @@ class http(BaseInterface):
         # replace scheme with ws
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
         try:
-            async for websocket in connect(_url, additional_headers={bbcfg.auth_header: str(bbcfg.get_api_key())}:
+            async for websocket in connect(_url, additional_headers={bbcfg.auth_header: str(bbcfg.get_api_key())}):
                 async for message in websocket:
                     decoded_json = orjson.loads(message)
                     model_obj = _route.response_model(**decoded_json)

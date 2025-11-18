@@ -24,7 +24,6 @@ class BaseMessageQueue:
         if not self.uri:
             raise BBOTServerValueError(f"Message queue URI is missing from config: {self.mq_config}")
 
-
     @property
     def mq_config(self):
         return self.config.message_queue
