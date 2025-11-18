@@ -1,13 +1,10 @@
-import os
 import sys
 import asyncio
 import logging
 import traceback
-from pathlib import Path
 from rich.console import Console
 from functools import cached_property
 
-from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg, BBOT_SERVER_CONFIG_PATH
 from bbot_server.cli.base import BaseBBCTL, Annotated, Option
 from bbot_server.errors import BBOTServerError, BBOTServerUnauthorizedError
 
@@ -39,20 +36,11 @@ class BBCTL(BaseBBCTL):
         self.silent = silent
         self.color = color
         self.debug = debug
-        self.config_path = None
-        # command line arg takes precedence over environment variable
-        custom_config = config or os.environ.get("BBOT_SERVER_CONFIG", "")
-        if custom_config:
-            try:
-                self.config_path = Path(custom_config)
-                bbcfg.refresh(config_path=self.config_path)
-            except Exception as e:
-                raise BBOTServerError(f"Error loading config file at {self.config_path}: {e}")
-        else:
-            self.config_path = BBOT_SERVER_CONFIG_PATH
+        if config:
+            self.bbcfg.refresh(config_path=config)
         if self.debug:
             logging.getLogger().setLevel(logging.DEBUG)
-        if server_url is not None and server_url != bbcfg.url:
+        if server_url is not None and server_url != self.bbcfg.url:
             self._config.url = server_url
         self.server_url = self.config.url
 
@@ -65,13 +53,9 @@ class BBCTL(BaseBBCTL):
 
     @cached_property
     def bbot_server(self):
-        bbot_server_kwargs = {}
-        if self.config:
-            bbot_server_kwargs["config"] = self.config
-
         from bbot_server import BBOTServer
 
-        bbot_server = BBOTServer(interface="http", url=self.server_url, synchronous=True, **bbot_server_kwargs)
+        bbot_server = BBOTServer(interface="http", url=self.server_url, synchronous=True)
         bbot_server.setup()
         return bbot_server
 

@@ -1,8 +1,9 @@
+import os
 import uuid
 import yaml
 import logging
 from pathlib import Path
-from typing import Any, Iterable, Optional, Set, List
+from typing import Any, Optional, Set, List
 
 from pydantic import BaseModel, Field, PrivateAttr
 from pydantic_settings import (
@@ -111,7 +112,9 @@ class BBOTServerSettings(BaseSettings):
         global BBOT_SERVER_CONFIG_PATH
 
         # if the user asked for a custom config path, use it
-        custom_config_path = init_settings.init_kwargs.get("config_path", None)
+        custom_config_path = init_settings.init_kwargs.get("config_path", None) or os.environ.get(
+            "BBOT_SERVER_CONFIG", None
+        )
         # if custom path is provided, override it for future refreshes
         if custom_config_path:
             BBOT_SERVER_CONFIG_PATH = Path(custom_config_path)
@@ -213,16 +216,12 @@ class BBOTServerSettings(BaseSettings):
             parsed = uuid.UUID(api_key)
         except ValueError as e:
             raise BBOTServerValueError("Invalid API key") from e
-        api_key = str(parsed)
-        
-        with open(BBOT_SERVER_CONFIG_PATH, "r") as f:
-            config_yaml = yaml.safe_load(f)
 
         # remove the API key from the config
         self._valid_api_keys.discard(parsed)
         self.write_api_keys()
         self.refresh()
-    
+
     def write_api_keys(self):
         with open(BBOT_SERVER_CONFIG_PATH, "r") as f:
             config_yaml = yaml.safe_load(f)
