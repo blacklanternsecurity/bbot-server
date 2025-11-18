@@ -174,7 +174,7 @@ def bbot_server_http(mongo_cleanup, redis_cleanup):
     try:
         success = False
         response = None
-        for i in range(100):
+        for i in range(500):
             response = httpx.get(
                 f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": str(bbcfg.get_api_key())}
             )

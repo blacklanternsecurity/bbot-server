@@ -11,9 +11,6 @@ class APIKeyCTL(BaseBBCTL):
     short_help = "Manage BBOT server API keys"
     attach_to = "server"
 
-    def setup(self):
-        self.existing_config = OmegaConf.load(self.root.config_path)
-
     @subcommand(help="List all BBOT server API keys")
     def list(
         self,
