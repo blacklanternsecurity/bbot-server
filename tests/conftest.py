@@ -13,7 +13,7 @@ import pytest_asyncio
 from pathlib import Path
 from contextlib import suppress
 
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from .gen_scan_data import *
 
 
@@ -39,7 +39,9 @@ BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PA
 
 shutil.copy(TEST_CONFIG_PATH_SOURCE, TEST_CONFIG_PATH)
 
-bbcfg.update_config_path(TEST_CONFIG_PATH)
+bbcfg.refresh(config_path=str(TEST_CONFIG_PATH))
+
+assert bbcfg.asset_store.uri == "mongodb://localhost:27017/test_bbot_server_assets"
 
 if not bbcfg.get_api_keys():
     # create a new api key if we don't have one yet
