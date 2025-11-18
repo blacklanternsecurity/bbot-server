@@ -18,23 +18,22 @@ log = logging.getLogger("bbot_server.config")
 
 BBOT_SERVER_DIR = Path(__file__).parent
 BBOT_SERVER_DEFAULTS_PATH = BBOT_SERVER_DIR / "defaults.yml"
-BBOT_SERVER_CONFIG_PATH = Path.home() / ".config" / "bbot_server" / "config.yml"
-DEFAULT_YAML_PATHS = [BBOT_SERVER_DEFAULTS_PATH, BBOT_SERVER_CONFIG_PATH]
-CUSTOM_YAML_PATHS = []
+DEFAULT_CONFIG_PATH = Path.home() / ".config" / "bbot_server" / "config.yml"
+CUSTOM_YAML_PATH = None
 
 # Create the config if it doesn't exist
-if not BBOT_SERVER_CONFIG_PATH.exists():
+if not DEFAULT_CONFIG_PATH.exists():
     try:
-        BBOT_SERVER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        BBOT_SERVER_CONFIG_PATH.touch(mode=0o600)
+        DEFAULT_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        DEFAULT_CONFIG_PATH.touch(mode=0o600)
         # fill with commented defaults
-        with open(BBOT_SERVER_CONFIG_PATH, "w") as f:
+        with open(DEFAULT_CONFIG_PATH, "w") as f:
             with open(BBOT_SERVER_DEFAULTS_PATH, "r") as defaults_file:
                 defaults_content = defaults_file.read()
             f.write(f"# NOTICE: This file is commented by default. Uncomment it to make changes.\n")
             f.write("\n".join([f"# {line}" for line in defaults_content.split("\n")]))
     except Exception as e:
-        log.error(f"Error creating config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
+        log.error(f"Error creating config file at {DEFAULT_CONFIG_PATH}: {e}")
 
 
 class StoreConfig(BaseModel):
@@ -89,6 +88,9 @@ class BBOTServerSettings(BaseSettings):
     # runtime-only cache of parsed API keys
     _valid_api_keys: Set[uuid.UUID] = PrivateAttr(default_factory=set)
 
+    # runtime-only value of config path
+    _config_path: Optional[Path] = PrivateAttr(default=None)
+
     # defaults + env wiring
     model_config = SettingsConfigDict(
         env_prefix="BBOT_SERVER_",
@@ -109,21 +111,25 @@ class BBOTServerSettings(BaseSettings):
         Wire up Pydantic's YAML source with our two YAML files.
         """
         # we preserve custom yaml paths for future refreshes
-        global CUSTOM_YAML_PATHS
+        global CUSTOM_YAML_PATH
 
-        yaml_paths = list(DEFAULT_YAML_PATHS)
-        custom_yaml_paths = init_settings.init_kwargs.get("config_path", CUSTOM_YAML_PATHS)
-        if custom_yaml_paths and not isinstance(custom_yaml_paths, list):
-            custom_yaml_paths = [custom_yaml_paths]
-        if custom_yaml_paths:
-            for path in custom_yaml_paths:
-                if not path in yaml_paths:
-                    yaml_paths.append(path)
-            CUSTOM_YAML_PATHS = custom_yaml_paths
+        # if the user asked for a custom config path, use it
+        custom_yaml_path = init_settings.init_kwargs.get("config_path", CUSTOM_YAML_PATH)
+        # otherwise, if we previously had a custom config path, use it
+        if not custom_yaml_path and CUSTOM_YAML_PATH:
+            custom_yaml_path = CUSTOM_YAML_PATH
+        # if we have a custom config path, add it to the yaml paths
+        if custom_yaml_path:
+            config_path = Path(custom_yaml_path)
+            CUSTOM_YAML_PATH = custom_yaml_path
+        # otherwise, use the default config path
+        else:
+            config_path = DEFAULT_CONFIG_PATH
+
         return (
             init_settings,
             env_settings,
-            YamlConfigSettingsSource(settings_cls, yaml_file=yaml_paths),
+            YamlConfigSettingsSource(settings_cls, yaml_file=[BBOT_SERVER_DEFAULTS_PATH, config_path]),
             file_secret_settings,
         )
 
