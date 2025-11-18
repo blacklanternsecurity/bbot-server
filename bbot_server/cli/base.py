@@ -168,7 +168,7 @@ class BaseBBCTL:
         Highlight a YAML string with rich
         """
         if not isinstance(data, str):
-            data = yaml.dump(data, indent=2)
+            data = yaml.safe_dump(data, indent=2, sort_keys=False)
         if not "background_color" in kwargs:
             kwargs["background_color"] = "default"
         if not "theme" in kwargs:

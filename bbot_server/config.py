@@ -2,7 +2,7 @@ import uuid
 import yaml
 import logging
 from pathlib import Path
-from typing import Any, Iterable, Optional, Set
+from typing import Any, Iterable, Optional, Set, List
 
 from pydantic import BaseModel, Field, PrivateAttr
 from pydantic_settings import (
@@ -69,8 +69,8 @@ class BBOTServerSettings(BaseSettings):
     # API key config
     auth_enabled: bool = True
     auth_header: str = "X-API-Key"
-    api_key: Optional[uuid.UUID] = None
-    api_keys: Iterable[uuid.UUID] = Field(default_factory=list)
+    api_key: Optional[str] = None
+    api_keys: List[str] = Field(default_factory=list)
 
     # storage + mq
     event_store: StoreConfig
@@ -139,14 +139,14 @@ class BBOTServerSettings(BaseSettings):
         # Single api_key, if set
         if self.api_key:
             try:
-                api_keys.add(self.api_key)
+                api_keys.add(uuid.UUID(self.api_key))
             except ValueError as e:
                 raise BBOTServerValueError("Invalid API key in config") from e
 
         # List of api_keys
         for key in self.api_keys:
             try:
-                api_keys.add(key)
+                api_keys.add(uuid.UUID(key))
             except ValueError as e:
                 raise BBOTServerValueError("Invalid API key in config") from e
 
@@ -165,13 +165,13 @@ class BBOTServerSettings(BaseSettings):
         # prioritize single api key if set
         if self.api_key:
             try:
-                return self.api_key
+                return uuid.UUID(self.api_key)
             except ValueError:
                 pass
 
         # otherwise, return the first valid API key
         try:
-            return next(iter(self._valid_api_keys))
+            return str(next(iter(self._valid_api_keys)))
         except StopIteration:
             raise BBOTServerError(
                 "No API keys found in the config. Please set `api_keys` in your config file "
@@ -205,28 +205,37 @@ class BBOTServerSettings(BaseSettings):
         """
         api_key = uuid.uuid4()
         self._valid_api_keys.add(api_key)
-        # keep api_keys field in sync for future refreshes
-        self.api_keys = sorted(self._valid_api_keys, key=str)
-        # load the config file
-        with open(BBOT_SERVER_CONFIG_PATH, "r") as f:
-            config_yaml = yaml.safe_load(f)
-        # add the new API key to the config
-        config_yaml["api_keys"] = sorted([str(key) for key in self._valid_api_keys])
-        # save the config file
-        with open(BBOT_SERVER_CONFIG_PATH, "w") as f:
-            yaml.safe_dump(config_yaml, f)
+        self.write_api_keys()
         return api_key
 
     def revoke_api_key(self, api_key: str) -> None:
-        """
-        Revoke an API key from the in-memory config.
-        """
         try:
             parsed = uuid.UUID(api_key)
         except ValueError as e:
             raise BBOTServerValueError("Invalid API key") from e
+        api_key = str(parsed)
+        
+        with open(BBOT_SERVER_CONFIG_PATH, "r") as f:
+            config_yaml = yaml.safe_load(f)
 
+        # remove the API key from the config
         self._valid_api_keys.discard(parsed)
+        self.write_api_keys()
+        self.refresh()
+    
+    def write_api_keys(self):
+        with open(BBOT_SERVER_CONFIG_PATH, "r") as f:
+            config_yaml = yaml.safe_load(f)
+        # add the new API key to the config
+        api_key = self.api_key or config_yaml.get("api_key", None)
+        api_keys = [str(key) for key in self._valid_api_keys]
+        if api_key:
+            api_keys = sorted([k for k in api_keys if not k == api_key])
+        config_yaml["api_key"] = api_key
+        config_yaml["api_keys"] = api_keys
+        # save the config file
+        with open(BBOT_SERVER_CONFIG_PATH, "w") as f:
+            yaml.safe_dump(config_yaml, f)
 
 
 BBOT_SERVER_CONFIG = BBOTServerSettings()
