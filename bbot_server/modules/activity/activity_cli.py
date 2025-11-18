@@ -34,7 +34,7 @@ class ActivityCTL(BaseBBCTL):
         ] = None,
         json: common.json = False,
     ):
-        activities = self.bbot_server.get_activities(host=host, type=type)
+        activities = self.bbot_server.list_activities(host=host, type=type)
 
         if json:
             for activity in activities:

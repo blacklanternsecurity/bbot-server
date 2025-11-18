@@ -102,7 +102,7 @@ class TestAppletAgents(BaseAppletTest):
 
         agent_dummy_task = asyncio.create_task(agent_dummy())
 
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(1.0)
 
         connected_agents = await self.bbot_server.get_online_agents()
         assert len(connected_agents) == 2

@@ -14,14 +14,14 @@ from pymongo.errors import OperationFailure
 from bbot_server.assets import Asset
 from bbot.models.pydantic import Event
 from bbot_server.modules import API_MODULES
-from bbot_server.errors import BBOTServerError
 from bbot.core.helpers import misc as bbot_misc
-from bbot_server.applets._routing import ROUTE_TYPES
 from bbot_server.utils import misc as bbot_server_misc
+from bbot_server.applets._routing import make_bbotserver_route
 from bbot_server.modules.activity.activity_models import Activity
+from bbot_server.errors import BBOTServerError, BBOTServerValueError
+from bbot_server.utils.misc import _sanitize_mongo_query, _sanitize_mongo_aggregation
 
 word_regex = re.compile(r"\W+")
-
 
 log = logging.getLogger(__name__)
 
@@ -79,6 +79,7 @@ class BaseApplet:
     model = None
 
     # which other applet should include this one
+    # leave blank to attach to the root applet
     attach_to = ""
 
     # whether to nest this applet under its parent
@@ -181,31 +182,33 @@ class BaseApplet:
         # inherit config, db, message queue, etc. from parent applet
         if self.parent is not None:
             self.asset_store = self.parent.asset_store
-            self.asset_db = self.parent.asset_db
-            self.asset_fs = self.parent.asset_fs
-
             self.user_store = self.parent.user_store
-            self.user_db = self.parent.user_db
-            self.user_fs = self.parent.user_fs
-
             self.event_store = self.parent.event_store
             self.message_queue = self.parent.message_queue
             self.task_broker = self.parent.task_broker
 
-            # if model isn't defined, inherit from parent
+            # if model isn't defined, inherit collection from parent
             if self.model is None:
                 self.model = self.parent.model
+                self.db = self.parent.db
                 self.collection = self.parent.collection
                 self.strict_collection = self.parent.strict_collection
             else:
                 # otherwise, set up applet-specific db tables
-                self.table_name = getattr(self.model, "__tablename__", None)
-                self.is_user_data = getattr(self.model, "__user__", False)
-                if self.is_user_data:
-                    self.db = self.user_db
-                else:
-                    self.db = self.asset_db
+                self.table_name = getattr(self.model, "__table_name__", None)
+                self.store_type = getattr(self.model, "__store_type__", None)
+                if self.store_type not in ("user", "asset", "event"):
+                    raise BBOTServerValueError(
+                        f"Invalid store type: {self.store_type} on model {self.model.__name__} - must be one of: user, asset, event"
+                    )
+                if self.store_type == "user":
+                    self.db = self.user_store.db
+                elif self.store_type == "asset":
+                    self.db = self.asset_store.db
+                elif self.store_type == "event":
+                    self.db = self.event_store.db
 
+                # if this applet doesn't have its own table, inherit from parent
                 if self.table_name is None:
                     self.collection = self.parent.collection
                     self.strict_collection = self.parent.strict_collection
@@ -279,7 +282,8 @@ class BaseApplet:
                     # ideally we should not have to delete and recreate the index
                     if "index already exists" in str(e):
                         # Get existing text index
-                        existing_indexes = await self.collection.list_indexes().to_list()
+                        indexes_cursor = await self.collection.list_indexes()
+                        existing_indexes = [idx async for idx in indexes_cursor]
                         text_index = next((idx for idx in existing_indexes if "text" in idx["key"].values()), None)
                         if text_index:
                             self.log.debug(f"Found existing text index: {text_index}")
@@ -378,6 +382,178 @@ class BaseApplet:
         self.log.info(f"Emitting activity: {activity.type} - {activity.description}")
         await self.root.message_queue.publish_asset(activity)
 
+    async def make_bbot_query(
+        self,
+        query: dict = None,
+        search: str = None,
+        host: str = None,
+        domain: str = None,
+        type: str = None,
+        target_id: str = None,
+        archived: bool = False,
+        active: bool = True,
+        min_timestamp: float = None,
+        max_timestamp: float = None,
+        min_created_timestamp: float = None,
+        max_created_timestamp: float = None,
+        min_modified_timestamp: float = None,
+        max_modified_timestamp: float = None,
+    ):
+        """
+        Streamlines querying of a Mongo collection with BBOT-specific filters like "host", "reverse_host", etc.
+
+        This is meant to be a base method with only query logic common to all collections in BBOT server.
+
+        For any additional custom logic like different default kwarg values, etc., override this method on applet-by-applet basis.
+
+        Example:
+            async def make_bbot_query(self, type: str = "Asset", query: dict = None, ignored: bool = False, **kwargs):
+                query = dict(query or {})
+                if ignored is not None and "ignored" not in query:
+                    query["ignored"] = ignored
+                return await super().make_bbot_query(type=type, query=query, **kwargs)
+        """
+        query = dict(query or {})
+        # AI is dumb and likes to pass in blank strings for stuff
+        domain = domain or None
+        target_id = target_id or None
+        type = type or None
+        host = host or None
+
+        if ("type" not in query) and (type is not None):
+            query["type"] = type
+        if ("host" not in query) and (host is not None):
+            query["host"] = host
+        if ("reverse_host" not in query) and (domain is not None):
+            reversed_host = re.escape(domain[::-1])
+            # Match exact domain or subdomains (with dot separator)
+            query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
+
+        # timestamps
+        if "timestamp" not in query and (min_timestamp is not None or max_timestamp is not None):
+            query["timestamp"] = {}
+            if min_timestamp is not None:
+                query["timestamp"]["$gte"] = min_timestamp
+            if max_timestamp is not None:
+                query["timestamp"]["$lte"] = max_timestamp
+
+        # created timestamps
+        if "created" not in query and (min_created_timestamp is not None or max_created_timestamp is not None):
+            query["created"] = {}
+            if min_created_timestamp is not None:
+                query["created"]["$gte"] = min_created_timestamp
+            if max_created_timestamp is not None:
+                query["created"]["$lte"] = max_created_timestamp
+
+        # modified timestamps
+        if "modified" not in query and (min_modified_timestamp is not None or max_modified_timestamp is not None):
+            query["modified"] = {}
+            if min_modified_timestamp is not None:
+                query["modified"]["$gte"] = min_modified_timestamp
+            if max_modified_timestamp is not None:
+                query["modified"]["$lte"] = max_modified_timestamp
+
+        if ("scope" not in query) and (target_id is not None):
+            target_query_kwargs = {}
+            if target_id != "DEFAULT":
+                target_query_kwargs["id"] = target_id
+            target = await self.root.targets._get_target(**target_query_kwargs, fields=["id"])
+            query["scope"] = target["id"]
+
+        # if both active and archived are true, we don't need to filter anything, because we are returning all assets
+        if not (active and archived) and ("archived" not in query):
+            # if both are false, we need to raise an error
+            if not (active or archived):
+                raise BBOTServerValueError("Must query at least one of active or archived")
+            # only one should be true
+            query["archived"] = {"$eq": archived}
+
+        if search:
+            search_query = await self.make_search_query(search)
+            if search_query:
+                query = {"$and": [query, search_query]}
+
+        return _sanitize_mongo_query(query)
+
+    async def make_search_query(self, search: str):
+        """
+        Given a search term, construct a human-friendly search against multiple fields.
+        """
+        search_str = search.strip().lower()
+        if not search_str:
+            return None
+        search_str_escaped = re.escape(search_str)
+        return {
+            "$or": [
+                {"$text": {"$search": search_str}},
+                {"host_parts": {"$regex": f"^{search_str_escaped}"}},
+                {"host": {"$regex": f"^{search_str_escaped}"}},
+                {"reverse_host": {"$regex": f"^{re.escape(search_str[::-1])}"}},
+            ]
+        }
+
+    async def mongo_iter(self, *args, **kwargs):
+        """
+        Lazy iterator over a Mongo collection with BBOT-specific filters and aggregation
+        """
+        cursor = await self._make_mongo_cursor(*args, **kwargs)
+        async for asset in cursor:
+            yield asset
+
+    async def mongo_count(self, *args, **kwargs):
+        query = await self.make_bbot_query(*args, **kwargs)
+        return await self.collection.count_documents(query)
+
+    async def _make_mongo_cursor(
+        self,
+        query: dict = None,
+        aggregate: list[dict] = None,
+        sort: list[str | tuple[str, int]] = None,
+        fields: list[str] = None,
+        skip: int = None,
+        limit: int = None,
+        collection=None,
+        **kwargs,
+    ):
+        query = await self.make_bbot_query(query=query, **kwargs)
+        fields = {f: 1 for f in fields} if fields else None
+
+        # collection defaults to self.collection
+        if collection is None:
+            collection = self.collection
+
+        # if we don't have a default collection and none was passed in, raise an error
+        if collection is None:
+            raise BBOTServerError(f"Collection is not set for {self.name}")
+
+        self.log.info(f"Querying {collection.name}: query={query}, fields={fields}")
+
+        if aggregate:
+            # sanitize aggregation pipeline
+            aggregate = _sanitize_mongo_aggregation(aggregate)
+            aggregate_pipeline = [{"$match": query}] + aggregate
+            if limit is not None:
+                aggregate_pipeline.append({"$limit": limit})
+            self.log.info(f"Querying {collection.name}: aggregate={aggregate_pipeline}")
+            cursor = await collection.aggregate(aggregate_pipeline)
+        else:
+            cursor = collection.find(query, fields)
+            if sort:
+                processed_sort = []
+                for field in sort:
+                    if isinstance(field, str):
+                        processed_sort.append((field.lstrip("+-"), -1 if field.startswith("-") else 1))
+                    else:
+                        # assume it's already a tuple (field, direction)
+                        processed_sort.append(tuple(field))
+                cursor = cursor.sort(processed_sort)
+
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        if skip is not None:
+            cursor = cursor.skip(skip)
+        return cursor
+
     def include_app(self, app_class):
         self.log.debug(f"{self.name_lowercase} including applet {app_class.name_lowercase}")
 
@@ -466,31 +642,15 @@ class BaseApplet:
             function = getattr(self, attr, None)
             if not callable(function):
                 continue
-            # see if the value has an "_endpoint" attribute
-            endpoint = getattr(function, "_endpoint", None)
-            # if it's a callable function and it has _endpoint, it's an @api_endpoint
 
-            if endpoint is not None:
-                fastapi_kwargs = dict(getattr(function, "_kwargs", {}))
-                endpoint_type = fastapi_kwargs.pop("type", "http")
-                response_model = fastapi_kwargs.pop("response_model", None)
+            if not hasattr(function, "_endpoint"):
+                continue
 
-                try:
-                    route_class = ROUTE_TYPES[endpoint_type]
-                except KeyError:
-                    raise self.BBOTServerError(f"Invalid endpoint type: {endpoint_type}")
-
-                kwargs = {"tags": [self.tag]}
-
-                if route_class.requires_response_model:
-                    if response_model is None:
-                        raise self.BBOTServerError(
-                            f"{self.name}.{function.__name__} {endpoint}: Must specify a pydantic model used for deserializing {endpoint_type} streams"
-                        )
-                    kwargs["response_model"] = response_model
-
-                bbot_server_route = route_class(function, **kwargs)
-                bbot_server_route.add_to_applet(self)
+            try:
+                bbot_server_route = make_bbotserver_route(function, tags=[self.tag])
+            except BBOTServerValueError:
+                continue
+            bbot_server_route.add_to_applet(self)
 
     @property
     def global_config(self):

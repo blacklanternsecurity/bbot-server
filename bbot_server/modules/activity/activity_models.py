@@ -25,12 +25,14 @@ class Activity(BaseBBOTServerModel):
     They are usually associated with an asset, and can be traced back to a specific BBOT event.
     """
 
-    __tablename__ = "history"
+    __table_name__ = "history"
+    __store_type__ = "asset"
     # id is a UUID
     id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Annotated[str, "indexed"]
     timestamp: Annotated[float, "indexed"]
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
+    archived: Annotated[bool, "indexed"] = False
     description: Annotated[str, "indexed"]
     description_colored: str = Field(default="")
     detail: dict[str, Any] = {}
@@ -39,6 +41,7 @@ class Activity(BaseBBOTServerModel):
     netloc: Annotated[Optional[str], "indexed"] = None
     url: Annotated[Optional[str], "indexed"] = None
     module: Annotated[Optional[str], "indexed"] = None
+    scan: Annotated[Optional[str], "indexed"] = None
     parent_event_uuid: Annotated[Optional[str], "indexed"] = None
     parent_event_id: Annotated[Optional[str], "indexed"] = None
     parent_scan_run_id: Annotated[Optional[str], "indexed"] = None
@@ -80,6 +83,8 @@ class Activity(BaseBBOTServerModel):
             self.port = event.port
         if event.netloc and not self.netloc:
             self.netloc = event.netloc
+        if event.scan and not self.scan:
+            self.scan = event.scan
         # handle url
         event_data_json = getattr(event, "data_json", None)
         if event_data_json is not None:
@@ -98,6 +103,7 @@ class Activity(BaseBBOTServerModel):
             "port",
             "module",
             "netloc",
+            "scan",
             "parent_event_id",
             "parent_event_uuid",
             "parent_scan_run_id",

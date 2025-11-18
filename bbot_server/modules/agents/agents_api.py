@@ -2,7 +2,6 @@ import time
 import asyncio
 import traceback
 from uuid import UUID
-from pydantic import UUID4
 from typing import Annotated
 from contextlib import suppress
 from fastapi import WebSocket, Query
@@ -94,7 +93,7 @@ class AgentsApplet(BaseApplet):
         return agent_status
 
     @api_endpoint("/scan_status", methods=["GET"], summary="Get the status of an agent's scan")
-    async def get_scan_status(self, id: UUID4, detailed: bool = False) -> dict[str, str]:
+    async def get_scan_status(self, id: UUID, detailed: bool = False) -> dict[str, str]:
         command_response = await self.connection_manager.execute_command(
             str(id), "get_scan_status", timeout=10, detailed=detailed
         )
@@ -108,7 +107,7 @@ class AgentsApplet(BaseApplet):
         agents = [Agent(**agent) for agent in agents]
         return agents
 
-    async def execute_agent_command(self, agent_id: UUID4, command: str, **kwargs) -> dict:
+    async def execute_agent_command(self, agent_id: UUID, command: str, **kwargs) -> dict:
         # since this is communicating directly with a connected agent over websocket,
         # it must be called from the main bbot server instance
         self.ensure_main_server()
@@ -116,7 +115,7 @@ class AgentsApplet(BaseApplet):
         return ret
 
     @api_endpoint("/dock/{agent_id}", type="websocket")
-    async def dock(self, websocket: WebSocket, agent_id: UUID4):
+    async def dock(self, websocket: WebSocket, agent_id: UUID):
         """
         The main websocket endpoint where agents connect
         """
@@ -206,7 +205,7 @@ class AgentsApplet(BaseApplet):
     async def _on_disconnect(self, agent):
         await self._update_agent_status(agent.id, "OFFLINE", False)
 
-    async def _update_agent_status(self, agent_id: UUID4, status: str, connected: bool, current_scan_id: str = None):
+    async def _update_agent_status(self, agent_id: UUID, status: str, connected: bool, current_scan_id: str = None):
         agent = await self.get_agent(id=str(agent_id))
         if agent.status != status:
             await self.emit_activity(
@@ -252,7 +251,7 @@ class AgentsApplet(BaseApplet):
         return 0
 
     async def _kickoff_queued_scans_loop(self):
-        for i in range(1000):
+        while True:
             online_agents = await self.get_online_agents()
             online_agents = [str(agent.id) for agent in online_agents]
             if not online_agents:

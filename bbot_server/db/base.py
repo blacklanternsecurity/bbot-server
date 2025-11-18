@@ -33,7 +33,10 @@ class BaseDB:
 
     @property
     def uri(self):
-        return self.db_config.get("uri", "")
+        uri = self.db_config.get("uri", "")
+        if not uri:
+            raise BBOTServerValueError(f"Database URI is missing from config: {self.db_config}")
+        return uri
 
     @property
     def db_name(self):
@@ -43,13 +46,6 @@ class BaseDB:
                 raise BBOTServerValueError("Database name must be included in the URI.")
             return db_name
         raise BBOTServerValueError(f"Invalid URI: {self.uri} - Database name must be included.")
-
-    @property
-    def table_name(self):
-        table_name = self.db_config.get("table_name", "")
-        if not table_name:
-            raise BBOTServerValueError("Table name must be included in the configuration.")
-        return table_name
 
     async def setup(self):
         if not self._setup_finished:

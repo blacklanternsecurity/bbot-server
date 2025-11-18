@@ -136,45 +136,48 @@ To start a scan in BBOT server, you need to first create a **Preset** and **Targ
 
 1. Create Preset
 
-The preset defines which flags, modules, API keys, etc. will be used for the scan. It typically looks something like this:
+    The preset defines which flags, modules, API keys, etc. will be used for the scan. It typically looks something like this:
 
-**`my_preset.yml`**:
-```yaml
-include:
-  - subdomain-enum
-  - cloud-enum
-  - code-enum
+    **`my_preset.yml`**:
+    ```yaml
+    include:
+      - subdomain-enum
+      - cloud-enum
+      - code-enum
 
-modules:
-  - nuclei
+    modules:
+      - nuclei
 
-config:
-  - virustotal:
-    api_key: deadbeef
-```
+    config:
+      modules:
+        virustotal:
+          api_key: deadbeef
+    ```
 
-```bash
-# create a new scan preset
-bbctl scan preset create my_preset.yml
-```
+    ```bash
+    # create a new scan preset
+    bbctl scan preset create my_preset.yml
+    ```
+
+    For more guidance and examples on presets, check out the [bbot docs](https://www.blacklanternsecurity.com/bbot/Stable/scanning/presets/).
 
 2. Create Target
 
-A target defines what's in-scope for the scan. They can also be used when filtering assets.
+    A target defines what's in-scope for the scan. They can also be used when filtering assets.
 
-```bash
-# create a new scan target
-bbctl scan target create --seeds evilcorp.txt --name "my_target"
-```
+    ```bash
+    # create a new scan target
+    bbctl scan target create --seeds evilcorp.txt --name "my_target"
+    ```
 
 3. Start Scan
 
-Now that we've created a preset and target, we can start the scan:
+    Now that we've created a preset and target, we can start the scan:
 
-```bash
-# start the scan
-bbctl scan start --preset my_preset --target my_target --name "demonic_jimmy"
-```
+    ```bash
+    # start the scan
+    bbctl scan start --preset my_preset --target my_target --name "demonic_jimmy"
+    ```
 
 ## Monitor scan progress
 
@@ -324,6 +327,71 @@ The SSE server listens at `http://localhost:8807/v1/mcp/`
 ```
 
 After connecting your AI client to BBOT Server, you can ask it sensible questions like, "Use MCP to get all the bbot findings", "what are the top open ports?", "what else can you do with BBOT MCP?", etc.
+
+## As a Python Library
+
+You can interact fully with BBOT Server as a Python library. It supports either local or remote connections, and the interface to both is identical:
+
+### Asynchronous
+
+```python
+import asyncio
+from bbot_server import BBOTServer
+
+async def main():
+    # talk directly to local MongoDB + Redis
+    bbot_server = BBOTServer(interface="python")
+
+    # or to a remote BBOT Server instance (config must contain a valid API key)
+    bbot_server = BBOTServer(interface="http", url="http://bbot:8807/v1/")
+
+    # one-time setup
+    await bbot_server.setup()
+
+    hosts = await bbot_server.get_hosts()
+    print(f"hosts: {hosts}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Synchronous
+
+```python
+from bbot_server import BBOTServer
+
+if __name__ == "__main__":
+    # talk directly to local MongoDB + Redis
+    bbot_server = BBOTServer(interface="python", synchronous=True)
+
+    # or to a remote BBOT Server instance (config must contain a valid API key)
+    bbot_server = BBOTServer(interface="http", url="http://bbot:8807/v1/", synchronous=True)
+
+    # one-time setup
+    bbot_server.setup()
+
+    hosts = bbot_server.get_hosts()
+    print(f"hosts: {hosts}")
+```
+
+## Running Tests
+
+When running tests, first start MongoDB and Redis via Docker:
+
+```bash
+docker run --rm -p 27017:27017 mongo
+docker run --rm -p 6379:6379 redis
+```
+
+Then execute `pytest`:
+
+```bash
+# run all tests
+poetry run pytest -v
+
+# run specific tests
+poetry run pytest -v -k test_applet_scans
+```
 
 ## Screenshots
 

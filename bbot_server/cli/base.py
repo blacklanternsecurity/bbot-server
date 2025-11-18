@@ -175,17 +175,26 @@ class BaseBBCTL:
             kwargs["theme"] = "monokai"
         return Syntax(data, "yaml", **kwargs)
 
-    def print_json(self, data, **kwargs):
-        self.stdout.print(self.highlight_json(data, **kwargs))
-
     def print_yaml(self, data, **kwargs):
         self.stdout.print(self.highlight_yaml(data, **kwargs))
 
     def print_pydantic_json(self, model, colorize=False):
+        """
+        Print a Pydantic model as JSON, with optional highlighting
+        """
         if colorize:
             self.stdout.print(self.highlight_json(json.dumps(model.model_dump(), indent=2)))
         else:
             self.print_raw_line(self.orjson.dumps(model.model_dump()))
+
+    def print_json(self, data, colorize=False, **kwargs):
+        """
+        Print a JSON string to stdout, with optional highlighting
+        """
+        if colorize:
+            self.stdout.print(self.highlight_json(data, **kwargs))
+        else:
+            self.print_raw_line(self.orjson.dumps(data))
 
     def print_raw_line(self, line):
         """

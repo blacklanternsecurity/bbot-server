@@ -1,7 +1,7 @@
 import uuid
+from pydantic import Field
 from typing import Optional
 from typing import Annotated
-from pydantic import UUID4, Field
 
 from bbot.scanner.target import BBOTTarget
 from bbot_server.utils.misc import utc_now
@@ -43,9 +43,9 @@ class BaseTarget(BaseBBOTServerModel):
 
 
 class Target(BaseTarget):
-    __tablename__ = "targets"
-    __user__ = True
-    id: Annotated[UUID4, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
+    __table_name__ = "targets"
+    __store_type__ = "user"
+    id: Annotated[uuid.UUID, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
     name: Annotated[str, "indexed", "unique"]
     default: Annotated[bool, "indexed"] = False
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)

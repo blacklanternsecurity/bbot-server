@@ -10,7 +10,7 @@ class TestAppletOpenPorts(BaseAppletTest):
         assert await self.bbot_server.get_open_ports_by_host("www2.evilcorp.com") == []
         assert await self.bbot_server.get_open_ports_by_host("api.evilcorp.com") == []
 
-        open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
+        open_port_events = [a async for a in self.bbot_server.list_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 0
 
         assert [a.type for a in self.asset_messages] == []
@@ -20,27 +20,27 @@ class TestAppletOpenPorts(BaseAppletTest):
         assert set(await self.bbot_server.search_by_open_port(80)) == {
             "www.evilcorp.com",
             "www2.evilcorp.com",
-            "tech1.evilcorp.com",
+            "t1.tech.evilcorp.com",
         }
         assert set(await self.bbot_server.search_by_open_port(443)) == {
-            "tech1.evilcorp.com",
-            "tech2.evilcorp.com",
+            "t1.tech.evilcorp.com",
+            "t2.tech.evilcorp.com",
         }
 
         assert await self.bbot_server.get_open_ports() == {
             "www.evilcorp.com": [80],
             "www2.evilcorp.com": [80],
-            "tech1.evilcorp.com": [80, 443],
-            "tech2.evilcorp.com": [443],
+            "t1.tech.evilcorp.com": [80, 443],
+            "t2.tech.evilcorp.com": [443],
         }
 
         assert await self.bbot_server.get_open_ports_by_host("www.evilcorp.com") == [80]
         assert await self.bbot_server.get_open_ports_by_host("www2.evilcorp.com") == [80]
         assert await self.bbot_server.get_open_ports_by_host("api.evilcorp.com") == []
-        assert await self.bbot_server.get_open_ports_by_host("tech1.evilcorp.com") == [80, 443]
-        assert await self.bbot_server.get_open_ports_by_host("tech2.evilcorp.com") == [443]
+        assert await self.bbot_server.get_open_ports_by_host("t1.tech.evilcorp.com") == [80, 443]
+        assert await self.bbot_server.get_open_ports_by_host("t2.tech.evilcorp.com") == [443]
 
-        open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
+        open_port_events = [a async for a in self.bbot_server.list_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 5
 
         port_asset_messages = [a for a in self.asset_messages if a.type.startswith("PORT_")]
@@ -65,11 +65,11 @@ class TestAppletOpenPorts(BaseAppletTest):
         assert set(await self.bbot_server.search_by_open_port(80)) == {
             "www.evilcorp.com",
             "www2.evilcorp.com",
-            "tech1.evilcorp.com",
+            "t1.tech.evilcorp.com",
         }
         assert set(await self.bbot_server.search_by_open_port(443)) == {
-            "tech1.evilcorp.com",
-            "tech2.evilcorp.com",
+            "t1.tech.evilcorp.com",
+            "t2.tech.evilcorp.com",
             "api.evilcorp.com",
         }
 
@@ -77,7 +77,7 @@ class TestAppletOpenPorts(BaseAppletTest):
         assert await self.bbot_server.get_open_ports_by_host("www.evilcorp.com") == [80]
         assert await self.bbot_server.get_open_ports_by_host("www2.evilcorp.com") == [80]
 
-        open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
+        open_port_events = [a async for a in self.bbot_server.list_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 8
 
         port_asset_messages = [a for a in self.asset_messages if a.type.startswith("PORT_")]
@@ -108,17 +108,17 @@ class TestAppletOpenPorts(BaseAppletTest):
             "www2.evilcorp.com",
         }
         assert set(await self.bbot_server.search_by_open_port(443)) == {
-            "tech2.evilcorp.com",
+            "t2.tech.evilcorp.com",
             "api.evilcorp.com",
         }
 
         assert await self.bbot_server.get_open_ports() == {
             "www2.evilcorp.com": [80],
             "api.evilcorp.com": [443],
-            "tech2.evilcorp.com": [443],
+            "t2.tech.evilcorp.com": [443],
         }
 
-        open_port_events = [a async for a in self.bbot_server.get_events(type="OPEN_TCP_PORT")]
+        open_port_events = [a async for a in self.bbot_server.list_events(type="OPEN_TCP_PORT")]
         assert len(open_port_events) == 3
 
         port_asset_messages = [a for a in self.asset_messages if a.type.startswith("PORT_")]

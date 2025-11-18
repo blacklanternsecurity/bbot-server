@@ -17,10 +17,17 @@ class EventCTL(BaseBBCTL):
     def list(
         self,
         type: Annotated[str, typer.Option("--type", "-t", help="Filter events by type")] = None,
+        host: common.host = None,
+        domain: common.domain = None,
+        scan: Annotated[str, typer.Option("--scan", "-s", help="Filter events by scan ID")] = None,
+        active: Annotated[bool, typer.Option("--active", "-a", help="Include active (non-archived) events")] = True,
+        archived: Annotated[bool, typer.Option("--archived", "-r", help="Include archived events")] = False,
         json: common.json = False,
         csv: common.csv = False,
     ):
-        event_list = self.bbot_server.get_events(type=type)
+        event_list = self.bbot_server.list_events(
+            type=type, host=host, domain=domain, scan=scan, active=active, archived=archived
+        )
 
         if json:
             for event in event_list:

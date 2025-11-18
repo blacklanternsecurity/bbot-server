@@ -121,14 +121,14 @@ class BBOTAgent:
 
         try:
             preset_obj = Preset.from_dict(preset)
-            agent_preset.merge(preset_obj)
+            preset_obj.merge(agent_preset)
         except BaseException as e:
             return {"status": "error", "message": f"Error parsing preset: {e} - {traceback.format_exc()}"}
 
         try:
             # create scanner
             scan = Scanner(
-                preset=agent_preset,
+                preset=preset_obj,
                 scan_id=scan_id,
                 dispatcher=self.dispatcher,
             )
