@@ -184,7 +184,7 @@ def bbot_server_http(mongo_cleanup, redis_cleanup):
             time.sleep(0.1)
         if not success:
             raise Exception(f"Failed to start bbot server. Response: {getattr(response, 'text', 'No response')}")
-        time.sleep(0.5)
+        log.info("BBOT server started successfully")
         yield server_process
         server_process.send_signal(signal.SIGINT)
     finally:
