@@ -308,6 +308,7 @@ class ScansApplet(BaseApplet):
                 status_changed = await self.update_scan_status(scan_id=scan_id, status_code=scan.status_code)
             else:
                 self.log.warning(f'Scan "{scan.name}" found in database, but event has no duration_seconds')
+                status_changed = False
         # otherwise, assume the scan is starting and create a new run
         else:
             description = f"Scan [[COLOR]{scan.name}[/COLOR]] started"
