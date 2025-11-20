@@ -8,7 +8,6 @@ license = "GPL-v3.0"
 [tool.poetry.dependencies]
 python = "^3.10"
 fastapi = "^0.111.0"
-omegaconf = "^2.3.0"
 orjson = "^3.10.12"
 rich = "^13.9.4"
 cachetools = "^5.5.0"

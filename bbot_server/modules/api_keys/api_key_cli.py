@@ -1,5 +1,4 @@
 from uuid import UUID
-from omegaconf import OmegaConf
 
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
