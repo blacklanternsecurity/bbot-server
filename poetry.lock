@@ -1514,22 +1514,6 @@ test = ["pytest (==8.4.1)", "pytest-sugar (==1.0.0)"]
 type = ["mypy (==1.17.0)"]
 
 [[package]]
-name = "nats-py"
-version = "2.12.0"
-description = "NATS client for Python"
-optional = false
-python-versions = ">=3.7"
-groups = ["main"]
-files = [
-    {file = "nats_py-2.12.0.tar.gz", hash = "sha256:2981ca4b63b8266c855573fa7871b1be741f1889fd429ee657e5ffc0971a38a1"},
-]
-
-[package.extras]
-aiohttp = ["aiohttp"]
-fast-parse = ["fast-mail-parser"]
-nkeys = ["nkeys"]
-
-[[package]]
 name = "omegaconf"
 version = "2.3.0"
 description = "A flexible configuration library"
@@ -2996,22 +2980,6 @@ files = [
 ]
 
 [[package]]
-name = "taskiq-nats"
-version = "0.5.1"
-description = "NATS integration for taskiq"
-optional = false
-python-versions = "<4.0.0,>=3.8.1"
-groups = ["main"]
-files = [
-    {file = "taskiq_nats-0.5.1-py3-none-any.whl", hash = "sha256:87edcc082efe98435f59b344439b03436d4ef52eef52a6e34fd3e5bfe113e168"},
-    {file = "taskiq_nats-0.5.1.tar.gz", hash = "sha256:fe305fef7c959613bda893a0ffe92e0696194de9df1181c9b6e3a573bf5ac339"},
-]
-
-[package.dependencies]
-nats-py = ">=2.2.0,<3.0.0"
-taskiq = ">=0.8,<1"
-
-[[package]]
 name = "taskiq-redis"
 version = "1.0.9"
 description = "Redis integration for taskiq"
@@ -3753,4 +3721,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "31d1bc70b7d01e4cb3a72b4d846b5e7e3029cb7865201239d64c19e291514703"
+content-hash = "3028e30fe4ac02ffb534077bde4603e16263ebfe8722029243536563ae04b203"

@@ -175,12 +175,15 @@ def bbot_server_http(mongo_cleanup, redis_cleanup):
         success = False
         response = None
         for i in range(500):
-            response = httpx.get(
-                f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": str(bbcfg.get_api_key())}
-            )
-            if getattr(response, "status_code", 0) == 200:
-                success = True
-                break
+            try:
+                response = httpx.get(
+                    f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": str(bbcfg.get_api_key())}
+                )
+                if getattr(response, "status_code", 0) == 200:
+                    success = True
+                    break
+            except Exception as e:
+                log.error(f"Failed to reach bbot server: {e}")
             time.sleep(0.1)
         if not success:
             raise Exception(f"Failed to start bbot server. Response: {getattr(response, 'text', 'No response')}")

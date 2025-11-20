@@ -42,11 +42,9 @@ async def api_key_dependency_websocket(websocket: WebSocket = None):
         api_key = websocket.headers.get(bbcfg.auth_header, "")
         if not api_key:
             await websocket.close(code=3000, reason="API key is required")
-            raise HTTPException(status_code=401, detail="API key is required")
         valid, reason = bbcfg.check_api_key(api_key)
         if not valid:
             await websocket.close(code=3000, reason=reason)
-            raise HTTPException(status_code=401, detail=reason)
         return api_key
 
 
