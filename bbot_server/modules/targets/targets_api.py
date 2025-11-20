@@ -127,7 +127,7 @@ class TargetsApplet(BaseApplet):
         """
         Given a host, get all the targets it's a part of
         """
-        asset = await self.root.assets.collection.find_one({"host": host}, {"dns_links": 1})
+        asset = await self.root.assets.collection.find_one({"host": host}, {"dns_links": 1}) or {}
         asset_dns_links = asset.get("dns_links", {})
         asset_scope = []
         for target_id in await self.get_target_ids():
