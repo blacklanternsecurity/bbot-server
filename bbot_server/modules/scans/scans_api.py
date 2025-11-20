@@ -283,6 +283,7 @@ class ScansApplet(BaseApplet):
         except self.BBOTServerNotFoundError:
             existing_scan = None
         existing_status_code = get_scan_status_code(getattr(existing_scan, "status_code", SCAN_STATUS_QUEUED))
+        status_changed = False
         # if the scan already exists, update it
         if existing_scan:
             # ignore if the new status is at or behind the existing one
