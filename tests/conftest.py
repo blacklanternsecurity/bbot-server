@@ -37,7 +37,7 @@ TEST_CONFIG_PATH = BBOT_SERVER_TEST_DIR / "test_config.yml"
 TEST_CONFIG_PATH_SOURCE = Path(__file__).parent / "test_config.yml"
 BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH), "--no-color"]
 
-shutil.copy(TEST_CONFIG_PATH_SOURCE, TEST_CONFIG_PATH)
+shutil.copyfile(str(TEST_CONFIG_PATH_SOURCE), str(TEST_CONFIG_PATH))
 
 bbcfg.refresh(config_path=str(TEST_CONFIG_PATH))
 
