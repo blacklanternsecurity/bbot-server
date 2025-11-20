@@ -58,6 +58,10 @@ class BBOTAgent:
 
     def __init__(self, id: str, name: str, config):
         self.log = logging.getLogger("bbot_server.agent")
+        if not id:
+            raise BBOTServerValueError("Agent ID is required")
+        if not name:
+            raise BBOTServerValueError("Agent name is required")
         self.id = id
         self.name = name
         self.config = config

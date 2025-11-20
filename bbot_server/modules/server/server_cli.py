@@ -37,15 +37,9 @@ class ServerCTL(BaseBBCTL):
             bool, Option("--reload", "-r", help="Reload the server when the code changes (for development)")
         ] = False,
     ):
-        # initialize the config if not already
-        if not bbcfg.get_api_keys():
-            self.log.info("First run detected. Adding a new API key...")
-            self.root.children["server"].children["apikey"].setup()
-            self.root.children["server"].children["apikey"].add()
-        bbcfg.refresh()
-
         if api_only:
             print("Starting BBOT server API")
+
             import uvicorn
 
             app = "bbot_server.api.app:server_app"
@@ -86,6 +80,14 @@ class ServerCTL(BaseBBCTL):
             asyncio.run(run_watchdog())
 
         else:
+            # initialize the config if not already
+            if not bbcfg.get_api_keys():
+                self.log.info("First run detected. Adding a new API key...")
+                self.root.children["server"].children["apikey"].setup()
+                self.root.children["server"].children["apikey"].add()
+            else:
+                self.log.info("API keys already exist. Skipping API key creation.")
+
             # docker compose command with env vars
             env = os.environ.copy()
             env["BBOT_LISTEN_ADDRESS"] = listen
@@ -182,7 +184,9 @@ class ServerCTL(BaseBBCTL):
                 except (FileNotFoundError, subprocess.CalledProcessError):
                     raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
 
-        return run(self._docker_command + args, **kwargs)
+        docker_compose_command = self._docker_command + args
+        self.log.info(f"Running docker compose command: {' '.join(docker_compose_command)}")
+        return run(docker_compose_command, **kwargs)
 
     @subcommand(
         help="Run a command with docker compose",

@@ -119,6 +119,7 @@ class BBOTServerSettings(BaseSettings):
         if custom_config_path:
             BBOT_SERVER_CONFIG_PATH = Path(custom_config_path)
 
+        log.info(f"Loading config files from: {BBOT_SERVER_DEFAULTS_PATH}, {BBOT_SERVER_CONFIG_PATH}")
         return (
             init_settings,
             env_settings,
@@ -176,6 +177,7 @@ class BBOTServerSettings(BaseSettings):
         try:
             return str(next(iter(self._valid_api_keys)))
         except StopIteration:
+            self.refresh()
             raise BBOTServerError(
                 "No API keys found in the config. Please set `api_keys` in your config file "
                 "or run `bbctl server apikey add`"
@@ -206,6 +208,7 @@ class BBOTServerSettings(BaseSettings):
         NOTE: for now this only affects process memory; persistence to disk
         can be wired in later when we tighten the design.
         """
+        log.info(f"Adding new API key")
         api_key = uuid.uuid4()
         self._valid_api_keys.add(api_key)
         self.write_api_keys()
@@ -230,11 +233,16 @@ class BBOTServerSettings(BaseSettings):
         api_keys = [str(key) for key in self._valid_api_keys]
         if api_key:
             api_keys = sorted([k for k in api_keys if not k == api_key])
-        config_yaml["api_key"] = api_key
-        config_yaml["api_keys"] = api_keys
-        # save the config file
-        with open(BBOT_SERVER_CONFIG_PATH, "w") as f:
-            yaml.safe_dump(config_yaml, f)
+            config_yaml["api_key"] = api_key
+        if api_keys:
+            config_yaml["api_keys"] = api_keys
+
+        num_api_keys = len(api_keys) + (1 if api_key else 0)
+        if num_api_keys > 0:
+            log.info(f"Writing {num_api_keys:,} API keys to config file at {BBOT_SERVER_CONFIG_PATH}")
+            # save the config file
+            with open(BBOT_SERVER_CONFIG_PATH, "w") as f:
+                yaml.safe_dump(config_yaml, f)
 
 
 BBOT_SERVER_CONFIG = BBOTServerSettings()

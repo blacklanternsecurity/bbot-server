@@ -28,7 +28,7 @@ class APIKeyCTL(BaseBBCTL):
     @subcommand(help="Create a new API key")
     def add(self):
         api_key = self.bbcfg.add_api_key()
-        self.log.info(f"New API key added. Please restart the server for the new key to be recognized:")
+        self.log.info(f"New API key added:")
         self.log.info(f"    - API KEY: {api_key}")
 
     @subcommand(help="Revoke an API key")

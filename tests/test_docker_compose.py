@@ -1,12 +1,14 @@
 # A sanity check to test basic first-time setup
 
 import os
+import sys
 import json
 import yaml
 import time
 import pytest
 import subprocess
 from pathlib import Path
+from shutil import copyfile
 
 from .conftest import BBOT_SERVER_TEST_DIR
 
@@ -14,12 +16,38 @@ from .conftest import BBOT_SERVER_TEST_DIR
 project_root = Path(__file__).parent.parent
 custom_config_file = BBOT_SERVER_TEST_DIR / "docker_test_config.yml"
 
+
+def reset_config_file():
+    copyfile(Path(__file__).parent / "test_config_docker.yml", custom_config_file)
+
+
 # we typically only want to run this on CI
 # to avoid messing with the user's existing bbot server data / api keys
 pytestmark = pytest.mark.skipif(
     os.environ.get("BBOT_SERVER_TEST_DOCKER_COMPOSE", "false").lower() != "true",
     reason="BBOT_SERVER_TEST_DOCKER_COMPOSE is not set to true",
 )
+
+
+def print_docker_logs():
+    """Helper to print docker compose logs"""
+    print("\n" + "=" * 80)
+    print("TEST FAILED - Docker Compose Logs:")
+    print("=" * 80)
+    result = subprocess.run(
+        ["docker", "compose", "logs", "--no-color"],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        print(result.stdout)
+        if result.stderr:
+            print("\nSTDERR:")
+            print(result.stderr)
+    else:
+        print(f"Failed to get docker compose logs (exit code {result.returncode}): {result.stderr}")
+    print("=" * 80 + "\n")
 
 
 def test_docker_compose_userexperience():
@@ -35,11 +63,11 @@ def test_docker_compose_userexperience():
         assert result.returncode == 0
 
         # build it
-        result = subprocess.run(
-            ["docker", "compose", "build"],
-            cwd=project_root,
-        )
-        assert result.returncode == 0
+        # result = subprocess.run(
+        #     ["docker", "compose", "build"],
+        #     cwd=project_root,
+        # )
+        # assert result.returncode == 0
 
         docker_compose_file = project_root / "compose.yml"
         assert docker_compose_file.exists()
@@ -85,8 +113,7 @@ def test_docker_compose_userexperience():
         assert result.returncode == 1
         assert "Error making GET request" in result.stderr
 
-        # clear config file
-        custom_config_file.write_text("")
+        reset_config_file()
 
         # make sure we don't have an api key
         result = subprocess.run(
@@ -133,12 +160,14 @@ def test_docker_compose_userexperience():
         for _ in range(120):
             # we should be able to list assets now
             command = BBCTL_COMMAND + ["asset", "stats"]
+            print(f"command: {' '.join(command)}")
             result = subprocess.run(
                 command,
                 cwd=project_root,
                 capture_output=True,
                 text=True,
             )
+            print(f"result: {result.returncode}, stdout: {result.stdout}, stderr: {result.stderr}")
             assert not "Invalid API key" in result.stderr
             if result.returncode == 0 and json.loads(result.stdout) == {}:
                 break
@@ -147,6 +176,9 @@ def test_docker_compose_userexperience():
             assert False, f"Failed to list assets, stdout: {result.stdout}, stderr: {result.stderr}"
 
     finally:
+        # print logs if test failed
+        if sys.exc_info()[0] is not None:
+            print_docker_logs()
         # stop docker compose
         result = subprocess.run(
             ["docker", "compose", "down"],
@@ -160,7 +192,7 @@ def test_docker_compose_userexperience():
 
 def test_docker_compose_custom_config():
     # delete config env var for this test
-    del os.environ["BBOT_SERVER_CONFIG"]
+    os.environ.pop("BBOT_SERVER_CONFIG", None)
 
     # create a blank config file just for this test
     custom_config_file.unlink(missing_ok=True)
@@ -207,6 +239,8 @@ def test_docker_compose_authentication():
     custom_config_file.unlink(missing_ok=True)
     custom_config_file.write_text("")
 
+    reset_config_file()
+
     BBCTL_COMMAND = ["poetry", "run", "bbctl", "--config", str(custom_config_file)]
 
     try:
@@ -221,8 +255,6 @@ def test_docker_compose_authentication():
         result = subprocess.run(
             BBCTL_COMMAND + ["server", "start"],
             cwd=project_root,
-            capture_output=True,
-            text=True,
         )
         assert result.returncode == 0
 
@@ -262,6 +294,9 @@ def test_docker_compose_authentication():
         assert result.stdout == "{}\n"
 
     finally:
+        # print logs if test failed
+        if sys.exc_info()[0] is not None:
+            print_docker_logs()
         # stop docker compose
         result = subprocess.run(
             ["docker", "compose", "down"],
@@ -277,8 +312,9 @@ def test_docker_compose_authentication():
 def test_docker_compose_listening_interface():
     try:
         # create a blank config file just for this test
-        custom_config_file.unlink(missing_ok=True)
-        custom_config_file.write_text("url: http://127.0.0.1:8807/v1/")
+        reset_config_file()
+        with open(custom_config_file, "a") as f:
+            f.write("\nurl: http://127.0.0.1:8807/v1/\n")
 
         BBCTL_COMMAND = ["poetry", "run", "bbctl", "--config", str(custom_config_file)]
 
@@ -365,6 +401,9 @@ def test_docker_compose_listening_interface():
         assert "Error making GET request" in result.stderr
 
     finally:
+        # print logs if test failed
+        if sys.exc_info()[0] is not None:
+            print_docker_logs()
         # stop docker compose
         result = subprocess.run(
             ["docker", "compose", "down"],

@@ -1,3 +1,4 @@
+import os
 import sys
 import asyncio
 import logging
@@ -37,7 +38,8 @@ class BBCTL(BaseBBCTL):
         self.color = color
         self.debug = debug
         if config:
-            self.bbcfg.refresh(config_path=config)
+            os.environ["BBOT_SERVER_CONFIG"] = str(config)
+            self.bbcfg.refresh()
         if self.debug:
             logging.getLogger().setLevel(logging.DEBUG)
         if server_url is not None and server_url != self.bbcfg.url:
