@@ -38,5 +38,7 @@ asset_store:
     assert bbcfg.event_store.uri == "mongodb://localhost:27017/bbot_eventstore"
 
     # reset back to testing defaults
+    os.environ.pop("BBOT_SERVER_URL", None)
     bbcfg.refresh(config_path=TEST_CONFIG_PATH)
+    assert bbcfg.url == "http://localhost:8807/v1/"
     assert bbcfg.event_store.uri == "mongodb://localhost:27017/test_bbot_server_events"
