@@ -25,6 +25,7 @@ class FindingsApplet(BaseApplet):
         "/get",
         methods=["GET"],
         summary="Get a single finding by its ID",
+        mcp=True,
     )
     async def get_finding(self, id: str) -> Finding:
         finding = await self.root._get_asset(type="Finding", query={"id": id})
@@ -38,6 +39,7 @@ class FindingsApplet(BaseApplet):
         type="http_stream",
         response_model=Finding,
         summary="Simple, easily-curlable endpoint for listing findings, with basic filters",
+        mcp=True,
     )
     async def list_findings(
         self,
