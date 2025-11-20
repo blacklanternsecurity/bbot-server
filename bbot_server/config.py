@@ -224,7 +224,7 @@ class BBOTServerSettings(BaseSettings):
 
     def write_api_keys(self):
         with open(BBOT_SERVER_CONFIG_PATH, "r") as f:
-            config_yaml = yaml.safe_load(f)
+            config_yaml = yaml.safe_load(f) or {}
         # add the new API key to the config
         api_key = self.api_key or config_yaml.get("api_key", None)
         api_keys = [str(key) for key in self._valid_api_keys]
