@@ -42,7 +42,7 @@ jobs:
           poetry run ruff format --check
       - name: Run tests
         run: |
-          NO_COLOR=true poetry run pytest -k test_authentication --reruns 2 --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
+          NO_COLOR=true poetry run pytest --reruns 2 --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
       - name: Upload Code Coverage
         uses: codecov/codecov-action@v3
         with:
