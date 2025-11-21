@@ -7,7 +7,7 @@ from fastapi import WebSocket
 from contextlib import suppress
 from fastapi.responses import StreamingResponse
 from starlette.websockets import WebSocketDisconnect
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from bbot_server.api.mcp import MCP_ENDPOINTS
 from bbot_server.utils.misc import smart_encode
 from bbot_server.errors import BBOTServerValueError
@@ -230,7 +230,7 @@ class WebsocketRoute(BaseServerRoute):
         @functools.wraps(self.orig_function)
         async def websocket_auth_wrapper(websocket: WebSocket, *args, **kwargs):
             await websocket.accept()
-            api_key = websocket.headers.get(bbcfg.API_KEY_NAME, "")
+            api_key = websocket.headers.get(bbcfg.auth_header, "")
             valid, reason = bbcfg.check_api_key(api_key)
             if valid:
                 await self.orig_function(websocket, *args, **kwargs)
@@ -260,7 +260,7 @@ class WebsocketStreamOutgoingRoute(BaseServerRoute):
             """
             try:
                 await websocket.accept()
-                api_key = websocket.headers.get(bbcfg.API_KEY_NAME, "")
+                api_key = websocket.headers.get(bbcfg.auth_header, "")
                 valid, reason = bbcfg.check_api_key(api_key)
                 if not valid:
                     await websocket.close(code=3000, reason=reason)
@@ -305,7 +305,7 @@ class WebsocketStreamIncomingRoute(BaseServerRoute):
     async def websocket_wrapper(self, websocket: WebSocket):
         try:
             await websocket.accept()
-            api_key = websocket.headers.get(bbcfg.API_KEY_NAME, "")
+            api_key = websocket.headers.get(bbcfg.auth_header, "")
             valid, reason = bbcfg.check_api_key(api_key)
             if not valid:
                 await websocket.close(code=3000, reason=reason)

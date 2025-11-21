@@ -1,7 +1,7 @@
 import orjson
 import subprocess
 
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from tests.conftest import BBCTL_COMMAND
 
 
@@ -16,4 +16,4 @@ def test_cli_apikeyctl(bbot_server_http):
     assert output
     assert isinstance(output, list)
     assert len(output) == 1
-    assert output == [bbcfg.get_api_key()]
+    assert output == [str(bbcfg.get_api_key())]

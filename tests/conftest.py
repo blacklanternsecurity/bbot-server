@@ -13,7 +13,7 @@ import pytest_asyncio
 from pathlib import Path
 from contextlib import suppress
 
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from .gen_scan_data import *
 
 
@@ -37,18 +37,15 @@ TEST_CONFIG_PATH = BBOT_SERVER_TEST_DIR / "test_config.yml"
 TEST_CONFIG_PATH_SOURCE = Path(__file__).parent / "test_config.yml"
 BBCTL_COMMAND = [sys.executable, str(BBCTL_FILE), "--config", str(TEST_CONFIG_PATH), "--no-color"]
 
-shutil.copy(TEST_CONFIG_PATH_SOURCE, TEST_CONFIG_PATH)
+shutil.copyfile(str(TEST_CONFIG_PATH_SOURCE), str(TEST_CONFIG_PATH))
 
-bbcfg.update_config_path(TEST_CONFIG_PATH)
+bbcfg.refresh(config_path=str(TEST_CONFIG_PATH))
+
+assert bbcfg.asset_store.uri == "mongodb://localhost:27017/test_bbot_server_assets"
 
 if not bbcfg.get_api_keys():
     # create a new api key if we don't have one yet
     bbcfg.add_api_key()
-
-
-@pytest.fixture
-def bbot_server_config():
-    return bbcfg.BBOT_SERVER_CONFIG
 
 
 @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
@@ -66,7 +63,7 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup):
         nonlocal bbot_server
 
         if config_overrides is not None:
-            bbcfg.refresh_config(config_overrides)
+            bbcfg.refresh(**config_overrides)
 
         kwargs.update(dict(request.param))
 
@@ -176,17 +173,21 @@ def bbot_server_http(mongo_cleanup, redis_cleanup):
 
     try:
         success = False
-        for i in range(1000):
-            api_key = bbcfg.get_api_key()
-            with suppress(Exception):
-                response = httpx.get(f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": api_key})
+        response = None
+        for i in range(500):
+            try:
+                response = httpx.get(
+                    f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": str(bbcfg.get_api_key())}
+                )
                 if getattr(response, "status_code", 0) == 200:
                     success = True
                     break
+            except Exception as e:
+                log.error(f"Failed to reach bbot server: {e}")
             time.sleep(0.1)
         if not success:
-            raise Exception("Failed to start bbot server")
-        time.sleep(0.5)
+            raise Exception(f"Failed to start bbot server. Response: {getattr(response, 'text', 'No response')}")
+        log.info("BBOT server started successfully")
         yield server_process
         server_process.send_signal(signal.SIGINT)
     finally:
@@ -253,35 +254,40 @@ def bbot_agent(bbot_server_http):
 
 
 @pytest_asyncio.fixture
-async def mongo_cleanup(bbot_server_config):
+async def mongo_cleanup():
     """
     Clear the mongo database before and after each test
     """
     from pymongo import AsyncMongoClient
 
-    client = AsyncMongoClient(bbot_server_config["event_store"]["uri"])
+    client = AsyncMongoClient(bbcfg.event_store.uri)
 
     async def clear_everything():
         await client.drop_database("test_bbot_server_events")
         await client.drop_database("test_bbot_server_assets")
         await client.drop_database("test_bbot_server_userdata")
 
-    await clear_everything()
-    yield
-    # await clear_everything()
+    try:
+        # Clear before test
+        await clear_everything()
+        yield
+    finally:
+        # Optionally clear again after test, then cleanly close the async client
+        with suppress(Exception):
+            await clear_everything()
+        with suppress(Exception):
+            await client.close()
 
 
 @pytest_asyncio.fixture
-async def redis_cleanup(bbot_server_config):
+async def redis_cleanup():
     """
     Clear the redis database before and after each test
     """
     import redis.asyncio as redis
 
-    redis_uri = bbot_server_config.get("message_queue", {}).get("uri", "redis://localhost:6379/15")
-
     # Connect to Redis
-    r = redis.from_url(redis_uri)
+    r = redis.from_url(bbcfg.message_queue.uri)
 
     # Clear before test
     await r.flushdb()

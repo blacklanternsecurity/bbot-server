@@ -46,12 +46,11 @@ class BaseAppletTest:
         """
         pass
 
-    async def test_applet_run(self, bbot_server, bbot_events, bbot_server_config):
+    async def test_applet_run(self, bbot_server, bbot_events):
         """
         The main test function that runs each of the individual applet tests.
         """
         self.log = logging.getLogger(f"bbot_server.test.{self.__class__.__name__.lower()}")
-        self.bbot_server_config = bbot_server_config
         self.bbot_server = await bbot_server(
             config_overrides=self.config_overrides,
             needs_api=self.needs_api,

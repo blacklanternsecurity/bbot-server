@@ -1,5 +1,4 @@
 from uuid import UUID
-from omegaconf import OmegaConf
 
 from bbot_server.cli import common
 from bbot_server.cli.base import BaseBBCTL, subcommand
@@ -10,9 +9,6 @@ class APIKeyCTL(BaseBBCTL):
     help = "Manage BBOT server API keys"
     short_help = "Manage BBOT server API keys"
     attach_to = "server"
-
-    def setup(self):
-        self.existing_config = OmegaConf.load(self.root.config_path)
 
     @subcommand(help="List all BBOT server API keys")
     def list(
@@ -32,7 +28,7 @@ class APIKeyCTL(BaseBBCTL):
     @subcommand(help="Create a new API key")
     def add(self):
         api_key = self.bbcfg.add_api_key()
-        self.log.info(f"New API key added. Please restart the server for the new key to be recognized:")
+        self.log.info(f"New API key added:")
         self.log.info(f"    - API KEY: {api_key}")
 
     @subcommand(help="Revoke an API key")
