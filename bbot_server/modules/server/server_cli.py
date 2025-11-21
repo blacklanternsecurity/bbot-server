@@ -36,7 +36,13 @@ class ServerCTL(BaseBBCTL):
         reload: Annotated[
             bool, Option("--reload", "-r", help="Reload the server when the code changes (for development)")
         ] = False,
+        no_authentication: Annotated[
+            bool, Option("--no-authentication", "-n", help="Disables authentication on the API (USE WITH CAUTION)")
+        ] = False,
     ):
+        if no_authentication:
+            os.environ["BBOT_SERVER_AUTH_ENABLED"] = "false"
+
         if api_only:
             print("Starting BBOT server API")
 
