@@ -79,6 +79,43 @@ This tells `bbctl` (the client) where the server is, and gives it the means to a
 
 To utilise the API key and interact with the BBOT Server via the HTTP API, set the `X-API-Key` HTTP header to the value of a valid API key.
 
+### Environment Variables
+
+BBOT Server can be configured via environment variables, which is useful for Docker deployments or CI/CD pipelines. The configuration uses a nested structure with double underscores (`__`) as delimiters.
+
+All environment variables use the prefix `BBOT_SERVER_`.
+
+#### Examples
+
+```bash
+# Server URL
+export BBOT_SERVER_URL="http://localhost:8807/v1/"
+
+# Authentication
+export BBOT_SERVER_AUTH_ENABLED=true
+export BBOT_SERVER_AUTH_HEADER="X-API-Key"
+export BBOT_SERVER_API_KEY="deadbeef-9b4d-4208-890c-4ce9ad3b4710"
+
+# Database URIs (nested configs)
+export BBOT_SERVER_EVENT_STORE__URI="mongodb://localhost:27017/bbot_server"
+export BBOT_SERVER_ASSET_STORE__URI="mongodb://localhost:27017/bbot_server"
+export BBOT_SERVER_USER_STORE__URI="mongodb://localhost:27017/bbot_server"
+
+# Message Queue URI
+export BBOT_SERVER_MESSAGE_QUEUE__URI="redis://localhost:6379/0"
+
+# Agent configuration
+export BBOT_SERVER_AGENT__BASE_PRESET='{"modules": ["nmap"]}'
+
+# CLI configuration
+export BBOT_SERVER_CLI__HTTP_TIMEOUT=90
+
+# Module-specific configuration (double-nested)
+export BBOT_SERVER_MODULES__SOME_MODULE__SOME_OPTION="value"
+```
+
+Note the double underscores (`__`) used to access nested configuration fields. This is required by the Pydantic settings framework.
+
 ### Adding and Revoking API Keys
 
 API keys can be added and removed if you are on the server machine:
