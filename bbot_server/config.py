@@ -119,7 +119,7 @@ class BBOTServerSettings(BaseSettings):
         if custom_config_path:
             BBOT_SERVER_CONFIG_PATH = Path(custom_config_path)
 
-        log.info(f"Loading config files from: {BBOT_SERVER_DEFAULTS_PATH}, {BBOT_SERVER_CONFIG_PATH}")
+        log.debug(f"Loading config files from: {BBOT_SERVER_DEFAULTS_PATH}, {BBOT_SERVER_CONFIG_PATH}")
         return (
             init_settings,
             env_settings,
@@ -138,6 +138,7 @@ class BBOTServerSettings(BaseSettings):
         """
         Populate the in-memory set of valid API keys from this config.
         """
+        log.debug("Refreshing API keys from config")
         api_keys = set()
 
         # Single api_key, if set
@@ -160,12 +161,16 @@ class BBOTServerSettings(BaseSettings):
         """
         Return the set of valid API keys.
         """
+        if not self._valid_api_keys:
+            self.refresh_api_keys()
         return self._valid_api_keys
 
     def get_api_key(self) -> str:
         """
         Return a single API key string, preferring the explicit api_key field.
         """
+        if not self._valid_api_keys:
+            self.refresh_api_keys()
         # prioritize single api key if set
         if self.api_key:
             try:

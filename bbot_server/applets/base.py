@@ -548,10 +548,11 @@ class BaseApplet:
                         processed_sort.append(tuple(field))
                 cursor = cursor.sort(processed_sort)
 
-        if limit is not None:
-            cursor = cursor.limit(limit)
-        if skip is not None:
-            cursor = cursor.skip(skip)
+            if limit is not None:
+                cursor = cursor.limit(limit)
+            if skip is not None:
+                cursor = cursor.skip(skip)
+
         return cursor
 
     def include_app(self, app_class):
