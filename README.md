@@ -46,6 +46,14 @@ Note: this requires Docker and Docker Compose to be installed.
 bbctl server start
 ```
 
+### Export scan output to Neo4j when running agents
+
+Agents can mirror scan events into a Neo4j database alongside the BBOT server output. Start the agent with `--neo4j-output` and configure the connection details under `agent.neo4j_output` in your BBOT server config (e.g. `~/.config/bbot_server/config.yml`).
+
+```bash
+bbctl agent start --id <AGENT_ID> --name <AGENT_NAME> --neo4j-output
+```
+
 ## Interacting with BBOT Server Remotely (Multiplayer)
 
 By default, BBOT Server listens on localhost. Use `--listen` to expose it to the network:
