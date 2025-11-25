@@ -54,6 +54,48 @@ Agents can mirror scan events into a Neo4j database alongside the BBOT server ou
 bbctl agent start --id <AGENT_ID> --name <AGENT_NAME> --neo4j-output
 ```
 
+### Run multiple Docker agent containers
+
+You can add more agent containers to the Compose stack to fan out scans. Create a small override file defining additional agent services with unique names and (optionally) Neo4j export enabled:
+
+```yaml
+# compose.override.yml
+services:
+  agent-east:
+    <<: *bbot-server-base
+    command: ["bbctl", "agent", "start"]
+    entrypoint: ["bash", "/app/bbot_server/default_agent.sh"]
+    environment:
+      BBOT_AGENT_NAME: "Docker Agent East"
+      BBOT_AGENT_DESCRIPTION: "Regional agent"
+      BBOT_AGENT_NEO4J_OUTPUT: "true"
+    depends_on:
+      server:
+        condition: service_healthy
+
+  agent-west:
+    <<: *bbot-server-base
+    command: ["bbctl", "agent", "start"]
+    entrypoint: ["bash", "/app/bbot_server/default_agent.sh"]
+    environment:
+      BBOT_AGENT_NAME: "Docker Agent West"
+      BBOT_AGENT_DESCRIPTION: "Regional agent"
+      BBOT_AGENT_NEO4J_OUTPUT: "true"
+    depends_on:
+      server:
+        condition: service_healthy
+```
+
+Bring them up alongside the server:
+
+```bash
+docker compose -f compose.yml -f compose.override.yml up -d server watchdog agent-east agent-west
+```
+
+Each service runs the same startup script but uses its own name/description, so you can scale horizontally without the agents deleting each other.
+
+By default the bootstrap script deletes any existing agent with the same name; set `BBOT_AGENT_DELETE_EXISTING=false` on a service to skip that behavior. Missing agents are ignored during deletion so a fresh startup will still proceed.
+
 ## Interacting with BBOT Server Remotely (Multiplayer)
 
 By default, BBOT Server listens on localhost. Use `--listen` to expose it to the network:

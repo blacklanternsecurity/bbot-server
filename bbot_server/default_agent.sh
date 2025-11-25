@@ -1,14 +1,24 @@
 #! /bin/bash
+set -euo pipefail
 
-# delete the default agent if it exists
-bbctl agent delete "Docker Default Agent"
+agent_name="${BBOT_AGENT_NAME:-Docker Default Agent}"
+agent_description="${BBOT_AGENT_DESCRIPTION:-Default agent for Docker}"
+delete_existing="${BBOT_AGENT_DELETE_EXISTING:-true}"
+neo4j_output="${BBOT_AGENT_NEO4J_OUTPUT:-false}"
 
-# create the default agent
-default_agent_json=$(bbctl agent create --name "Docker Default Agent" --description "Default agent for Docker")
+if [[ "$delete_existing" == "true" ]]; then
+  if ! bbctl agent delete "$agent_name"; then
+    echo "Agent $agent_name not found; continuing"
+  fi
+fi
 
-# get the id and name of the default agent
-default_agent_id=$(echo "$default_agent_json" | jq -r '.id')
-default_agent_name=$(echo "$default_agent_json" | jq -r '.name')
+agent_json=$(bbctl agent create --name "$agent_name" --description "$agent_description")
+agent_id=$(echo "$agent_json" | jq -r '.id')
+agent_name=$(echo "$agent_json" | jq -r '.name')
 
-# start the agent
-bbctl agent start --id "$default_agent_id" --name "$default_agent_name"
+start_cmd=(bbctl agent start --id "$agent_id" --name "$agent_name")
+if [[ "$neo4j_output" == "true" ]]; then
+  start_cmd+=(--neo4j-output)
+fi
+
+"${start_cmd[@]}"
