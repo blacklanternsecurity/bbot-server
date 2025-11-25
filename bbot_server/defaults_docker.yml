@@ -20,6 +20,7 @@ user_store:
 message_queue:
   uri: redis://redis:6379/0
 
+
 agent:
   base_preset:
     config:
@@ -30,3 +31,8 @@ agent:
         - DNS_NAME_UNRESOLVED
         - RAW_TEXT
         - WEB_PARAMETER
+  # Default Neo4j connection details used when enabling --neo4j-output on agents
+  neo4j_output:
+    uri: bolt://172.17.0.1:7687
+    username: neo4j
+    password: bbotislife
