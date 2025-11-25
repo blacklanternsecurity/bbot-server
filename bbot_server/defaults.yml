@@ -32,6 +32,11 @@ agent:
         - DNS_NAME_UNRESOLVED
         - RAW_TEXT
         - WEB_PARAMETER
+  # Default Neo4j connection details used when enabling --neo4j-output on agents
+  neo4j_output:
+    uri: bolt://localhost:7687
+    username: neo4j
+    password: bbotislife
 
 cli:
   http_timeout: 90

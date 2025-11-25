@@ -12,6 +12,7 @@ import bbot_server.config as bbcfg
 from bbot.scanner import Scanner, Preset
 from bbot.scanner.dispatcher import Dispatcher
 from bbot.constants import get_scan_status_code, get_scan_status_name, SCAN_STATUS_NOT_STARTED, SCAN_STATUS_FAILED
+from omegaconf import OmegaConf
 
 from bbot_server.errors import BBOTServerValueError
 from bbot_server.utils.async_utils import async_to_sync_class
@@ -59,11 +60,12 @@ class BBOTAgent:
     - get full scan status (with detailed module status)
     """
 
-    def __init__(self, id: str, name: str, config):
+    def __init__(self, id: str, name: str, config, enable_neo4j_output: bool = False):
         self.log = logging.getLogger("bbot_server.agent")
         self.id = id
         self.name = name
         self.config = config
+        self.enable_neo4j_output = enable_neo4j_output
         self.server_url = config.url
         self.parsed_server_url = urlparse(self.server_url)
         self.websocket_scheme = "ws" if self.parsed_server_url.scheme == "http" else "wss"
@@ -215,14 +217,29 @@ class BBOTAgent:
         default_preset = Preset.from_dict(default_bbot_preset)
 
         # agent-specific overrides for output url etc.
-        agent_preset = Preset(
-            output_modules=["http"],
-            config={
-                "modules": {
-                    "http": {"url": self.scan_output_url, "headers": {bbcfg.API_KEY_NAME: bbcfg.get_api_key()}}
-                }
-            },
-        )
+        output_modules = ["http"]
+        module_config = {
+            "http": {"url": self.scan_output_url, "headers": {bbcfg.API_KEY_NAME: bbcfg.get_api_key()}}
+        }
+
+        if self.enable_neo4j_output:
+            self.log.info("Enabling Neo4j output for agent %s", self.name)
+            agent_config = self.config.get("agent", {}) or {}
+            try:
+                neo4j_output_config = OmegaConf.to_container(agent_config.get("neo4j_output", {}), resolve=True)
+            except Exception:
+                neo4j_output_config = agent_config.get("neo4j_output", {}) or {}
+
+            neo4j_options = {
+                "uri": neo4j_output_config.get("uri", "bolt://localhost:7687"),
+                "username": neo4j_output_config.get("username", "neo4j"),
+                "password": neo4j_output_config.get("password", "bbotislife"),
+            }
+
+            output_modules.append("neo4j")
+            module_config["neo4j"] = neo4j_options
+
+        agent_preset = Preset(output_modules=output_modules, config={"modules": module_config})
 
         default_preset.merge(agent_preset)
         return default_preset

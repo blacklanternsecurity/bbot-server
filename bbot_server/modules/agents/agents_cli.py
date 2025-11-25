@@ -64,12 +64,25 @@ class AgentCTL(BaseBBCTL):
         self,
         agent_id: Annotated[str, Option("--id", "-i", help="ID of the agent to start", metavar="UUID")],
         agent_name: Annotated[str, Option("--name", "-n", help="Name of the agent", metavar="STRING")],
+        neo4j_output: Annotated[
+            bool,
+            Option(
+                "--neo4j-output",
+                help="Also export scan output to Neo4j using connection details from the config",
+            ),
+        ] = False,
     ):
         print("Starting BBOT agent")
 
         from bbot_server.modules.agents.agent import BBOTAgent
 
-        agent = BBOTAgent(agent_id, agent_name, self.root.config, synchronous=True)
+        agent = BBOTAgent(
+            agent_id,
+            agent_name,
+            self.root.config,
+            enable_neo4j_output=neo4j_output,
+            synchronous=True,
+        )
         try:
             self.log.info("Starting agent")
             agent.loop()

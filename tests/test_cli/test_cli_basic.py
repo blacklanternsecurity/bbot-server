@@ -51,3 +51,9 @@ event_store:
     config = yaml.safe_load(result.stdout)
     assert config["event_store"]["uri"] == "mongodb://localhost:27017/asdf"
     temp_config_path.unlink()
+
+
+def test_agent_start_help_includes_neo4j_option():
+    result = subprocess.run(BBCTL_COMMAND + ["agent", "start", "--help"], capture_output=True, text=True)
+    assert result.returncode == 0
+    assert "--neo4j-output" in result.stdout
