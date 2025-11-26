@@ -22,7 +22,7 @@ class APIKeyCTL(BaseBBCTL):
         table = self.Table()
         table.add_column("API Key", style=self.COLOR)
         for api_key in valid_secrets:
-            table.add_row(api_key)
+            table.add_row(str(api_key))
         self.stdout.print(table)
 
     @subcommand(help="Create a new API key")
