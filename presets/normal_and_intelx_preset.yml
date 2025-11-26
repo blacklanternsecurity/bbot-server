@@ -1,0 +1,39 @@
+description: Do a subdomain enumeration + basic web scan + nuclei
+
+include:
+  # include these default presets
+  - subdomain-enum
+  - cloud-enum
+  - code-enum
+  - email-enum
+  - spider
+  - tech-detect
+
+module_dirs:
+  - /app/modules
+
+modules:
+  - intelx_phonebook
+
+config:
+  modules:
+    shodan_dns:
+      api_key: 
+    intelx_phonebook:
+      api_key: ""
+      enable_leak_lookup: "true"
+      max_leak_items: 10000
+      leak_result_page_size: 100
+      last_year_only: true
+      leak_buckets:
+        - leaks.public.general
+        - leaks.private.general
+        - pastes
+        - leaks.logs
+      # optional tuning:
+      # buckets: []
+      # maxresults: 1000
+      # result_page_size: 100
+      # poll_interval: 1.0
+      # max_polls: 10
+
