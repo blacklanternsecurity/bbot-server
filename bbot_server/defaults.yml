@@ -22,6 +22,11 @@ user_store:
 message_queue:
   uri: redis://localhost:6379/0
 
+watchdog:
+  alerts:
+    enabled: false
+    webhook_url: ""
+
 agent:
   base_preset:
     config:
