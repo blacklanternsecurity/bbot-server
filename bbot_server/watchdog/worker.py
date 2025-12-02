@@ -2,11 +2,13 @@ import asyncio
 import logging
 import traceback
 from contextlib import suppress
+
+import httpx
 from taskiq.schedule_sources import LabelScheduleSource
 from taskiq.api import run_receiver_task, run_scheduler_task
 from taskiq import TaskiqScheduler, TaskiqEvents, TaskiqState
 
-from bbot_server.assets import Asset
+from bbot_server.modules import Asset
 from bbot.models.pydantic import Event
 from bbot_server.errors import BBOTServerNotFoundError
 from bbot_server.modules.activity.activity_models import Activity
@@ -20,12 +22,18 @@ class BBOTWatchdog:
         - event queue listener
     """
 
-    def __init__(self, bbot_server):
+    def __init__(self, bbot_server, http_client: httpx.AsyncClient | None = None):
         self.log = logging.getLogger(__name__)
         # bbot server
         self.bbot_server = bbot_server
+        self._http_client = http_client
+        self._owns_http_client = http_client is None
+        self._alert_webhook_url = ""
+        self._alerts_enabled = False
+        self._load_alert_config()
 
     async def start(self) -> None:
+        self._load_alert_config()
         self.broker = await self.bbot_server.message_queue.make_taskiq_broker()
         self.broker.is_worker_process = True
 
@@ -37,6 +45,9 @@ class BBOTWatchdog:
         # taskiq scheduler
         self.taskiq_schedule_source = LabelScheduleSource(self.broker)
         self.taskiq_scheduler = TaskiqScheduler(self.broker, [self.taskiq_schedule_source])
+
+        if self._alerts_enabled and self._http_client is None:
+            self._http_client = httpx.AsyncClient(timeout=10)
 
         await self.broker.startup()
 
@@ -73,6 +84,7 @@ class BBOTWatchdog:
             else:
                 event_preview = ""
             self.log.info(f"Received event: {event.type}{event_preview}")
+            await self._send_event_alert(event)
             # get the event's associated asset (this saves on database queries since it will be passed down to each applet)
             asset, _activities = await self._get_or_create_asset(event.host, event=event)
             activities.extend(_activities)
@@ -100,6 +112,37 @@ class BBOTWatchdog:
         except Exception as e:
             self.log.error(f"Error ingesting event {event.type}: {e}")
             self.log.error(traceback.format_exc())
+
+    def _load_alert_config(self) -> None:
+        """Load webhook alert configuration from the BBOT server config."""
+
+        try:
+            watchdog_config = self.bbot_server.config.get("watchdog", {}) or {}
+            alerts_config = watchdog_config.get("alerts", {}) or {}
+        except Exception:
+            alerts_config = {}
+
+        webhook_url = alerts_config.get("webhook_url", "") or ""
+        self._alert_webhook_url = webhook_url.strip()
+        self._alerts_enabled = bool(alerts_config.get("enabled", False) or self._alert_webhook_url)
+
+    async def _send_event_alert(self, event: Event) -> None:
+        """Send a webhook notification when a new event is identified."""
+
+        if not (self._alerts_enabled and self._alert_webhook_url and self._http_client):
+            return
+
+        payload = {
+            "summary": f"New event detected: {event.type}"
+            + (f" on {event.host}" if getattr(event, "host", None) else ""),
+            "event": event.model_dump(mode="json"),
+        }
+
+        try:
+            response = await self._http_client.post(self._alert_webhook_url, json=payload)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            self.log.error(f"Error sending webhook alert to {self._alert_webhook_url}: {exc}")
 
     async def _activity_listener(self, message: dict) -> None:
         """
@@ -154,6 +197,8 @@ class BBOTWatchdog:
 
     async def stop(self) -> None:
         self.log.info("Stopping watchdog")
+        if self._owns_http_client and self._http_client is not None:
+            await self._http_client.aclose()
         await self.bbot_server.message_queue.unsubscribe(self.event_listener)
         self.taskiq_worker_task.cancel()
         self.taskiq_scheduler_task.cancel()
