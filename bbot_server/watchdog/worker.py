@@ -30,6 +30,7 @@ class BBOTWatchdog:
         self._owns_http_client = http_client is None
         self._alert_webhook_url = ""
         self._alerts_enabled = False
+        self._last_alert_client_verify = None
         self._load_alert_config()
 
     async def start(self) -> None:
@@ -47,7 +48,7 @@ class BBOTWatchdog:
         self.taskiq_scheduler = TaskiqScheduler(self.broker, [self.taskiq_schedule_source])
 
         if self._alerts_enabled and self._http_client is None:
-            self._http_client = httpx.AsyncClient(timeout=10)
+            self._http_client = httpx.AsyncClient(timeout=10, verify=False)
 
         await self.broker.startup()
 
@@ -138,11 +139,24 @@ class BBOTWatchdog:
             "event": event.model_dump(mode="json"),
         }
 
+        client = self._http_client
+        owns_temp_client = False
+
+        if not self._owns_http_client:
+            transport = getattr(client, "_transport", None)
+            client = httpx.AsyncClient(timeout=10, verify=False, transport=transport)
+            owns_temp_client = True
+
+        self._last_alert_client_verify = False
+
         try:
-            response = await self._http_client.post(self._alert_webhook_url, json=payload)
+            response = await client.post(self._alert_webhook_url, json=payload)
             response.raise_for_status()
         except httpx.HTTPError as exc:
             self.log.error(f"Error sending webhook alert to {self._alert_webhook_url}: {exc}")
+        finally:
+            if owns_temp_client:
+                await client.aclose()
 
     async def _activity_listener(self, message: dict) -> None:
         """

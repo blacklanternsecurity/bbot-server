@@ -94,5 +94,6 @@ async def test_watchdog_webhook_alerts():
         payload = webhook_calls[0]
         assert payload["summary"].startswith("New event detected")
         assert payload["event"]["type"]
+        assert watchdog._last_alert_client_verify is False
     finally:
         await http_client.aclose()
