@@ -2,8 +2,8 @@ import orjson
 import asyncio
 import logging
 import traceback
+from uuid import UUID
 from typing import Dict
-from pydantic import UUID4
 from contextlib import suppress
 from starlette.websockets import WebSocketDisconnect, WebSocket
 
@@ -26,13 +26,13 @@ class ConnectionManager:
         # pending requests - request_id -> future
         self.pending_requests: Dict[str, asyncio.Future] = {}
 
-    def is_connected(self, agent_id: UUID4):
+    def is_connected(self, agent_id: UUID):
         """
         Check if an agent is connected
         """
         return str(agent_id) in self.active_connections
 
-    async def loop(self, agent_id: UUID4, websocket: WebSocket):
+    async def loop(self, agent_id: UUID, websocket: WebSocket):
         """
         Loop for handling incoming messages from an agent
         """
@@ -65,7 +65,7 @@ class ConnectionManager:
             self.log.debug(f"Stopping connection manager loop for agent {agent_id}")
             await self.disconnect(agent_id)
 
-    async def disconnect(self, agent_id: UUID4):
+    async def disconnect(self, agent_id: UUID):
         """
         Disconnect an agent
         """
@@ -74,7 +74,7 @@ class ConnectionManager:
             with suppress(Exception):
                 await connection.close()
 
-    async def execute_command(self, agent_id: UUID4, command: str, timeout=10, **kwargs) -> AgentResponse:
+    async def execute_command(self, agent_id: UUID, command: str, timeout=10, **kwargs) -> AgentResponse:
         """
         Executes a command on the remote agent, and returns the response
         """

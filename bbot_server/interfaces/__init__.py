@@ -1,5 +1,8 @@
 import logging
 
+# since each module can contribute custom asset fields, we need to import it before using the interface
+from bbot_server import modules  # noqa: F401
+
 log = logging.getLogger("bbot_server.interfaces")
 
 

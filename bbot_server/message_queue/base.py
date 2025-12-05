@@ -4,7 +4,7 @@ import traceback
 
 from pydantic import BaseModel
 
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from bbot.models.pydantic import Event
 from bbot_server.errors import BBOTServerValueError
 from bbot_server.modules.activity.activity_models import Activity
@@ -17,6 +17,7 @@ class BaseMessageQueue:
 
     def __init__(self):
         self.log = logging.getLogger(__name__)
+        self.config = bbcfg
 
         if not self.mq_config:
             raise BBOTServerValueError(f"Message queue configuration is missing from config: {self.mq_config}")
@@ -24,16 +25,12 @@ class BaseMessageQueue:
             raise BBOTServerValueError(f"Message queue URI is missing from config: {self.mq_config}")
 
     @property
-    def config(self):
-        return bbcfg.BBOT_SERVER_CONFIG
-
-    @property
     def mq_config(self):
-        return self.config.get("message_queue", {})
+        return self.config.message_queue
 
     @property
     def uri(self):
-        return self.mq_config.get("uri", "")
+        return self.mq_config.uri
 
     async def publish_event(self, event: Event):
         """

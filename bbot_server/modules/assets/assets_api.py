@@ -1,3 +1,6 @@
+from typing import Annotated
+from fastapi import Body, Path, Query
+
 from bbot_server.assets import Asset
 from bbot_server.utils.misc import utc_now
 from bbot_server.applets.base import BaseApplet, api_endpoint
@@ -6,24 +9,99 @@ from bbot_server.applets.base import BaseApplet, api_endpoint
 class AssetsApplet(BaseApplet):
     name = "Assets"
     description = "hostnames and IP addresses discovered during scans"
-    attach_to = "root_applet"
 
     model = Asset
 
     @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
-    async def get_assets(self, domain: str = None, target_id: str = None):
+    async def list_assets(
+        self,
+        domain: Annotated[str, Query(description="Filter assets by domain or subdomain")] = None,
+        target_id: Annotated[str, Query(description="Filter assets by target ID or name")] = None,
+        limit: Annotated[int, Query(description="Limit the number of assets returned")] = None,
+    ):
         """
-        Stream all assets.
-
-        Args:
-            domain: Filter assets by domain or subdomain
-            target_id: Filter assets by target ID or name
+        A simple, easily-curlable endpoint for listing assets, with basic filters
         """
-        async for asset in self._get_assets(domain=domain, target_id=target_id):
+        async for asset in self.mongo_iter(type="Asset", domain=domain, target_id=target_id, limit=limit):
             yield self.model(**asset)
 
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query assets")
+    async def query_assets(
+        self,
+        query: Annotated[dict, Body(description="Raw mongo query")] = None,
+        search: Annotated[
+            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
+        ] = None,
+        host: Annotated[str, Body(description="Filter assets by host (exact match only)")] = None,
+        domain: Annotated[str, Body(description="Filter assets by domain (subdomains allowed)")] = None,
+        type: Annotated[
+            str, Body(description="Filter assets by type (Asset, Technology, Vulnerability, etc.)")
+        ] = "Asset",
+        target_id: Annotated[str, Body(description="Filter assets by target ID")] = None,
+        archived: Annotated[bool, Body(description="Whether to include archived assets")] = False,
+        active: Annotated[bool, Body(description="Whether to include active assets")] = True,
+        ignored: Annotated[bool, Body(description="Filter on whether the asset is ignored")] = False,
+        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
+        limit: Annotated[int, Body(description="Limit the number of assets returned")] = None,
+        skip: Annotated[int, Body(description="Skip the first N assets")] = None,
+        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
+        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
+    ) -> list[Asset]:
+        """
+        Advanced querying of assets. Choose your own filters and fields.
+        """
+        async for asset in self.mongo_iter(
+            query=query,
+            search=search,
+            host=host,
+            domain=domain,
+            type=type,
+            target_id=target_id,
+            archived=archived,
+            active=active,
+            ignored=ignored,
+            fields=fields,
+            limit=limit,
+            skip=skip,
+            sort=sort,
+            aggregate=aggregate,
+        ):
+            yield asset
+
+    @api_endpoint("/count", methods=["POST"], summary="Count assets")
+    async def count_assets(
+        self,
+        query: Annotated[dict, Body(description="Raw mongo query")] = None,
+        search: Annotated[
+            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
+        ] = None,
+        host: Annotated[str, Body(description="Filter assets by host (exact match only)")] = None,
+        domain: Annotated[str, Body(description="Filter assets by domain (subdomains allowed)")] = None,
+        type: Annotated[
+            str, Body(description="Filter assets by type (Asset, Technology, Vulnerability, etc.)")
+        ] = "Asset",
+        target_id: Annotated[str, Body(description="Filter assets by target ID")] = None,
+        archived: Annotated[bool, Body(description="Whether to include archived assets")] = False,
+        active: Annotated[bool, Body(description="Whether to include active assets")] = True,
+        ignored: Annotated[bool, Body(description="Filter on whether the asset is ignored")] = False,
+    ) -> int:
+        """
+        Same as query_assets, except only returns the count
+        """
+        return await self.mongo_count(
+            query=query,
+            search=search,
+            host=host,
+            domain=domain,
+            type=type,
+            target_id=target_id,
+            archived=archived,
+            active=active,
+            ignored=ignored,
+        )
+
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
-    async def get_asset(self, host: str) -> Asset:
+    async def get_asset(self, host: Annotated[str, Path(description="The host of the asset to get")]) -> Asset:
         asset = await self.collection.find_one({"host": host})
         if not asset:
             raise self.BBOTServerNotFoundError(f"Asset {host} not found")
@@ -43,6 +121,22 @@ class AssetsApplet(BaseApplet):
             history.append(activity["description"])
         return history
 
+    @api_endpoint("/hosts", methods=["GET"], summary="List hosts")
+    async def get_hosts(self, domain: str = None, target_id: str = None) -> list[str]:
+        """
+        List all hosts.
+
+        Args:
+            domain: Return all hosts matching this domain (including subdomains)
+            target_id: Only return hosts belonging to this target (can be either name or ID)
+        """
+        hosts = []
+        async for asset in self.mongo_iter(type="Asset", domain=domain, target_id=target_id, fields=["host"]):
+            host = asset.get("host", None)
+            if host is not None:
+                hosts.append(host)
+        return sorted(hosts)
+
     async def update_asset(self, asset: Asset):
         asset.modified = utc_now()
         await self.strict_collection.update_one({"host": asset.host}, {"$set": asset.model_dump()}, upsert=True)
@@ -56,7 +150,7 @@ class AssetsApplet(BaseApplet):
         for host in await self.get_hosts():
             # get all the events for this host, and group them by type
             events_by_type = {}
-            async for event in self.event_store.get_events(host=host):
+            async for event in self.root.list_events(host=host):
                 try:
                     events_by_type[event.type].add(event)
                 except KeyError:
@@ -74,71 +168,15 @@ class AssetsApplet(BaseApplet):
             # update the asset with any changes made by the child applets
             await self.update_asset(asset)
 
-    @api_endpoint("/hosts", methods=["GET"], summary="List hosts")
-    async def get_hosts(self, domain: str = None, target_id: str = None) -> list[str]:
+    async def make_bbot_query(self, type: str = "Asset", query: dict = None, ignored: bool = False, **kwargs):
         """
-        List all hosts.
-
-        Args:
-            domain: Return all hosts matching this domain (including subdomains)
-            target_id: Only return hosts belonging to this target (can be either name or ID)
-        """
-        hosts = []
-        async for asset in self._get_assets(domain=domain, target_id=target_id, fields=["host"]):
-            host = asset.get("host", None)
-            if host is not None:
-                hosts.append(host)
-        return sorted(hosts)
-
-    async def _get_assets(
-        self,
-        query: dict = None,
-        search: str = None,
-        host: str = None,
-        domain: str = None,
-        type: str = "Asset",
-        target_id: str = None,
-        archived: bool = False,
-        ignored: bool = False,
-        fields: list[str] = None,
-        sort: list[tuple[str, int]] = None,
-    ):
-        """
-        Multipurpose async generator for getting assets from the database.
-
-        Args:
-            query: Additional query parameters (mongo)
-            search: Search using mongo's text index
-            host: Filter assets by host (exact match only)
-            domain: Filter assets by domain (subdomains allowed)
-            type: Filter assets by type (Asset, Technology, Vulnerability, etc.)
-            target_id: Filter assets by target ID
-            archived: Filter archived assets
-            ignored: Filter ignored assets
-            fields: List of fields to return
-            sort: Fields and direction to sort by, e.g. sort=[("last_seen", -1)]
+        Extension of make_bbot_query for assets and asset facets (findings, technologies, etc.)
         """
         query = dict(query or {})
-        query["archived"] = archived
-        query["ignored"] = ignored
-        if type is not None:
-            query["type"] = type
-        if host is not None:
-            query["host"] = host
-        if domain is not None:
-            reversed_host = domain[::-1]
-            # Match exact domain or subdomains (with dot separator)
-            query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
-        if target_id is not None:
-            target_query_kwargs = {}
-            if target_id != "DEFAULT":
-                target_query_kwargs["id"] = target_id
-            target = await self.root.targets._get_target(**target_query_kwargs, fields=["id"])
-            query["scope"] = target["id"]
-        if search is not None:
-            query["$text"] = {"$search": search}
-        async for asset in self._query_assets(query, fields, sort):
-            yield asset
+        # "ignored" field is unique to assets and asset facets
+        if ignored is not None and "ignored" not in query:
+            query["ignored"] = ignored
+        return await super().make_bbot_query(type=type, query=query, **kwargs)
 
     async def _get_asset(
         self,
@@ -154,27 +192,13 @@ class AssetsApplet(BaseApplet):
             query["host"] = host
         return await self.collection.find_one(query, fields)
 
-    async def _query_assets(self, query: dict, fields: list[str] = None, sort: list[tuple[str, int]] = None):
-        """
-        Lowest-level query function for getting assets from the database.
-
-        Args:
-            query: Additional query parameters (mongo)
-            fields: List of fields to return
-            sort: Fields and direction to sort by, e.g. sort=[("last_seen", -1)]
-        """
-        self.log.debug(f"Querying assets: query={query} / fields={fields}")
-        fields = {f: 1 for f in fields} if fields else None
-        cursor = self.collection.find(query, fields)
-        if sort:
-            cursor = cursor.sort(sort)
-        async for asset in cursor:
-            yield asset
-
     async def _update_asset(self, host: str, update: dict):
         return await self.strict_collection.update_many({"host": host}, {"$set": update})
 
     async def _insert_asset(self, asset: dict):
         # we exclude scope here to avoid accidentally clobbering it
-        asset.pop("scope", None)
+        # however we preserve scope for technologies and findings since they should inherit scope
+        asset_type = asset.get("type", "Asset")
+        if asset_type == "Asset":
+            asset.pop("scope", None)
         await self.strict_collection.insert_one(asset)

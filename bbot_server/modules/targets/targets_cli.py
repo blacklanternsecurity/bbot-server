@@ -47,7 +47,7 @@ class TargetCTL(BaseBBCTL):
             strict_dns_scope=strict_dns_scope,
         )
         self.log.info(f"Target created successfully:")
-        self.print_json(target.model_dump())
+        self.print_json(target.model_dump(), colorize=True)
 
     @subcommand(help="Delete a target")
     def delete(
@@ -125,7 +125,7 @@ class TargetCTL(BaseBBCTL):
     @subcommand(help="Get a target by its name or ID")
     def get(self, target_id: Annotated[str, Argument(help="Target name or ID")]):
         target = self.bbot_server.get_target(target_id)
-        self.print_json(target.model_dump())
+        self.print_json(target.model_dump(), colorize=True)
 
     def _read_file(self, file, filetype):
         if not file.resolve().is_file():

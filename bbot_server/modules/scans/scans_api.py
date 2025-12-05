@@ -1,7 +1,7 @@
 import random
 import asyncio
 import traceback
-from pydantic import UUID4
+from uuid import UUID
 from pymongo import ASCENDING
 from contextlib import suppress
 from pymongo.errors import DuplicateKeyError
@@ -28,7 +28,6 @@ class ScansApplet(BaseApplet):
     description = "scans"
     watched_events = ["SCAN"]
     watched_activities = ["SCAN_STATUS"]
-    attach_to = "root_applet"
     model = Scan
 
     async def setup(self):
@@ -50,7 +49,7 @@ class ScansApplet(BaseApplet):
         target_id: str,
         preset_id: str,
         name: str = None,
-        agent_id: UUID4 = None,
+        agent_id: UUID = None,
         seed_with_current_assets: bool = False,
     ) -> Scan:
         target = await self.get_target(target_id)
@@ -116,9 +115,9 @@ class ScansApplet(BaseApplet):
         return [Scan(**run) for run in await cursor.to_list(length=None)]
 
     @api_endpoint("/cancel/{id}", methods=["POST"], summary="Cancel a scan by its name or ID")
-    async def cancel_scan(self, scan_id: str, force: bool = False):
+    async def cancel_scan(self, id: str, force: bool = False):
         # get the scan
-        scan = await self.get_scan(scan_id)
+        scan = await self.get_scan(id)
 
         existing_scan_status_code = get_scan_status_code(getattr(scan, "status_code", SCAN_STATUS_QUEUED))
         if existing_scan_status_code >= SCAN_STATUS_FINISHED:
@@ -309,6 +308,7 @@ class ScansApplet(BaseApplet):
                 status_changed = await self.update_scan_status(scan_id=scan_id, status_code=scan.status_code)
             else:
                 self.log.warning(f'Scan "{scan.name}" found in database, but event has no duration_seconds')
+                status_changed = False
         # otherwise, assume the scan is starting and create a new run
         else:
             description = f"Scan [[COLOR]{scan.name}[/COLOR]] started"

@@ -33,10 +33,17 @@ class PresetCTL(BaseBBCTL):
     @subcommand(help="Update a preset by name or ID")
     def update(
         self,
-        id: Annotated[str, Option("--name", "-n", "--id", "-i", help="Preset name or ID")],
         preset: Annotated[Path, Argument(help="Path to preset YAML file")],
+        id: Annotated[str, Option("--name", "-n", "--id", "-i", help="Preset name or ID")] = "",
     ):
         preset_dict = self._load_preset(preset)
+        if not id:
+            name_from_config = preset_dict.get("name", "")
+            if not name_from_config:
+                raise self.BBOTServerValueError(
+                    "Preset name or ID must be provided via --name/--id or in the preset file"
+                )
+            id = name_from_config
         self.bbot_server.update_preset(id, preset_dict)
         self.log.info(f"Preset updated successfully")
 

@@ -1,12 +1,9 @@
-import bbot_server.config as bbcfg
-
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from bbot_server.applets.base import BaseApplet
 
 
 class RootApplet(BaseApplet):
     name = "Root Applet"
-
-    attach_to = ""
 
     _nested = False
 
@@ -14,10 +11,10 @@ class RootApplet(BaseApplet):
 
     def __init__(self, config=None, **kwargs):
         """
-        "config" can be either a dictionary or an omegaconf object
+        "config" can be a dictionary of config overrides
         """
         if config is not None:
-            bbcfg.refresh_config(config)
+            bbcfg.refresh(**config)
         super().__init__(**kwargs)
         self._interface_type = "python"
         self._mcp = None
@@ -28,26 +25,18 @@ class RootApplet(BaseApplet):
         if self.is_native:
             # set up asset store, user store, and gridfs buckets
             if self.asset_store is None:
-                from bbot_server.store.user_store import UserStore
-                from bbot_server.store.asset_store import AssetStore
+                from bbot_server.store import UserStore, AssetStore, EventStore
 
                 self.asset_store = AssetStore()
                 await self.asset_store.setup()
-                self.asset_db = self.asset_store.db
-                self.asset_fs = self.asset_store.fs
 
                 self.user_store = UserStore()
                 await self.user_store.setup()
-                self.user_db = self.user_store.db
-                self.user_fs = self.user_store.fs
 
-            # set up event store
-            from bbot_server.event_store import EventStore
+                self.event_store = EventStore()
+                await self.event_store.setup()
 
-            self.event_store = EventStore()
-            await self.event_store.setup()
-
-            # set up NATS client
+            # set up message queue
             from bbot_server.message_queue import MessageQueue
 
             self.message_queue = MessageQueue()
@@ -62,7 +51,7 @@ class RootApplet(BaseApplet):
 
     @property
     def _config(self):
-        return bbcfg.BBOT_SERVER_CONFIG
+        return bbcfg
 
     async def cleanup(self):
         if self.is_native:

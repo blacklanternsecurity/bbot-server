@@ -51,14 +51,21 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
     # wait for events to be processed
     for _ in range(120):
         scans = [s async for s in bbot_server.get_scans()]
-        if len(scans) == 1 and scans[0].status == "FINISHED":
+
+        scan_activities = [a for a in activities if a.type.startswith("SCAN_")]
+        scan_statuses = [a.detail["scan_status"] for a in scan_activities]
+
+        if (
+            len(scans) == 1
+            and scans[0].status == "FINISHED"
+            and [s.type for s in scan_activities] == ["SCAN_STATUS", "SCAN_STATUS"]
+            and [s.detail["scan_status"] for s in scan_activities] == ["RUNNING", "FINISHED"]
+        ):
             break
+
         await asyncio.sleep(0.5)
     else:
-        assert False, "Scan did not finish"
-
-    assert [a.type for a in activities if a.type.startswith("SCAN_")] == ["SCAN_STATUS", "SCAN_STATUS"]
-    assert [a.detail["scan_status"] for a in activities if a.type.startswith("SCAN_")] == ["RUNNING", "FINISHED"]
+        assert False, f"Scan did not finish. Scan activities: {scan_activities}, Scan statuses: {scan_statuses}"
 
     activity_task.cancel()
     with suppress(asyncio.CancelledError):
@@ -78,7 +85,7 @@ async def test_scan_with_invalid_preset(bbot_server, bbot_agent):
     await bbot_server.start_scan(name="scan1", preset_id=preset.id, target_id=target.id)
 
     for _ in range(30):
-        activities = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
+        activities = [a async for a in bbot_server.list_activities(type="SCAN_STATUS")]
         if any(a.detail["scan_status"] == "FAILED" for a in activities):
             break
         await asyncio.sleep(0.5)
@@ -123,7 +130,7 @@ async def test_basic_scan_run(bbot_server):
         scans = [a async for a in bbot_server.get_scans()]
         scan_status_finished = len(scans) == 1 and scans[0].status == "FINISHED"
 
-        scan_status_activities = [a async for a in bbot_server.get_activities(type="SCAN_STATUS")]
+        scan_status_activities = [a async for a in bbot_server.list_activities(type="SCAN_STATUS")]
         scan_statuses = [a.detail["scan_status"] for a in scan_status_activities]
         scan_status_match = scan_statuses == [
             "STARTING",
@@ -157,13 +164,15 @@ async def test_basic_scan_run(bbot_server):
 
     for _ in range(120):
         # wait for agent to be ready again
-        agent_statuses = [a async for a in bbot_server.get_activities(type="AGENT_STATUS")]
+        agent_statuses = [a async for a in bbot_server.list_activities(type="AGENT_STATUS")]
         agent_statuses = [a.detail["status"] for a in agent_statuses]
         agent_status_match = agent_statuses == ["ONLINE", "READY", "BUSY", "READY"]
 
         # agent should be ready again
         agents = await bbot_server.get_agents()
         agent_status_match_2 = len(agents) == 1 and agents[0].status == "READY"
+
+        print(f"Agent statuses: {agent_statuses}, Agents: {agents}")
 
         if agent_status_match and agent_status_match_2:
             break
@@ -200,7 +209,7 @@ async def test_queued_scan_cancellation(bbot_server):
     assert len(scans) == 1
     assert scans[0].status == "QUEUED"
 
-    await bbot_server.cancel_scan(scan_id=scan.id)
+    await bbot_server.cancel_scan(id=scan.id)
 
     scans = [s async for s in bbot_server.get_scans()]
     assert len(scans) == 1
@@ -249,7 +258,7 @@ async def test_running_scan_cancellation(bbot_agent, bbot_watchdog):
     assert scans[0].status == "RUNNING"
 
     # cancel the scan
-    await bbot_server.cancel_scan(scan_id=scan.id)
+    await bbot_server.cancel_scan(id=scan.id)
 
     # wait until the scan is cancelled
     for _ in range(120):
@@ -262,7 +271,7 @@ async def test_running_scan_cancellation(bbot_agent, bbot_watchdog):
 
     # cancelling the scan again should raise an error
     with pytest.raises(BBOTServerValueError):
-        await bbot_server.cancel_scan(scan_id=scan.id)
+        await bbot_server.cancel_scan(id=scan.id)
 
     # make sure the agent is still running and ready to pick up the next scan
     for _ in range(120):

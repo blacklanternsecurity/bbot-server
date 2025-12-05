@@ -7,7 +7,7 @@ from pathlib import Path
 from subprocess import run
 from contextlib import suppress
 
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
@@ -36,16 +36,16 @@ class ServerCTL(BaseBBCTL):
         reload: Annotated[
             bool, Option("--reload", "-r", help="Reload the server when the code changes (for development)")
         ] = False,
+        no_authentication: Annotated[
+            bool, Option("--no-authentication", "-n", help="Disables authentication on the API (USE WITH CAUTION)")
+        ] = False,
     ):
-        # initialize the config if not already
-        if not bbcfg.get_api_keys():
-            self.log.info("First run detected. Adding a new API key...")
-            self.root.children["server"].children["apikey"].setup()
-            self.root.children["server"].children["apikey"].add()
-        bbcfg.refresh_config()
+        if no_authentication:
+            os.environ["BBOT_SERVER_AUTH_ENABLED"] = "false"
 
         if api_only:
             print("Starting BBOT server API")
+
             import uvicorn
 
             app = "bbot_server.api.app:server_app"
@@ -86,6 +86,14 @@ class ServerCTL(BaseBBCTL):
             asyncio.run(run_watchdog())
 
         else:
+            # initialize the config if not already
+            if not bbcfg.get_api_keys():
+                self.log.info("First run detected. Adding a new API key...")
+                self.root.children["server"].children["apikey"].setup()
+                self.root.children["server"].children["apikey"].add()
+            else:
+                self.log.info("API keys already exist. Skipping API key creation.")
+
             # docker compose command with env vars
             env = os.environ.copy()
             env["BBOT_LISTEN_ADDRESS"] = listen
@@ -128,7 +136,7 @@ class ServerCTL(BaseBBCTL):
             raise self.BBOTServerError(f"Must specify at least one database to clear")
 
         if event_store:
-            event_store_db = self.config.get("event_store", {}).get("uri", "").split("/")[-1]
+            event_store_db = self.config.event_store.uri.split("/")[-1]
             if not event_store_db:
                 raise self.BBOTServerError("Event store database not found in config")
             response = input(
@@ -141,7 +149,7 @@ class ServerCTL(BaseBBCTL):
             self.log.info(f"Successfully cleared event store database: {event_store_db}")
 
         if asset_store:
-            asset_store_db = self.config.get("asset_store", {}).get("uri", "").split("/")[-1]
+            asset_store_db = self.config.asset_store.uri.split("/")[-1]
             if not asset_store_db:
                 raise self.BBOTServerError("Asset store database not found in config")
             response = input(
@@ -153,7 +161,7 @@ class ServerCTL(BaseBBCTL):
             self.log.info(f"Successfully cleared asset store database: {asset_store_db}")
 
         if user_store:
-            user_store_db = self.config.get("user_store", {}).get("uri", "").split("/")[-1]
+            user_store_db = self.config.user_store.uri.split("/")[-1]
             if not user_store_db:
                 raise self.BBOTServerError("User store database not found in config")
             response = input(
@@ -182,7 +190,9 @@ class ServerCTL(BaseBBCTL):
                 except (FileNotFoundError, subprocess.CalledProcessError):
                     raise typer.Exit("Docker compose is not installed. Please install docker compose and try again.")
 
-        return run(self._docker_command + args, **kwargs)
+        docker_compose_command = self._docker_command + args
+        self.log.info(f"Running docker compose command: {' '.join(docker_compose_command)}")
+        return run(docker_compose_command, **kwargs)
 
     @subcommand(
         help="Run a command with docker compose",

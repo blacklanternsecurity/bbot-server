@@ -5,12 +5,10 @@ import subprocess
 from contextlib import suppress
 
 from .conftest import BBCTL_COMMAND
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 
 
 def test_hot_reload():
-    API_KEY = bbcfg.get_api_key()
-
     # start API server in background
     process = subprocess.Popen(
         BBCTL_COMMAND + ["server", "start", "--api-only", "--reload"],
@@ -18,7 +16,9 @@ def test_hot_reload():
 
     for _ in range(300):
         with suppress(Exception):
-            response = httpx.get(f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": API_KEY})
+            response = httpx.get(
+                f"http://localhost:8807/v1/assets/hosts", headers={"X-API-Key": str(bbcfg.get_api_key())}
+            )
             if getattr(response, "status_code", 0) == 200:
                 break
         time.sleep(0.1)

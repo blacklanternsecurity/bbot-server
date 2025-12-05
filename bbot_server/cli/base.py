@@ -7,7 +7,7 @@ from typer import Typer, Option  # noqa
 from typing import Annotated  # noqa
 from functools import cached_property, wraps
 
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from bbot_server.utils.misc import timestamp_to_human, seconds_to_human
 
 
@@ -168,24 +168,33 @@ class BaseBBCTL:
         Highlight a YAML string with rich
         """
         if not isinstance(data, str):
-            data = yaml.dump(data, indent=2)
+            data = yaml.safe_dump(data, indent=2, sort_keys=False)
         if not "background_color" in kwargs:
             kwargs["background_color"] = "default"
         if not "theme" in kwargs:
             kwargs["theme"] = "monokai"
         return Syntax(data, "yaml", **kwargs)
 
-    def print_json(self, data, **kwargs):
-        self.stdout.print(self.highlight_json(data, **kwargs))
-
     def print_yaml(self, data, **kwargs):
         self.stdout.print(self.highlight_yaml(data, **kwargs))
 
     def print_pydantic_json(self, model, colorize=False):
+        """
+        Print a Pydantic model as JSON, with optional highlighting
+        """
         if colorize:
             self.stdout.print(self.highlight_json(json.dumps(model.model_dump(), indent=2)))
         else:
             self.print_raw_line(self.orjson.dumps(model.model_dump()))
+
+    def print_json(self, data, colorize=False, **kwargs):
+        """
+        Print a JSON string to stdout, with optional highlighting
+        """
+        if colorize:
+            self.stdout.print(self.highlight_json(data, **kwargs))
+        else:
+            self.print_raw_line(self.orjson.dumps(data))
 
     def print_raw_line(self, line):
         """

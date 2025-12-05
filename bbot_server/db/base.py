@@ -1,6 +1,6 @@
 import logging
 
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from bbot_server.errors import BBOTServerValueError
 
 
@@ -11,6 +11,7 @@ class BaseDB:
 
     def __init__(self):
         self.log = logging.getLogger(__name__)
+        self.config = bbcfg
 
         if not self.db_config:
             raise BBOTServerValueError(
@@ -24,16 +25,15 @@ class BaseDB:
         self._setup_finished = False
 
     @property
-    def config(self):
-        return bbcfg.BBOT_SERVER_CONFIG
-
-    @property
     def db_config(self):
-        return self.config.get(self.config_key, {})
+        return getattr(self.config, self.config_key, None)
 
     @property
     def uri(self):
-        return self.db_config.get("uri", "")
+        uri = getattr(self.db_config, "uri", "")
+        if not uri:
+            raise BBOTServerValueError(f"Database URI is missing from config: {self.db_config}")
+        return uri
 
     @property
     def db_name(self):
@@ -43,13 +43,6 @@ class BaseDB:
                 raise BBOTServerValueError("Database name must be included in the URI.")
             return db_name
         raise BBOTServerValueError(f"Invalid URI: {self.uri} - Database name must be included.")
-
-    @property
-    def table_name(self):
-        table_name = self.db_config.get("table_name", "")
-        if not table_name:
-            raise BBOTServerValueError("Table name must be included in the configuration.")
-        return table_name
 
     async def setup(self):
         if not self._setup_finished:

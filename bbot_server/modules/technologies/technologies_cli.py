@@ -15,46 +15,23 @@ class TechnologyCTL(BaseBBCTL):
     def list(
         self,
         json: common.json = False,
-        domain: Annotated[
-            str, typer.Option("--domain", "-d", help="limit results to this domain (subdomains included)")
+        domain: Annotated[str, typer.Option("--domain", "-d", help="filter by domain (subdomains included)")] = None,
+        host: Annotated[str, typer.Option("--host", "-h", help="filter by host")] = None,
+        technology: Annotated[
+            str, typer.Option("--technology", "-t", help="filter by technology (must match exactly)")
         ] = None,
+        search: Annotated[str, typer.Option("--search", "-s", help="search for a technology (fuzzy match)")] = None,
         target_id: Annotated[
-            str, typer.Option("--target", "-t", help="limit results to this target (can be either name or ID)")
+            str, typer.Option("--target", "-t", help="filter by target (can be either name or ID)")
         ] = None,
+        sort: Annotated[str, typer.Option("--sort", help="field to sort by")] = ["-last_seen"],
     ):
-        if json:
-            for technology in self.bbot_server.get_technologies(domain=domain, target_id=target_id):
-                self.print_pydantic_json(technology)
-            return
+        technologies = self.bbot_server.list_technologies(
+            domain=domain, host=host, technology=technology, target_id=target_id, search=search, sort=sort
+        )
 
-        table = self.Table()
-        table.add_column("Technology", style=self.COLOR)
-        table.add_column("Number of Hosts")
-        table.add_column("Hosts", style="bold")
-        table.add_column("Last Seen", style=self.DARK_COLOR)
-        for t in self.bbot_server.get_technologies_summary(domain=domain, target_id=target_id):
-            table.add_row(
-                t["technology"],
-                f"{len(t['hosts']):,}",
-                ", ".join(t["hosts"]),
-                self.timestamp_to_human(t["last_seen"]),
-            )
-        self.stdout.print(table)
-
-    @subcommand(help="Search for a technology")
-    def search(
-        self,
-        technology: Annotated[str, typer.Argument(help="technology to search for")] = None,
-        domain: Annotated[
-            str, typer.Option("--domain", "-d", help="limit results to this domain (subdomains included)")
-        ] = None,
-        target_id: Annotated[
-            str, typer.Option("--target", "-t", help="limit results to this target (either name or ID)")
-        ] = None,
-        json: common.json = False,
-    ):
         if json:
-            for technology in self.bbot_server.search_technology(technology, domain=domain, target_id=target_id):
+            for technology in technologies:
                 self.print_pydantic_json(technology)
             return
 
@@ -62,10 +39,50 @@ class TechnologyCTL(BaseBBCTL):
         table.add_column("Technology", style=self.COLOR)
         table.add_column("Host and Port", style="bold")
         table.add_column("Last Seen", style=self.DARK_COLOR)
-        for technology in self.bbot_server.search_technology(technology, domain=domain, target_id=target_id):
+        for t in technologies:
             table.add_row(
-                technology.technology,
-                technology.netloc,
-                self.timestamp_to_human(technology.last_seen),
+                t.technology,
+                t.netloc,
+                self.timestamp_to_human(t.last_seen),
+            )
+        self.stdout.print(table)
+
+    @subcommand(help="Summarize technologies")
+    def summarize(
+        self,
+        json: common.json = False,
+        domain: Annotated[str, typer.Option("--domain", "-d", help="filter by domain (subdomains included)")] = None,
+        host: Annotated[str, typer.Option("--host", "-h", help="filter by host")] = None,
+        technology: Annotated[
+            str, typer.Option("--technology", "-t", help="filter by technology (must match exactly)")
+        ] = None,
+        target_id: Annotated[str, typer.Option("--target", help="filter by target (can be either name or ID)")] = None,
+        limit: Annotated[
+            int,
+            typer.Option("--limit", "-l", help="limit the number of results (most prevalent results are shown first)"),
+        ] = None,
+    ):
+        if limit is not None and limit < 1:
+            raise self.BBOTServerValueError("Limit must be greater than 0")
+
+        summary = self.bbot_server.get_technologies_summary(
+            domain=domain, host=host, technology=technology, target_id=target_id
+        )
+        if json:
+            for technology in summary[:limit]:
+                self.print_json(technology)
+            return
+
+        table = self.Table()
+        table.add_column("Technology", style=self.COLOR)
+        table.add_column("Number of Hosts")
+        table.add_column("Hosts", style="bold")
+        table.add_column("Last Seen", style=self.DARK_COLOR)
+        for t in summary[:limit]:
+            table.add_row(
+                t["technology"],
+                f"{len(t['hosts']):,}",
+                ", ".join(t["hosts"]),
+                self.timestamp_to_human(t["last_seen"]),
             )
         self.stdout.print(table)

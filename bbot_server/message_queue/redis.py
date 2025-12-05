@@ -29,7 +29,13 @@ class RedisMessageQueue(BaseMessageQueue):
     - bbot:stream:{subject}: for persistent, tailable streams - e.g. events, activities
     - bbot:work:{subject}: for one-time messages, e.g. tasks
 
-    docker run --rm -p 6379:6379 redis
+    docker run --rm -p 127.0.0.1:6379:6379 redis
+
+    To monitor Redis:
+        Prod:
+            docker exec -it <container_name> redis-cli -n 15 MONITOR
+        Test:
+            docker exec -it <container_name> redis-cli MONITOR
     """
 
     def __init__(self, *args, **kwargs):
@@ -100,7 +106,9 @@ class RedisMessageQueue(BaseMessageQueue):
 
         # Create a task to process messages
         async def message_handler():
-            self.log.info(f"Subscribed to {stream_key}")
+            self.log.info(
+                f"Subscribed to {stream_key} with consumer {consumer_name} and group {group_name} (durable={durable})"
+            )
             while True:
                 try:
                     # Read new messages from the stream
@@ -128,6 +136,7 @@ class RedisMessageQueue(BaseMessageQueue):
                         self.log.debug("Sleeping for .1 seconds")
                     await asyncio.sleep(0.1)
                 except asyncio.CancelledError:
+                    self.log.info(f"Message handler cancelled cancelled for {stream_key}")
                     break
                 except Exception as e:
                     self.log.error(f"Error in message handler: {e}")

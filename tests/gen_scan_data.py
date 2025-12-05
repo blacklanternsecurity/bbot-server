@@ -28,11 +28,11 @@ Below is a list of the events and how they change between the two scans.
     api.evilcorp.com            Open ports: None -> 443                                 open_ports
     cname.evilcorp.com          CNAME: evilcorp.azure.com -> evilcorp.amazonaws.com     cloud
     localhost.evilcorp.com      A record: 127.0.0.1 -> 127.0.0.2                        DNS + scope
-    tech1.evilcorp.com          Technology: apache -> None                              technologies
-    tech2.evilcorp.com          Technology: IIS -> apache                               technologies
+    t1.tech.evilcorp.com        Technology: apache -> None                              technologies
+    t2.tech.evilcorp.com        Technology: IIS -> apache                               technologies
 
     evilcorp.azure.com          None
-    evilcorp.amazonaws.com      None
+    evilcorp.amazonaws.com      Not discovered in first scan
 
 """
 
@@ -75,8 +75,8 @@ class DummyScan1(DummyScan):
         "api.evilcorp.com",
         "cname.evilcorp.com",
         "localhost.evilcorp.com",
-        "tech1.evilcorp.com",
-        "tech2.evilcorp.com",
+        "t1.tech.evilcorp.com",
+        "t2.tech.evilcorp.com",
         "testevilcorp.com",  # this exists as a canary to make sure unwanted domains aren't matched in searches
     ]
     dns = {
@@ -99,10 +99,10 @@ class DummyScan1(DummyScan):
         "cname.evilcorp.com": {
             "CNAME": ["evilcorp.azure.com"],
         },
-        "tech1.evilcorp.com": {
+        "t1.tech.evilcorp.com": {
             "A": ["192.168.1.1"],
         },
-        "tech2.evilcorp.com": {
+        "t2.tech.evilcorp.com": {
             "A": ["192.168.1.2"],
         },
         "evilcorp.azure.com": {
@@ -129,16 +129,17 @@ class DummyScan1(DummyScan):
                             {
                                 "name": "CVE-2024-12345",
                                 "severity": "HIGH",
+                                "confidence": "HIGH",
                                 "description": "That's a paddlin'",
                                 "host": event.host,
                                 "url": f"{scheme}://{event.host}",
                             },
-                            "VULNERABILITY",
+                            "FINDING",
                             parent=event,
                         )
 
                 # Technology
-                if str(event.host) == "tech1.evilcorp.com":
+                if str(event.host) == "t1.tech.evilcorp.com":
                     scheme = "https" if event.port == 443 else "http"
                     await self.emit_event(
                         {
@@ -149,7 +150,7 @@ class DummyScan1(DummyScan):
                         "TECHNOLOGY",
                         parent=event,
                     )
-                elif str(event.host) == "tech2.evilcorp.com" and event.port == 443:
+                elif str(event.host) == "t2.tech.evilcorp.com" and event.port == 443:
                     scheme = "https" if event.port == 443 else "http"
                     await self.emit_event(
                         {
@@ -173,8 +174,8 @@ class DummyScan2(DummyScan):
         "api.evilcorp.com",
         "cname.evilcorp.com",
         "localhost.evilcorp.com",
-        "tech1.evilcorp.com",
-        "tech2.evilcorp.com",
+        "t1.tech.evilcorp.com",
+        "t2.tech.evilcorp.com",
         "testevilcorp.com",
     ]
     dns = {
@@ -197,10 +198,10 @@ class DummyScan2(DummyScan):
         "cname.evilcorp.com": {
             "CNAME": ["evilcorp.amazonaws.com"],
         },
-        "tech1.evilcorp.com": {
+        "t1.tech.evilcorp.com": {
             "A": ["192.168.1.1"],
         },
-        "tech2.evilcorp.com": {
+        "t2.tech.evilcorp.com": {
             "A": ["192.168.1.2"],
         },
         "evilcorp.azure.com": {
@@ -230,16 +231,17 @@ class DummyScan2(DummyScan):
                         {
                             "name": "CVE-2025-54321",
                             "severity": "CRITICAL",
+                            "confidence": "HIGH",
                             "description": "That's a whippin'",
                             "host": event.host,
                             "url": f"{scheme}://{event.host}",
                         },
-                        "VULNERABILITY",
+                        "FINDING",
                         parent=event,
                     )
 
                 # Technology
-                if str(event.host) == "tech2.evilcorp.com" and event.port == 443:
+                if str(event.host) == "t2.tech.evilcorp.com" and event.port == 443:
                     scheme = "https" if event.port == 443 else "http"
                     await self.emit_event(
                         {

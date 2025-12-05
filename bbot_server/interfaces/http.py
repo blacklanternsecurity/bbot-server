@@ -18,7 +18,7 @@ from fastapi.encoders import jsonable_encoder
 # for converting raw JSON into pydantic objects
 from pydantic import TypeAdapter
 
-import bbot_server.config as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
 from bbot_server.utils.misc import smart_encode
 from bbot_server.interfaces.base import BaseInterface
 from bbot_server.utils.async_utils import async_to_sync_class
@@ -44,16 +44,16 @@ class http(BaseInterface):
     def __init__(self, url=None, **kwargs):
         super().__init__(**kwargs)
         if url is None:
-            if not "url" in self.config:
+            if not hasattr(self.config, "url"):
                 raise ValueError("When using the HTTP interface, url is required in the config")
-            url = self.config["url"]
+            url = self.config.url
         self.base_url = url.strip("/")
-        self._http_timeout = self.config.get("cli", {}).get("http_timeout", 90)
+        self._http_timeout = getattr(self.config.cli, "http_timeout", 90)
         self._client = None
 
     @property
     def config(self):
-        return bbcfg.BBOT_SERVER_CONFIG
+        return bbcfg
 
     async def _http_request(self, _url, _route, *args, **kwargs):
         """
@@ -62,7 +62,10 @@ class http(BaseInterface):
         Uses the API route to figure out the format etc.
         """
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
-        body = self._prepare_http_body(method, kwargs)
+        try:
+            body = self._prepare_http_body(method, kwargs)
+        except ValueError as e:
+            raise BBOTServerError(f"Error preparing HTTP body for {method} request -> {_url}: {e}") from e
 
         async def warn_if_slow():
             await asyncio.sleep(5)
@@ -71,7 +74,9 @@ class http(BaseInterface):
             )
 
         request_task = asyncio.create_task(
-            self.client.request(url=_url, method=method, json=body, headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()})
+            self.client.request(
+                url=_url, method=method, json=body, headers={bbcfg.auth_header: str(bbcfg.get_api_key())}
+            )
         )
         warn_task = asyncio.create_task(warn_if_slow())
 
@@ -105,6 +110,11 @@ class http(BaseInterface):
         Similar to _request(), but instead of returning a single object, returns an async generator that yields objects
         """
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
+        try:
+            body = self._prepare_http_body(method, kwargs)
+        except ValueError as e:
+            raise BBOTServerError(f"Error preparing HTTP body for {method} request -> {_url}: {e}") from e
+
         body = self._prepare_http_body(method, kwargs)
         buffer = b""
         MAX_BUFFER_SIZE = 10 * 1024 * 1024  # 10 MB max buffer size
@@ -154,7 +164,7 @@ class http(BaseInterface):
         # replace scheme with ws
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
         try:
-            async for websocket in connect(_url, additional_headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}):
+            async for websocket in connect(_url, additional_headers={bbcfg.auth_header: str(bbcfg.get_api_key())}):
                 async for message in websocket:
                     decoded_json = orjson.loads(message)
                     model_obj = _route.response_model(**decoded_json)
@@ -174,7 +184,7 @@ class http(BaseInterface):
 
         _url = _url.replace("http://", "ws://").replace("https://", "wss://")
         try:
-            async with connect(_url, additional_headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}) as websocket:
+            async with connect(_url, additional_headers={bbcfg.auth_header: str(bbcfg.get_api_key())}) as websocket:
                 async for message in message_generator:
                     message = smart_encode(message)
                     await websocket.send(message)
@@ -265,7 +275,7 @@ class http(BaseInterface):
     def client(self):
         if self._client is None:
             self._client = httpx.AsyncClient(
-                timeout=self._http_timeout, headers={bbcfg.API_KEY_NAME: bbcfg.get_api_key()}
+                timeout=self._http_timeout, headers={bbcfg.auth_header: str(bbcfg.get_api_key())}
             )
         return self._client
 

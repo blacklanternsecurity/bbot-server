@@ -1,26 +1,26 @@
 import os
 import uuid
+import yaml
 import logging
 from pathlib import Path
-from omegaconf import OmegaConf
+from typing import Any, Optional, Set, List
 
-from bbot_server.errors import BBOTServerError
+from pydantic import BaseModel, Field, PrivateAttr
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict,
+    YamlConfigSettingsSource,
+)
+
+from bbot_server.errors import BBOTServerError, BBOTServerValueError
 
 
 log = logging.getLogger("bbot_server.config")
 
 
 BBOT_SERVER_DIR = Path(__file__).parent
-API_KEY_NAME = "X-API-Key"
-VALID_API_KEYS = set()
-API_KEY = ""
-
-# Load defaults
 BBOT_SERVER_DEFAULTS_PATH = BBOT_SERVER_DIR / "defaults.yml"
-BBOT_SERVER_DEFAULTS = OmegaConf.load(BBOT_SERVER_DEFAULTS_PATH)
-BBOT_SERVER_CONFIG = BBOT_SERVER_DEFAULTS
 BBOT_SERVER_CONFIG_PATH = Path.home() / ".config" / "bbot_server" / "config.yml"
-
 
 # Create the config if it doesn't exist
 if not BBOT_SERVER_CONFIG_PATH.exists():
@@ -29,142 +29,225 @@ if not BBOT_SERVER_CONFIG_PATH.exists():
         BBOT_SERVER_CONFIG_PATH.touch(mode=0o600)
         # fill with commented defaults
         with open(BBOT_SERVER_CONFIG_PATH, "w") as f:
-            yaml_str = OmegaConf.to_yaml(BBOT_SERVER_DEFAULTS)
-            commented_yaml = "\n".join([f"# {line}" for line in yaml_str.split("\n")])
+            with open(BBOT_SERVER_DEFAULTS_PATH, "r") as defaults_file:
+                defaults_content = defaults_file.read()
             f.write(f"# NOTICE: This file is commented by default. Uncomment it to make changes.\n")
-            f.write(commented_yaml)
+            f.write("\n".join([f"# {line}" for line in defaults_content.split("\n")]))
     except Exception as e:
         log.error(f"Error creating config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
 
 
-def update_config_path(config_path):
-    os.environ["BBOT_SERVER_CONFIG"] = str(config_path)
-    refresh_config()
+class StoreConfig(BaseModel):
+    uri: str
 
 
-def refresh_config(config_overrides=None):
+class MessageQueueConfig(BaseModel):
+    uri: str
+
+
+class AgentConfig(BaseModel):
+    base_preset: dict[str, Any] = Field(default_factory=dict)
+
+
+class CLIConfig(BaseModel):
+    http_timeout: int = 90
+
+
+class BBOTServerSettings(BaseSettings):
     """
-    Re-read the config from disk
+    Minimal, typed BBOT server configuration.
+
+    Sources (in order):
+      1. init kwargs (tests / in-process overrides)
+      2. environment variables (BBOT_SERVER_*)
+      3. YAML files: defaults.yml, user config.yml
+      4. file secrets (unused for now)
     """
-    global BBOT_SERVER_CONFIG_PATH, BBOT_SERVER_CONFIG, BBOT_SERVER_URL
 
-    # if a custom config is provided, merge it with the defaults
-    config_path = Path(os.environ.get("BBOT_SERVER_CONFIG", BBOT_SERVER_CONFIG_PATH))
-    if config_path.exists():
-        if str(config_path) != str(BBOT_SERVER_CONFIG_PATH):
-            log.debug(f"Changing config to point to {config_path} (was {BBOT_SERVER_CONFIG_PATH})")
-            BBOT_SERVER_CONFIG_PATH = config_path
-        try:
-            config = OmegaConf.load(BBOT_SERVER_CONFIG_PATH)
-            BBOT_SERVER_CONFIG = OmegaConf.merge(BBOT_SERVER_DEFAULTS, config)
-        except Exception as e:
-            log.error(f"Error loading config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
-        if config_overrides:
-            BBOT_SERVER_CONFIG = OmegaConf.merge(BBOT_SERVER_CONFIG, config_overrides)
-    else:
-        log.warning(f"No config file found at {config_path}, using defaults")
+    # core
+    url: str
 
-    try:
-        BBOT_SERVER_URL = BBOT_SERVER_CONFIG.url
-    except Exception as e:
-        raise BBOTServerError(f"Config must contain a `url` field") from e
+    # API key config
+    auth_enabled: bool = True
+    auth_header: str = "X-API-Key"
+    api_key: Optional[str] = None
+    api_keys: List[str] = Field(default_factory=list)
 
-    event_store_uri = os.environ.get("BBOT_SERVER_EVENT_STORE_MONGO_URI", "")
-    if event_store_uri:
-        BBOT_SERVER_CONFIG.event_store.uri = event_store_uri
-    asset_store_uri = os.environ.get("BBOT_SERVER_ASSET_STORE_MONGO_URI", "")
-    if asset_store_uri:
-        BBOT_SERVER_CONFIG.asset_store.uri = asset_store_uri
-    user_store_uri = os.environ.get("BBOT_SERVER_USER_STORE_MONGO_URI", "")
-    if user_store_uri:
-        BBOT_SERVER_CONFIG.user_store.uri = user_store_uri
-    redis_uri = os.environ.get("BBOT_SERVER_REDIS_URI", "")
-    if redis_uri:
-        BBOT_SERVER_CONFIG.message_queue.uri = redis_uri
-    refresh_api_keys()
-    return BBOT_SERVER_CONFIG
+    # storage + mq
+    event_store: StoreConfig
+    asset_store: StoreConfig
+    user_store: StoreConfig
+    message_queue: MessageQueueConfig
 
+    # misc nested config we know about
+    agent: Optional[AgentConfig] = Field(default_factory=AgentConfig)
+    cli: Optional[CLIConfig] = Field(default_factory=CLIConfig)
 
-def refresh_api_keys():
-    """
-    Get the API keys from the config
-    """
-    global VALID_API_KEYS
-    api_keys = set()
-    for key in ("api_keys", "api_key"):
-        keys = BBOT_SERVER_CONFIG.get(key, [])
-        if keys:
-            if isinstance(keys, str):
-                keys = [keys]
-            api_keys.update(keys)
-    VALID_API_KEYS = api_keys
+    # individual module configs
+    modules: Optional[dict[str, dict[str, Any]]] = Field(default_factory=dict)
 
+    # runtime-only cache of parsed API keys
+    _valid_api_keys: Set[uuid.UUID] = PrivateAttr(default_factory=set)
 
-def get_api_keys():
-    """
-    Get the API keys from the config
-    """
-    return VALID_API_KEYS
+    # defaults + env wiring
+    model_config = SettingsConfigDict(
+        env_prefix="BBOT_SERVER_",
+        env_nested_delimiter="__",
+        extra="allow",
+    )
 
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type["BBOTServerSettings"],
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        """
+        Wire up Pydantic's YAML source with our two YAML files.
+        """
+        # we preserve custom yaml paths for future refreshes
+        global BBOT_SERVER_CONFIG_PATH
 
-def get_api_key():
-    try:
-        return next(iter(VALID_API_KEYS))
-    except StopIteration:
-        raise BBOTServerError(
-            f"No API keys found in the config. Please set `api_keys` in your config file or run `bbctl server apikey add`"
+        # if the user asked for a custom config path, use it
+        custom_config_path = init_settings.init_kwargs.get("config_path", None) or os.environ.get(
+            "BBOT_SERVER_CONFIG", None
+        )
+        # if custom path is provided, override it for future refreshes
+        if custom_config_path:
+            BBOT_SERVER_CONFIG_PATH = Path(custom_config_path)
+
+        log.debug(f"Loading config files from: {BBOT_SERVER_DEFAULTS_PATH}, {BBOT_SERVER_CONFIG_PATH}")
+        return (
+            init_settings,
+            env_settings,
+            YamlConfigSettingsSource(settings_cls, yaml_file=[BBOT_SERVER_DEFAULTS_PATH, BBOT_SERVER_CONFIG_PATH]),
+            file_secret_settings,
         )
 
+    def refresh(self, **overrides):
+        """
+        Re-read the config from disk and environment.
+        """
+        self.__init__(**overrides)
+        self.refresh_api_keys()
 
-def check_api_key(api_key: str):
-    """
-    Check whether an API key is valid
-    """
-    global VALID_API_KEYS
-    if not api_key:
-        return False, "API key is required"
-    try:
-        api_key = str(uuid.UUID(api_key))
-    except Exception:
-        return False, "API key must be a valid UUID"
-    # if the API key is invalid, try refreshing the config
-    if api_key not in VALID_API_KEYS:
-        refresh_config()
-        if api_key not in VALID_API_KEYS:
-            return False, f'Invalid API key "{api_key}" not in {VALID_API_KEYS}'
-    return True, "Valid API key"
+    def refresh_api_keys(self) -> None:
+        """
+        Populate the in-memory set of valid API keys from this config.
+        """
+        log.debug("Refreshing API keys from config")
+        api_keys = set()
+
+        # Single api_key, if set
+        if self.api_key:
+            try:
+                api_keys.add(uuid.UUID(self.api_key))
+            except ValueError as e:
+                raise BBOTServerValueError("Invalid API key in config") from e
+
+        # List of api_keys
+        for key in self.api_keys:
+            try:
+                api_keys.add(uuid.UUID(key))
+            except ValueError as e:
+                raise BBOTServerValueError("Invalid API key in config") from e
+
+        self._valid_api_keys = api_keys
+
+    def get_api_keys(self) -> Set[uuid.UUID]:
+        """
+        Return the set of valid API keys.
+        """
+        if not self._valid_api_keys:
+            self.refresh_api_keys()
+        return self._valid_api_keys
+
+    def get_api_key(self) -> str:
+        """
+        Return a single API key string, preferring the explicit api_key field.
+        """
+        if not self._valid_api_keys:
+            self.refresh_api_keys()
+        # prioritize single api key if set
+        if self.api_key:
+            try:
+                return uuid.UUID(self.api_key)
+            except ValueError:
+                pass
+
+        # otherwise, return the first valid API key
+        try:
+            return str(next(iter(self._valid_api_keys)))
+        except StopIteration:
+            self.refresh()
+            raise BBOTServerError(
+                "No API keys found in the config. Please set `api_keys` in your config file "
+                "or run `bbctl server apikey add`"
+            )
+
+    def check_api_key(self, api_key: str):
+        """
+        Check whether an API key is valid.
+        """
+        if not api_key:
+            return False, "API key is required"
+        try:
+            parsed = uuid.UUID(api_key)
+        except Exception:
+            return False, "API key must be a valid UUID"
+
+        # if the API key is invalid, try refreshing the config
+        if parsed not in self._valid_api_keys:
+            self.refresh()
+            if parsed not in self._valid_api_keys:
+                return False, f'Invalid API key "{api_key}"'
+        return True, "Valid API key"
+
+    def add_api_key(self) -> uuid.UUID:
+        """
+        Add a new API key to the in-memory config.
+
+        NOTE: for now this only affects process memory; persistence to disk
+        can be wired in later when we tighten the design.
+        """
+        log.info(f"Adding new API key")
+        api_key = uuid.uuid4()
+        self._valid_api_keys.add(api_key)
+        self.write_api_keys()
+        return api_key
+
+    def revoke_api_key(self, api_key: str) -> None:
+        try:
+            parsed = uuid.UUID(api_key)
+        except ValueError as e:
+            raise BBOTServerValueError("Invalid API key") from e
+
+        # remove the API key from the config
+        self._valid_api_keys.discard(parsed)
+        self.write_api_keys()
+        self.refresh()
+
+    def write_api_keys(self):
+        with open(BBOT_SERVER_CONFIG_PATH, "r") as f:
+            config_yaml = yaml.safe_load(f) or {}
+        # add the new API key to the config
+        api_key = self.api_key or config_yaml.get("api_key", None)
+        api_keys = [str(key) for key in self._valid_api_keys]
+        if api_key:
+            api_keys = sorted([k for k in api_keys if not k == api_key])
+            config_yaml["api_key"] = api_key
+        if api_keys:
+            config_yaml["api_keys"] = api_keys
+
+        num_api_keys = len(api_keys) + (1 if api_key else 0)
+        if num_api_keys > 0:
+            log.info(f"Writing {num_api_keys:,} API keys to config file at {BBOT_SERVER_CONFIG_PATH}")
+            # save the config file
+            with open(BBOT_SERVER_CONFIG_PATH, "w") as f:
+                yaml.safe_dump(config_yaml, f)
 
 
-def add_api_key():
-    """
-    Add a new API key to the config.
-
-    Note: writes the config to disk
-    """
-    global VALID_API_KEYS
-    api_key = str(uuid.uuid4())
-    VALID_API_KEYS.add(api_key)
-    BBOT_SERVER_CONFIG["api_keys"] = sorted(VALID_API_KEYS)
-
-    # write new API key to config
-    existing_config = OmegaConf.load(BBOT_SERVER_CONFIG_PATH)
-    existing_api_keys = set(existing_config.get("api_keys", []))
-    existing_api_keys.add(api_key)
-    existing_config["api_keys"] = sorted(existing_api_keys)
-    OmegaConf.save(existing_config, BBOT_SERVER_CONFIG_PATH)
-
-    # refresh config by reading it from disk
-    refresh_config()
-    return api_key
-
-
-def revoke_api_key(api_key: str):
-    """
-    Revoke an API key from the config.
-    """
-    global VALID_API_KEYS
-    VALID_API_KEYS.remove(str(api_key))
-    refresh_config()
-
-
-refresh_config()
+BBOT_SERVER_CONFIG = BBOTServerSettings()
