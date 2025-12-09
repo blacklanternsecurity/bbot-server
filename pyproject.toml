@@ -9,7 +9,6 @@ license = "GPL-v3.0"
 python = "^3.10"
 fastapi = "^0.111.0"
 orjson = "^3.10.12"
-rich = "^13.9.4"
 cachetools = "^5.5.0"
 jsondiff = "^2.2.1"
 websockets = "^14.1"
@@ -26,6 +25,8 @@ mcp = "1.7.0"
 jmespath = "^1.0.1"
 uvicorn = "^0.35.0"
 pymongo = "^4.15.3"
+rich = "^14.2.0"
+textual = "^6.8.0"
 
 [tool.poetry.scripts]
 bbctl = 'bbot_server.cli.bbctl:main'
