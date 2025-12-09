@@ -350,20 +350,29 @@ bbctl asset stats --domain evilcorp.com | jq
 
 BBOT Server supports chat-based AI interaction via MCP (Model Context Protocol).
 
-The SSE server listens at `http://localhost:8807/v1/mcp/`
+The SSE server listens at `http://localhost:8807/v1/mcp/`.
 
-`mcp.json` (cursor / vs code):
+`mcp.json` (Cursor / VS Code):
 ```json
 {
-    "mcpServers": {
-        "bbot": {
-            "url": "http://localhost:8807/v1/mcp/"
-        }
+  "mcpServers": {
+    "bbot": {
+      "url": "http://localhost:8807/v1/mcp/",
+      "headers": {
+        "x-api-key": "deadbeef-9b4d-4208-890c-4ce9ad3b4710"
+      }
     }
+  }
 }
 ```
 
 After connecting your AI client to BBOT Server, you can ask it sensible questions like, "Use MCP to get all the bbot findings", "what are the top open ports?", "what else can you do with BBOT MCP?", etc.
+
+**NOTE**: Authentication is [currently broken](https://github.com/blacklanternsecurity/bbot-server/issues/52) in Cursor, Cline, and it seems most other VS Code forks. A workaround is to disable authentication with `--no-authentication` when starting the server. Obviously, be careful with this and don't be a dumbass.
+
+```bash
+bbctl server start --no-authentication
+```
 
 ## As a Python Library
 
