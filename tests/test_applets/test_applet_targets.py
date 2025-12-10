@@ -30,8 +30,8 @@ async def test_applet_targets(bbot_server):
     target1 = await bbot_server.create_target(
         name="target1",
         description="target1 description",
+        target=["127.0.0.1", "evilcorp.com"],
         seeds=["localhost"],
-        whitelist=["127.0.0.1", "evilcorp.com"],
         blacklist=["127.0.0.2"],
     )
 
@@ -51,7 +51,7 @@ async def test_applet_targets(bbot_server):
     assert target.id == target1.id
     assert target.description == "target1 description"
     assert target.seeds == ["localhost"]
-    assert target.whitelist == ["127.0.0.1", "evilcorp.com"]
+    assert target.target == ["127.0.0.1", "evilcorp.com"]
     assert target.blacklist == ["127.0.0.2"]
     assert target.default is True
 
@@ -73,7 +73,7 @@ async def test_applet_targets(bbot_server):
             await bbot_server.create_target(
                 name="asdgasdgasdf",
                 seeds=["localhost"],
-                whitelist=["127.0.0.1", "evilcorp.com"],
+                target=["127.0.0.1", "evilcorp.com"],
                 blacklist=["127.0.0.2"],
             )
         except BBOTServerValueError as e:
@@ -85,11 +85,11 @@ async def test_applet_targets(bbot_server):
         name="target2",
         description="target2 description",
         seeds=["localhost"],
-        whitelist=["127.0.0.1", "evilcorp.com", "localhost2"],
+        target=["127.0.0.1", "evilcorp.com", "localhost2"],
         blacklist=["127.0.0.2"],
     )
 
-    assert target2.whitelist_hash != target1.whitelist_hash
+    assert target2.target_hash != target1.target_hash
     assert target2.blacklist_hash == target1.blacklist_hash
     assert target2.seed_hash == target1.seed_hash
     assert target2.hash != target1.hash
@@ -102,7 +102,7 @@ async def test_applet_targets(bbot_server):
     assert target.id == target2.id
     assert target.description == "target2 description"
     assert target.seeds == ["localhost"]
-    assert target.whitelist == ["127.0.0.1", "evilcorp.com", "localhost2"]
+    assert target.target == ["127.0.0.1", "evilcorp.com", "localhost2"]
     assert target.blacklist == ["127.0.0.2"]
     assert target.default is False
 
@@ -129,7 +129,7 @@ async def test_applet_targets(bbot_server):
     # edit target2
     target2.name = "target2_edited"
     target2.seeds = []
-    target2.whitelist = []
+    target2.target = []
     target2.blacklist = []
     await asyncio.sleep(0.1)
     await bbot_server.update_target(target2.id, target2)
@@ -138,7 +138,7 @@ async def test_applet_targets(bbot_server):
     target = targets[0]
     assert target.name == "target2_edited"
     assert target.seeds == []
-    assert target.whitelist == []
+    assert target.target == []
     assert target.blacklist == []
     assert abs(target.created - target.modified) >= 0.1, "Modified timestamp wasn't updated"
 
@@ -147,7 +147,7 @@ async def test_applet_targets(bbot_server):
         name="target3",
         description="target3 description",
         seeds=["localhost", "localhost3"],
-        whitelist=["127.0.0.1", "evilcorp.com", "localhost3"],
+        target=["127.0.0.1", "evilcorp.com", "localhost3"],
         blacklist=["127.0.0.2"],
     )
 
@@ -167,7 +167,7 @@ async def test_applet_targets(bbot_server):
         name="target4",
         description="target4 description",
         seeds=["localhost"],
-        whitelist=["127.0.0.1", "evilcorp.com", "localhost4"],
+        target=["127.0.0.1", "evilcorp.com", "localhost4"],
         blacklist=["127.0.0.2"],
     )
 
@@ -220,11 +220,11 @@ async def test_target_size(bbot_server):
 
     target = await bbot_server.create_target(
         seeds=["evilcorp.com", "1.2.3.4/30"],
-        whitelist=["evilcorp.com", "1.2.3.4/29"],
+        target=["evilcorp.com", "1.2.3.4/29"],
         blacklist=["www.evilcorp.com", "test.evilcorp.com", "1.2.3.5/28"],
     )
     assert target.seed_size == 5  # /30 (4 hosts) + 1 domain
-    assert target.whitelist_size == 9  # /29 (8 hosts) + 1 domain
+    assert target.target_size == 9  # /29 (8 hosts) + 1 domain
     assert target.blacklist_size == 18  # /28 (16 hosts) + 2 domains
 
 
@@ -235,15 +235,15 @@ async def test_scope_checks(bbot_server):
     await bbot_server.create_target(
         name="target1",
         description="target1 description",
-        seeds=["evilcorp.com"],
+        target=["evilcorp.com"],
     )
 
     targets = await bbot_server.get_targets()
     assert len(targets) == 1
     target = targets[0]
     assert target.name == "target1"
-    assert target.seeds == ["evilcorp.com"]
-    assert target.whitelist == None
+    assert target.target == ["evilcorp.com"]
+    assert target.seeds == None
     assert target.blacklist == []
 
     assert await bbot_server.in_scope("evilcorp.com") == True
@@ -258,7 +258,7 @@ async def test_scope_checks(bbot_server):
         name="target2",
         description="target2 description",
         seeds=["evilcorp.org"],
-        whitelist=["127.0.0.1/24", "external.evilcorp.org"],
+        target=["127.0.0.1/24", "external.evilcorp.org"],
         blacklist=["127.0.0.2", "test.external.evilcorp.org", "RE:plumbus"],
     )
 
@@ -300,7 +300,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
             name="evilcorp",
             description="evilcorp target",
             seeds=["evilcorp.com"],
-            whitelist=["evilcorp.com"],
+            target=["evilcorp.com"],
             blacklist=["www.evilcorp.com"],
         )
 
@@ -309,7 +309,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
             name="www evilcorp",
             description="www evilcorp target",
             seeds=["evilcorp.com"],
-            whitelist=["www.evilcorp.com", "localhost.evilcorp.com", "127.0.0.1"],
+            target=["www.evilcorp.com", "localhost.evilcorp.com", "127.0.0.1"],
             blacklist=["127.0.0.2"],
         )
 
@@ -354,7 +354,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         }
 
         # add evilcorp.azure.com to target2
-        self.target2.whitelist = ["127.0.0.0/24"]
+        self.target2.target = ["127.0.0.0/24"]
         await self.bbot_server.update_target(self.target2.id, self.target2)
         await asyncio.sleep(1.0)
 

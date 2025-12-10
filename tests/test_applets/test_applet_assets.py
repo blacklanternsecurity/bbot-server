@@ -270,7 +270,7 @@ async def test_applet_target_filter(bbot_server, bbot_events):
     bbot_server = await bbot_server(needs_watchdog=True)
 
     target1 = await bbot_server.create_target(
-        whitelist=["evilcorp.com", "127.0.0.0/30"],
+        target=["evilcorp.com", "127.0.0.0/30"],
         blacklist=["localhost.evilcorp.com"],
     )
 
@@ -339,7 +339,7 @@ async def test_applet_target_filter(bbot_server, bbot_events):
 
     # new target
     target = await bbot_server.create_target(
-        whitelist=["1.2.3.0/24"],
+        target=["1.2.3.0/24"],
         blacklist=["www2.evilcorp.com"],
     )
 

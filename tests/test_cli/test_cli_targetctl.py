@@ -77,14 +77,16 @@ def test_cli_targetctl(bbot_server_http):
     assert process.returncode == 0
     lines = process.stdout.splitlines()
     assert len(lines) == 3
-    assert lines[0] == "name,description,seeds,whitelist,blacklist,strict_scope,created,modified"
+    assert lines[0] == "name,description,seeds,target,blacklist,strict_scope,created,modified"
     assert lines[1].startswith("Target 1,,2,0,0,No,")
     assert lines[2].startswith("Target 2,,1,0,0,Yes,")
 
     # list targets (text)
     process = subprocess.run(BBCTL_COMMAND + ["scan", "target", "list"], capture_output=True, text=True)
     assert process.returncode == 0
-    assert process.stdout.count("Target") == 2
+    assert process.stdout.count("Target 1") == 1
+    assert process.stdout.count("Target 2") == 1
+    assert process.stdout.count("Target") == 3
 
     # delete target1 (must specify name or id)
     process = subprocess.run(

@@ -166,20 +166,20 @@ class TargetsApplet(BaseApplet):
         self,
         name: str = "",
         description: str = "",
-        seeds: list[str] = [],
-        whitelist: list[str] = None,
+        seeds: list[str] = None,
+        target: list[str] = [],
         blacklist: list[str] = [],
         strict_dns_scope: bool = False,
     ) -> Target:
-        if not whitelist and not seeds:
-            raise self.BBOTServerValueError("Must provide at least one seed or whitelist entry")
+        if not target and not seeds:
+            raise self.BBOTServerValueError("Must provide at least one seed or target entry")
         if not name:
             name = await self.get_available_target_name()
         target = Target(
             name=name,
             description=description,
             seeds=seeds,
-            whitelist=whitelist,
+            target=target,
             blacklist=blacklist,
             strict_dns_scope=strict_dns_scope,
         )
@@ -261,10 +261,10 @@ class TargetsApplet(BaseApplet):
         bbot_target = await self._get_bbot_target(target_id)
         return bbot_target.in_scope(host)
 
-    @api_endpoint("/whitelisted", methods=["GET"], summary="Check if a host or URL is whitelisted")
-    async def is_whitelisted(self, host: str, target_id: UUID = None) -> bool:
+    @api_endpoint("/in-target", methods=["GET"], summary="Check if a host or URL is in the target")
+    async def is_in_target(self, host: str, target_id: UUID = None) -> bool:
         bbot_target = await self._get_bbot_target(target_id)
-        return bbot_target.whitelisted(host)
+        return bbot_target.in_target(host)
 
     @api_endpoint("/blacklisted", methods=["GET"], summary="Check if a host or URL is blacklisted")
     async def is_blacklisted(self, host: str, target_id: UUID = None) -> bool:
@@ -314,7 +314,7 @@ class TargetsApplet(BaseApplet):
         Returns:
             Activity: an activity that occurred as a result of the scope check
         """
-        whitelisted_reason = ""
+        in_target_reason = ""
         blacklisted_reason = ""
         resolved_hosts = {k: v for k, v in resolved_hosts.items() if k in ("A", "AAAA")}
         resolved_hosts["SELF"] = [host]
@@ -325,13 +325,13 @@ class TargetsApplet(BaseApplet):
                     # if any of the hosts are blacklisted, abort immediately
                     if target.blacklisted(host):
                         blacklisted_reason = f"{rdtype}->{host}"
-                        whitelisted_reason = ""
+                        in_target_reason = ""
                         # break out of the loop
                         raise BlacklistedError
                     # check against whitelist
-                    if not whitelisted_reason:
-                        if target.whitelisted(host):
-                            whitelisted_reason = f"{rdtype}->{host}"
+                    if not in_target_reason:
+                        if target.in_target(host):
+                            in_target_reason = f"{rdtype}->{host}"
         except BlacklistedError:
             pass
 
@@ -339,7 +339,7 @@ class TargetsApplet(BaseApplet):
         if asset_scope is None:
             if blacklisted_reason:
                 return False
-            elif whitelisted_reason:
+            elif in_target_reason:
                 return True
             return False
 
@@ -363,12 +363,12 @@ class TargetsApplet(BaseApplet):
                     description=description,
                 )
         # event is in-scope for this target
-        elif whitelisted_reason:
+        elif in_target_reason:
             scope_after = sorted(set(asset_scope) | set([target_id]))
             # it wasn't in-scope, but now it is
             if scope_after != asset_scope:
-                self.log.debug(f"Host {host} used to be out-of-scope for target {target_id}, but is now whitelisted")
-                reason = f"whitelisted host {whitelisted_reason}"
+                self.log.debug(f"Host {host} used to be out-of-scope for target {target_id}, but is now in-target")
+                reason = f"in-target host {in_target_reason}"
                 description = f"Host [COLOR]{host}[/COLOR] became in-scope due to {reason}"
                 return self.make_activity(
                     type="NEW_IN_SCOPE_ASSET",
@@ -435,8 +435,8 @@ class TargetsApplet(BaseApplet):
         Given a target pydantic instance, return a BBOTTarget instance capable of fast host lookups
         """
         return BBOTTarget(
-            *target.seeds,
-            whitelist=target.whitelist,
+            target=target.target,
+            seeds=target.seeds,
             blacklist=target.blacklist,
             strict_dns_scope=target.strict_dns_scope,
         )
