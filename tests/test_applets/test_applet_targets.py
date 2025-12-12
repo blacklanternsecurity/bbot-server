@@ -353,6 +353,13 @@ class TestTargetScopeMaintenance(BaseAppletTest):
             "127.0.0.1",
         }
 
+        target_1_assets_filtered = {a.host async for a in self.bbot_server.list_assets(target_id="evilcorp")}
+        assert target_1_assets_filtered == target_1_assets
+        target_2_assets_filtered = {a.host async for a in self.bbot_server.list_assets(target_id="www evilcorp")}
+        assert target_2_assets_filtered == target_2_assets
+        target_assets_default = {a.host async for a in self.bbot_server.list_assets(target_id="DEFAULT")}
+        assert target_assets_default == target_1_assets
+
         # add evilcorp.azure.com to target2
         self.target2.target = ["127.0.0.0/24"]
         await self.bbot_server.update_target(self.target2.id, self.target2)

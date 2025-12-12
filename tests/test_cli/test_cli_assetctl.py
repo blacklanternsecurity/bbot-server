@@ -109,7 +109,7 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
             "create",
             "--name",
             "test-target",
-            "--seeds",
+            "--target",
             str(target_file),
             "--blacklist",
             str(blacklist_file),

@@ -37,7 +37,7 @@ class TargetCTL(BaseBBCTL):
             ),
         ] = False,
     ):
-        seeds = self._read_file(seeds, "seeds")
+        seeds = None if not seeds else self._read_file(seeds, "seeds")
         target = [] if not target else self._read_file(target, "target")
         blacklist = None if not blacklist else self._read_file(blacklist, "blacklist")
         target = self.bbot_server.create_target(
