@@ -9,14 +9,14 @@ from typing import Annotated, Any, Optional
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.cli.themes import COLOR, DARK_COLOR
-from bbot_server.models.base import BaseBBOTServerModel
+from bbot_server.models.base import BaseBBOTServerHostModel
 
 remove_rich_color_pattern = re.compile(r"\[([\w ]+)\](.*?)\[/\1\]")
 
 log = logging.getLogger(__name__)
 
 
-class Activity(BaseBBOTServerModel):
+class Activity(BaseBBOTServerHostModel):
     """
     An Activity is BBOT server's equivalent of an event.
 

@@ -10,22 +10,8 @@ from bbot_server.models.base import BaseBBOTServerModel
 host_split_regex = re.compile(r"[^a-z0-9]")
 
 
-class BaseAssetFacet(BaseBBOTServerModel):
-    """
-    An "asset facet" is a database object that contains data about an asset.
-
-    Unlike the main asset model which contains a summary of all the data,
-    a facet contains a certain detail which is too big to be stored in the main asset model.
-
-    For example, the main asset might contain a summary of all the technologies found on the asset,
-    but a facet might contain the specific technologies and details about their discovery.
-
-    A facet typically corresponds to an applet.
-    """
-
-    # unless overridden, all asset facets are stored in the asset store
-    __store_type__ = "asset"
-    __table_name__ = "assets"
+class BaseBBOTServerHostModel(BaseBBOTServerModel):
+    """A base model for all models that have a host, e.g. assets and activities"""
 
     # id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Annotated[Optional[str], "indexed"] = None
@@ -40,7 +26,6 @@ class BaseAssetFacet(BaseBBOTServerModel):
     scope: Annotated[list[UUID], "indexed"] = []
 
     def __init__(self, *args, **kwargs):
-        kwargs["type"] = self.__class__.__name__
         event = kwargs.pop("event", None)
         super().__init__(*args, **kwargs)
         if self.host and self.port:
@@ -75,21 +60,23 @@ class BaseAssetFacet(BaseBBOTServerModel):
     def host_parts(self) -> Annotated[list[str], "indexed"]:
         return host_split_regex.split(self.host)
 
-    # def _ingest_event(self, event) -> list[Activity]:
-    #     self_before = self.__class__.model_validate(self)
-    #     self.ingest_event(event)
-    #     return self.diff(self_before)
+class BaseAssetFacet(BaseBBOTServerHostModel):
+    """
+    An "asset facet" is a database object that contains data about an asset.
 
-    # def ingest_event(self, event):
-    #     """
-    #     Given a BBOT event, update the asset facet.
+    Unlike the main asset model which contains a summary of all the data,
+    a facet contains a certain detail which is too big to be stored in the main asset model.
 
-    #     E.g., given an OPEN_TCP_PORT event, update the open_ports field to include the new port.
-    #     """
-    #     raise NotImplementedError(f"Must define ingest_event() in {self.__class__.__name__}")
+    For example, the main asset might contain a summary of all the technologies found on the asset,
+    but a facet might contain the specific technologies and details about their discovery.
 
-    # def diff(self, other) -> list[Activity]:
-    #     """
-    #     Given another facet (typically an older version of the same host), return a list of AssetActivities which describe the new changes.
-    #     """
-    #     raise NotImplementedError(f"Must define diff() in {self.__class__.__name__}")
+    A facet typically corresponds to an applet.
+    """
+
+    # unless overridden, all asset facets are stored in the asset store
+    __store_type__ = "asset"
+    __table_name__ = "assets"
+
+    def __init__(self, *args, **kwargs):
+        kwargs["type"] = self.__class__.__name__
+        super().__init__(*args, **kwargs)
