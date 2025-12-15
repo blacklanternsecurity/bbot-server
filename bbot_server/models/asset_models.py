@@ -10,9 +10,14 @@ from bbot_server.models.base import BaseBBOTServerModel
 host_split_regex = re.compile(r"[^a-z0-9]")
 
 
-class BaseBBOTServerHostModel(BaseBBOTServerModel):
-    """A base model for all models that have a host, e.g. assets and activities"""
+class BaseHostModel(BaseBBOTServerModel):
+    """
+    A base model for all BBOT Server models that have a host, port, netloc, and url
 
+    Inherited by Asset and Activity models.
+    """
+
+    # TODO: why is id commented out?
     # id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Annotated[Optional[str], "indexed"] = None
     host: Annotated[str, "indexed"]
@@ -53,14 +58,18 @@ class BaseBBOTServerHostModel(BaseBBOTServerModel):
     @computed_field
     @property
     def reverse_host(self) -> Annotated[str, "indexed"]:
+        if not self.host:
+            return ""
         return self.host[::-1]
 
     @computed_field
     @property
     def host_parts(self) -> Annotated[list[str], "indexed"]:
+        if not self.host:
+            return []
         return host_split_regex.split(self.host)
 
-class BaseAssetFacet(BaseBBOTServerHostModel):
+class BaseAssetFacet(BaseHostModel):
     """
     An "asset facet" is a database object that contains data about an asset.
 

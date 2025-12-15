@@ -9,14 +9,14 @@ from typing import Annotated, Any, Optional
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.cli.themes import COLOR, DARK_COLOR
-from bbot_server.models.base import BaseBBOTServerHostModel
+from bbot_server.models.asset_models import BaseHostModel
 
 remove_rich_color_pattern = re.compile(r"\[([\w ]+)\](.*?)\[/\1\]")
 
 log = logging.getLogger(__name__)
 
 
-class Activity(BaseBBOTServerHostModel):
+class Activity(BaseHostModel):
     """
     An Activity is BBOT server's equivalent of an event.
 
@@ -25,23 +25,19 @@ class Activity(BaseBBOTServerHostModel):
     They are usually associated with an asset, and can be traced back to a specific BBOT event.
     """
 
-    __table_name__ = "history"
     __store_type__ = "asset"
+    __table_name__ = "history"
     # id is a UUID
     id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
-    type: Annotated[str, "indexed"]
     timestamp: Annotated[float, "indexed"]
     created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     archived: Annotated[bool, "indexed"] = False
     description: Annotated[str, "indexed"]
     description_colored: str = Field(default="")
     detail: dict[str, Any] = {}
-    host: Annotated[Optional[str], "indexed"] = None
-    port: Annotated[Optional[int], "indexed"] = None
-    netloc: Annotated[Optional[str], "indexed"] = None
-    url: Annotated[Optional[str], "indexed"] = None
     module: Annotated[Optional[str], "indexed"] = None
     scan: Annotated[Optional[str], "indexed"] = None
+    host: Annotated[Optional[str], "indexed"] = None
     parent_event_uuid: Annotated[Optional[str], "indexed"] = None
     parent_event_id: Annotated[Optional[str], "indexed"] = None
     parent_scan_run_id: Annotated[Optional[str], "indexed"] = None

@@ -9,11 +9,24 @@ from bbot_server.models.base import BaseBBOTServerModel
 
 
 class BaseTarget(BaseBBOTServerModel):
-    description: str = ""
-    target: Optional[list[str]] = []
-    seeds: Optional[list[str]] = None
-    blacklist: Optional[list[str]] = []
-    strict_dns_scope: bool = False
+    """Base class for all target models."""
+    description: str = Field("", description="Target description")
+    target: Optional[list[str]] = Field(
+        default_factory=list,
+        description="List of BBOT targets, e.g. domains, IPs, CIDRs, URLs, etc. These determine the scope of the scan. They are also used as seeds if no seeds are provided.",
+    )
+    seeds: Optional[list[str]] = Field(
+        None,
+        description="Domains, IPs, CIDRs, URLs, etc. to seed the scan. If not provided, the target list will be used as seeds.",
+    )
+    blacklist: Optional[list[str]] = Field(
+        default_factory=list,
+        description="Domains, IPs, CIDRs, URLs, etc. to blacklist from the scan. If a host is blacklisted, it will not be scanned.",
+    )
+    strict_dns_scope: bool = Field(
+        False,
+        description="If True, only the exact hosts themselves should be considered in-scope, not their subdomains",
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -26,52 +39,57 @@ class BaseTarget(BaseBBOTServerModel):
     def bbot_target(self):
         return self._bbot_target
 
-    @computed_field
+    @computed_field(description="Hash of the target. This is combined from the target, seeds, and blacklist hashes. Strict scope is also taken into account.")
     @cached_property
     def hash(self) -> Annotated[str, "indexed", "unique"]:
         return self.bbot_target.hash.hex()
 
-    @computed_field
+    @computed_field(description="Hash of the target list.")
     @cached_property
     def target_hash(self) -> Annotated[str, "indexed"]:
         return self._bbot_target.target.hash.hex()
 
-    @computed_field
+    @computed_field(description="Hash of the blacklist.")
     @cached_property
     def blacklist_hash(self) -> Annotated[str, "indexed"]:
         return self._bbot_target.blacklist.hash.hex()
 
-    @computed_field
+    @computed_field(description="Hash of the seeds.")
     @cached_property
     def seed_hash(self) -> Annotated[str, "indexed"]:
         return self._bbot_target.seeds.hash.hex()
 
-    @computed_field
+    @computed_field(description="Hash of the scope (target + blacklist + strict scope setting).")
     @cached_property
     def scope_hash(self) -> Annotated[str, "indexed"]:
         return self._bbot_target.scope_hash.hex()
 
-    @computed_field
+    @computed_field(description="Number of entries in the target list.")
     @cached_property
     def target_size(self) -> int:
         return len(self.bbot_target.target)
 
-    @computed_field
+    @computed_field(description="Number of entries in the blacklist.")
     @cached_property
     def blacklist_size(self) -> int:
         return len(self.bbot_target.blacklist)
 
-    @computed_field
+    @computed_field(description="Number of entries in the seeds list.")
     @cached_property
     def seed_size(self) -> int:
         return 0 if not self.bbot_target._orig_seeds else len(self.bbot_target.seeds)
 
 
-class Target(BaseTarget):
+class CreateTarget(BaseTarget):
+    """Used for creating a new target."""
+    name: Annotated[str, "indexed", "unique", Field(description="Target name")]
+    default: Annotated[bool, "indexed", Field(description="If True, this is the default target. There can only be one default target.")] = False
+
+
+class Target(CreateTarget):
+    """Used for storing a target in the database."""
     __table_name__ = "targets"
     __store_type__ = "user"
-    id: Annotated[uuid.UUID, "indexed", "unique"] = Field(default_factory=uuid.uuid4)
-    name: Annotated[str, "indexed", "unique"]
-    default: Annotated[bool, "indexed"] = False
-    created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
-    modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
+    id: Annotated[uuid.UUID, "indexed", "unique"] = Field(default_factory=uuid.uuid4, description="Universally Unique Target ID")
+    created: Annotated[float, "indexed"] = Field(default_factory=utc_now, description="Timestamp of when the target was created")
+    modified: Annotated[float, "indexed"] = Field(default_factory=utc_now, description="Timestamp of when the target was last modified")

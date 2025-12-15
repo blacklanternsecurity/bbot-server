@@ -372,6 +372,11 @@ class BaseApplet:
         return Activity(*args, **kwargs)
 
     async def emit_activity(self, *args, **kwargs):
+        """
+        Emits an activity to the message queue.
+
+        Accepts either an Activity object, or arguments to create a new Activity object.
+        """
         if not kwargs and len(args) == 1 and isinstance(args[0], Activity):
             activity = args[0]
         else:
@@ -379,6 +384,10 @@ class BaseApplet:
         await self._emit_activity(activity)
 
     async def _emit_activity(self, activity: Activity):
+        if activity.type == "NEW_IN_SCOPE_ASSET":
+            self.log.critical(f"ASDFASDF: {activity}")
+        else:
+            self.log.critical(f"FDSAFDSA: {activity.type}")
         self.log.info(f"Emitting activity: {activity.type} - {activity.description}")
         await self.root.message_queue.publish_asset(activity)
 

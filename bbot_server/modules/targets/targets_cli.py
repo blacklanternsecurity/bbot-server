@@ -2,6 +2,7 @@ from pathlib import Path
 from typer import Argument
 
 from bbot_server.cli import common
+from bbot_server.modules.targets.targets_models import CreateTarget
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
@@ -40,7 +41,7 @@ class TargetCTL(BaseBBCTL):
         seeds = None if not seeds else self._read_file(seeds, "seeds")
         target = [] if not target else self._read_file(target, "target")
         blacklist = None if not blacklist else self._read_file(blacklist, "blacklist")
-        target = self.bbot_server.create_target(
+        target = CreateTarget(
             name=name,
             description=description,
             seeds=seeds,
@@ -48,6 +49,7 @@ class TargetCTL(BaseBBCTL):
             blacklist=blacklist,
             strict_dns_scope=strict_dns_scope,
         )
+        target = self.bbot_server.create_target(target)
         self.log.info(f"Target created successfully:")
         self.print_json(target.model_dump(), colorize=True)
 
