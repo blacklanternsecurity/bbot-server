@@ -201,6 +201,38 @@ async def test_applet_targets(bbot_server):
 
 
 # test CRUD operations on targets
+async def test_target_invisible_character_cleanup(bbot_server):
+    bbot_server = await bbot_server()
+
+    target = await bbot_server.create_target(
+        name="invisible-cleanup",
+        seeds=["athexgroup\u200d.gr", " example.com "],
+        whitelist=[" \u200d ", "allow\u200d.gr"],
+        blacklist=["block\u200d.com", "   "],
+    )
+
+    assert target.seeds == ["athexgroup.gr", "example.com"]
+    assert target.whitelist == ["allow.gr"]
+    assert target.blacklist == ["block.com"]
+
+
+# test CRUD operations on targets
+async def test_target_leading_dot_cleanup(bbot_server):
+    bbot_server = await bbot_server()
+
+    target = await bbot_server.create_target(
+        name="leading-dot-cleanup",
+        seeds=[".gr", ".example.com", "kept.gr"],
+        whitelist=[".allow.gr", " .keep.org "],
+        blacklist=[".block.gr", ". "],
+    )
+
+    assert target.seeds == ["gr", "example.com", "kept.gr"]
+    assert target.whitelist == ["allow.gr", "keep.org"]
+    assert target.blacklist == ["block.gr"]
+
+
+# test CRUD operations on targets
 async def test_target_default_names(bbot_server):
     bbot_server = await bbot_server()
 
