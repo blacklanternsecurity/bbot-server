@@ -1,4 +1,5 @@
 import uuid
+import unicodedata
 from typing import Optional
 from typing import Annotated
 from pydantic import UUID4, Field
@@ -25,6 +26,9 @@ class BaseTarget(BaseBBOTServerModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.seeds = self._clean_scope_list(self.seeds)
+        self.whitelist = None if self.whitelist is None else self._clean_scope_list(self.whitelist)
+        self.blacklist = self._clean_scope_list(self.blacklist)
         self._bbot_target = BBOTTarget(
             *self.seeds, whitelist=self.whitelist, blacklist=self.blacklist, strict_dns_scope=self.strict_dns_scope
         )
@@ -40,6 +44,45 @@ class BaseTarget(BaseBBOTServerModel):
     @property
     def bbot_target(self):
         return self._bbot_target
+
+    @staticmethod
+    def _strip_invisible_characters(value: str) -> str:
+        """
+        Remove zero-width and other non-printable formatting characters from a string.
+        """
+
+        return "".join(ch for ch in value if unicodedata.category(ch) != "Cf").strip()
+
+    @classmethod
+    def _normalize_scope_entry(cls, value: str) -> str:
+        """
+        Normalize a single scope entry.
+
+        - Remove invisible characters.
+        - Strip whitespace.
+        - Drop leading dots (commonly used to denote a suffix match like ".gr").
+        """
+
+        cleaned = cls._strip_invisible_characters(value)
+
+        # Users sometimes prefix a dot to indicate a suffix match (e.g. ".example.com").
+        # BBOTTarget expects a bare host, so strip the prefix to keep the value valid.
+        if cleaned.startswith("."):
+            cleaned = cleaned.lstrip(".")
+
+        return cleaned
+
+    @classmethod
+    def _clean_scope_list(cls, entries: list[str]) -> list[str]:
+        """
+        Clean scope lists (seeds/whitelist/blacklist) to avoid invalid host errors.
+
+        - Remove invisible formatting characters that can sneak in during copy/paste.
+        - Strip surrounding whitespace.
+        - Drop empty values after cleaning.
+        """
+
+        return [cleaned for value in entries if (cleaned := cls._normalize_scope_entry(value))]
 
 
 class Target(BaseTarget):
