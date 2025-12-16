@@ -75,22 +75,18 @@ class TargetsApplet(BaseApplet):
         """
         # when a target is created or modified, we run a scope refresh on all the assets
         # debounce is set to 0.0 here because it's critical we're using the latest version of the target
-        if activity.type in ("TARGET_CREATED", "TARGET_UPDATED"):
-            self.log.debug(f"Target created or updated. Refreshing asset scope")
-            target_ids = await self.get_target_ids(debounce=0.0)
-            for target_id in target_ids:
-                target = await self._get_bbot_target(target_id, debounce=0.0)
-                for host in await self.root.get_hosts():
-                    await self.refresh_asset_scope(host, target, target_id, emit_activity=True)
+        # if activity.type in ("TARGET_CREATED", "TARGET_UPDATED"):
+        self.log.debug(f"Target created or updated. Refreshing asset scope")
+        target_ids = await self.get_target_ids(debounce=0.0)
+        for target_id in target_ids:
+            target = await self._get_bbot_target(target_id, debounce=0.0)
+            for host in await self.root.get_hosts():
+                await self.refresh_asset_scope(host, target, target_id, emit_activity=True)
 
         # otherwise, for individual assets, we just refresh the scope for the given host
-        elif activity.host:
-            asset_scope = await self.get_asset_scope(activity.host)
-            # update the activity's scope
-            activity.scope = sorted(set(str(target_id) for target_id in asset_scope))
-            # update scope on the associated asset
-            await self.root._update_asset(activity.host, {"scope": [str(target_id) for target_id in asset_scope]})
-            # and on the activity
+        # elif activity.host:
+        #     asset_scope = await self.get_asset_scope(activity.host)
+        #     await self.root._update_asset(activity.host, {"scope": [str(target_id) for target_id in asset_scope]})
 
         return []
 
@@ -116,11 +112,11 @@ class TargetsApplet(BaseApplet):
                 asset_scope = sorted(set(asset_scope) | set([target_id]))
             else:
                 asset_scope = sorted(set(asset_scope) - set([target_id]))
-            results = await self.root.assets.collection.update_many(
+            asset_results = await self.root.assets.collection.update_many(
                 {"host": host},
                 {"$set": {"scope": [str(_target_id) for _target_id in asset_scope]}},
             )
-            self.log.debug(f"Updated {results.modified_count} assets for host {host}")
+            self.log.debug(f"Updated {asset_results.modified_count} assets for host {host}")
             if emit_activity:
                 await self.emit_activity(scope_result)
 
@@ -345,14 +341,16 @@ class TargetsApplet(BaseApplet):
             elif in_target_reason:
                 return True
             return False
-        
+
         target_name = (await self._get_target(id=target_id, fields=["name"])).get("name", "")
 
         if blacklisted_reason:
             scope_after = sorted(set(asset_scope) - set([target_id]))
             # it used to be in-scope, but not anymore
             if scope_after != asset_scope:
-                self.log.debug(f"Host {host} used to be in scope for target {target_name} ({target_id}), but is now blacklisted")
+                self.log.debug(
+                    f"Host {host} used to be in scope for target {target_name} ({target_id}), but is now blacklisted"
+                )
                 reason = f"blacklisted host {blacklisted_reason}"
                 description = f"Host [COLOR]{host}[/COLOR] became out-of-scope for target [COLOR]{target_name}[/COLOR] due to {reason}"
                 return self.make_activity(
@@ -372,7 +370,9 @@ class TargetsApplet(BaseApplet):
             scope_after = sorted(set(asset_scope) | set([target_id]))
             # it wasn't in-scope, but now it is
             if scope_after != asset_scope:
-                self.log.debug(f"Host {host} used to be out-of-scope for target {target_name} ({target_id}), but is now in-scope")
+                self.log.debug(
+                    f"Host {host} used to be out-of-scope for target {target_name} ({target_id}), but is now in-scope"
+                )
                 reason = f"in-scope host {in_target_reason}"
                 description = f"Host [COLOR]{host}[/COLOR] became in-scope for target [COLOR]{target_name}[/COLOR] due to {reason}"
                 return self.make_activity(

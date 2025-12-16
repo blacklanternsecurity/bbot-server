@@ -28,7 +28,6 @@ class BaseHostModel(BaseBBOTServerModel):
     modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     ignored: bool = False
     archived: bool = False
-    scope: Annotated[list[UUID], "indexed"] = []
 
     def __init__(self, *args, **kwargs):
         event = kwargs.pop("event", None)
@@ -69,6 +68,7 @@ class BaseHostModel(BaseBBOTServerModel):
             return []
         return host_split_regex.split(self.host)
 
+
 class BaseAssetFacet(BaseHostModel):
     """
     An "asset facet" is a database object that contains data about an asset.
@@ -81,6 +81,9 @@ class BaseAssetFacet(BaseHostModel):
 
     A facet typically corresponds to an applet.
     """
+
+    # scope is an array of target IDs, which are dynamically maintained as new scan data arrives, or as targets are created/updated.
+    scope: Annotated[list[UUID], "indexed"] = []
 
     # unless overridden, all asset facets are stored in the asset store
     __store_type__ = "asset"

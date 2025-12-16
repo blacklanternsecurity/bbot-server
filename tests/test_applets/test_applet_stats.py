@@ -1,13 +1,15 @@
 import asyncio
+from bbot_server.modules.targets.targets_models import CreateTarget
 
 
 async def test_applet_stats(bbot_server, bbot_events):
     bbot_server = await bbot_server(needs_watchdog=True)
 
-    target1 = await bbot_server.create_target(
+    target1 = CreateTarget(
         whitelist=["evilcorp.com"],
         blacklist=["www.evilcorp.com"],
     )
+    target1 = await bbot_server.create_target(target1)
 
     # ingest BBOT events
     for scan_events in bbot_events:

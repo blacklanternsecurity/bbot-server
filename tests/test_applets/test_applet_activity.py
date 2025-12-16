@@ -50,7 +50,7 @@ class TestAppletActivity(BaseAppletTest):
             "New open port: [t2.tech.evilcorp.com:443]",
             "New technology discovered on t1.tech.evilcorp.com: [cpe:/a:apache:http_server:2.4.12]",
             "New technology discovered on t2.tech.evilcorp.com: [cpe:/a:apache:http_server:2.4.12]",
-            "New technology discovered on t2.tech.evilcorp.com: [cpe:/a:microsoft:internet_information_services]"
+            "New technology discovered on t2.tech.evilcorp.com: [cpe:/a:microsoft:internet_information_services]",
         ]
 
         # activities aggregation
@@ -70,7 +70,9 @@ class TestAppletActivity(BaseAppletTest):
         count = await self.bbot_server.count_activities(domain="tech.evilcorp.com")
         assert count == 14
 
-        # test target filter
-        activities = [a async for a in self.bbot_server.query_activities(target_id=self.target1.id)]
-        assert activities
-        assert all(self.target1.id in a.scope for a in activities)
+        # NOTE: we do not allow filtering activities by target ID.
+        # Why? Because activities can grow to a much larger size than assets, and maintaining up-to-date target IDs on them can become too expensive.
+        # If you want to filter activities by target ID, get the asset hosts you need, then query activities for those hosts.
+        # activities = [a async for a in self.bbot_server.query_activities(target_id=self.target1.id)]
+        # assert activities
+        # assert all(self.target1.id in a.scope for a in activities)

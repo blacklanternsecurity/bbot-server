@@ -10,6 +10,7 @@ from bbot_server.models.base import BaseBBOTServerModel
 
 class BaseTarget(BaseBBOTServerModel):
     """Base class for all target models."""
+
     description: str = Field("", description="Target description")
     target: Optional[list[str]] = Field(
         default_factory=list,
@@ -39,7 +40,9 @@ class BaseTarget(BaseBBOTServerModel):
     def bbot_target(self):
         return self._bbot_target
 
-    @computed_field(description="Hash of the target. This is combined from the target, seeds, and blacklist hashes. Strict scope is also taken into account.")
+    @computed_field(
+        description="Hash of the target. This is combined from the target, seeds, and blacklist hashes. Strict scope is also taken into account."
+    )
     @cached_property
     def hash(self) -> Annotated[str, "indexed", "unique"]:
         return self.bbot_target.hash.hex()
@@ -82,14 +85,26 @@ class BaseTarget(BaseBBOTServerModel):
 
 class CreateTarget(BaseTarget):
     """Used for creating a new target."""
-    name: Annotated[str, "indexed", "unique", Field(description="Target name")]
-    default: Annotated[bool, "indexed", Field(description="If True, this is the default target. There can only be one default target.")] = False
+
+    name: Annotated[str, "indexed", "unique", Field(description="Target name", default="")]
+    default: Annotated[
+        bool,
+        "indexed",
+        Field(description="If True, this is the default target. There can only be one default target."),
+    ] = False
 
 
 class Target(CreateTarget):
     """Used for storing a target in the database."""
+
     __table_name__ = "targets"
     __store_type__ = "user"
-    id: Annotated[uuid.UUID, "indexed", "unique"] = Field(default_factory=uuid.uuid4, description="Universally Unique Target ID")
-    created: Annotated[float, "indexed"] = Field(default_factory=utc_now, description="Timestamp of when the target was created")
-    modified: Annotated[float, "indexed"] = Field(default_factory=utc_now, description="Timestamp of when the target was last modified")
+    id: Annotated[uuid.UUID, "indexed", "unique"] = Field(
+        default_factory=uuid.uuid4, description="Universally Unique Target ID"
+    )
+    created: Annotated[float, "indexed"] = Field(
+        default_factory=utc_now, description="Timestamp of when the target was created"
+    )
+    modified: Annotated[float, "indexed"] = Field(
+        default_factory=utc_now, description="Timestamp of when the target was last modified"
+    )

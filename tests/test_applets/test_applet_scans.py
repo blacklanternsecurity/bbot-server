@@ -6,6 +6,7 @@ from contextlib import suppress
 
 from bbot_server import BBOTServer
 from bbot_server.errors import BBOTServerValueError
+from bbot_server.modules.targets.targets_models import CreateTarget
 
 from ..conftest import INGEST_PROCESSING_DELAY, log
 
@@ -117,9 +118,10 @@ async def test_basic_scan_run(bbot_server):
     else:
         assert False, "Agent did not become ready"
 
-    target = await bbot_server.create_target(
+    target = CreateTarget(
         name="target1", seeds=["127.0.0.1"], whitelist=["127.0.0.2"], blacklist=["127.0.0.3"], strict_dns_scope=True
     )
+    target = await bbot_server.create_target(target)
     preset = await bbot_server.create_preset(
         preset={"name": "preset1", "description": "preset1 description", "scan_name": "teh_scan"}
     )
