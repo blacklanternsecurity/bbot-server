@@ -35,7 +35,7 @@ debug: true
             "scan",
             "target",
             "create",
-            "--seeds",
+            "--target",
             str(target_file),
             "--name",
             "thetarget",
