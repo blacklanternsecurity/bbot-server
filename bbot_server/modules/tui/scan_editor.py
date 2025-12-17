@@ -5,7 +5,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll, Vertical, Horizontal
 from textual.widgets import Footer, Header, ListView, ListItem, Label, TextArea, Button, Switch, Input
 
-from bbot import Preset, Scanner
+from bbot.scanner import Scanner, Preset
 from bbot.core.helpers.names_generator import random_name
 
 from .themes import TEXTUAL_THEME
