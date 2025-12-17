@@ -44,8 +44,8 @@ class TargetCTL(BaseBBCTL):
         target = CreateTarget(
             name=name,
             description=description,
-            seeds=seeds,
             target=target,
+            seeds=seeds,
             blacklist=blacklist,
             strict_dns_scope=strict_dns_scope,
         )
@@ -79,8 +79,8 @@ class TargetCTL(BaseBBCTL):
                 {
                     "name": target.name,
                     "description": target.description,
-                    "seeds": target.seed_size,
                     "target": target.target_size,
+                    "seeds": target.seed_size,
                     "blacklist": target.blacklist_size,
                     "strict_scope": "Yes" if target.strict_dns_scope else "No",
                     "created": self.timestamp_to_human(target.created),
@@ -93,8 +93,8 @@ class TargetCTL(BaseBBCTL):
                 fieldnames=[
                     "name",
                     "description",
-                    "seeds",
                     "target",
+                    "seeds",
                     "blacklist",
                     "strict_scope",
                     "created",
@@ -107,8 +107,8 @@ class TargetCTL(BaseBBCTL):
         table = self.Table()
         table.add_column("Name", style=self.COLOR)
         table.add_column("Description")
-        table.add_column("Seeds")
         table.add_column("Target")
+        table.add_column("Seeds")
         table.add_column("Blacklist")
         table.add_column("Strict Scope")
         table.add_column("Created", style=self.DARK_COLOR)
@@ -117,8 +117,8 @@ class TargetCTL(BaseBBCTL):
             table.add_row(
                 target.name,
                 target.description,
-                f"{target.seed_size:,}",
                 f"{target.target_size:,}",
+                f"{target.seed_size:,}",
                 f"{target.blacklist_size:,}",
                 "Yes" if target.strict_dns_scope else "No",
                 self.timestamp_to_human(target.created),
