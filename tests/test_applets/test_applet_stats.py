@@ -6,7 +6,7 @@ async def test_applet_stats(bbot_server, bbot_events):
     bbot_server = await bbot_server(needs_watchdog=True)
 
     target1 = CreateTarget(
-        whitelist=["evilcorp.com"],
+        target=["evilcorp.com"],
         blacklist=["www.evilcorp.com"],
     )
     target1 = await bbot_server.create_target(target1)

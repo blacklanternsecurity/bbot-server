@@ -306,8 +306,10 @@ class FindingsApplet(BaseApplet):
                 {
                     "$set": {
                         "modified": self.helpers.utc_now(),
-                        "confidence": finding.confidence_score,
+                        "severity": finding.severity,
                         "severity_score": finding.severity_score,
+                        "confidence": finding.confidence,
+                        "confidence_score": finding.confidence_score,
                     }
                 },
             )

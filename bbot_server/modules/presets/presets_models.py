@@ -18,7 +18,7 @@ class Preset(BaseBBOTServerModel):
     @classmethod
     def sanitize_preset(cls, v: dict[str, Any]) -> dict[str, Any]:
         # remote target information
-        for value in ("target", "targets", "whitelist", "blacklist"):
+        for value in ("target", "targets", "seeds", "blacklist"):
             v.pop(value, None)
         # remove strict scope setting (this is stored in the target)
         config = v.pop("config", {})
