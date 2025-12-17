@@ -76,8 +76,8 @@ class ScanCTL(BaseBBCTL):
             finished = "" if scan.finished_at is None else self.timestamp_to_human(scan.finished_at)
             target_name = f"[{self.COLOR}]{scan.target.name}[/{self.COLOR}]"
             for attr, friendly_attr in (
+                ("target_size", "Target"),
                 ("seed_size", "Seeds"),
-                ("whitelist_size", "Whitelist"),
                 ("blacklist_size", "Blacklist"),
             ):
                 if getattr(scan.target, attr):

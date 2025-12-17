@@ -90,11 +90,10 @@ debug: true
     )
 
     for _ in range(120):
-        process = subprocess.run(BBCTL_COMMAND + ["scan", "list", "--json"], capture_output=True, text=True)
+        process = subprocess.run(BBCTL_COMMAND + ["scan", "list", "--json"], capture_output=True, text=True, timeout=5)
         scans = [Scan(**orjson.loads(line)) for line in process.stdout.splitlines()]
         if scans[0].status == "FINISHED":
             break
-        sleep(0.5)
     else:
         assert False, f"Scan did not finish in time, scans: {scans}"
 
@@ -156,12 +155,12 @@ def test_cli_scan_ingest(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_ev
     assert {s.name for s in out_scan_runs} == {scan1_name, scan2_name}
 
     # test text version
-    process = subprocess.run(BBCTL_COMMAND + ["scan", "list"], capture_output=True, text=True)
+    process = subprocess.run(BBCTL_COMMAND + ["scan", "list"], capture_output=True, text=True, timeout=5)
     assert scan1_name in process.stdout
     assert scan2_name in process.stdout
 
     # test csv version
-    process = subprocess.run(BBCTL_COMMAND + ["scan", "list", "--csv"], capture_output=True, text=True)
+    process = subprocess.run(BBCTL_COMMAND + ["scan", "list", "--csv"], capture_output=True, text=True, timeout=5)
     assert len([l for l in process.stdout.splitlines() if l.strip()]) == 3
     assert scan1_name in process.stdout
     assert scan2_name in process.stdout
