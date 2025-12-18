@@ -140,8 +140,8 @@ yara-python = "^4.5.1"
 [package.source]
 type = "git"
 url = "https://github.com/blacklanternsecurity/bbot"
-reference = "scope-tweaks"
-resolved_reference = "7267d2b231931690f592159cb549b47a2caddca9"
+reference = "3.0"
+resolved_reference = "95b5dd45c879a555017a64ce5529719086f33c8c"
 
 [[package]]
 name = "beautifulsoup4"
@@ -3708,4 +3708,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "10e090ea720b8547db012bc2d93440cceb9bd67bfeabcdb26a77214262273a1f"
+content-hash = "3028e30fe4ac02ffb534077bde4603e16263ebfe8722029243536563ae04b203"
