@@ -10,23 +10,14 @@ from bbot_server.models.base import BaseBBOTServerModel
 host_split_regex = re.compile(r"[^a-z0-9]")
 
 
-class BaseAssetFacet(BaseBBOTServerModel):
+class BaseHostModel(BaseBBOTServerModel):
     """
-    An "asset facet" is a database object that contains data about an asset.
+    A base model for all BBOT Server models that have a host, port, netloc, and url
 
-    Unlike the main asset model which contains a summary of all the data,
-    a facet contains a certain detail which is too big to be stored in the main asset model.
-
-    For example, the main asset might contain a summary of all the technologies found on the asset,
-    but a facet might contain the specific technologies and details about their discovery.
-
-    A facet typically corresponds to an applet.
+    Inherited by Asset and Activity models.
     """
 
-    # unless overridden, all asset facets are stored in the asset store
-    __store_type__ = "asset"
-    __table_name__ = "assets"
-
+    # TODO: why is id commented out?
     # id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Annotated[Optional[str], "indexed"] = None
     host: Annotated[str, "indexed"]
@@ -37,10 +28,8 @@ class BaseAssetFacet(BaseBBOTServerModel):
     modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
     ignored: bool = False
     archived: bool = False
-    scope: Annotated[list[UUID], "indexed"] = []
 
     def __init__(self, *args, **kwargs):
-        kwargs["type"] = self.__class__.__name__
         event = kwargs.pop("event", None)
         super().__init__(*args, **kwargs)
         if self.host and self.port:
@@ -68,28 +57,38 @@ class BaseAssetFacet(BaseBBOTServerModel):
     @computed_field
     @property
     def reverse_host(self) -> Annotated[str, "indexed"]:
+        if not self.host:
+            return ""
         return self.host[::-1]
 
     @computed_field
     @property
     def host_parts(self) -> Annotated[list[str], "indexed"]:
+        if not self.host:
+            return []
         return host_split_regex.split(self.host)
 
-    # def _ingest_event(self, event) -> list[Activity]:
-    #     self_before = self.__class__.model_validate(self)
-    #     self.ingest_event(event)
-    #     return self.diff(self_before)
 
-    # def ingest_event(self, event):
-    #     """
-    #     Given a BBOT event, update the asset facet.
+class BaseAssetFacet(BaseHostModel):
+    """
+    An "asset facet" is a database object that contains data about an asset.
 
-    #     E.g., given an OPEN_TCP_PORT event, update the open_ports field to include the new port.
-    #     """
-    #     raise NotImplementedError(f"Must define ingest_event() in {self.__class__.__name__}")
+    Unlike the main asset model which contains a summary of all the data,
+    a facet contains a certain detail which is too big to be stored in the main asset model.
 
-    # def diff(self, other) -> list[Activity]:
-    #     """
-    #     Given another facet (typically an older version of the same host), return a list of AssetActivities which describe the new changes.
-    #     """
-    #     raise NotImplementedError(f"Must define diff() in {self.__class__.__name__}")
+    For example, the main asset might contain a summary of all the technologies found on the asset,
+    but a facet might contain the specific technologies and details about their discovery.
+
+    A facet typically corresponds to an applet.
+    """
+
+    # scope is an array of target IDs, which are dynamically maintained as new scan data arrives, or as targets are created/updated.
+    scope: Annotated[list[UUID], "indexed"] = []
+
+    # unless overridden, all asset facets are stored in the asset store
+    __store_type__ = "asset"
+    __table_name__ = "assets"
+
+    def __init__(self, *args, **kwargs):
+        kwargs["type"] = self.__class__.__name__
+        super().__init__(*args, **kwargs)

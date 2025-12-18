@@ -1,5 +1,6 @@
 import asyncio
 from tests.test_applets.base import BaseAppletTest
+from bbot_server.modules.targets.targets_models import CreateTarget
 
 
 class TestAppletTechnologies(BaseAppletTest):
@@ -110,7 +111,8 @@ class TestAppletTechnologies(BaseAppletTest):
         }
 
         # create a new target that matches two technologies
-        await self.bbot_server.create_target(seeds=["t1.tech.evilcorp.com"], name="target1")
+        target = CreateTarget(name="target1", target=["t1.tech.evilcorp.com"])
+        target = await self.bbot_server.create_target(target)
         # the technologies should be automatically associated with the target
         for _ in range(60):
             techs = [t async for t in self.bbot_server.list_technologies(target_id="target1")]

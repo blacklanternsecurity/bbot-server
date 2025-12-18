@@ -215,8 +215,8 @@ class ScansApplet(BaseApplet):
                     # merge target and preset
                     scan_preset = dict(scan.preset.preset)
                     scan_preset["scan_name"] = scan.name
-                    scan_preset["target"] = scan.target.seeds
-                    scan_preset["whitelist"] = scan.target.whitelist
+                    scan_preset["target"] = scan.target.target
+                    scan_preset["seeds"] = scan.target.seeds
                     scan_preset["blacklist"] = scan.target.blacklist
                     config = scan_preset.get("config", {})
                     scope_config = config.get("scope", {})

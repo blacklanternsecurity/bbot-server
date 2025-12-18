@@ -1,6 +1,6 @@
 ![Image](https://github.com/user-attachments/assets/3cf3fb27-ded3-47b5-8eec-2f8358358ffd)
 
-[![Python Version](https://img.shields.io/badge/python-3.9+-FF8400)](https://www.python.org) [![License](https://img.shields.io/badge/license-GPLv3-FF8400.svg)](https://github.com/blacklanternsecurity/bbot/blob/dev/LICENSE) [![PyPi Downloads](https://static.pepy.tech/personalized-badge/bbot-server?right_color=orange&left_color=grey)](https://pepy.tech/project/bbot-server) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![Tests](https://github.com/blacklanternsecurity/bbot-server/actions/workflows/tests.yml/badge.svg?branch=stable)](https://github.com/blacklanternsecurity/bbot-server/actions?query=workflow%3A"tests") [![Codecov](https://codecov.io/gh/blacklanternsecurity/bbot-server/branch/stable/graph/badge.svg?token=IR5AZBDM5K)](https://codecov.io/gh/blacklanternsecurity/bbot-server) [![Discord](https://img.shields.io/discord/859164869970362439)](https://discord.com/invite/PZqkgxu5SA)
+[![Python Version](https://img.shields.io/badge/python-3.9+-FF8400)](https://www.python.org) [![License](https://img.shields.io/badge/license-AGPLv3-FF8400.svg)](https://github.com/blacklanternsecurity/bbot/blob/dev/LICENSE) [![PyPi Downloads](https://static.pepy.tech/personalized-badge/bbot-server?right_color=orange&left_color=grey)](https://pepy.tech/project/bbot-server) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![Tests](https://github.com/blacklanternsecurity/bbot-server/actions/workflows/tests.yml/badge.svg?branch=stable)](https://github.com/blacklanternsecurity/bbot-server/actions?query=workflow%3A"tests") [![Codecov](https://codecov.io/gh/blacklanternsecurity/bbot-server/branch/stable/graph/badge.svg?token=IR5AZBDM5K)](https://codecov.io/gh/blacklanternsecurity/bbot-server) [![Discord](https://img.shields.io/discord/859164869970362439)](https://discord.com/invite/PZqkgxu5SA)
 
 # BBOT Server [BETA]
 
@@ -350,20 +350,29 @@ bbctl asset stats --domain evilcorp.com | jq
 
 BBOT Server supports chat-based AI interaction via MCP (Model Context Protocol).
 
-The SSE server listens at `http://localhost:8807/v1/mcp/`
+The SSE server listens at `http://localhost:8807/v1/mcp/`.
 
-`mcp.json` (cursor / vs code):
+`mcp.json` (Cursor / VS Code):
 ```json
 {
-    "mcpServers": {
-        "bbot": {
-            "url": "http://localhost:8807/v1/mcp/"
-        }
+  "mcpServers": {
+    "bbot": {
+      "url": "http://localhost:8807/v1/mcp/",
+      "headers": {
+        "x-api-key": "deadbeef-9b4d-4208-890c-4ce9ad3b4710"
+      }
     }
+  }
 }
 ```
 
 After connecting your AI client to BBOT Server, you can ask it sensible questions like, "Use MCP to get all the bbot findings", "what are the top open ports?", "what else can you do with BBOT MCP?", etc.
+
+**NOTE**: Authentication is [currently broken](https://github.com/blacklanternsecurity/bbot-server/issues/52) in Cursor, Cline, and it seems most other VS Code forks. A workaround is to disable authentication with `--no-authentication` when starting the server. Obviously, be careful with this and don't be a dumbass.
+
+```bash
+bbctl server start --no-authentication
+```
 
 ## As a Python Library
 

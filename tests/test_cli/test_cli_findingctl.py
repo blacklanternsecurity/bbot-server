@@ -106,7 +106,7 @@ def test_cli_findingctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     # create target
     target_file = BBOT_SERVER_TEST_DIR / "targets"
     target_file.write_text("www2.evilcorp.com")
-    command = BBCTL_COMMAND + ["scan", "target", "create", "--seeds", target_file, "--name", "evilcorp1"]
+    command = BBCTL_COMMAND + ["scan", "target", "create", "--target", target_file, "--name", "evilcorp1"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
 

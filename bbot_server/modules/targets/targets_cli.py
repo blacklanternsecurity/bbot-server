@@ -2,6 +2,7 @@ from pathlib import Path
 from typer import Argument
 
 from bbot_server.cli import common
+from bbot_server.modules.targets.targets_models import CreateTarget
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
@@ -14,14 +15,16 @@ class TargetCTL(BaseBBCTL):
     @subcommand(help="Create a new target")
     def create(
         self,
-        seeds: Annotated[Path, Option("--seeds", "-s", help="File containing seeds")],
-        whitelist: Annotated[
+        target: Annotated[
             Path,
             Option(
-                "--whitelist",
-                "-w",
-                help="File containing whitelist. If not provided, the seeds will be used as the whitelist.",
+                "--target",
+                "-t",
+                help="File containing target. This determines what's in-scope.",
             ),
+        ] = None,
+        seeds: Annotated[
+            Path, Option("--seeds", "-s", help="File containing seeds. If not specified, will be copied from target.")
         ] = None,
         blacklist: Annotated[Path, Option("--blacklist", "-b", help="File containing blacklist")] = None,
         name: Annotated[str, Option("--name", "-n", help="Target name")] = "",
@@ -35,17 +38,18 @@ class TargetCTL(BaseBBCTL):
             ),
         ] = False,
     ):
-        seeds = self._read_file(seeds, "seeds")
-        whitelist = None if not whitelist else self._read_file(whitelist, "whitelist")
+        seeds = None if not seeds else self._read_file(seeds, "seeds")
+        target = [] if not target else self._read_file(target, "target")
         blacklist = None if not blacklist else self._read_file(blacklist, "blacklist")
-        target = self.bbot_server.create_target(
+        target = CreateTarget(
             name=name,
             description=description,
+            target=target,
             seeds=seeds,
-            whitelist=whitelist,
             blacklist=blacklist,
             strict_dns_scope=strict_dns_scope,
         )
+        target = self.bbot_server.create_target(target)
         self.log.info(f"Target created successfully:")
         self.print_json(target.model_dump(), colorize=True)
 
@@ -75,8 +79,8 @@ class TargetCTL(BaseBBCTL):
                 {
                     "name": target.name,
                     "description": target.description,
+                    "target": target.target_size,
                     "seeds": target.seed_size,
-                    "whitelist": target.whitelist_size,
                     "blacklist": target.blacklist_size,
                     "strict_scope": "Yes" if target.strict_dns_scope else "No",
                     "created": self.timestamp_to_human(target.created),
@@ -89,8 +93,8 @@ class TargetCTL(BaseBBCTL):
                 fieldnames=[
                     "name",
                     "description",
+                    "target",
                     "seeds",
-                    "whitelist",
                     "blacklist",
                     "strict_scope",
                     "created",
@@ -103,8 +107,8 @@ class TargetCTL(BaseBBCTL):
         table = self.Table()
         table.add_column("Name", style=self.COLOR)
         table.add_column("Description")
+        table.add_column("Target")
         table.add_column("Seeds")
-        table.add_column("Whitelist")
         table.add_column("Blacklist")
         table.add_column("Strict Scope")
         table.add_column("Created", style=self.DARK_COLOR)
@@ -113,8 +117,8 @@ class TargetCTL(BaseBBCTL):
             table.add_row(
                 target.name,
                 target.description,
+                f"{target.target_size:,}",
                 f"{target.seed_size:,}",
-                f"{target.whitelist_size:,}",
                 f"{target.blacklist_size:,}",
                 "Yes" if target.strict_dns_scope else "No",
                 self.timestamp_to_human(target.created),

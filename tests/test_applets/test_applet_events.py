@@ -85,7 +85,7 @@ class TestAppletEvents(BaseAppletTest):
         modules = {}
         for event in host_events:
             modules[event.module] = modules.get(event.module, 0) + 1
-        assert modules == {"TARGET": 2, "speculate": 2}
+        assert modules == {"SEED": 2, "speculate": 2}
 
         host_events = [e async for e in self.bbot_server.list_events(host="com")]
         assert host_events == []
