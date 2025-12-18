@@ -150,7 +150,7 @@ def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
     # create a new target that matches two technologies
     target_file = BBOT_SERVER_TEST_DIR / "targets"
     target_file.write_text("t2.tech.evilcorp.com")
-    command = BBCTL_COMMAND + ["scan", "target", "create", "--seeds", target_file, "--name", "evilcorp1"]
+    command = BBCTL_COMMAND + ["scan", "target", "create", "--target", target_file, "--name", "evilcorp1"]
     process = subprocess.run(command, capture_output=True, text=True)
     assert process.returncode == 0
 

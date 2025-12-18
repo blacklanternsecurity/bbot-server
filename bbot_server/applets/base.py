@@ -372,6 +372,11 @@ class BaseApplet:
         return Activity(*args, **kwargs)
 
     async def emit_activity(self, *args, **kwargs):
+        """
+        Emits an activity to the message queue.
+
+        Accepts either an Activity object, or arguments to create a new Activity object.
+        """
         if not kwargs and len(args) == 1 and isinstance(args[0], Activity):
             activity = args[0]
         else:

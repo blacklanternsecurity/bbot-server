@@ -1,6 +1,7 @@
 import asyncio
 from hashlib import sha1
 from tests.test_applets.base import BaseAppletTest
+from bbot_server.modules.targets.targets_models import CreateTarget
 
 
 class TestAppletFindings(BaseAppletTest):
@@ -11,8 +12,10 @@ class TestAppletFindings(BaseAppletTest):
         assert [f async for f in self.bbot_server.list_findings()] == []
 
         # create some targets
-        await self.bbot_server.create_target(name="evilcorp1", seeds=["www2.evilcorp.com"])
-        await self.bbot_server.create_target(name="evilcorp2", seeds=["www.evilcorp.com", "api.evilcorp.com"])
+        target1 = CreateTarget(name="evilcorp1", target=["www2.evilcorp.com"])
+        target2 = CreateTarget(name="evilcorp2", target=["www.evilcorp.com", "api.evilcorp.com"])
+        self.target1 = await self.bbot_server.create_target(target1)
+        self.target2 = await self.bbot_server.create_target(target2)
 
     async def after_scan_1(self):
         # we should have 2 findings
@@ -98,7 +101,8 @@ class TestAppletFindings(BaseAppletTest):
         assert {f.host for f in findings2} == {"www.evilcorp.com", "api.evilcorp.com"}
 
         # create a new target that matches one finding
-        await self.bbot_server.create_target(name="evilcorp3", seeds=["www.evilcorp.com"])
+        target = CreateTarget(name="evilcorp3", target=["www.evilcorp.com"])
+        target = await self.bbot_server.create_target(target)
         # the finding should be automatically associated with the target
         for _ in range(60):
             findings = [f async for f in self.bbot_server.list_findings(target_id="evilcorp3")]

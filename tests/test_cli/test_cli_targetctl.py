@@ -13,20 +13,20 @@ def test_cli_targetctl(bbot_server_http):
     assert process.stdout == ""
 
     # create a target (nonexistent file should fail)
-    seeds_file = BBOT_SERVER_TEST_DIR / "seeds.txt"
-    seeds_file.unlink(missing_ok=True)
+    target_file = BBOT_SERVER_TEST_DIR / "target.txt"
+    target_file.unlink(missing_ok=True)
     process = subprocess.run(
-        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--seeds", str(seeds_file)],
+        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--target", str(target_file)],
         capture_output=True,
         text=True,
     )
     assert process.returncode == 1
-    assert f"Unable to find seeds at {seeds_file}" in process.stderr
+    assert f"Unable to find target at {target_file}" in process.stderr
 
     # create a target
-    seeds_file.write_text("evilcorp.com\nevilcorp.net")
+    target_file.write_text("evilcorp.com\nevilcorp.net")
     process = subprocess.run(
-        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--seeds", str(seeds_file)],
+        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--target", str(target_file)],
         capture_output=True,
         text=True,
     )
@@ -34,11 +34,11 @@ def test_cli_targetctl(bbot_server_http):
     assert "Target created successfully" in process.stderr
     target = orjson.loads(process.stdout)
     assert target["name"] == "Target 1"
-    assert set(target["seeds"]) == {"evilcorp.com", "evilcorp.net"}
+    assert set(target["target"]) == {"evilcorp.com", "evilcorp.net"}
 
     # creating the same target again should fail
     process = subprocess.run(
-        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--seeds", str(seeds_file)],
+        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--target", str(target_file)],
         capture_output=True,
         text=True,
     )
@@ -46,9 +46,9 @@ def test_cli_targetctl(bbot_server_http):
     assert "Identical target already exists" in process.stderr
 
     # create a second target
-    seeds_file.write_text("evilcorp.org")
+    target_file.write_text("evilcorp.org")
     process = subprocess.run(
-        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--seeds", str(seeds_file), "--strict-scope"],
+        BBCTL_COMMAND + ["--no-color", "scan", "target", "create", "--target", str(target_file), "--strict-scope"],
         capture_output=True,
         text=True,
     )
@@ -57,9 +57,9 @@ def test_cli_targetctl(bbot_server_http):
     assert process.returncode == 0
     target2 = orjson.loads(process.stdout)
     assert target2["name"] == "Target 2"
-    assert set(target2["seeds"]) == {"evilcorp.org"}
+    assert set(target2["target"]) == {"evilcorp.org"}
 
-    seeds_file.unlink()
+    target_file.unlink()
 
     # list targets (json)
     process = subprocess.run(BBCTL_COMMAND + ["scan", "target", "list", "--json"], capture_output=True, text=True)
@@ -67,8 +67,8 @@ def test_cli_targetctl(bbot_server_http):
     targets = [Target(**orjson.loads(line)) for line in process.stdout.splitlines()]
     assert len(targets) == 2
     targets = {t.name: t for t in targets}
-    assert set(targets["Target 1"].seeds) == {"evilcorp.com", "evilcorp.net"}
-    assert set(targets["Target 2"].seeds) == {"evilcorp.org"}
+    assert set(targets["Target 1"].target) == {"evilcorp.com", "evilcorp.net"}
+    assert set(targets["Target 2"].target) == {"evilcorp.org"}
     assert targets["Target 1"].strict_dns_scope is False
     assert targets["Target 2"].strict_dns_scope is True
 
@@ -77,14 +77,14 @@ def test_cli_targetctl(bbot_server_http):
     assert process.returncode == 0
     lines = process.stdout.splitlines()
     assert len(lines) == 3
-    assert lines[0] == "name,description,seeds,whitelist,blacklist,strict_scope,created,modified"
+    assert lines[0] == "name,description,target,seeds,blacklist,strict_scope,created,modified"
     assert lines[1].startswith("Target 1,,2,0,0,No,")
     assert lines[2].startswith("Target 2,,1,0,0,Yes,")
 
     # list targets (text)
     process = subprocess.run(BBCTL_COMMAND + ["scan", "target", "list"], capture_output=True, text=True)
     assert process.returncode == 0
-    assert process.stdout.count("Target") == 2
+    assert process.stdout.count("Target") == 3
 
     # delete target1 (must specify name or id)
     process = subprocess.run(

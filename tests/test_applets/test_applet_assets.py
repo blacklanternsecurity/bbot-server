@@ -3,6 +3,7 @@ import pytest
 
 from bbot_server.assets import Asset
 from bbot_server.errors import BBOTServerValueError
+from bbot_server.modules.targets.targets_models import CreateTarget
 
 from tests.test_applets.base import BaseAppletTest
 from ..conftest import INGEST_PROCESSING_DELAY
@@ -269,10 +270,11 @@ class TestAppletAssets(BaseAppletTest):
 async def test_applet_target_filter(bbot_server, bbot_events):
     bbot_server = await bbot_server(needs_watchdog=True)
 
-    target1 = await bbot_server.create_target(
-        whitelist=["evilcorp.com", "127.0.0.0/30"],
+    target1 = CreateTarget(
+        target=["evilcorp.com", "127.0.0.0/30"],
         blacklist=["localhost.evilcorp.com"],
     )
+    target1 = await bbot_server.create_target(target1)
 
     # ingest BBOT events
     scan1_events, scan2_events = bbot_events
@@ -338,10 +340,11 @@ async def test_applet_target_filter(bbot_server, bbot_events):
     assert set(hosts) == all_hosts_target1
 
     # new target
-    target = await bbot_server.create_target(
-        whitelist=["1.2.3.0/24"],
+    target = CreateTarget(
+        target=["1.2.3.0/24"],
         blacklist=["www2.evilcorp.com"],
     )
+    target = await bbot_server.create_target(target)
 
     # wait for events to be tagged with new target
     await asyncio.sleep(1)

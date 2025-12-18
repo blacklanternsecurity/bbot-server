@@ -6,6 +6,7 @@ from contextlib import suppress
 
 from bbot_server import BBOTServer
 from bbot_server.errors import BBOTServerValueError
+from bbot_server.modules.targets.targets_models import CreateTarget
 
 from ..conftest import INGEST_PROCESSING_DELAY, log
 
@@ -81,7 +82,8 @@ async def test_scan_with_invalid_preset(bbot_server, bbot_agent):
     preset = await bbot_server.create_preset(
         preset={"name": "preset1", "description": "preset1 description", "modules": ["invalid"]}
     )
-    target = await bbot_server.create_target(name="target1", seeds=["127.0.0.1"])
+    target = CreateTarget(name="target1", target=["127.0.0.1"])
+    target = await bbot_server.create_target(target)
     await bbot_server.start_scan(name="scan1", preset_id=preset.id, target_id=target.id)
 
     for _ in range(30):
@@ -117,9 +119,10 @@ async def test_basic_scan_run(bbot_server):
     else:
         assert False, "Agent did not become ready"
 
-    target = await bbot_server.create_target(
-        name="target1", seeds=["127.0.0.1"], whitelist=["127.0.0.2"], blacklist=["127.0.0.3"], strict_dns_scope=True
+    target = CreateTarget(
+        name="target1", target=["127.0.0.2"], seeds=["127.0.0.1"], blacklist=["127.0.0.3"], strict_dns_scope=True
     )
+    target = await bbot_server.create_target(target)
     preset = await bbot_server.create_preset(
         preset={"name": "preset1", "description": "preset1 description", "scan_name": "teh_scan"}
     )
@@ -154,8 +157,8 @@ async def test_basic_scan_run(bbot_server):
     assert len(scan_events) == 2
     for scan_event in scan_events:
         assert scan_event.data_json["name"] == "teh_scan"
+        assert scan_event.data_json["target"]["target"] == ["127.0.0.2"]
         assert scan_event.data_json["target"]["seeds"] == ["127.0.0.1"]
-        assert scan_event.data_json["target"]["whitelist"] == ["127.0.0.2"]
         assert scan_event.data_json["target"]["blacklist"] == ["127.0.0.3"]
         assert scan_event.data_json["target"]["strict_dns_scope"] == True
 
@@ -201,7 +204,8 @@ async def test_queued_scan_cancellation(bbot_server):
     """
     bbot_server = await bbot_server()
 
-    target = await bbot_server.create_target(name="target1", seeds=["evilcorp.com"])
+    target = CreateTarget(name="target1", target=["evilcorp.com"])
+    target = await bbot_server.create_target(target)
     preset = await bbot_server.create_preset(preset={"name": "preset1", "description": "preset1 description"})
     scan = await bbot_server.start_scan(name="scan1", target_id=target.id, preset_id=preset.id)
 
@@ -229,7 +233,8 @@ async def test_running_scan_cancellation(bbot_agent, bbot_watchdog):
     infinite_module_dir = Path(__file__).parent.parent / "bbot_modules"
 
     # start scan
-    target = await bbot_server.create_target(name="target1", seeds=["evilcorp.com"])
+    target = CreateTarget(name="target1", target=["evilcorp.com"])
+    target = await bbot_server.create_target(target)
     preset = await bbot_server.create_preset(
         preset={
             "name": "preset1",

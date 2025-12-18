@@ -163,7 +163,7 @@ class AssetsApplet(BaseApplet):
             for child_applet in self.all_child_applets(include_self=True):
                 activities = await child_applet.refresh(asset, events_by_type)
                 for activity in activities:
-                    await self._emit_activity(activity)
+                    await self.emit_activity(activity)
 
             # update the asset with any changes made by the child applets
             await self.update_asset(asset)
