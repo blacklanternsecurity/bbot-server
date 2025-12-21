@@ -3,7 +3,8 @@ Main Textual application for BBOT Server TUI
 """
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Header as TextualHeader, Footer
+from textual.widgets import Header as TextualHeader, Footer, TabbedContent, TabPane
+
 
 from bbot_server.cli.tui.screens.dashboard import DashboardScreen
 from bbot_server.cli.tui.screens.scans import ScansScreen
@@ -52,9 +53,44 @@ class BBOTServerTUI(App):
         self.websocket_service = None
         self.state_service = None
 
+        # Store screen instances
+        self.dashboard_screen = None
+        self.scans_screen = None
+        self.assets_screen = None
+        self.findings_screen = None
+        self.activity_screen = None
+        self.agents_screen = None
+
     def compose(self) -> ComposeResult:
         """Create child widgets for the app"""
         yield TextualHeader()
+
+        # Create tabbed interface
+        with TabbedContent(initial="tab-dashboard", id="main-tabs"):
+            with TabPane("Dashboard", id="tab-dashboard"):
+                self.dashboard_screen = DashboardScreen(self)
+                yield self.dashboard_screen
+
+            with TabPane("Scans", id="tab-scans"):
+                self.scans_screen = ScansScreen(self)
+                yield self.scans_screen
+
+            with TabPane("Assets", id="tab-assets"):
+                self.assets_screen = AssetsScreen(self)
+                yield self.assets_screen
+
+            with TabPane("Findings", id="tab-findings"):
+                self.findings_screen = FindingsScreen(self)
+                yield self.findings_screen
+
+            with TabPane("Activity", id="tab-activity"):
+                self.activity_screen = ActivityScreen(self)
+                yield self.activity_screen
+
+            with TabPane("Agents", id="tab-agents"):
+                self.agents_screen = AgentsScreen(self)
+                yield self.agents_screen
+
         yield Footer()
 
     def on_mount(self) -> None:
@@ -68,42 +104,96 @@ class BBOTServerTUI(App):
         self.websocket_service = WebSocketService(self.bbot_server)
         self.state_service = StateService()
 
-        # Install screens
-        self.install_screen(DashboardScreen(self), name="dashboard")
-        self.install_screen(ScansScreen(self), name="scans")
-        self.install_screen(AssetsScreen(self), name="assets")
-        self.install_screen(FindingsScreen(self), name="findings")
-        self.install_screen(ActivityScreen(self), name="activity")
-        self.install_screen(AgentsScreen(self), name="agents")
+        # Trigger initial refresh on all screens now that services are ready
+        # Using call_later to ensure widgets are fully mounted
+        self.call_later(self._initial_refresh)
 
-        # Show dashboard by default
-        self.push_screen("dashboard")
+    async def _initial_refresh(self) -> None:
+        """Trigger initial data load for the dashboard (initial tab)"""
+        # Load only the dashboard (initial tab)
+        if self.dashboard_screen:
+            await self.dashboard_screen.load_initial_data()
+
+    def on_tabbed_content_tab_activated(self, event) -> None:
+        """Handle tab changes - lazy load data on first visit"""
+        # Get the TabbedContent widget and find which pane is active
+        tabs = self.query_one("#main-tabs", TabbedContent)
+        active_pane_id = tabs.active
+
+        # Map pane IDs to screens
+        tab_to_screen = {
+            "tab-dashboard": self.dashboard_screen,
+            "tab-scans": self.scans_screen,
+            "tab-assets": self.assets_screen,
+            "tab-findings": self.findings_screen,
+            "tab-activity": self.activity_screen,
+            "tab-agents": self.agents_screen,
+        }
+
+        # Get the screen for this tab and trigger lazy load
+        screen = tab_to_screen.get(active_pane_id)
+        if screen and hasattr(screen, 'load_initial_data'):
+            self.run_worker(screen.load_initial_data(), exclusive=True)
+
+    async def action_quit(self) -> None:
+        """Override quit to ensure cleanup"""
+        # Stop ALL screen refresh timers
+        screens_with_timers = [
+            self.dashboard_screen,
+            self.scans_screen,
+            self.assets_screen,
+            self.findings_screen,
+            self.agents_screen,
+        ]
+
+        for screen in screens_with_timers:
+            if screen and hasattr(screen, '_refresh_timer') and screen._refresh_timer:
+                screen._refresh_timer.stop()
+
+        # Stop activity streaming and its timer
+        if self.activity_screen:
+            if hasattr(self.activity_screen, '_start_timer') and self.activity_screen._start_timer:
+                self.activity_screen._start_timer.stop()
+            await self.activity_screen.stop_streaming()
+
+        # Shutdown WebSocket service (properly closes async client)
+        if self.websocket_service:
+            await self.websocket_service.shutdown()
+
+        # Now quit normally - clean exit!
+        self.exit()
+
 
     def action_show_dashboard(self) -> None:
-        """Show the dashboard screen"""
-        self.push_screen("dashboard")
+        """Show the dashboard tab"""
+        tabs = self.query_one(TabbedContent)
+        tabs.active = "tab-dashboard"
 
     def action_show_scans(self) -> None:
-        """Show the scans screen"""
-        self.push_screen("scans")
+        """Show the scans tab"""
+        tabs = self.query_one(TabbedContent)
+        tabs.active = "tab-scans"
 
     def action_show_assets(self) -> None:
-        """Show the assets screen"""
-        self.push_screen("assets")
+        """Show the assets tab"""
+        tabs = self.query_one(TabbedContent)
+        tabs.active = "tab-assets"
 
     def action_show_findings(self) -> None:
-        """Show the findings screen"""
-        self.push_screen("findings")
+        """Show the findings tab"""
+        tabs = self.query_one(TabbedContent)
+        tabs.active = "tab-findings"
 
     def action_show_activity(self) -> None:
-        """Show the activity screen"""
-        self.push_screen("activity")
+        """Show the activity tab"""
+        tabs = self.query_one(TabbedContent)
+        tabs.active = "tab-activity"
 
     def action_show_agents(self) -> None:
-        """Show the agents screen"""
-        self.push_screen("agents")
+        """Show the agents tab"""
+        tabs = self.query_one(TabbedContent)
+        tabs.active = "tab-agents"
 
     def action_show_help(self) -> None:
         """Show help modal with keyboard shortcuts"""
-        # Will implement in Phase 9
         self.notify("Help: d=Dashboard s=Scans a=Assets f=Findings v=Activity g=Agents q=Quit")

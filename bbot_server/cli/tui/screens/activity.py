@@ -2,10 +2,11 @@
 Activity screen for BBOT Server TUI
 """
 from textual.app import ComposeResult
-from textual.screen import Screen
+# Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Footer, Static, Button
 from textual.binding import Binding
+from textual.css.query import NoMatches
 from textual.reactive import reactive
 from textual import work
 
@@ -13,7 +14,7 @@ from bbot_server.cli.tui.widgets.activity_feed import ActivityFeed
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 
 
-class ActivityScreen(Screen):
+class ActivityScreen(Container):
     """
     Live activity feed screen
 
@@ -21,18 +22,6 @@ class ActivityScreen(Screen):
     filtering, pause/resume, and auto-scroll functionality.
     """
 
-    BINDINGS = [
-        Binding("d", "app.show_dashboard", "Dashboard"),
-        Binding("s", "app.show_scans", "Scans"),
-        Binding("a", "app.show_assets", "Assets"),
-        Binding("f", "app.show_findings", "Findings"),
-        Binding("v", "app.show_activity", "Activity"),
-        Binding("g", "app.show_agents", "Agents"),
-        Binding('space', 'toggle_pause', 'Pause/Resume'),
-        Binding('c', 'clear_feed', 'Clear'),
-        Binding('r', 'restart_stream', 'Restart'),
-        Binding('q', 'app.quit', 'Quit'),
-    ]
 
     is_streaming = reactive(False)
     is_paused = reactive(False)
@@ -43,6 +32,8 @@ class ActivityScreen(Screen):
         super().__init__()
         self.bbot_app = app
         self._stream_worker = None
+        self._start_timer = None
+        self._has_loaded = False
 
     def compose(self) -> ComposeResult:
         """Create child widgets"""
@@ -61,21 +52,45 @@ class ActivityScreen(Screen):
             with Vertical(id="activity-feed-container"):
                 yield ActivityFeed(max_activities=1000, id="activity-feed")
 
-        # Footer with keyboard shortcuts
-        yield Footer()
 
     async def on_mount(self) -> None:
-        """Called when screen is mounted - start WebSocket streaming"""
-        # Start WebSocket stream
-        await self.start_streaming()
+        """Called when screen is mounted - don't start streaming yet"""
+        pass
+
+    async def load_initial_data(self) -> None:
+        """Start streaming on first visit to this tab"""
+        if self._has_loaded:
+            return
+
+        self._has_loaded = True
+
+        # Start trying to stream (will retry if services not ready)
+        self._start_timer = self.set_interval(1.0, self._try_start_streaming)
 
     async def on_unmount(self) -> None:
         """Called when screen is unmounted - stop streaming"""
+        # Stop the start timer
+        if self._start_timer:
+            self._start_timer.stop()
+
+        # Stop streaming
         await self.stop_streaming()
+
+    async def _try_start_streaming(self) -> None:
+        """Try to start streaming, stop trying once successful"""
+        if not self.is_streaming and self.bbot_app.websocket_service:
+            await self.start_streaming()
+            # Stop trying once we've started
+            if self.is_streaming and self._start_timer:
+                self._start_timer.stop()
 
     async def start_streaming(self) -> None:
         """Start WebSocket activity streaming"""
         if self.is_streaming:
+            return
+
+        # Check if services are initialized
+        if not self.bbot_app.websocket_service:
             return
 
         self.is_streaming = True
@@ -90,9 +105,13 @@ class ActivityScreen(Screen):
         """Stop WebSocket activity streaming"""
         self.is_streaming = False
 
-        # Cancel the worker
+        # Cancel the worker and wait for it to finish
         if self._stream_worker and not self._stream_worker.is_finished:
             self._stream_worker.cancel()
+            try:
+                await self._stream_worker.wait()
+            except Exception:
+                pass  # Expected - worker was cancelled
 
         # Update status (only if screen is still mounted)
         try:

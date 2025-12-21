@@ -27,12 +27,23 @@ class WebSocketService:
         Initialize the WebSocket service
 
         Args:
-            bbot_server: BBOTServer HTTP client instance
+            bbot_server: BBOTServer HTTP client instance (sync wrapper)
         """
         self.bbot_server = bbot_server
         self._activity_callbacks: List[Callable] = []
         self._is_streaming = False
         self._stream_task: Optional[asyncio.Task] = None
+
+        # Get the underlying async client from the sync wrapper
+        # The sync wrapper (_SyncWrapper) wraps an async client instance
+        # We can access it via ._instance to get the real async methods
+        if hasattr(bbot_server, '_instance'):
+            self._async_client = bbot_server._instance
+        else:
+            # Fallback: create new async client
+            from bbot_server.interfaces.http import http
+            from bbot_server.config import BBOT_SERVER_CONFIG
+            self._async_client = http(url=BBOT_SERVER_CONFIG.url)
 
     def subscribe_activities(self, callback: Callable) -> None:
         """
@@ -82,6 +93,17 @@ class WebSocketService:
                 pass
         log.info("Stopped activity stream")
 
+    async def shutdown(self) -> None:
+        """Shutdown the WebSocket service and cleanup"""
+        self._is_streaming = False
+
+        # Close the async HTTP client
+        if hasattr(self._async_client, '_client') and self._async_client._client:
+            try:
+                await self._async_client._client.aclose()
+            except Exception as e:
+                log.error(f"Error closing async client: {e}")
+
     async def _stream_activities_with_reconnect(self, n: int = 100) -> None:
         """
         Stream activities with automatic reconnection
@@ -130,7 +152,7 @@ class WebSocketService:
 
     async def tail_activities(self, n: int = 10) -> AsyncGenerator:
         """
-        Tail activities via WebSocket
+        Tail activities via WebSocket using native async client
 
         Args:
             n: Number of historic activities to fetch
@@ -139,26 +161,18 @@ class WebSocketService:
             Activity models as they arrive
         """
         try:
-            # The bbot_server client is wrapped with @async_to_sync_class
-            # so tail_activities returns a sync generator, not async
-            # We need to run it in an executor to make it async
-            import asyncio
-            loop = asyncio.get_event_loop()
-
-            # Get the sync generator
-            sync_gen = self.bbot_server.tail_activities(n=n)
-
-            # Iterate through it in executor to avoid blocking
-            while True:
-                try:
-                    # Run the next() call in a thread to avoid blocking
-                    activity = await loop.run_in_executor(None, lambda: next(sync_gen))
-                    yield activity
-                except StopIteration:
-                    break
+            # Use the async client directly - no sync wrapper!
+            # This returns a proper async generator that can be cancelled cleanly
+            async for activity in self._async_client.tail_activities(n=n):
+                # Don't check _is_streaming here - let the caller control when to stop
+                # The ActivityScreen will break out of the loop when it wants to stop
+                yield activity
 
         except BBOTServerError as e:
             log.error(f"Error tailing activities: {e}")
+            raise
+        except Exception as e:
+            log.error(f"Unexpected error in tail_activities: {e}")
             raise
 
     async def list_recent_activities(self, n: int = 50, host: Optional[str] = None,

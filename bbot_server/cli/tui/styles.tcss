@@ -8,6 +8,35 @@ Screen {
     background: $surface;
 }
 
+/* TabbedContent styling */
+TabbedContent {
+    height: 1fr;
+}
+
+Tabs {
+    background: $surface;
+}
+
+Tab {
+    background: $surface;
+    color: grey;
+}
+
+Tab.-active {
+    background: #FF8400;
+    color: black;
+    text-style: bold;
+}
+
+Tab:hover {
+    background: #FF8400 50%;
+}
+
+TabPane {
+    height: 1fr;
+    padding: 0;
+}
+
 /* Placeholder text */
 .placeholder {
     content-align: center middle;

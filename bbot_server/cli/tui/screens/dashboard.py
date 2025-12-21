@@ -2,33 +2,25 @@
 Dashboard screen for BBOT Server TUI
 """
 from textual.app import ComposeResult
-from textual.screen import Screen
+# Removed Screen import
 from textual.containers import Container, Horizontal, Vertical, Grid
 from textual.widgets import Static, Button, Footer, DataTable
 from textual.binding import Binding
+from textual.css.query import NoMatches
 
 from bbot_server.cli.tui.utils.formatters import format_number, format_timestamp_short
 from bbot_server.cli.tui.utils.colors import get_severity_color, colorize_severity
 
 
-class DashboardScreen(Screen):
+class DashboardScreen(Container):
     """Dashboard overview screen with stats and recent activity"""
 
-    BINDINGS = [
-        Binding("d", "app.show_dashboard", "Dashboard"),
-        Binding("s", "app.show_scans", "Scans"),
-        Binding("a", "app.show_assets", "Assets"),
-        Binding("f", "app.show_findings", "Findings"),
-        Binding("v", "app.show_activity", "Activity"),
-        Binding("g", "app.show_agents", "Agents"),
-        Binding("r", "refresh", "Refresh"),
-        Binding("q", "app.quit", "Quit"),
-    ]
 
     def __init__(self, app):
         super().__init__()
         self.bbot_app = app
         self._refresh_timer = None
+        self._has_loaded = False
 
     def compose(self) -> ComposeResult:
         """Create child widgets"""
@@ -90,16 +82,23 @@ class DashboardScreen(Screen):
                     scans_table.add_columns("Name", "Status", "Target", "Started")
                     yield scans_table
 
-        # Footer with keyboard shortcuts
-        yield Footer()
 
     async def on_mount(self) -> None:
         """Called when screen is mounted"""
-        # Start periodic refresh
-        self._refresh_timer = self.set_interval(5.0, self.refresh_dashboard, pause=False)
+        # Start periodic refresh (paused until first load)
+        self._refresh_timer = self.set_interval(5.0, self.refresh_dashboard, pause=True)
 
-        # Initial load
+    async def load_initial_data(self) -> None:
+        """Load data on first visit to this tab"""
+        if self._has_loaded:
+            return
+
+        self._has_loaded = True
         await self.refresh_dashboard()
+
+        # Resume periodic refresh
+        if self._refresh_timer:
+            self._refresh_timer.resume()
 
     async def on_unmount(self) -> None:
         """Called when screen is unmounted"""
@@ -108,6 +107,10 @@ class DashboardScreen(Screen):
 
     async def refresh_dashboard(self) -> None:
         """Fetch and display dashboard stats"""
+        # Check if services are initialized
+        if not self.bbot_app.data_service:
+            return
+
         try:
             # Fetch stats
             stats = await self.bbot_app.data_service.get_stats()
