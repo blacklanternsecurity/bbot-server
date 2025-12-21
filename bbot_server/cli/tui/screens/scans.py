@@ -2,10 +2,11 @@
 Scans screen for BBOT Server TUI
 """
 from textual.app import ComposeResult
-from textual.screen import Screen
+# Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Footer, Static, Button
 from textual.binding import Binding
+from textual.css.query import NoMatches
 from textual.reactive import reactive
 
 from bbot_server.cli.tui.widgets.scan_table import ScanTable
@@ -13,7 +14,7 @@ from bbot_server.cli.tui.widgets.scan_detail import ScanDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 
 
-class ScansScreen(Screen):
+class ScansScreen(Container):
     """
     Scan management screen
 
@@ -21,17 +22,6 @@ class ScansScreen(Screen):
     and actions for creating, cancelling, and refreshing scans.
     """
 
-    BINDINGS = [
-        Binding("d", "app.show_dashboard", "Dashboard"),
-        Binding("s", "app.show_scans", "Scans"),
-        Binding("a", "app.show_assets", "Assets"),
-        Binding("f", "app.show_findings", "Findings"),
-        Binding("v", "app.show_activity", "Activity"),
-        Binding("g", "app.show_agents", "Agents"),
-        Binding('r', 'refresh', 'Refresh'),
-        Binding('c', 'cancel_scan', 'Cancel'),
-        Binding('q', 'app.quit', 'Quit'),
-    ]
 
     filter_text = reactive("")
     selected_scan_id = reactive(None)
@@ -40,6 +30,7 @@ class ScansScreen(Screen):
         super().__init__()
         self.bbot_app = app
         self._refresh_timer = None
+        self._has_loaded = False
 
     def compose(self) -> ComposeResult:
         """Create child widgets"""
@@ -60,16 +51,23 @@ class ScansScreen(Screen):
                     yield Static("[bold]Scan Details[/bold]", id="detail-header")
                     yield ScanDetail(id="scan-detail")
 
-        # Footer with keyboard shortcuts
-        yield Footer()
 
     async def on_mount(self) -> None:
         """Called when screen is mounted"""
-        # Start periodic refresh
-        self._refresh_timer = self.set_interval(5.0, self.refresh_scans, pause=False)
+        # Start periodic refresh (paused until first load)
+        self._refresh_timer = self.set_interval(5.0, self.refresh_scans, pause=True)
 
-        # Initial load
+    async def load_initial_data(self) -> None:
+        """Load data on first visit to this tab"""
+        if self._has_loaded:
+            return
+
+        self._has_loaded = True
         await self.refresh_scans()
+
+        # Resume periodic refresh
+        if self._refresh_timer:
+            self._refresh_timer.resume()
 
     async def on_unmount(self) -> None:
         """Called when screen is unmounted"""
@@ -79,6 +77,10 @@ class ScansScreen(Screen):
 
     async def refresh_scans(self) -> None:
         """Fetch and display scans from the server"""
+        # Check if services are initialized
+        if not self.bbot_app.data_service:
+            return
+
         try:
             # Show loading status
             status = self.query_one("#scans-status", Static)

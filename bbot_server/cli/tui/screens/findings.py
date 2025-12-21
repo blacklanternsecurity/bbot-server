@@ -2,10 +2,11 @@
 Findings screen for BBOT Server TUI
 """
 from textual.app import ComposeResult
-from textual.screen import Screen
+# Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Footer, Static, Button
 from textual.binding import Binding
+from textual.css.query import NoMatches
 from textual.reactive import reactive
 
 from bbot_server.cli.tui.widgets.finding_table import FindingTable
@@ -13,24 +14,9 @@ from bbot_server.cli.tui.widgets.finding_detail import FindingDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 
 
-class FindingsScreen(Screen):
+class FindingsScreen(Container):
     """Findings viewer screen with severity filtering"""
 
-    BINDINGS = [
-        Binding("d", "app.show_dashboard", "Dashboard"),
-        Binding("s", "app.show_scans", "Scans"),
-        Binding("a", "app.show_assets", "Assets"),
-        Binding("f", "app.show_findings", "Findings"),
-        Binding("v", "app.show_activity", "Activity"),
-        Binding("g", "app.show_agents", "Agents"),
-        Binding('r', 'refresh', 'Refresh'),
-        Binding('1', 'filter_severity_1', 'INFO+'),
-        Binding('2', 'filter_severity_2', 'LOW+'),
-        Binding('3', 'filter_severity_3', 'MED+'),
-        Binding('4', 'filter_severity_4', 'HIGH+'),
-        Binding('5', 'filter_severity_5', 'CRIT'),
-        Binding('q', 'app.quit', 'Quit'),
-    ]
 
     filter_text = reactive("")
     min_severity = reactive(1)  # 1=INFO, 5=CRITICAL
@@ -39,6 +25,7 @@ class FindingsScreen(Screen):
         super().__init__()
         self.bbot_app = app
         self._refresh_timer = None
+        self._has_loaded = False
 
     def compose(self) -> ComposeResult:
         """Create child widgets"""
@@ -61,16 +48,23 @@ class FindingsScreen(Screen):
                     yield Static("[bold]Finding Details[/bold]", id="detail-header")
                     yield FindingDetail(id="finding-detail")
 
-        # Footer with keyboard shortcuts
-        yield Footer()
 
     async def on_mount(self) -> None:
         """Called when screen is mounted"""
-        # Start periodic refresh
-        self._refresh_timer = self.set_interval(10.0, self.refresh_findings, pause=False)
+        # Start periodic refresh (paused until first load)
+        self._refresh_timer = self.set_interval(10.0, self.refresh_findings, pause=True)
 
-        # Initial load
+    async def load_initial_data(self) -> None:
+        """Load data on first visit to this tab"""
+        if self._has_loaded:
+            return
+
+        self._has_loaded = True
         await self.refresh_findings()
+
+        # Resume periodic refresh
+        if self._refresh_timer:
+            self._refresh_timer.resume()
 
     async def on_unmount(self) -> None:
         """Called when screen is unmounted"""
@@ -79,6 +73,10 @@ class FindingsScreen(Screen):
 
     async def refresh_findings(self) -> None:
         """Fetch and display findings"""
+        # Check if services are initialized
+        if not self.bbot_app.data_service:
+            return
+
         try:
             status = self.query_one("#findings-status", Static)
             status.update("[cyan]Loading findings...[/cyan]")

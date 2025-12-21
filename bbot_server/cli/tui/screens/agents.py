@@ -2,33 +2,24 @@
 Agents screen for BBOT Server TUI
 """
 from textual.app import ComposeResult
-from textual.screen import Screen
+# Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Footer, Static, Button, DataTable
 from textual.binding import Binding
+from textual.css.query import NoMatches
 
 from bbot_server.cli.tui.utils.formatters import format_timestamp_short
 
 
-class AgentsScreen(Screen):
+class AgentsScreen(Container):
     """Agent management screen"""
 
-    BINDINGS = [
-        Binding("d", "app.show_dashboard", "Dashboard"),
-        Binding("s", "app.show_scans", "Scans"),
-        Binding("a", "app.show_assets", "Assets"),
-        Binding("f", "app.show_findings", "Findings"),
-        Binding("v", "app.show_activity", "Activity"),
-        Binding("g", "app.show_agents", "Agents"),
-        Binding('r', 'refresh', 'Refresh'),
-        Binding('n', 'create_agent', 'New Agent'),
-        Binding('q', 'app.quit', 'Quit'),
-    ]
 
     def __init__(self, app):
         super().__init__()
         self.bbot_app = app
         self._refresh_timer = None
+        self._has_loaded = False
 
     def compose(self) -> ComposeResult:
         """Create child widgets"""
@@ -45,8 +36,6 @@ class AgentsScreen(Screen):
             # Agent list
             yield DataTable(id="agent-table")
 
-        # Footer with keyboard shortcuts
-        yield Footer()
 
     async def on_mount(self) -> None:
         """Called when screen is mounted"""
@@ -56,11 +45,20 @@ class AgentsScreen(Screen):
         table.cursor_type = "row"
         table.zebra_stripes = True
 
-        # Start periodic refresh
-        self._refresh_timer = self.set_interval(5.0, self.refresh_agents, pause=False)
+        # Start periodic refresh (paused until first load)
+        self._refresh_timer = self.set_interval(5.0, self.refresh_agents, pause=True)
 
-        # Initial load
+    async def load_initial_data(self) -> None:
+        """Load data on first visit to this tab"""
+        if self._has_loaded:
+            return
+
+        self._has_loaded = True
         await self.refresh_agents()
+
+        # Resume periodic refresh
+        if self._refresh_timer:
+            self._refresh_timer.resume()
 
     async def on_unmount(self) -> None:
         """Called when screen is unmounted"""
@@ -69,6 +67,10 @@ class AgentsScreen(Screen):
 
     async def refresh_agents(self) -> None:
         """Fetch and display agents"""
+        # Check if services are initialized
+        if not self.bbot_app.data_service:
+            return
+
         try:
             status = self.query_one("#agents-status", Static)
             status.update("[cyan]Loading agents...[/cyan]")
