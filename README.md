@@ -167,6 +167,8 @@ If you forgot to output a scan to BBOT server, you can easily ingest it after th
 cat ~/.bbot/scans/demonic_jimmy/output.json | bbctl event ingest
 ```
 
+Note that this requires BBOT 3.0 or later (install with `pipx install git+https://github.com/blacklanternsecurity/bbot@3.0`)
+
 ## Start a scan (through BBOT server)
 
 To start a scan in BBOT server, you need to first create a **Preset** and **Target**.
