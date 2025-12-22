@@ -4,7 +4,7 @@ Assets screen for BBOT Server TUI
 from textual.app import ComposeResult
 # Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Footer, Static, Button, Checkbox
+from textual.widgets import Footer, Static, Button
 from textual.binding import Binding
 from textual.css.query import NoMatches
 from textual.reactive import reactive
@@ -19,7 +19,6 @@ class AssetsScreen(Container):
 
 
     filter_text = reactive("")
-    in_scope_only = reactive(False)
 
     def __init__(self, app):
         super().__init__()
@@ -33,7 +32,6 @@ class AssetsScreen(Container):
             # Filter controls
             with Horizontal(id="asset-controls"):
                 yield FilterBar(placeholder="Filter by domain or host...", id="asset-filter")
-                yield Checkbox("In-Scope Only", id="inscope-checkbox")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
             # Status bar
@@ -87,8 +85,6 @@ class AssetsScreen(Container):
                 # Assume filter is domain if it contains dots
                 if "." in self.filter_text:
                     kwargs['domain'] = self.filter_text
-            if self.in_scope_only:
-                kwargs['in_scope_only'] = True
 
             # Fetch assets
             assets = await self.bbot_app.data_service.list_assets(**kwargs)
@@ -127,12 +123,6 @@ class AssetsScreen(Container):
         # Trigger refresh with new filter
         self.run_worker(self.refresh_assets())
 
-    def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
-        """Handle checkbox changes"""
-        if event.checkbox.id == "inscope-checkbox":
-            self.in_scope_only = event.value
-            # Trigger refresh
-            self.run_worker(self.refresh_assets())
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""
@@ -154,8 +144,3 @@ class AssetsScreen(Container):
         filter_bar = self.query_one("#asset-filter", FilterBar)
         filter_bar.clear_filter()
         self.filter_text = ""
-
-    def action_toggle_inscope(self) -> None:
-        """Toggle in-scope only filter"""
-        checkbox = self.query_one("#inscope-checkbox", Checkbox)
-        checkbox.toggle()

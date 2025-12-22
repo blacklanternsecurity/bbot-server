@@ -40,7 +40,7 @@ class ActivityScreen(Container):
         with Container(id="activity-container"):
             # Controls at top
             with Horizontal(id="activity-controls"):
-                yield FilterBar(placeholder="Filter activities...", id="activity-filter")
+                yield FilterBar(placeholder="Filter by activity type or description...", id="activity-filter")
                 yield Button("Pause", id="pause-btn", variant="warning")
                 yield Button("Clear", id="clear-btn", variant="error")
                 yield Button("Refresh", id="refresh-btn", variant="primary")

@@ -32,7 +32,7 @@ class FindingsScreen(Container):
         with Container(id="findings-container"):
             # Filter controls
             with Horizontal(id="finding-controls"):
-                yield FilterBar(placeholder="Search findings...", id="finding-filter")
+                yield FilterBar(placeholder="Search by name, host, or description...", id="finding-filter")
                 yield Static("Severity: ALL", id="severity-filter")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
