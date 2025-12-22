@@ -112,24 +112,38 @@ class DashboardScreen(Container):
             return
 
         try:
-            # Fetch stats
-            stats = await self.bbot_app.data_service.get_stats()
+            # Fetch scans to count them
+            scans = await self.bbot_app.data_service.get_scans()
+            scan_count = len(scans)
+            active_scan_count = sum(1 for scan in scans if hasattr(scan, 'status') and scan.status == 'RUNNING')
+
+            # Fetch agents to count them
+            agents = await self.bbot_app.data_service.get_agents()
+            agent_count = len(agents)
+
+            # Fetch assets to count them
+            assets = await self.bbot_app.data_service.list_assets(limit=10000)
+            asset_count = len(assets)
+
+            # Fetch findings to count them
+            findings = await self.bbot_app.data_service.list_findings(limit=10000)
+            finding_count = len(findings)
 
             # Update stat cards
             self.query_one("#stat-scans-value", Static).update(
-                format_number(stats.get('scan_count', 0))
+                format_number(scan_count)
             )
             self.query_one("#stat-active-value", Static).update(
-                format_number(stats.get('active_scan_count', 0))
+                format_number(active_scan_count)
             )
             self.query_one("#stat-assets-value", Static).update(
-                format_number(stats.get('asset_count', 0))
+                format_number(asset_count)
             )
             self.query_one("#stat-findings-value", Static).update(
-                format_number(stats.get('finding_count', 0))
+                format_number(finding_count)
             )
             self.query_one("#stat-agents-value", Static).update(
-                format_number(stats.get('agent_count', 0))
+                format_number(agent_count)
             )
 
             # Update recent findings
