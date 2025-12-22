@@ -1,8 +1,8 @@
-# CLAUDE.md - BBOT Server TUI Implementation
+# CLAUDE.md - BBOT Server TUI Reference
 
-## Project Overview
+## Overview
 
-This document describes the implementation of a comprehensive Terminal User Interface (TUI) for BBOT Server using the Textual framework. The TUI provides a rich, interactive experience for managing security scans with real-time updates, filtering, and full CRUD operations.
+This document provides a comprehensive reference for the BBOT Server Terminal User Interface (TUI) built with the Textual framework. The TUI provides a rich, interactive experience for managing security scans with real-time updates, filtering, and full CRUD operations.
 
 **Implementation Date**: December 21, 2025
 **Framework**: Textual 0.85.2
@@ -92,17 +92,32 @@ class TUICTL(BaseBBCTL):
     attach_to = "bbctl"  # Auto-registers as subcommand
 ```
 
-### WebSocket Streaming Fix
-**Issue**: BBOTServer HTTP client uses `@async_to_sync_class` decorator, so `tail_activities()` returns a **sync generator** not async.
+### Accessing Native Async Client
+**Issue**: BBOTServer HTTP client uses `@async_to_sync_class` decorator, which wraps async methods to make them synchronous. This causes problems when you need async generators or want to use proper async/await patterns.
 
-**Solution**: Wrap in executor to make non-blocking:
+**Solution**: Access the underlying async instance via `._instance`:
 ```python
-# In WebSocketService.tail_activities()
-sync_gen = self.bbot_server.tail_activities(n=n)
-while True:
-    activity = await loop.run_in_executor(None, lambda: next(sync_gen))
+# In WebSocketService.__init__()
+if hasattr(bbot_server, '_instance'):
+    self._async_client = bbot_server._instance
+else:
+    # Fallback: create new async client
+    from bbot_server.interfaces.http import http
+    from bbot_server.config import BBOT_SERVER_CONFIG
+    self._async_client = http(url=BBOT_SERVER_CONFIG.url)
+
+# Now use native async methods
+async for activity in self._async_client.tail_activities(n=n):
     yield activity
 ```
+
+**Benefits**:
+- Native async/await - no sync conversion overhead
+- Proper async generators - no need for `run_in_executor()` workarounds
+- Cleaner cancellation - async generators cancel properly
+- Better performance - no thread pool executor overhead
+
+**Note**: DataService currently still uses the sync-wrapped methods. This could be optimized by using `._instance` pattern there as well.
 
 ### Footer Implementation
 Every screen includes Footer widget showing context-aware keyboard shortcuts:
@@ -240,29 +255,6 @@ DONE = "green"
 FAILED = "red"
 QUEUED = "grey"
 ```
-
----
-
-## Known Issues & Solutions
-
-### Issue 1: Activity Screen Error on Navigate
-**Problem**: `NoMatches: No nodes match '#activity-status'` when switching screens
-**Solution**: Added try/except in `update_status()` and `stop_streaming()` to handle unmounted widgets
-
-### Issue 2: WebSocket 'async for' Error
-**Problem**: `'async for' requires an object with __aiter__ method, got generator`
-**Cause**: BBOTServer HTTP client is wrapped with `@async_to_sync_class`, returns sync generator
-**Solution**: Use `run_in_executor()` to wrap sync generator iteration
-
-### Issue 3: Dashboard Findings Empty
-**Problem**: Findings tab shows data but dashboard list is empty
-**Cause**: Used dict access (`finding.get()`) on Pydantic models
-**Solution**: Use attribute access (`finding.severity`)
-
-### Issue 4: Footer Not Visible
-**Problem**: Footer not showing on screens
-**Cause**: Using `push_screen()` hides app-level Footer
-**Solution**: Add `yield Footer()` to each screen's `compose()` method
 
 ---
 
@@ -419,13 +411,21 @@ echo $BBOT_SERVER_API_KEY
 
 ---
 
-## Lessons Learned
+## Best Practices & Important Notes
 
-1. **@async_to_sync_class caveat**: Async generators become sync generators, need executor wrapping
-2. **Pydantic models**: Use attribute access, not dict methods
-3. **Footer visibility**: Must be added to each screen's compose(), not just app level
-4. **Widget lifecycle**: Always handle unmounted widgets with try/except in update methods
-5. **Auto-discovery**: File naming and location matter (`*_cli.py` in `modules/`)
+1. **Async Client Access**: Access underlying async client via `bbot_server._instance` to avoid sync wrapping. This gives you native async methods and proper async generators without needing `run_in_executor()` workarounds. Used in WebSocketService, could also be applied to DataService.
+
+2. **Pydantic Models**: Always use attribute access (`finding.severity`), not dict methods (`finding.get('severity')`). All API responses return Pydantic models, not plain dictionaries.
+
+3. **Widget Lifecycle**: Always handle unmounted widgets with try/except in update methods. Widgets can be unmounted during screen transitions, so defensive coding is essential.
+
+4. **Footer in Screens**: Footer must be added to each screen's `compose()` method (via `yield Footer()`), not just at the app level, due to how Textual handles screen overlays.
+
+5. **CLI Auto-Discovery**: File naming and location matter - files must be named `*_cli.py` and placed in `modules/` directory to be auto-discovered by the CLI framework.
+
+6. **Stats API Limitation**: The `/stats` endpoint only computes asset-related statistics by iterating over assets. For scan/agent/finding counts, fetch and count the data directly rather than relying on `/stats`.
+
+7. **Dashboard Counters**: All dashboard stat cards compute counts by fetching actual data (scans, agents, assets, findings) and using `len()`, not from the `/stats` endpoint.
 
 ---
 
