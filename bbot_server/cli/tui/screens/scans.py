@@ -37,7 +37,7 @@ class ScansScreen(Container):
         with Container(id="scans-container"):
             # Filter bar at top
             with Horizontal(id="filter-container"):
-                yield FilterBar(placeholder="Filter scans...", id="scan-filter")
+                yield FilterBar(placeholder="Filter by scan name or target...", id="scan-filter")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
                 yield Button("New Scan", id="new-scan-btn", variant="success")
 

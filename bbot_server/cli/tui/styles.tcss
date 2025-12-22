@@ -165,6 +165,9 @@ Vertical {
 #activity-controls,
 #asset-controls,
 #finding-controls,
+#event-controls,
+#technology-controls,
+#target-controls,
 #dashboard-header {
     height: 3;
     padding: 0 1;
@@ -193,10 +196,20 @@ Checkbox {
     margin: 0 1;
 }
 
+#severity-filter {
+    width: auto;
+    margin: 0 1;
+    padding: 0 1;
+    background: $surface;
+    color: $text;
+}
+
 /* Status bars */
 #scans-status,
 #assets-status,
 #findings-status,
+#technologies-status,
+#targets-status,
 #agents-status,
 #activity-status,
 #dashboard-status {
@@ -207,14 +220,18 @@ Checkbox {
 /* Main content areas */
 #scans-content,
 #assets-content,
-#findings-content {
+#findings-content,
+#technologies-content,
+#targets-content {
     height: 1fr;
 }
 
 /* Table containers */
 #scans-table-container,
 #assets-table-container,
-#findings-table-container {
+#findings-table-container,
+#technologies-table-container,
+#targets-table-container {
     width: 2fr;
     border: solid #808080;
 }
@@ -222,7 +239,9 @@ Checkbox {
 /* Detail panel containers */
 #scan-detail-container,
 #asset-detail-container,
-#finding-detail-container {
+#finding-detail-container,
+#technology-detail-container,
+#target-detail-container {
     width: 1fr;
     border: solid #808080;
     margin-left: 1;
@@ -238,7 +257,9 @@ Checkbox {
 
 #scan-detail,
 #asset-detail,
-#finding-detail {
+#finding-detail,
+#technology-detail,
+#target-detail {
     height: 1fr;
     padding: 1;
     overflow-y: auto;
@@ -334,7 +355,9 @@ DataTable:focus {
 
 #scans-table-container:focus-within,
 #assets-table-container:focus-within,
-#findings-table-container:focus-within {
+#findings-table-container:focus-within,
+#technologies-table-container:focus-within,
+#targets-table-container:focus-within {
     border: solid #808080;
 }
 

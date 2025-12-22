@@ -111,14 +111,13 @@ class DataService:
             return False
 
     async def list_assets(self, domain: Optional[str] = None, target_id: Optional[str] = None,
-                         in_scope_only: bool = False, limit: int = 1000) -> List[Any]:
+                         limit: int = 1000) -> List[Any]:
         """
         Fetch assets with optional filters
 
         Args:
             domain: Filter by domain (includes subdomains)
             target_id: Filter by target ID
-            in_scope_only: Only return in-scope assets
             limit: Maximum number of assets to return
 
         Returns:
@@ -130,12 +129,12 @@ class DataService:
                 kwargs['domain'] = domain
             if target_id:
                 kwargs['target_id'] = target_id
-            if in_scope_only:
-                kwargs['in_scope_only'] = True
+            if limit:
+                kwargs['limit'] = limit
 
             assets = list(self.bbot_server.list_assets(**kwargs))
             log.debug(f"Fetched {len(assets)} assets")
-            return assets[:limit]
+            return assets
         except BBOTServerError as e:
             log.error(f"Error fetching assets: {e}")
             return []
@@ -330,3 +329,146 @@ class DataService:
         except BBOTServerError as e:
             log.error(f"Error fetching presets: {e}")
             return []
+
+    async def list_events(self, event_type: Optional[str] = None, host: Optional[str] = None,
+                         domain: Optional[str] = None, scan: Optional[str] = None,
+                         active: bool = True, archived: bool = False) -> List[Any]:
+        """
+        List BBOT events with optional filters
+
+        Args:
+            event_type: Filter by event type
+            host: Filter by exact hostname or IP
+            domain: Filter by domain (including subdomains)
+            scan: Filter by scan ID
+            active: Include active (non-archived) events
+            archived: Include archived events
+
+        Returns:
+            List of Event models
+        """
+        try:
+            kwargs = {}
+            if event_type:
+                kwargs['type'] = event_type
+            if host:
+                kwargs['host'] = host
+            if domain:
+                kwargs['domain'] = domain
+            if scan:
+                kwargs['scan'] = scan
+            kwargs['active'] = active
+            kwargs['archived'] = archived
+
+            events = list(self.bbot_server.list_events(**kwargs))
+            log.debug(f"Fetched {len(events)} events")
+            return events
+        except BBOTServerError as e:
+            log.error(f"Error fetching events: {e}")
+            return []
+
+    async def list_technologies(self, domain: Optional[str] = None, host: Optional[str] = None,
+                               technology: Optional[str] = None, search: Optional[str] = None,
+                               target_id: Optional[str] = None, limit: int = 1000) -> List[Any]:
+        """
+        List technologies with optional filters
+
+        Args:
+            domain: Filter by domain (includes subdomains)
+            host: Filter by exact host
+            technology: Filter by technology name (exact match)
+            search: Search in technology names
+            target_id: Filter by target ID
+            limit: Maximum number of technologies to return
+
+        Returns:
+            List of Technology models
+        """
+        try:
+            kwargs = {}
+            if domain:
+                kwargs['domain'] = domain
+            if host:
+                kwargs['host'] = host
+            if technology:
+                kwargs['technology'] = technology
+            if search:
+                kwargs['search'] = search
+            if target_id:
+                kwargs['target_id'] = target_id
+
+            technologies = list(self.bbot_server.list_technologies(**kwargs))
+            log.debug(f"Fetched {len(technologies)} technologies")
+            return technologies[:limit]
+        except BBOTServerError as e:
+            log.error(f"Error fetching technologies: {e}")
+            return []
+
+    async def get_targets(self) -> List[Any]:
+        """
+        Get all targets
+
+        Returns:
+            List of Target models
+        """
+        try:
+            targets = list(self.bbot_server.get_targets())
+            log.debug(f"Fetched {len(targets)} targets")
+            return targets
+        except BBOTServerError as e:
+            log.error(f"Error fetching targets: {e}")
+            return []
+
+    async def create_target(self, name: str, description: str = "", target: Optional[List[str]] = None,
+                           seeds: Optional[List[str]] = None, blacklist: Optional[List[str]] = None,
+                           strict_dns_scope: bool = False) -> Optional[Any]:
+        """
+        Create a new target
+
+        Args:
+            name: Target name
+            description: Target description
+            target: List of targets (domains, IPs, CIDRs, URLs)
+            seeds: List of seeds (defaults to target if not provided)
+            blacklist: List of blacklisted items
+            strict_dns_scope: Whether to use strict DNS scope
+
+        Returns:
+            Created Target model or None on error
+        """
+        try:
+            # Import CreateTarget model and FastAPI encoder
+            from bbot_server.modules.targets.targets_models import CreateTarget
+            from fastapi.encoders import jsonable_encoder
+
+            # Debug: Log input parameters
+            log.info(f"create_target called with: name={name!r}, description={description!r}")
+            log.info(f"create_target: target={target}, seeds={seeds}")
+
+            # If seeds not provided, use target as seeds (BBOT core requires seeds)
+            if seeds is None and target:
+                seeds = target
+
+            # Prepare the data as a dict (exclude None values)
+            target_data = {
+                "name": name,
+                "description": description,
+                "target": target if target else [],
+                "blacklist": blacklist if blacklist else [],
+                "strict_dns_scope": strict_dns_scope,
+            }
+
+            # Only add seeds if provided (don't send None)
+            if seeds is not None:
+                target_data["seeds"] = seeds
+
+            # Debug: Log the data dict
+            log.info(f"Target data dict: {target_data}")
+
+            # Create via HTTP client - pass as keyword argument matching API signature
+            created_target = self.bbot_server.create_target(target=target_data)
+            log.info(f"Created target: {name}, returned: {created_target.name if created_target else 'None'}")
+            return created_target
+        except BBOTServerError as e:
+            log.error(f"Error creating target: {e}")
+            raise

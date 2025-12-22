@@ -10,6 +10,9 @@ from bbot_server.cli.tui.screens.dashboard import DashboardScreen
 from bbot_server.cli.tui.screens.scans import ScansScreen
 from bbot_server.cli.tui.screens.assets import AssetsScreen
 from bbot_server.cli.tui.screens.findings import FindingsScreen
+from bbot_server.cli.tui.screens.events import EventsScreen
+from bbot_server.cli.tui.screens.technologies import TechnologiesScreen
+from bbot_server.cli.tui.screens.targets import TargetsScreen
 from bbot_server.cli.tui.screens.activity import ActivityScreen
 from bbot_server.cli.tui.screens.agents import AgentsScreen
 
@@ -31,6 +34,9 @@ class BBOTServerTUI(App):
         Binding("s", "show_scans", "Scans"),
         Binding("a", "show_assets", "Assets"),
         Binding("f", "show_findings", "Findings"),
+        Binding("e", "show_events", "Events"),
+        Binding("t", "show_technologies", "Technologies"),
+        Binding("r", "show_targets", "Targets"),
         Binding("v", "show_activity", "Activity"),
         Binding("g", "show_agents", "Agents"),
         Binding("question_mark", "show_help", "Help"),
@@ -58,6 +64,9 @@ class BBOTServerTUI(App):
         self.scans_screen = None
         self.assets_screen = None
         self.findings_screen = None
+        self.events_screen = None
+        self.technologies_screen = None
+        self.targets_screen = None
         self.activity_screen = None
         self.agents_screen = None
 
@@ -83,6 +92,18 @@ class BBOTServerTUI(App):
                 self.findings_screen = FindingsScreen(self)
                 yield self.findings_screen
 
+            with TabPane("Events", id="tab-events"):
+                self.events_screen = EventsScreen(self)
+                yield self.events_screen
+
+            with TabPane("Technologies", id="tab-technologies"):
+                self.technologies_screen = TechnologiesScreen(self)
+                yield self.technologies_screen
+
+            with TabPane("Targets", id="tab-targets"):
+                self.targets_screen = TargetsScreen(self)
+                yield self.targets_screen
+
             with TabPane("Activity", id="tab-activity"):
                 self.activity_screen = ActivityScreen(self)
                 yield self.activity_screen
@@ -95,9 +116,24 @@ class BBOTServerTUI(App):
 
     def on_mount(self) -> None:
         """Called when app is mounted - initialize services"""
+        import logging
         from bbot_server.cli.tui.services.data_service import DataService
         from bbot_server.cli.tui.services.websocket_service import WebSocketService
         from bbot_server.cli.tui.services.state_service import StateService
+
+        # Setup file logging for debugging
+        log_file = "/tmp/bbot_tui_debug.log"
+        file_handler = logging.FileHandler(log_file, mode='w')
+        file_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+
+        # Add handler to root logger and TUI-specific loggers
+        root_logger = logging.getLogger()
+        root_logger.addHandler(file_handler)
+        root_logger.setLevel(logging.INFO)
+
+        self.log.info(f"TUI debug logging to: {log_file}")
 
         # Initialize services
         self.data_service = DataService(self.bbot_server)
@@ -126,6 +162,9 @@ class BBOTServerTUI(App):
             "tab-scans": self.scans_screen,
             "tab-assets": self.assets_screen,
             "tab-findings": self.findings_screen,
+            "tab-events": self.events_screen,
+            "tab-technologies": self.technologies_screen,
+            "tab-targets": self.targets_screen,
             "tab-activity": self.activity_screen,
             "tab-agents": self.agents_screen,
         }
@@ -143,6 +182,9 @@ class BBOTServerTUI(App):
             self.scans_screen,
             self.assets_screen,
             self.findings_screen,
+            self.events_screen,
+            self.technologies_screen,
+            self.targets_screen,
             self.agents_screen,
         ]
 
@@ -184,6 +226,21 @@ class BBOTServerTUI(App):
         tabs = self.query_one(TabbedContent)
         tabs.active = "tab-findings"
 
+    def action_show_events(self) -> None:
+        """Show the events tab"""
+        tabs = self.query_one(TabbedContent)
+        tabs.active = "tab-events"
+
+    def action_show_technologies(self) -> None:
+        """Show the technologies tab"""
+        tabs = self.query_one(TabbedContent)
+        tabs.active = "tab-technologies"
+
+    def action_show_targets(self) -> None:
+        """Show the targets tab"""
+        tabs = self.query_one(TabbedContent)
+        tabs.active = "tab-targets"
+
     def action_show_activity(self) -> None:
         """Show the activity tab"""
         tabs = self.query_one(TabbedContent)
@@ -196,4 +253,4 @@ class BBOTServerTUI(App):
 
     def action_show_help(self) -> None:
         """Show help modal with keyboard shortcuts"""
-        self.notify("Help: d=Dashboard s=Scans a=Assets f=Findings v=Activity g=Agents q=Quit")
+        self.notify("Help: d=Dashboard s=Scans a=Assets f=Findings e=Events t=Technologies r=Targets v=Activity g=Agents q=Quit")
