@@ -26,9 +26,19 @@ class DataService:
         Initialize the data service
 
         Args:
-            bbot_server: BBOTServer HTTP client instance
+            bbot_server: BBOTServer HTTP client instance (sync wrapper)
         """
         self.bbot_server = bbot_server
+
+        # Get the underlying async client from the sync wrapper
+        # This gives us native async methods without sync conversion overhead
+        if hasattr(bbot_server, '_instance'):
+            self._async_client = bbot_server._instance
+            log.debug("Using native async client via ._instance")
+        else:
+            # Fallback: use the sync wrapper
+            self._async_client = bbot_server
+            log.warning("._instance not found, using sync wrapper as fallback")
 
     async def get_scans(self) -> List[Any]:
         """
@@ -38,7 +48,8 @@ class DataService:
             List of Scan models
         """
         try:
-            scans = list(self.bbot_server.get_scans())
+            # Use native async generator from the async client
+            scans = [scan async for scan in self._async_client.get_scans()]
             log.debug(f"Fetched {len(scans)} scans")
             return scans
         except BBOTServerUnauthorizedError as e:
@@ -59,7 +70,7 @@ class DataService:
             Scan model or None if not found
         """
         try:
-            scan = self.bbot_server.get_scan(scan_id)
+            scan = await self._async_client.get_scan(scan_id)
             return scan
         except BBOTServerNotFoundError:
             log.warning(f"Scan not found: {scan_id}")
@@ -81,7 +92,7 @@ class DataService:
             Created Scan model or None on error
         """
         try:
-            scan = self.bbot_server.start_scan(
+            scan = await self._async_client.start_scan(
                 target_name=target_name,
                 preset_name=preset_name,
                 scan_name=scan_name
@@ -103,7 +114,7 @@ class DataService:
             True if successful, False otherwise
         """
         try:
-            self.bbot_server.cancel_scan(scan_id)
+            await self._async_client.cancel_scan(scan_id)
             log.info(f"Cancelled scan: {scan_id}")
             return True
         except BBOTServerError as e:
@@ -132,7 +143,7 @@ class DataService:
             if limit:
                 kwargs['limit'] = limit
 
-            assets = list(self.bbot_server.list_assets(**kwargs))
+            assets = [asset async for asset in self._async_client.list_assets(**kwargs)]
             log.debug(f"Fetched {len(assets)} assets")
             return assets
         except BBOTServerError as e:
@@ -150,7 +161,7 @@ class DataService:
             Asset model or None if not found
         """
         try:
-            asset = self.bbot_server.get_asset(host)
+            asset = await self._async_client.get_asset(host)
             return asset
         except BBOTServerNotFoundError:
             log.warning(f"Asset not found: {host}")
@@ -193,7 +204,7 @@ class DataService:
             if max_severity:
                 kwargs['max_severity'] = max_severity
 
-            findings = list(self.bbot_server.list_findings(**kwargs))
+            findings = [finding async for finding in self._async_client.list_findings(**kwargs)]
             log.debug(f"Fetched {len(findings)} findings")
             return findings[:limit]
         except BBOTServerError as e:
@@ -220,7 +231,7 @@ class DataService:
             if activity_type:
                 kwargs['type'] = activity_type
 
-            activities = list(self.bbot_server.list_activities(**kwargs))
+            activities = [activity async for activity in self._async_client.list_activities(**kwargs)]
             log.debug(f"Fetched {len(activities)} activities")
             return activities[:limit]
         except BBOTServerError as e:
@@ -235,7 +246,7 @@ class DataService:
             List of Agent models
         """
         try:
-            agents = list(self.bbot_server.get_agents())
+            agents = await self._async_client.get_agents()
             log.debug(f"Fetched {len(agents)} agents")
             return agents
         except BBOTServerError as e:
@@ -254,7 +265,7 @@ class DataService:
             Created Agent model or None on error
         """
         try:
-            agent = self.bbot_server.create_agent(name=name, description=description)
+            agent = await self._async_client.create_agent(name=name, description=description)
             log.info(f"Created agent: {agent.id}")
             return agent
         except BBOTServerError as e:
@@ -272,7 +283,7 @@ class DataService:
             True if successful, False otherwise
         """
         try:
-            self.bbot_server.delete_agent(agent_id)
+            await self._async_client.delete_agent(agent_id)
             log.info(f"Deleted agent: {agent_id}")
             return True
         except BBOTServerError as e:
@@ -287,7 +298,7 @@ class DataService:
             Dictionary with stats (scan_count, asset_count, finding_count, etc.)
         """
         try:
-            stats = self.bbot_server.get_stats()
+            stats = await self._async_client.get_stats()
             log.debug(f"Fetched stats: {stats}")
             return stats
         except BBOTServerError as e:
@@ -308,7 +319,7 @@ class DataService:
             List of Target models
         """
         try:
-            targets = list(self.bbot_server.get_targets())
+            targets = await self._async_client.get_targets()
             log.debug(f"Fetched {len(targets)} targets")
             return targets
         except BBOTServerError as e:
@@ -323,7 +334,7 @@ class DataService:
             List of Preset models
         """
         try:
-            presets = list(self.bbot_server.get_presets())
+            presets = await self._async_client.get_presets()
             log.debug(f"Fetched {len(presets)} presets")
             return presets
         except BBOTServerError as e:
@@ -360,7 +371,7 @@ class DataService:
             kwargs['active'] = active
             kwargs['archived'] = archived
 
-            events = list(self.bbot_server.list_events(**kwargs))
+            events = [event async for event in self._async_client.list_events(**kwargs)]
             log.debug(f"Fetched {len(events)} events")
             return events
         except BBOTServerError as e:
@@ -397,26 +408,11 @@ class DataService:
             if target_id:
                 kwargs['target_id'] = target_id
 
-            technologies = list(self.bbot_server.list_technologies(**kwargs))
+            technologies = [tech async for tech in self._async_client.list_technologies(**kwargs)]
             log.debug(f"Fetched {len(technologies)} technologies")
             return technologies[:limit]
         except BBOTServerError as e:
             log.error(f"Error fetching technologies: {e}")
-            return []
-
-    async def get_targets(self) -> List[Any]:
-        """
-        Get all targets
-
-        Returns:
-            List of Target models
-        """
-        try:
-            targets = list(self.bbot_server.get_targets())
-            log.debug(f"Fetched {len(targets)} targets")
-            return targets
-        except BBOTServerError as e:
-            log.error(f"Error fetching targets: {e}")
             return []
 
     async def create_target(self, name: str, description: str = "", target: Optional[List[str]] = None,
@@ -466,7 +462,7 @@ class DataService:
             log.info(f"Target data dict: {target_data}")
 
             # Create via HTTP client - pass as keyword argument matching API signature
-            created_target = self.bbot_server.create_target(target=target_data)
+            created_target = await self._async_client.create_target(target=target_data)
             log.info(f"Created target: {name}, returned: {created_target.name if created_target else 'None'}")
             return created_target
         except BBOTServerError as e:

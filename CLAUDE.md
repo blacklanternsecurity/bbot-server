@@ -95,21 +95,28 @@ class TUICTL(BaseBBCTL):
 ### Accessing Native Async Client
 **Issue**: BBOTServer HTTP client uses `@async_to_sync_class` decorator, which wraps async methods to make them synchronous. This causes problems when you need async generators or want to use proper async/await patterns.
 
-**Solution**: Access the underlying async instance via `._instance`:
+**Solution**: Access the underlying async instance via `._instance` - implemented in both DataService and WebSocketService:
 ```python
-# In WebSocketService.__init__()
+# In __init__ of both services
 if hasattr(bbot_server, '_instance'):
     self._async_client = bbot_server._instance
 else:
-    # Fallback: create new async client
+    # Fallback: create new async client (or use sync wrapper)
     from bbot_server.interfaces.http import http
     from bbot_server.config import BBOT_SERVER_CONFIG
     self._async_client = http(url=BBOT_SERVER_CONFIG.url)
 
-# Now use native async methods
-async for activity in self._async_client.tail_activities(n=n):
-    yield activity
+# For async generators (methods that yield):
+scans = [scan async for scan in self._async_client.get_scans()]
+
+# For methods that return lists directly:
+agents = await self._async_client.get_agents()
 ```
+
+**Implementation Status**:
+- ✅ **WebSocketService**: Uses `._instance` for activity streaming
+- ✅ **DataService**: Uses `._instance` for all 20+ data fetching methods
+- ✅ **All TUI screens**: Indirect usage through the two services
 
 **Benefits**:
 - Native async/await - no sync conversion overhead
@@ -117,7 +124,9 @@ async for activity in self._async_client.tail_activities(n=n):
 - Cleaner cancellation - async generators cancel properly
 - Better performance - no thread pool executor overhead
 
-**Note**: DataService currently still uses the sync-wrapped methods. This could be optimized by using `._instance` pattern there as well.
+**Important Distinction**:
+- **Async generators** (methods that `yield`) → use `async for`
+- **Direct returns** (methods that `return list`) → use `await`
 
 ### Footer Implementation
 Every screen includes Footer widget showing context-aware keyboard shortcuts:
@@ -413,7 +422,7 @@ echo $BBOT_SERVER_API_KEY
 
 ## Best Practices & Important Notes
 
-1. **Async Client Access**: Access underlying async client via `bbot_server._instance` to avoid sync wrapping. This gives you native async methods and proper async generators without needing `run_in_executor()` workarounds. Used in WebSocketService, could also be applied to DataService.
+1. **Async Client Access**: Access underlying async client via `bbot_server._instance` to avoid sync wrapping. This gives you native async methods and proper async generators without needing `run_in_executor()` workarounds. Implemented in both WebSocketService and DataService. When using `._instance`, distinguish between async generators (use `async for`) and methods returning lists directly (use `await`).
 
 2. **Pydantic Models**: Always use attribute access (`finding.severity`), not dict methods (`finding.get('severity')`). All API responses return Pydantic models, not plain dictionaries.
 
