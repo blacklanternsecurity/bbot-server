@@ -47,6 +47,9 @@ class ScanTable(DataTable):
         Args:
             scans: List of Scan models
         """
+        # Remember the currently selected scan before clearing
+        selected_scan_id = self.get_selected_scan_id()
+
         self._scans = scans
         self._scan_id_map.clear()
         self.clear()
@@ -79,6 +82,10 @@ class ScanTable(DataTable):
 
             # Map row key to scan ID for later lookup
             self._scan_id_map[row_key] = scan.id
+
+        # Restore selection if the previously selected scan is still in the table
+        if selected_scan_id:
+            self._restore_selection(selected_scan_id)
 
     def get_selected_scan_id(self) -> Optional[str]:
         """
@@ -127,6 +134,45 @@ class ScanTable(DataTable):
     def scan_count(self) -> int:
         """Get the number of scans in the table"""
         return len(self._scans)
+
+    def _restore_selection(self, scan_id: str) -> None:
+        """
+        Restore selection to a specific scan after table refresh
+
+        Args:
+            scan_id: Scan ID to select
+        """
+        # Safety check: ensure table is not empty
+        if self.row_count == 0:
+            return
+
+        # Find the row key for this scan ID
+        for row_key, mapped_id in self._scan_id_map.items():
+            if mapped_id == scan_id:
+                # Find the row index for this key
+                try:
+                    row_index = list(self._scan_id_map.keys()).index(row_key)
+                    # Additional safety: ensure row_index is within bounds
+                    if 0 <= row_index < self.row_count:
+                        self.move_cursor(row=row_index, column=0)
+                    break
+                except (ValueError, Exception):
+                    pass
+
+    def on_key(self, event) -> None:
+        """Handle key events for circular navigation"""
+        if event.key == "up":
+            # If on first row, wrap to last row
+            if self.cursor_row == 0 and self.row_count > 0:
+                self.move_cursor(row=self.row_count - 1, column=0)
+                event.prevent_default()
+                event.stop()
+        elif event.key == "down":
+            # If on last row, wrap to first row
+            if self.cursor_row == self.row_count - 1 and self.row_count > 0:
+                self.move_cursor(row=0, column=0)
+                event.prevent_default()
+                event.stop()
 
     def filter_scans(self, filter_text: str) -> None:
         """
