@@ -41,6 +41,9 @@ class AssetTable(DataTable):
         Args:
             assets: List of Asset models
         """
+        # Remember the currently selected host before clearing
+        selected_host = self.get_selected_host()
+
         self._assets = assets
         self._asset_id_map.clear()
         self.clear()
@@ -92,6 +95,10 @@ class AssetTable(DataTable):
             # Map row key to host for later lookup
             self._asset_id_map[row_key] = asset.host
 
+        # Restore selection if the previously selected host is still in the table
+        if selected_host:
+            self._restore_selection(selected_host)
+
     def get_selected_host(self) -> Optional[str]:
         """
         Get the host of the currently selected asset
@@ -139,3 +146,42 @@ class AssetTable(DataTable):
     def asset_count(self) -> int:
         """Get the number of assets in the table"""
         return len(self._assets)
+
+    def _restore_selection(self, host: str) -> None:
+        """
+        Restore selection to a specific host after table refresh
+
+        Args:
+            host: Host string to select
+        """
+        # Safety check: ensure table is not empty
+        if self.row_count == 0:
+            return
+
+        # Find the row key for this host
+        for row_key, mapped_host in self._asset_id_map.items():
+            if mapped_host == host:
+                # Find the row index for this key
+                try:
+                    row_index = list(self._asset_id_map.keys()).index(row_key)
+                    # Additional safety: ensure row_index is within bounds
+                    if 0 <= row_index < self.row_count:
+                        self.move_cursor(row=row_index, column=0)
+                    break
+                except (ValueError, Exception):
+                    pass
+
+    def on_key(self, event) -> None:
+        """Handle key events for circular navigation"""
+        if event.key == "up":
+            # If on first row, wrap to last row
+            if self.cursor_row == 0 and self.row_count > 0:
+                self.move_cursor(row=self.row_count - 1, column=0)
+                event.prevent_default()
+                event.stop()
+        elif event.key == "down":
+            # If on last row, wrap to first row
+            if self.cursor_row == self.row_count - 1 and self.row_count > 0:
+                self.move_cursor(row=0, column=0)
+                event.prevent_default()
+                event.stop()

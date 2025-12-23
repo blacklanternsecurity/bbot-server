@@ -208,6 +208,7 @@ Checkbox {
 #scans-status,
 #assets-status,
 #findings-status,
+#events-status,
 #technologies-status,
 #targets-status,
 #agents-status,
@@ -221,6 +222,7 @@ Checkbox {
 #scans-content,
 #assets-content,
 #findings-content,
+#events-content,
 #technologies-content,
 #targets-content {
     height: 1fr;
@@ -230,6 +232,7 @@ Checkbox {
 #scans-table-container,
 #assets-table-container,
 #findings-table-container,
+#events-table-container,
 #technologies-table-container,
 #targets-table-container {
     width: 2fr;
@@ -240,6 +243,7 @@ Checkbox {
 #scan-detail-container,
 #asset-detail-container,
 #finding-detail-container,
+#event-detail-container,
 #technology-detail-container,
 #target-detail-container {
     width: 1fr;

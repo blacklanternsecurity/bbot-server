@@ -25,6 +25,9 @@ class TechnologyTable(DataTable):
         Args:
             technologies: List of Technology models
         """
+        # Remember the currently selected row index before clearing
+        selected_row = self.cursor_row if self.cursor_row >= 0 else 0
+
         self._technologies = technologies
 
         # Clear existing rows
@@ -42,6 +45,26 @@ class TechnologyTable(DataTable):
             last_seen = format_timestamp(getattr(tech, 'last_seen', 0))
 
             self.add_row(technology, host, port, last_seen)
+
+        # Restore selection to the same row index (or closest available)
+        if self.row_count > 0:
+            restore_row = min(selected_row, self.row_count - 1)
+            self.move_cursor(row=restore_row, column=0)
+
+    def on_key(self, event) -> None:
+        """Handle key events for circular navigation"""
+        if event.key == "up":
+            # If on first row, wrap to last row
+            if self.cursor_row == 0 and self.row_count > 0:
+                self.move_cursor(row=self.row_count - 1, column=0)
+                event.prevent_default()
+                event.stop()
+        elif event.key == "down":
+            # If on last row, wrap to first row
+            if self.cursor_row == self.row_count - 1 and self.row_count > 0:
+                self.move_cursor(row=0, column=0)
+                event.prevent_default()
+                event.stop()
 
     def get_selected_technology(self):
         """
