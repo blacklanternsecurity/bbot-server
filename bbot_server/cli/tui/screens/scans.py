@@ -12,6 +12,7 @@ from textual.reactive import reactive
 from bbot_server.cli.tui.widgets.scan_table import ScanTable
 from bbot_server.cli.tui.widgets.scan_detail import ScanDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
+from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 
 
 class ScansScreen(Container):
@@ -31,6 +32,7 @@ class ScansScreen(Container):
         self.bbot_app = app
         self._refresh_timer = None
         self._has_loaded = False
+        self._cached_scans = []  # Cache all scans to avoid refetching on page changes
 
     def compose(self) -> ComposeResult:
         """Create child widgets"""
@@ -41,11 +43,17 @@ class ScansScreen(Container):
                 yield Button("Refresh", id="refresh-btn", variant="primary")
                 yield Button("New Scan", id="new-scan-btn", variant="success")
 
+            # Status bar
+            yield Static("Loading scans...", id="scans-status")
+
             # Main content: table on left, detail on right
             with Horizontal(id="scans-content"):
                 with Vertical(id="scans-table-container"):
-                    yield Static("Loading scans...", id="scans-status")
-                    yield ScanTable(id="scan-table")
+                    yield PaginatedTableContainer(
+                        ScanTable(id="scan-table"),
+                        items_per_page=self.bbot_app.items_per_page,
+                        id="scan-pagination"
+                    )
 
                 with Vertical(id="scan-detail-container"):
                     yield Static("[bold]Scan Details[/bold]", id="detail-header")
@@ -63,7 +71,7 @@ class ScansScreen(Container):
             return
 
         self._has_loaded = True
-        await self.refresh_scans()
+        await self.refresh_scans(show_loading=True)
 
         # Resume periodic refresh
         if self._refresh_timer:
@@ -75,39 +83,75 @@ class ScansScreen(Container):
         if self._refresh_timer:
             self._refresh_timer.stop()
 
-    async def refresh_scans(self) -> None:
-        """Fetch and display scans from the server"""
+    async def refresh_scans(self, show_loading: bool = False) -> None:
+        """Fetch and cache all scans from server
+
+        Args:
+            show_loading: If True, show "Loading..." status message (for manual refreshes)
+        """
         # Check if services are initialized
         if not self.bbot_app.data_service:
             return
 
         try:
-            # Show loading status
             status = self.query_one("#scans-status", Static)
-            status.update("[cyan]Loading scans...[/cyan]")
+            # Only show loading message on initial load or manual refresh
+            if show_loading:
+                status.update("[cyan]Loading scans...[/cyan]")
 
-            # Fetch scans via data service
-            scans = await self.bbot_app.data_service.get_scans()
+            # Fetch ALL scans and cache them
+            self._cached_scans = await self.bbot_app.data_service.get_scans()
 
-            # Update table
-            table = self.query_one("#scan-table", ScanTable)
-            table.update_scans(scans)
-
-            # Update status
-            if scans:
-                status.update(f"[green]Loaded {len(scans)} scans[/green]")
-            else:
-                status.update("[yellow]No scans found[/yellow]")
-
-            # Apply current filter if any
-            if self.filter_text:
-                table.filter_scans(self.filter_text)
+            # Update table from cache
+            self._update_table_from_cache()
 
         except Exception as e:
             # Show error
+            try:
+                status = self.query_one("#scans-status", Static)
+                status.update(f"[red]Error loading scans: {e}[/red]")
+            except:
+                pass
+
+    def _update_table_from_cache(self) -> None:
+        """Update table display from cached data (for page changes without refetching)"""
+        try:
+            # Apply client-side filter if any
+            filtered_scans = self._cached_scans
+            if self.filter_text:
+                filter_lower = self.filter_text.lower()
+                filtered_scans = [
+                    s for s in self._cached_scans
+                    if filter_lower in getattr(s, 'name', '').lower()
+                    or filter_lower in ' '.join(getattr(s, 'targets', [])).lower()
+                ]
+
+            # Get pagination container
+            pagination = self.query_one("#scan-pagination", PaginatedTableContainer)
+            skip, limit = pagination.get_skip_limit()
+
+            # Apply pagination to filtered results
+            paginated_scans = filtered_scans[skip:skip + limit]
+
+            # Update table with paginated subset
+            table = self.query_one("#scan-table", ScanTable)
+            table.update_scans(paginated_scans)
+
+            # Update pagination total_items (using filtered count)
+            pagination.total_items = len(filtered_scans)
+
+            # Update status
             status = self.query_one("#scans-status", Static)
-            status.update(f"[red]Error loading scans: {e}[/red]")
-            self.notify(f"Failed to load scans: {e}", severity="error", timeout=5)
+            if paginated_scans:
+                if self.filter_text:
+                    status.update(f"[green]Showing {len(paginated_scans)} of {len(filtered_scans)} filtered scans[/green]")
+                else:
+                    status.update(f"[green]Showing {len(paginated_scans)} scans[/green]")
+            else:
+                status.update("[yellow]No scans found[/yellow]")
+
+        except Exception:
+            pass
 
     def on_data_table_row_highlighted(self, event) -> None:
         """Handle row selection in scan table"""
@@ -126,13 +170,21 @@ class ScansScreen(Container):
         if scan:
             self.selected_scan_id = scan.id
 
+    def on_paginated_table_container_page_changed(self, message: PaginatedTableContainer.PageChanged) -> None:
+        """Handle page changes - update from cache without refetching"""
+        self._update_table_from_cache()
+
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
         self.filter_text = event.filter_text
-
-        # Apply filter to table
-        table = self.query_one("#scan-table", ScanTable)
-        table.filter_scans(self.filter_text)
+        # Reset to first page when filter changes
+        try:
+            pagination = self.query_one("#scan-pagination", PaginatedTableContainer)
+            pagination.reset_to_first_page()
+        except Exception:
+            pass
+        # Trigger refresh with new filter (show loading since user-initiated)
+        self.run_worker(self.refresh_scans(show_loading=True))
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""
@@ -143,7 +195,7 @@ class ScansScreen(Container):
 
     async def action_refresh(self) -> None:
         """Refresh scans"""
-        await self.refresh_scans()
+        await self.refresh_scans(show_loading=True)
         self.notify("Scans refreshed", timeout=2)
 
     async def action_new_scan(self) -> None:
@@ -190,7 +242,5 @@ class ScansScreen(Container):
         filter_bar = self.query_one("#scan-filter", FilterBar)
         filter_bar.clear_filter()
         self.filter_text = ""
-
-        # Reapply filter (now empty) to show all scans
-        table = self.query_one("#scan-table", ScanTable)
-        table.filter_scans("")
+        # Trigger refresh to show all scans
+        self.run_worker(self.refresh_scans())

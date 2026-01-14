@@ -49,11 +49,11 @@ class AssetTable(DataTable):
         self.clear()
 
         # Sort by modification time (newest first)
-        sorted_assets = sorted(assets, key=lambda a: a.modified, reverse=True)
+        sorted_assets = sorted(assets, key=lambda a: getattr(a, 'modified', 0), reverse=True)
 
         for asset in sorted_assets:
             # Format the data
-            host = asset.host
+            host = getattr(asset, 'host', 'unknown')
 
             # Open ports
             if hasattr(asset, 'open_ports') and asset.open_ports:
@@ -80,7 +80,10 @@ class AssetTable(DataTable):
                 findings = "0"
 
             # Last modified
-            modified = format_timestamp_short(asset.modified)
+            if hasattr(asset, 'modified') and asset.modified:
+                modified = format_timestamp_short(asset.modified)
+            else:
+                modified = "-"
 
             # Add row
             row_key = self.add_row(
@@ -93,7 +96,7 @@ class AssetTable(DataTable):
             )
 
             # Map row key to host for later lookup
-            self._asset_id_map[row_key] = asset.host
+            self._asset_id_map[row_key] = host
 
         # Restore selection if the previously selected host is still in the table
         if selected_host:
@@ -126,7 +129,7 @@ class AssetTable(DataTable):
             Asset model or None if not found
         """
         for asset in self._assets:
-            if asset.host == host:
+            if getattr(asset, 'host', None) == host:
                 return asset
         return None
 

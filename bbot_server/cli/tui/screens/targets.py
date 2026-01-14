@@ -10,6 +10,7 @@ from textual import work
 from bbot_server.cli.tui.widgets.target_table import TargetTable
 from bbot_server.cli.tui.widgets.target_detail import TargetDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
+from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 from bbot_server.cli.tui.screens.create_target_modal import CreateTargetModal
 
 
@@ -23,6 +24,7 @@ class TargetsScreen(Container):
         self.bbot_app = app
         self._refresh_timer = None
         self._has_loaded = False
+        self._cached_targets = []  # Cache all targets to avoid refetching on page changes
 
     def compose(self) -> ComposeResult:
         """Create child widgets"""
@@ -39,7 +41,11 @@ class TargetsScreen(Container):
             # Main content
             with Horizontal(id="targets-content"):
                 with Vertical(id="targets-table-container"):
-                    yield TargetTable(id="target-table")
+                    yield PaginatedTableContainer(
+                        TargetTable(id="target-table"),
+                        items_per_page=self.bbot_app.items_per_page,
+                        id="target-pagination"
+                    )
 
                 with Vertical(id="target-detail-container"):
                     yield Static("[bold]Target Details[/bold]", id="detail-header")
@@ -56,7 +62,7 @@ class TargetsScreen(Container):
             return
 
         self._has_loaded = True
-        await self.refresh_targets()
+        await self.refresh_targets(show_loading=True)
 
         # Resume periodic refresh
         if self._refresh_timer:
@@ -67,45 +73,75 @@ class TargetsScreen(Container):
         if self._refresh_timer:
             self._refresh_timer.stop()
 
-    async def refresh_targets(self) -> None:
-        """Fetch and display targets"""
+    async def refresh_targets(self, show_loading: bool = False) -> None:
+        """Fetch and cache all targets from server
+
+        Args:
+            show_loading: If True, show "Loading..." status message (for manual refreshes)
+        """
         # Check if services are initialized
         if not self.bbot_app.data_service:
             return
 
         try:
             status = self.query_one("#targets-status", Static)
-            status.update("[cyan]Loading targets...[/cyan]")
+            # Only show loading message on initial load or manual refresh
+            if show_loading:
+                status.update("[cyan]Loading targets...[/cyan]")
 
-            # Fetch targets
-            targets = await self.bbot_app.data_service.get_targets()
+            # Fetch ALL targets and cache them
+            self._cached_targets = await self.bbot_app.data_service.get_targets()
 
-            # Apply client-side filtering if filter text is present
-            if self.filter_text:
-                filter_lower = self.filter_text.lower()
-                targets = [
-                    t for t in targets
-                    if filter_lower in getattr(t, 'name', '').lower()
-                    or filter_lower in getattr(t, 'description', '').lower()
-                ]
-
-            # Update table
-            table = self.query_one("#target-table", TargetTable)
-            table.update_targets(targets)
-
-            # Update status
-            if targets:
-                status.update(f"[green]Loaded {len(targets)} targets[/green]")
-            else:
-                status.update("[yellow]No targets found[/yellow]")
+            # Update table from cache
+            self._update_table_from_cache()
 
         except Exception as e:
+            # Show error
             try:
                 status = self.query_one("#targets-status", Static)
                 status.update(f"[red]Error loading targets: {e}[/red]")
             except:
                 pass
-            self.notify(f"Failed to load targets: {e}", severity="error", timeout=5)
+
+    def _update_table_from_cache(self) -> None:
+        """Update table display from cached data (for page changes without refetching)"""
+        try:
+            # Apply client-side filtering if filter text is present
+            filtered_targets = self._cached_targets
+            if self.filter_text:
+                filter_lower = self.filter_text.lower()
+                filtered_targets = [
+                    t for t in self._cached_targets
+                    if filter_lower in getattr(t, 'name', '').lower()
+                    or filter_lower in getattr(t, 'description', '').lower()
+                ]
+
+            # Get pagination container
+            pagination = self.query_one("#target-pagination", PaginatedTableContainer)
+            skip, limit = pagination.get_skip_limit()
+
+            # Apply pagination to filtered results
+            paginated_targets = filtered_targets[skip:skip + limit]
+
+            # Update table
+            table = self.query_one("#target-table", TargetTable)
+            table.update_targets(paginated_targets)
+
+            # Update pagination total_items (using filtered count)
+            pagination.total_items = len(filtered_targets)
+
+            # Update status
+            status = self.query_one("#targets-status", Static)
+            if paginated_targets:
+                if self.filter_text:
+                    status.update(f"[green]Showing {len(paginated_targets)} of {len(filtered_targets)} filtered targets[/green]")
+                else:
+                    status.update(f"[green]Showing {len(paginated_targets)} targets[/green]")
+            else:
+                status.update("[yellow]No targets found[/yellow]")
+
+        except Exception:
+            pass
 
     def on_data_table_row_highlighted(self, event) -> None:
         """Handle row selection"""
@@ -120,11 +156,21 @@ class TargetsScreen(Container):
         detail = self.query_one("#target-detail", TargetDetail)
         detail.update_target(selected_target)
 
+    def on_paginated_table_container_page_changed(self, message: PaginatedTableContainer.PageChanged) -> None:
+        """Handle page changes - update from cache without refetching"""
+        self._update_table_from_cache()
+
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
         self.filter_text = event.filter_text
-        # Trigger refresh
-        self.run_worker(self.refresh_targets())
+        # Reset to first page when filter changes
+        try:
+            pagination = self.query_one("#target-pagination", PaginatedTableContainer)
+            pagination.reset_to_first_page()
+        except Exception:
+            pass
+        # Trigger refresh (show loading since user-initiated)
+        self.run_worker(self.refresh_targets(show_loading=True))
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""
@@ -135,7 +181,7 @@ class TargetsScreen(Container):
 
     async def action_refresh(self) -> None:
         """Refresh targets"""
-        await self.refresh_targets()
+        await self.refresh_targets(show_loading=True)
         self.notify("Targets refreshed", timeout=2)
 
     def action_new_target(self) -> None:

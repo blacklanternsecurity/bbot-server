@@ -51,6 +51,7 @@ class AgentConfig(BaseModel):
 
 class CLIConfig(BaseModel):
     http_timeout: int = 90
+    tui_page_size: int = 25  # Number of items per page in TUI tables
 
 
 class BBOTServerSettings(BaseSettings):

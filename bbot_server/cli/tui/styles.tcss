@@ -369,3 +369,20 @@ Vertical:focus-within,
 Container:focus-within {
     border: none;
 }
+
+/* Pagination controls */
+.pagination-controls {
+    height: 3;
+    align: center middle;
+    padding: 0 1;
+}
+
+.pagination-status {
+    width: 1fr;
+    content-align: center middle;
+    text-align: center;
+}
+
+PaginatedTableContainer {
+    height: 1fr;
+}

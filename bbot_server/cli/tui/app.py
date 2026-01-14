@@ -54,6 +54,9 @@ class BBOTServerTUI(App):
         self.bbot_server = bbot_server
         self.config = config
 
+        # TUI settings
+        self.items_per_page = config.cli.tui_page_size
+
         # Services will be initialized after app starts
         self.data_service = None
         self.websocket_service = None
@@ -121,6 +124,14 @@ class BBOTServerTUI(App):
         from bbot_server.cli.tui.services.websocket_service import WebSocketService
         from bbot_server.cli.tui.services.state_service import StateService
 
+        # Filter to suppress "taking a while" warnings from HTTP client
+        class SlowRequestFilter(logging.Filter):
+            def filter(self, record):
+                # Suppress "taking a while" warnings - these are informational
+                if "taking a while" in record.getMessage():
+                    return False
+                return True
+
         # Setup file logging for debugging
         log_file = "/tmp/bbot_tui_debug.log"
         file_handler = logging.FileHandler(log_file, mode='w')
@@ -132,6 +143,23 @@ class BBOTServerTUI(App):
         root_logger = logging.getLogger()
         root_logger.addHandler(file_handler)
         root_logger.setLevel(logging.INFO)
+
+        # Create filter instance
+        slow_filter = SlowRequestFilter()
+
+        # Add filter to suppress slow request warnings in TUI notifications
+        # Apply to root logger
+        root_logger.addFilter(slow_filter)
+
+        # Also apply filter to all existing handlers (including Textual's)
+        for handler in root_logger.handlers:
+            handler.addFilter(slow_filter)
+
+        # Apply to specific HTTP client logger
+        http_logger = logging.getLogger('bbot_server.interfaces.http')
+        http_logger.addFilter(slow_filter)
+        for handler in http_logger.handlers:
+            handler.addFilter(slow_filter)
 
         self.log.info(f"TUI debug logging to: {log_file}")
 
