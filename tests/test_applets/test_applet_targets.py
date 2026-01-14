@@ -3,7 +3,7 @@ import asyncio
 from contextlib import suppress
 
 from tests.test_applets.base import BaseAppletTest
-from bbot_server.modules.targets.targets_models import CreateTarget
+from bbot_server.modules.targets.targets_models import CreateTarget, Target
 from bbot_server.errors import BBOTServerNotFoundError, BBOTServerValueError
 
 
