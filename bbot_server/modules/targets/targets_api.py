@@ -1,6 +1,6 @@
 from uuid import UUID
 from typing import Any
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
@@ -164,6 +164,7 @@ class TargetsApplet(BaseApplet):
     async def create_target(
         self,
         target: CreateTarget,
+        allow_duplicate_hash: bool = True,
     ) -> Target:
         print(f"Creating target: {target}")
         if not target.target and not target.seeds:
@@ -181,7 +182,7 @@ class TargetsApplet(BaseApplet):
         )
         if await self.target_count() == 0:
             target.default = True
-        with self._handle_duplicate_target(target):
+        async with self._handle_duplicate_target(target, allow_duplicate_hash):
             await self.collection.insert_one(target.model_dump())
         # if target is the default target, set all others to not be default
         if target.default:
@@ -199,10 +200,15 @@ class TargetsApplet(BaseApplet):
         return target
 
     @api_endpoint("/{id}", methods=["PATCH"], summary="Update a scan target by its id")
-    async def update_target(self, id: UUID, target: Target) -> Target:
+    async def update_target(
+        self,
+        id: UUID,
+        target: Target,
+        allow_duplicate_hash: bool = True,
+    ) -> Target:
         target.id = id
         target.modified = utc_now()
-        with self._handle_duplicate_target(target):
+        async with self._handle_duplicate_target(target, allow_duplicate_hash):
             await self.collection.update_one({"id": str(id)}, {"$set": target.model_dump()})
         if target.default:
             await self.collection.update_many({"id": {"$ne": str(target.id)}}, {"$set": {"default": False}})
@@ -450,15 +456,17 @@ class TargetsApplet(BaseApplet):
             strict_dns_scope=target.strict_dns_scope,
         )
 
-    @contextmanager
-    def _handle_duplicate_target(self, target: Target):
+    @asynccontextmanager
+    async def _handle_duplicate_target(self, target: Target, allow_duplicate_hash: bool = True):
+        # see if there are any existing targets with the same name or hash
+        if not allow_duplicate_hash:
+            if await self.collection.find_one({"hash": target.hash}):
+                raise self.BBOTServerValueError(f"Identical target already exists", detail={"hash": target.hash})
         try:
             yield
         except DuplicateKeyError as e:
             key_value = e.details["keyValue"]
-            if "hash" in key_value:
-                raise self.BBOTServerValueError(f"Identical target already exists", detail={"hash": key_value["hash"]})
-            elif "name" in key_value:
+            if "name" in key_value:
                 raise self.BBOTServerValueError(
                     f'Target with name "{target.name}" already exists', detail={"name": key_value["name"]}
                 )

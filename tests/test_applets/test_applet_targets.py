@@ -73,19 +73,28 @@ async def test_applet_targets(bbot_server):
             assert e.detail["name"] == "target1"
             raise
 
-    # creating a target with the same hash should raise an error
+    # we can create an identical target with allow_duplicate_hash=True (the default)
+    target2 = CreateTarget(
+        name="target2", target=["127.0.0.1", "evilcorp.com"], seeds=["localhost"], blacklist=["127.0.0.2"]
+    )
+    target2 = await bbot_server.create_target(target2, allow_duplicate_hash=True)
+    assert target2.hash == target1.hash
+
+    all_targets = await bbot_server.get_targets()
+    assert len(all_targets) == 2
+    assert target1.id in [t.id for t in all_targets]
+    assert target2.id in [t.id for t in all_targets]
+
+    # creating a target with the same hash should raise an error with allow_duplicate_hash=False
+    target3 = CreateTarget(
+        name="target3", target=["127.0.0.1", "evilcorp.com"], seeds=["localhost"], blacklist=["127.0.0.2"]
+    )
     with pytest.raises(BBOTServerValueError, match="Identical target already exists"):
-        try:
-            target2 = CreateTarget(
-                name="asdgasdgasdf",
-                seeds=["localhost"],
-                target=["127.0.0.1", "evilcorp.com"],
-                blacklist=["127.0.0.2"],
-            )
-            target2 = await bbot_server.create_target(target2)
-        except BBOTServerValueError as e:
-            assert e.detail["hash"] == target1.hash
-            raise
+        target3 = await bbot_server.create_target(target3, allow_duplicate_hash=False)
+    all_targets = await bbot_server.get_targets()
+    assert len(all_targets) == 2
+    assert target1.id in [t.id for t in all_targets]
+    assert target2.id in [t.id for t in all_targets]
 
     # create a second target
     target2 = CreateTarget(
