@@ -183,7 +183,7 @@ async def test_applet_targets(bbot_server):
 
     # deleting the default target without specifying a new default target should raise an error
     with pytest.raises(
-        BBOTServerValueError, match="Must specify a new default target when deleting the default target."
+        BBOTServerValueError, match="Cannot delete the default target without specifying a new default target."
     ):
         await bbot_server.delete_target(target3.id)
 
@@ -303,6 +303,46 @@ async def test_scope_checks(bbot_server):
     assert await bbot_server.in_scope("127.0.0.2", target_id=target2.id) == False
     assert await bbot_server.in_scope("127.0.0.3", target_id=target2.id) == True
     assert await bbot_server.in_scope("www.test.external.evilcorp.org", target_id=target2.id) == False
+
+
+# tests to make sure there is only ever one default target
+async def test_target_default_uniqueness(bbot_server):
+    bbot_server = await bbot_server()
+
+    target1 = CreateTarget(
+        name="target1",
+        description="target1 description",
+        target=["evilcorp.com"],
+    )
+    target1 = await bbot_server.create_target(target1)
+    target1 = await bbot_server.get_target(id=target1.id)
+    # the first target should be the default target
+    assert target1.default is True
+    target2 = CreateTarget(
+        name="target2",
+        description="target2 description",
+        target=["evilcorp.com"],
+        default=True,
+    )
+    target2 = await bbot_server.create_target(target2)
+    target2 = await bbot_server.get_target(id=target2.id)
+    # when a new target is created with default=True, it should replace the default target
+    assert target2.default is True
+    target1 = await bbot_server.get_target(id=target1.id)
+    assert target1.default is False
+
+    target1 = Target(
+        name="target1",
+        description="target1 description",
+        target=["evilcorp.com"],
+        default=True,
+    )
+    # updating target1 back to default=true should set target2.default to false
+    await bbot_server.update_target(target1.id, target1)
+    target1 = await bbot_server.get_target(id=target1.id)
+    assert target1.default is True
+    target2 = await bbot_server.get_target(id=target2.id)
+    assert target2.default is False
 
 
 class TestTargetScopeMaintenance(BaseAppletTest):

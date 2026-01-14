@@ -165,6 +165,7 @@ class TargetsApplet(BaseApplet):
         self,
         target: CreateTarget,
     ) -> Target:
+        print(f"Creating target: {target}")
         if not target.target and not target.seeds:
             raise self.BBOTServerValueError("Must provide at least one seed or target entry")
         if not target.name:
@@ -176,6 +177,7 @@ class TargetsApplet(BaseApplet):
             target=target.target,
             blacklist=target.blacklist,
             strict_dns_scope=target.strict_dns_scope,
+            default=target.default,
         )
         if await self.target_count() == 0:
             target.default = True
@@ -202,6 +204,8 @@ class TargetsApplet(BaseApplet):
         target.modified = utc_now()
         with self._handle_duplicate_target(target):
             await self.collection.update_one({"id": str(id)}, {"$set": target.model_dump()})
+        if target.default:
+            await self.collection.update_many({"id": {"$ne": str(target.id)}}, {"$set": {"default": False}})
         # emit an activity to show the target was updated
         await self.emit_activity(
             type="TARGET_UPDATED",
@@ -230,7 +234,7 @@ class TargetsApplet(BaseApplet):
                 # otherwise you're out of luck, you need to specify one
                 elif num_targets > 2:
                     raise self.BBOTServerValueError(
-                        "Must specify a new default target when deleting the default target."
+                        "Cannot delete the default target without specifying a new default target."
                     )
 
         # delete the target
