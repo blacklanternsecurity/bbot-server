@@ -9,6 +9,7 @@ from textual.reactive import reactive
 from bbot_server.cli.tui.widgets.technology_table import TechnologyTable
 from bbot_server.cli.tui.widgets.technology_detail import TechnologyDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
+from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 
 
 class TechnologiesScreen(Container):
@@ -21,6 +22,7 @@ class TechnologiesScreen(Container):
         self.bbot_app = app
         self._refresh_timer = None
         self._has_loaded = False
+        self._cached_technologies = []  # Cache all technologies to avoid refetching on page changes
 
     def compose(self) -> ComposeResult:
         """Create child widgets"""
@@ -36,7 +38,11 @@ class TechnologiesScreen(Container):
             # Main content
             with Horizontal(id="technologies-content"):
                 with Vertical(id="technologies-table-container"):
-                    yield TechnologyTable(id="technology-table")
+                    yield PaginatedTableContainer(
+                        TechnologyTable(id="technology-table"),
+                        items_per_page=self.bbot_app.items_per_page,
+                        id="technology-pagination"
+                    )
 
                 with Vertical(id="technology-detail-container"):
                     yield Static("[bold]Technology Details[/bold]", id="detail-header")
@@ -53,7 +59,7 @@ class TechnologiesScreen(Container):
             return
 
         self._has_loaded = True
-        await self.refresh_technologies()
+        await self.refresh_technologies(show_loading=True)
 
         # Resume periodic refresh
         if self._refresh_timer:
@@ -64,46 +70,76 @@ class TechnologiesScreen(Container):
         if self._refresh_timer:
             self._refresh_timer.stop()
 
-    async def refresh_technologies(self) -> None:
-        """Fetch and display technologies"""
+    async def refresh_technologies(self, show_loading: bool = False) -> None:
+        """Fetch and cache all technologies from server
+
+        Args:
+            show_loading: If True, show "Loading..." status message (for manual refreshes)
+        """
         # Check if services are initialized
         if not self.bbot_app.data_service:
             return
 
         try:
             status = self.query_one("#technologies-status", Static)
-            status.update("[cyan]Loading technologies...[/cyan]")
+            # Only show loading message on initial load or manual refresh
+            if show_loading:
+                status.update("[cyan]Loading technologies...[/cyan]")
 
-            # Build filters based on filter text
-            kwargs = {}
-            if self.filter_text:
-                # If it contains dots, assume it's a domain/host
-                if "." in self.filter_text:
-                    kwargs['domain'] = self.filter_text
-                else:
-                    # Otherwise search in technology names
-                    kwargs['search'] = self.filter_text
+            # Fetch ALL technologies and cache them (no skip/limit)
+            self._cached_technologies = await self.bbot_app.data_service.list_technologies()
 
-            # Fetch technologies
-            technologies = await self.bbot_app.data_service.list_technologies(**kwargs)
-
-            # Update table
-            table = self.query_one("#technology-table", TechnologyTable)
-            table.update_technologies(technologies)
-
-            # Update status
-            if technologies:
-                status.update(f"[green]Loaded {len(technologies)} technologies[/green]")
-            else:
-                status.update("[yellow]No technologies found[/yellow]")
+            # Update table from cache
+            self._update_table_from_cache()
 
         except Exception as e:
+            # Show error
             try:
                 status = self.query_one("#technologies-status", Static)
                 status.update(f"[red]Error loading technologies: {e}[/red]")
             except:
                 pass
-            self.notify(f"Failed to load technologies: {e}", severity="error", timeout=5)
+
+    def _update_table_from_cache(self) -> None:
+        """Update table display from cached data (for page changes without refetching)"""
+        try:
+            # Apply client-side filter if any
+            filtered_technologies = self._cached_technologies
+            if self.filter_text:
+                filter_lower = self.filter_text.lower()
+                filtered_technologies = [
+                    t for t in self._cached_technologies
+                    if filter_lower in getattr(t, 'technology', '').lower()
+                    or filter_lower in getattr(t, 'host', '').lower()
+                    or filter_lower in getattr(t, 'domain', '').lower()
+                ]
+
+            # Get pagination container
+            pagination = self.query_one("#technology-pagination", PaginatedTableContainer)
+            skip, limit = pagination.get_skip_limit()
+
+            # Apply pagination to filtered results
+            paginated_technologies = filtered_technologies[skip:skip + limit]
+
+            # Update table with paginated subset
+            table = self.query_one("#technology-table", TechnologyTable)
+            table.update_technologies(paginated_technologies)
+
+            # Update pagination total_items (using filtered count)
+            pagination.total_items = len(filtered_technologies)
+
+            # Update status
+            status = self.query_one("#technologies-status", Static)
+            if paginated_technologies:
+                if self.filter_text:
+                    status.update(f"[green]Showing {len(paginated_technologies)} of {len(filtered_technologies)} filtered technologies[/green]")
+                else:
+                    status.update(f"[green]Showing {len(paginated_technologies)} technologies[/green]")
+            else:
+                status.update("[yellow]No technologies found[/yellow]")
+
+        except Exception:
+            pass
 
     def on_data_table_row_highlighted(self, event) -> None:
         """Handle row selection"""
@@ -118,11 +154,21 @@ class TechnologiesScreen(Container):
         detail = self.query_one("#technology-detail", TechnologyDetail)
         detail.update_technology(selected_technology)
 
+    def on_paginated_table_container_page_changed(self, message: PaginatedTableContainer.PageChanged) -> None:
+        """Handle page changes - update from cache without refetching"""
+        self._update_table_from_cache()
+
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
         self.filter_text = event.filter_text
-        # Trigger refresh
-        self.run_worker(self.refresh_technologies())
+        # Reset to first page when filter changes
+        try:
+            pagination = self.query_one("#technology-pagination", PaginatedTableContainer)
+            pagination.reset_to_first_page()
+        except Exception:
+            pass
+        # Trigger refresh (show loading since user-initiated)
+        self.run_worker(self.refresh_technologies(show_loading=True))
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""
@@ -131,7 +177,7 @@ class TechnologiesScreen(Container):
 
     async def action_refresh(self) -> None:
         """Refresh technologies"""
-        await self.refresh_technologies()
+        await self.refresh_technologies(show_loading=True)
         self.notify("Technologies refreshed", timeout=2)
 
     def action_focus_filter(self) -> None:

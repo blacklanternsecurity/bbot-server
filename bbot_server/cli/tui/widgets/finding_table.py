@@ -41,16 +41,21 @@ class FindingTable(DataTable):
         # Sort by severity (highest first), then by timestamp
         sorted_findings = sorted(
             findings,
-            key=lambda f: (-get_severity_score(f.severity), -f.modified)
+            key=lambda f: (-get_severity_score(getattr(f, 'severity', 'INFO')), -getattr(f, 'modified', 0))
         )
 
         for finding in sorted_findings:
             # Format data
-            severity = colorize_severity(finding.severity, finding.severity)
-            name = finding.name if hasattr(finding, 'name') else "-"
-            host = finding.host if hasattr(finding, 'host') else "-"
-            description = truncate_string(finding.description, 60) if hasattr(finding, 'description') else "-"
-            last_seen = format_timestamp_short(finding.modified)
+            severity_value = getattr(finding, 'severity', 'INFO')
+            severity = colorize_severity(severity_value, severity_value)
+            name = getattr(finding, 'name', '-')
+            host = getattr(finding, 'host', '-')
+            description_text = getattr(finding, 'description', '-')
+            description = truncate_string(description_text, 60) if description_text != '-' else '-'
+
+            # Last seen
+            modified = getattr(finding, 'modified', None)
+            last_seen = format_timestamp_short(modified) if modified else "-"
 
             # Add row
             row_key = self.add_row(
@@ -62,7 +67,9 @@ class FindingTable(DataTable):
             )
 
             # Map row key to finding ID
-            self._finding_id_map[row_key] = finding.id
+            finding_id = getattr(finding, 'id', None)
+            if finding_id:
+                self._finding_id_map[row_key] = finding_id
 
         # Restore selection if the previously selected finding is still in the table
         if selected_finding_id:
@@ -82,7 +89,7 @@ class FindingTable(DataTable):
     def get_finding_by_id(self, finding_id: str):
         """Get finding by ID"""
         for finding in self._findings:
-            if finding.id == finding_id:
+            if getattr(finding, 'id', None) == finding_id:
                 return finding
         return None
 

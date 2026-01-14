@@ -40,9 +40,13 @@ class DataService:
             self._async_client = bbot_server
             log.warning("._instance not found, using sync wrapper as fallback")
 
-    async def get_scans(self) -> List[Any]:
+    async def get_scans(self, skip: int = 0, limit: Optional[int] = None) -> List[Any]:
         """
         Fetch all scans
+
+        Args:
+            skip: Number of scans to skip (for pagination)
+            limit: Maximum number of scans to return (None = all)
 
         Returns:
             List of Scan models
@@ -51,7 +55,10 @@ class DataService:
             # Use native async generator from the async client
             scans = [scan async for scan in self._async_client.get_scans()]
             log.debug(f"Fetched {len(scans)} scans")
-            return scans
+            # Apply skip and limit client-side
+            if limit is not None:
+                return scans[skip:skip + limit]
+            return scans[skip:]
         except BBOTServerUnauthorizedError as e:
             log.error(f"Authentication failed: {e}")
             raise
@@ -122,7 +129,7 @@ class DataService:
             return False
 
     async def list_assets(self, domain: Optional[str] = None, target_id: Optional[str] = None,
-                         limit: int = 1000) -> List[Any]:
+                         limit: int = 1000, skip: int = 0) -> List[Any]:
         """
         Fetch assets with optional filters
 
@@ -130,6 +137,7 @@ class DataService:
             domain: Filter by domain (includes subdomains)
             target_id: Filter by target ID
             limit: Maximum number of assets to return
+            skip: Number of assets to skip (for pagination)
 
         Returns:
             List of Asset models
@@ -140,14 +148,52 @@ class DataService:
                 kwargs['domain'] = domain
             if target_id:
                 kwargs['target_id'] = target_id
-            if limit:
-                kwargs['limit'] = limit
 
             assets = [asset async for asset in self._async_client.list_assets(**kwargs)]
             log.debug(f"Fetched {len(assets)} assets")
-            return assets
+            # Apply skip and limit client-side
+            return assets[skip:skip + limit]
         except BBOTServerError as e:
             log.error(f"Error fetching assets: {e}")
+            return []
+
+    async def query_assets(self, domain: Optional[str] = None, target_id: Optional[str] = None,
+                          host: Optional[str] = None, search: Optional[str] = None,
+                          limit: int = 1000, skip: int = 0) -> List[Any]:
+        """
+        Query assets with advanced filters and pagination
+
+        Args:
+            domain: Filter by domain (includes subdomains)
+            target_id: Filter by target ID
+            host: Filter by exact host
+            search: Search term
+            limit: Maximum number of assets to return
+            skip: Number of assets to skip (for pagination)
+
+        Returns:
+            List of Asset models
+        """
+        try:
+            kwargs = {}
+            if domain:
+                kwargs['domain'] = domain
+            if target_id:
+                kwargs['target_id'] = target_id
+            if host:
+                kwargs['host'] = host
+            if search:
+                kwargs['search'] = search
+            if limit:
+                kwargs['limit'] = limit
+            if skip:
+                kwargs['skip'] = skip
+
+            assets = [asset async for asset in self._async_client.query_assets(**kwargs)]
+            log.debug(f"Fetched {len(assets)} assets (skip={skip}, limit={limit})")
+            return assets
+        except BBOTServerError as e:
+            log.error(f"Error querying assets: {e}")
             return []
 
     async def get_asset(self, host: str) -> Optional[Any]:
@@ -173,7 +219,7 @@ class DataService:
     async def list_findings(self, host: Optional[str] = None, domain: Optional[str] = None,
                            target_id: Optional[str] = None, search: Optional[str] = None,
                            min_severity: Optional[int] = None, max_severity: Optional[int] = None,
-                           limit: int = 1000) -> List[Any]:
+                           limit: int = 1000, skip: int = 0) -> List[Any]:
         """
         Fetch findings with optional filters
 
@@ -185,6 +231,7 @@ class DataService:
             min_severity: Minimum severity (1-5)
             max_severity: Maximum severity (1-5)
             limit: Maximum number of findings to return
+            skip: Number of findings to skip (for pagination)
 
         Returns:
             List of Finding models
@@ -206,9 +253,58 @@ class DataService:
 
             findings = [finding async for finding in self._async_client.list_findings(**kwargs)]
             log.debug(f"Fetched {len(findings)} findings")
-            return findings[:limit]
+            # Apply skip and limit client-side
+            return findings[skip:skip + limit]
         except BBOTServerError as e:
             log.error(f"Error fetching findings: {e}")
+            return []
+
+    async def query_findings(self, host: Optional[str] = None, domain: Optional[str] = None,
+                            target_id: Optional[str] = None, search: Optional[str] = None,
+                            min_severity: Optional[int] = None, max_severity: Optional[int] = None,
+                            limit: int = 1000, skip: int = 0) -> List[Any]:
+        """
+        Query findings with advanced filters and pagination
+
+        Args:
+            host: Filter by exact host
+            domain: Filter by domain
+            target_id: Filter by target ID
+            search: Search term
+            min_severity: Minimum severity (1-5)
+            max_severity: Maximum severity (1-5)
+            limit: Maximum number of findings to return
+            skip: Number of findings to skip (for pagination)
+
+        Returns:
+            List of Finding models
+        """
+        try:
+            kwargs = {}
+            if host:
+                kwargs['host'] = host
+            if domain:
+                kwargs['domain'] = domain
+            if target_id:
+                kwargs['target_id'] = target_id
+            if search:
+                kwargs['search'] = search
+            if min_severity:
+                kwargs['min_severity'] = min_severity
+            if max_severity:
+                kwargs['max_severity'] = max_severity
+            if limit:
+                kwargs['limit'] = limit
+            if skip:
+                kwargs['skip'] = skip
+            # Keep default sort by severity
+            kwargs['sort'] = [("severity_score", -1)]
+
+            findings = [finding async for finding in self._async_client.query_findings(**kwargs)]
+            log.debug(f"Fetched {len(findings)} findings (skip={skip}, limit={limit})")
+            return findings
+        except BBOTServerError as e:
+            log.error(f"Error querying findings: {e}")
             return []
 
     async def list_activities(self, host: Optional[str] = None, activity_type: Optional[str] = None,
@@ -233,7 +329,8 @@ class DataService:
 
             activities = [activity async for activity in self._async_client.list_activities(**kwargs)]
             log.debug(f"Fetched {len(activities)} activities")
-            return activities[:limit]
+            # Apply skip and limit client-side
+            return activities[skip:skip + limit]
         except BBOTServerError as e:
             log.error(f"Error fetching activities: {e}")
             return []
@@ -311,9 +408,13 @@ class DataService:
                 'agent_count': 0,
             }
 
-    async def get_targets(self) -> List[Any]:
+    async def get_targets(self, skip: int = 0, limit: Optional[int] = None) -> List[Any]:
         """
         Fetch all targets
+
+        Args:
+            skip: Number of targets to skip (for pagination)
+            limit: Maximum number of targets to return (None = all)
 
         Returns:
             List of Target models
@@ -321,7 +422,10 @@ class DataService:
         try:
             targets = await self._async_client.get_targets()
             log.debug(f"Fetched {len(targets)} targets")
-            return targets
+            # Apply skip and limit client-side
+            if limit is not None:
+                return targets[skip:skip + limit]
+            return targets[skip:]
         except BBOTServerError as e:
             log.error(f"Error fetching targets: {e}")
             return []
@@ -343,7 +447,8 @@ class DataService:
 
     async def list_events(self, event_type: Optional[str] = None, host: Optional[str] = None,
                          domain: Optional[str] = None, scan: Optional[str] = None,
-                         active: bool = True, archived: bool = False) -> List[Any]:
+                         active: bool = True, archived: bool = False,
+                         limit: int = 1000, skip: int = 0) -> List[Any]:
         """
         List BBOT events with optional filters
 
@@ -354,6 +459,8 @@ class DataService:
             scan: Filter by scan ID
             active: Include active (non-archived) events
             archived: Include archived events
+            limit: Maximum number of events to return
+            skip: Number of events to skip (for pagination)
 
         Returns:
             List of Event models
@@ -371,16 +478,19 @@ class DataService:
             kwargs['active'] = active
             kwargs['archived'] = archived
 
+            # NOTE: list_events API doesn't support skip/limit, so we fetch all and slice
+            # For large datasets, this will be slow on first load
             events = [event async for event in self._async_client.list_events(**kwargs)]
             log.debug(f"Fetched {len(events)} events")
-            return events
+            # Apply skip and limit client-side
+            return events[skip:skip + limit]
         except BBOTServerError as e:
             log.error(f"Error fetching events: {e}")
             return []
 
     async def list_technologies(self, domain: Optional[str] = None, host: Optional[str] = None,
                                technology: Optional[str] = None, search: Optional[str] = None,
-                               target_id: Optional[str] = None, limit: int = 1000) -> List[Any]:
+                               target_id: Optional[str] = None, limit: int = 1000, skip: int = 0) -> List[Any]:
         """
         List technologies with optional filters
 
@@ -391,6 +501,7 @@ class DataService:
             search: Search in technology names
             target_id: Filter by target ID
             limit: Maximum number of technologies to return
+            skip: Number of technologies to skip (for pagination)
 
         Returns:
             List of Technology models
@@ -408,9 +519,12 @@ class DataService:
             if target_id:
                 kwargs['target_id'] = target_id
 
+            # NOTE: list_technologies API doesn't support skip/limit, so we fetch all and slice
+            # For large datasets, this will be slow on first load
             technologies = [tech async for tech in self._async_client.list_technologies(**kwargs)]
             log.debug(f"Fetched {len(technologies)} technologies")
-            return technologies[:limit]
+            # Apply skip and limit client-side
+            return technologies[skip:skip + limit]
         except BBOTServerError as e:
             log.error(f"Error fetching technologies: {e}")
             return []
