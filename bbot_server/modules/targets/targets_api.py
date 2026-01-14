@@ -258,6 +258,7 @@ class TargetsApplet(BaseApplet):
         self._target_ids.discard(target_id)
 
         # after deleting the target, also delete it from all the assets
+        # this saves us from having to do a full target refresh on every asset
         await self.root.assets.collection.update_many(
             {"scope": target_id},  # Find documents that have this target ID in their scope
             {"$pull": {"scope": target_id}},  # Remove this target ID from the scope array

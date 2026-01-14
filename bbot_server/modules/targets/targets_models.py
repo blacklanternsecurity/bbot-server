@@ -86,9 +86,10 @@ class BaseTarget(BaseBBOTServerModel):
 class CreateTarget(BaseTarget):
     """Used for creating a new target."""
 
-    name: Annotated[str, Field(description="Target name", default="")]
+    name: Annotated[str, "indexed", "unique", Field(description="Target name", default="")]
     default: Annotated[
         bool,
+        "indexed",
         Field(description="If True, this is the default target. There can only be one default target."),
     ] = False
 

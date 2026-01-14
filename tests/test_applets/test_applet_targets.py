@@ -74,16 +74,16 @@ async def test_applet_targets(bbot_server):
             raise
 
     # we can create an identical target with allow_duplicate_hash=True (the default)
-    target2 = CreateTarget(
-        name="target2", target=["127.0.0.1", "evilcorp.com"], seeds=["localhost"], blacklist=["127.0.0.2"]
+    duptarget1 = CreateTarget(
+        name="duptarget1", target=["127.0.0.1", "evilcorp.com"], seeds=["localhost"], blacklist=["127.0.0.2"]
     )
-    target2 = await bbot_server.create_target(target2, allow_duplicate_hash=True)
-    assert target2.hash == target1.hash
+    duptarget1 = await bbot_server.create_target(duptarget1)
+    assert duptarget1.hash == target1.hash
 
     all_targets = await bbot_server.get_targets()
     assert len(all_targets) == 2
+    assert duptarget1.id in [t.id for t in all_targets]
     assert target1.id in [t.id for t in all_targets]
-    assert target2.id in [t.id for t in all_targets]
 
     # creating a target with the same hash should raise an error with allow_duplicate_hash=False
     target3 = CreateTarget(
@@ -93,8 +93,10 @@ async def test_applet_targets(bbot_server):
         target3 = await bbot_server.create_target(target3, allow_duplicate_hash=False)
     all_targets = await bbot_server.get_targets()
     assert len(all_targets) == 2
+    assert duptarget1.id in [t.id for t in all_targets]
     assert target1.id in [t.id for t in all_targets]
-    assert target2.id in [t.id for t in all_targets]
+
+    await bbot_server.delete_target(duptarget1.id)
 
     # create a second target
     target2 = CreateTarget(
@@ -211,7 +213,14 @@ async def test_applet_targets(bbot_server):
     assert target.default is True
 
     activity_types = [activity.type for activity in activities]
-    assert activity_types == ["TARGET_CREATED", "TARGET_CREATED", "TARGET_UPDATED", "TARGET_CREATED", "TARGET_CREATED"]
+    assert activity_types == [
+        "TARGET_CREATED",
+        "TARGET_CREATED",
+        "TARGET_CREATED",
+        "TARGET_UPDATED",
+        "TARGET_CREATED",
+        "TARGET_CREATED",
+    ]
 
     # cancel activity task
     activity_tail_task.cancel()
@@ -340,15 +349,20 @@ async def test_target_default_uniqueness(bbot_server):
     target1 = await bbot_server.get_target(id=target1.id)
     assert target1.default is False
 
-    target1 = Target(
+    target1_updated = Target(
         name="target1",
         description="target1 description",
         target=["evilcorp.com"],
         default=True,
     )
     # updating target1 back to default=true should set target2.default to false
-    await bbot_server.update_target(target1.id, target1)
-    target1 = await bbot_server.get_target(id=target1.id)
+    await bbot_server.update_target(target1.id, target1_updated)
+    try:
+        target1 = await bbot_server.get_target(id=target1.id)
+    except Exception as e:
+        all_targets = await bbot_server.get_targets()
+        raise Exception(f"Error getting target with id {target1.id}: {e}, all targets: {all_targets}") from e
+
     assert target1.default is True
     target2 = await bbot_server.get_target(id=target2.id)
     assert target2.default is False
