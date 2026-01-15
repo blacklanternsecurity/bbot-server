@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 from typing import Annotated, Any  # noqa
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
-from pymongo import WriteConcern, ASCENDING
+from pymongo import WriteConcern
 from pymongo.errors import OperationFailure, DuplicateKeyError
 
 from bbot_server.assets import Asset

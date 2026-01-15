@@ -12,7 +12,7 @@ from bbot_server.utils.db import (
 async def test_reconcile_indexes_is_idempotent():
     """
     After reconcile_all_indexes runs, a second run should produce no changes.
-    
+
     This test:
     1. Sets up BBOTServer (which calls reconcile_all_indexes)
     2. Groups applets by collection
