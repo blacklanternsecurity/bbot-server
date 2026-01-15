@@ -9,7 +9,6 @@ from typing import Annotated, Any  # noqa
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
 from pymongo import WriteConcern
-from pymongo.errors import OperationFailure, DuplicateKeyError
 
 from bbot_server.assets import Asset
 from bbot.models.pydantic import Event
@@ -17,6 +16,7 @@ from bbot_server.modules import API_MODULES
 from bbot.core.helpers import misc as bbot_misc
 from bbot_server.utils import misc as bbot_server_misc
 from bbot_server.utils.db import (
+    apply_index_diff,
     desired_indexes_from_model,
     parse_existing_indexes,
     compute_index_diff,
@@ -282,38 +282,7 @@ class BaseApplet:
 
             # Compute and apply diff
             diff = compute_index_diff(desired, desired_text, existing, existing_text)
-            await self._apply_index_diff(collection, diff, existing)
-
-    async def _apply_index_diff(self, collection, diff, existing):
-        """Apply index diff to a collection."""
-        # Apply text index changes
-        if diff["drop_text"]:
-            text_idx_name = next((n for n, s in existing.items() if s.get("text")), None)
-            if text_idx_name:
-                self.log.debug(f"Dropping text index {text_idx_name}")
-                await collection.drop_index(text_idx_name)
-        if diff["create_text"]:
-            key = [(f, "text") for f in diff["create_text"]]
-            self.log.debug(f"Creating text index: {key}")
-            await collection.create_index(key)
-
-        # Drop indexes
-        for name in diff["drop"]:
-            self.log.debug(f"Dropping index {name}")
-            await collection.drop_index(name)
-
-        # Create indexes
-        for spec in diff["create"]:
-            self.log.debug(f"Creating index {spec['name']}: {spec['key']}")
-            try:
-                await collection.create_index(spec["key"], unique=spec["unique"], sparse=spec["sparse"])
-            except DuplicateKeyError as e:
-                self.log.error(f"Cannot create unique index {spec['name']}: duplicate values exist. {e}")
-            except OperationFailure as e:
-                if "already exists" in str(e):
-                    self.log.debug(f"Index {spec['name']} already exists")
-                else:
-                    raise
+            await apply_index_diff(collection, diff, existing)
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks

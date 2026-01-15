@@ -1,6 +1,11 @@
 """Database utility functions."""
 
+import logging
+
 from pymongo import ASCENDING
+from pymongo.errors import DuplicateKeyError, OperationFailure
+
+log = logging.getLogger(__name__)
 
 
 def merge_desired_indexes(all_desired):
@@ -121,3 +126,35 @@ def compute_index_diff(desired, desired_text, existing, existing_text):
         diff["create"].append({"name": name, **spec})
 
     return diff
+
+
+async def apply_index_diff(collection, diff, existing):
+    """Apply index diff to a collection."""
+    # Apply text index changes
+    if diff["drop_text"]:
+        text_idx_name = next((n for n, s in existing.items() if s.get("text")), None)
+        if text_idx_name:
+            log.debug(f"Dropping text index {text_idx_name}")
+            await collection.drop_index(text_idx_name)
+    if diff["create_text"]:
+        key = [(f, "text") for f in diff["create_text"]]
+        log.debug(f"Creating text index: {key}")
+        await collection.create_index(key)
+
+    # Drop indexes
+    for name in diff["drop"]:
+        log.debug(f"Dropping index {name}")
+        await collection.drop_index(name)
+
+    # Create indexes
+    for spec in diff["create"]:
+        log.debug(f"Creating index {spec['name']}: {spec['key']}")
+        try:
+            await collection.create_index(spec["key"], unique=spec["unique"], sparse=spec["sparse"])
+        except DuplicateKeyError as e:
+            log.error(f"Cannot create unique index {spec['name']}: duplicate values exist. {e}")
+        except OperationFailure as e:
+            if "already exists" in str(e):
+                log.debug(f"Index {spec['name']} already exists")
+            else:
+                raise
