@@ -16,6 +16,12 @@ from bbot.models.pydantic import Event
 from bbot_server.modules import API_MODULES
 from bbot.core.helpers import misc as bbot_misc
 from bbot_server.utils import misc as bbot_server_misc
+from bbot_server.utils.db import (
+    desired_indexes_from_model,
+    parse_existing_indexes,
+    compute_index_diff,
+    merge_desired_indexes,
+)
 from bbot_server.applets._routing import make_bbotserver_route
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.errors import BBOTServerError, BBOTServerValueError
@@ -220,9 +226,7 @@ class BaseApplet:
                     # This helps prevent duplicates in asset activity.
                     self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
 
-                if self.collection is not None:
-                    # build indexes
-                    await self.build_indexes(self.model)
+                # index building is deferred to reconcile_all_indexes()
 
         # taskiq broker
         if self.task_broker is None:
@@ -245,146 +249,64 @@ class BaseApplet:
             except Exception as e:
                 raise BBOTServerError(f"Error setting up {self.name}: {e}") from e
 
-    @staticmethod
-    def _desired_indexes_from_model(model):
+    async def reconcile_all_indexes(self):
         """
-        Compute desired index specifications from a model's annotations.
+        Reconcile indexes for all collections used by this applet and its children.
 
-        Returns:
-            tuple: (indexes dict, text_fields set)
-                - indexes: {name: {"key": [...], "unique": bool, "sparse": bool}}
-                - text_fields: set of field names for the text index
+        This aggregates desired indexes from all models that share a collection,
+        then applies a single diff per collection.
         """
-        indexes = {}
-        text_fields = set()
-
-        for fieldname, metadata in model.indexed_fields().items():
-            unique = "unique" in metadata
-            if "indexed" in metadata:
-                name = f"{fieldname}_1"
-                indexes[name] = {"key": [(fieldname, ASCENDING)], "unique": unique, "sparse": unique}
-            if "indexed-text" in metadata:
-                text_fields.add(fieldname)
-            for m in metadata:
-                if isinstance(m, str) and m.startswith("indexed-compound:"):
-                    fields = [fieldname] + m.split(":")[-1].split(",")
-                    key = [(f, ASCENDING) for f in fields]
-                    name = "_".join(f"{f}_1" for f in fields)
-                    indexes[name] = {"key": key, "unique": True, "sparse": False}
-
-        return indexes, text_fields
-
-    @staticmethod
-    def _parse_existing_indexes(indexes_list):
-        """
-        Parse MongoDB index list into normalized format.
-
-        Returns:
-            tuple: (indexes dict, text_fields set)
-        """
-        indexes = {}
-        text_fields = set()
-
-        for idx in indexes_list:
-            name = idx["name"]
-            if name == "_id_":
+        # Group applets by collection
+        applets_by_collection = {}
+        for applet in self.all_child_applets(include_self=True):
+            if applet.collection is None or applet.model is None:
                 continue
-            if "text" in idx["key"].values():
-                text_fields = set(idx.get("weights", {}).keys())
-                indexes[name] = {"text": True}
-            else:
-                indexes[name] = {
-                    "key": list(idx["key"].items()),
-                    "unique": idx.get("unique", False),
-                    "sparse": idx.get("sparse", False),
-                }
+            collection_name = applet.collection.full_name
+            if collection_name not in applets_by_collection:
+                applets_by_collection[collection_name] = {"collection": applet.collection, "models": []}
+            applets_by_collection[collection_name]["models"].append(applet.model)
 
-        return indexes, text_fields
+        # Reconcile each collection
+        for collection_name, data in applets_by_collection.items():
+            collection = data["collection"]
+            models = data["models"]
 
-    @staticmethod
-    def _compute_index_diff(desired, desired_text, existing, existing_text):
-        """
-        Compute the diff between desired and existing indexes.
+            # Merge desired indexes from all models
+            all_desired = [desired_indexes_from_model(m) for m in models]
+            desired, desired_text = merge_desired_indexes(all_desired)
 
-        Returns:
-            dict with keys:
-                - drop: list of index names to drop
-                - create: list of {"name": ..., "key": ..., "unique": ..., "sparse": ...}
-                - drop_text: bool - whether to drop existing text index
-                - create_text: list of fields for new text index, or None
-        """
-        diff = {"drop": [], "create": [], "drop_text": False, "create_text": None}
+            # Get existing indexes
+            indexes_cursor = await collection.list_indexes()
+            indexes_list = [idx async for idx in indexes_cursor]
+            existing, existing_text = parse_existing_indexes(indexes_list)
 
-        # Text index diff
-        if desired_text != existing_text:
-            if existing_text:
-                diff["drop_text"] = True
-            if desired_text:
-                diff["create_text"] = sorted(desired_text)
+            # Compute and apply diff
+            diff = compute_index_diff(desired, desired_text, existing, existing_text)
+            await self._apply_index_diff(collection, diff, existing)
 
-        # Find indexes to drop (exist but not desired)
-        for name, spec in existing.items():
-            if spec.get("text"):
-                continue
-            if name not in desired:
-                diff["drop"].append(name)
-
-        # Find indexes to create or recreate
-        for name, spec in desired.items():
-            ex = existing.get(name)
-            if ex and not ex.get("text"):
-                if ex["key"] == spec["key"] and ex["unique"] == spec["unique"] and ex["sparse"] == spec["sparse"]:
-                    continue
-                # needs recreation
-                diff["drop"].append(name)
-            diff["create"].append({"name": name, **spec})
-
-        return diff
-
-    async def build_indexes(self, model):
-        """
-        Reconciles MongoDB indexes to match the model's desired state.
-
-        Pydantic annotations on the model determine the type of indexes:
-
-        - indexed - basic ascending index
-        - indexed-text - text index (for quick searching of partial strings)
-        - indexed-compound:field1,field2 - compound index on multiple fields
-
-        Indexes not declared in the model will be dropped.
-        """
-        if not model:
-            return
-
-        desired, desired_text = self._desired_indexes_from_model(model)
-
-        indexes_cursor = await self.collection.list_indexes()
-        indexes_list = [idx async for idx in indexes_cursor]
-        existing, existing_text = self._parse_existing_indexes(indexes_list)
-
-        diff = self._compute_index_diff(desired, desired_text, existing, existing_text)
-
+    async def _apply_index_diff(self, collection, diff, existing):
+        """Apply index diff to a collection."""
         # Apply text index changes
         if diff["drop_text"]:
             text_idx_name = next((n for n, s in existing.items() if s.get("text")), None)
             if text_idx_name:
                 self.log.debug(f"Dropping text index {text_idx_name}")
-                await self.collection.drop_index(text_idx_name)
+                await collection.drop_index(text_idx_name)
         if diff["create_text"]:
             key = [(f, "text") for f in diff["create_text"]]
             self.log.debug(f"Creating text index: {key}")
-            await self.collection.create_index(key)
+            await collection.create_index(key)
 
         # Drop indexes
         for name in diff["drop"]:
             self.log.debug(f"Dropping index {name}")
-            await self.collection.drop_index(name)
+            await collection.drop_index(name)
 
         # Create indexes
         for spec in diff["create"]:
             self.log.debug(f"Creating index {spec['name']}: {spec['key']}")
             try:
-                await self.collection.create_index(spec["key"], unique=spec["unique"], sparse=spec["sparse"])
+                await collection.create_index(spec["key"], unique=spec["unique"], sparse=spec["sparse"])
             except DuplicateKeyError as e:
                 self.log.error(f"Cannot create unique index {spec['name']}: duplicate values exist. {e}")
             except OperationFailure as e:

@@ -43,6 +43,11 @@ class RootApplet(BaseApplet):
             await self.message_queue.setup()
 
         await self._setup()
+
+        # Reconcile indexes after all applets are set up
+        if self.is_native:
+            await self.reconcile_all_indexes()
+
         return True, ""
 
     @property
