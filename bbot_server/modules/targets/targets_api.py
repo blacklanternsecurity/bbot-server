@@ -221,6 +221,25 @@ class TargetsApplet(BaseApplet):
         self._cache_put(target)
         return target
 
+    @api_endpoint("/copy", methods=["POST"], summary="Create a duplicate of a target")
+    async def copy_target(self, id: str, name: str = None) -> Target:
+        target = await self._get_target(
+            id=id, fields=["name", "description", "target", "seeds", "blacklist", "strict_dns_scope"]
+        )
+        if not name:
+            name = target["name"] + " Copy"
+        target_copy = await self.create_target(
+            CreateTarget(
+                name=name,
+                description=target["description"],
+                target=target.get("target", []),
+                seeds=target.get("seeds", None),
+                blacklist=target.get("blacklist", []),
+                strict_dns_scope=target["strict_dns_scope"],
+            )
+        )
+        return target_copy
+
     @api_endpoint("/", methods=["DELETE"], summary="Delete a scan target by its id")
     async def delete_target(self, id: str = None, new_default_target_id: str = None) -> None:
         target = await self._get_target(id=id, fields=["id", "default"])

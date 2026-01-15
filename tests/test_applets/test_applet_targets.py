@@ -323,6 +323,32 @@ async def test_scope_checks(bbot_server):
     assert await bbot_server.in_scope("www.test.external.evilcorp.org", target_id=target2.id) == False
 
 
+async def test_target_copy(bbot_server):
+    bbot_server = await bbot_server()
+    target = CreateTarget(
+        name="target",
+        description="target description",
+        target=["evilcorp.com"],
+    )
+    target = await bbot_server.create_target(target)
+    target_copy = await bbot_server.copy_target(target.id)
+
+    assert target_copy.name == "target Copy"
+    assert target_copy.description == "target description"
+    assert target_copy.target == ["evilcorp.com"]
+    assert target_copy.seeds is None
+    assert target_copy.blacklist == []
+    assert target_copy.strict_dns_scope == False
+    assert target_copy.id != target.id
+
+    with pytest.raises(BBOTServerValueError, match='Target with name "target" already exists'):
+        await bbot_server.copy_target(target.id, name="target")
+
+    targets = await bbot_server.get_targets()
+    assert set([t.id for t in targets]) == {target.id, target_copy.id}
+    assert set([t.name for t in targets]) == {"target", "target Copy"}
+
+
 # tests to make sure there is only ever one default target
 async def test_target_default_uniqueness(bbot_server):
     bbot_server = await bbot_server()
