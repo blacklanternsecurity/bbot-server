@@ -166,7 +166,6 @@ class TargetsApplet(BaseApplet):
         target: CreateTarget,
         allow_duplicate_hash: bool = True,
     ) -> Target:
-        print(f"Creating target: {target}")
         if not target.target and not target.seeds:
             raise self.BBOTServerValueError("Must provide at least one seed or target entry")
         if not target.name:
