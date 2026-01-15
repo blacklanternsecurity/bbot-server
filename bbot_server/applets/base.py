@@ -247,76 +247,93 @@ class BaseApplet:
 
     async def build_indexes(self, model):
         """
-        Builds MongoDB indexes for the given model.
+        Reconciles MongoDB indexes to match the model's desired state.
 
         Pydantic annotations on the model determine the type of indexes:
 
         - indexed - basic ascending index
-        - indexed-text - text index (for quick searching of partial strings - ideal for technology/vuln descriptions etc.)
-        - indexed-compound:field1,field2 - compound index on multiple fields (useful for preventing duplicates)
+        - indexed-text - text index (for quick searching of partial strings)
+        - indexed-compound:field1,field2 - compound index on multiple fields
+
+        Indexes not declared in the model will be dropped.
         """
         if not model:
             return
+
+        # Build desired index specs from model
+        desired = {}  # name -> {key, unique, sparse}
+        desired_text_fields = set()
+
         for fieldname, metadata in model.indexed_fields().items():
             unique = "unique" in metadata
             # normal indexes
             if "indexed" in metadata:
-                index = [(fieldname, ASCENDING)]
-                self.log.debug(f"Creating index: {index}")
-                try:
-                    await self.collection.create_index(index, unique=unique, sparse=unique)
-                except OperationFailure as e:
-                    if "existing index has the same name" in str(e):
-                        self.log.debug(f"Index {index} already exists, skipping")
-                    else:
-                        raise
-            # text indexes
+                name = f"{fieldname}_1"
+                desired[name] = {"key": [(fieldname, ASCENDING)], "unique": unique, "sparse": unique}
+            # text indexes - collect all fields, create single index later
             if "indexed-text" in metadata:
-                index = [(fieldname, "text")]
-                self.log.debug(f"Creating text index: {index}")
-                try:
-                    await self.collection.create_index(index)
-                except OperationFailure as e:
-                    # the only purpose of the below code is to add fields to an existing text index
-                    # if there's an easier way to do this, please delete this mess
-                    # ideally we should not have to delete and recreate the index
-                    if "index already exists" in str(e):
-                        # Get existing text index
-                        indexes_cursor = await self.collection.list_indexes()
-                        existing_indexes = [idx async for idx in indexes_cursor]
-                        text_index = next((idx for idx in existing_indexes if "text" in idx["key"].values()), None)
-                        if text_index:
-                            self.log.debug(f"Found existing text index: {text_index}")
-                            # Check if the field is already in the index
-                            existing_fields = text_index["weights"].keys()
-                            if fieldname in existing_fields:
-                                self.log.debug(f"Field {fieldname} already exists in text index, skipping")
-                                continue
-
-                            # Drop the existing text index
-                            index_name = text_index["name"]
-                            self.log.debug(f"Dropping existing text index {index_name}")
-                            await self.collection.drop_index(index_name)
-
-                            # Create new index with all fields from weights
-                            existing_fields = [(f, "text") for f in text_index["weights"].keys()]
-                            self.log.debug(f"Existing fields from weights: {existing_fields}")
-                            new_index = existing_fields + [(fieldname, "text")]
-                            self.log.debug(f"Creating new text index with fields: {new_index}")
-                            await self.collection.create_index(new_index)
-                        else:
-                            self.log.error(f"Failed to find existing text index: {e}")
-                    else:
-                        self.log.error(f"Error creating text index: {e}")
+                desired_text_fields.add(fieldname)
             # compound indexes
-            for metadata in metadata:
-                if isinstance(metadata, str) and metadata.startswith("indexed-compound:"):
-                    # create a compound index
-                    fields = metadata.split(":")[-1].split(",")
-                    fields = [fieldname] + fields
-                    index = [(fieldname, ASCENDING) for fieldname in fields]
-                    self.log.debug(f"Creating compound index: {index}")
-                    await self.collection.create_index(index, unique=True)
+            for m in metadata:
+                if isinstance(m, str) and m.startswith("indexed-compound:"):
+                    fields = [fieldname] + m.split(":")[-1].split(",")
+                    key = [(f, ASCENDING) for f in fields]
+                    name = "_".join(f"{f}_1" for f in fields)
+                    desired[name] = {"key": key, "unique": True, "sparse": False}
+
+        # Fetch existing indexes
+        existing = {}
+        existing_text_fields = set()
+        indexes_cursor = await self.collection.list_indexes()
+        async for idx in indexes_cursor:
+            name = idx["name"]
+            if name == "_id_":
+                continue
+            # text index
+            if "text" in idx["key"].values():
+                existing_text_fields = set(idx.get("weights", {}).keys())
+                existing[name] = {"text": True}
+            else:
+                existing[name] = {
+                    "key": list(idx["key"].items()),
+                    "unique": idx.get("unique", False),
+                    "sparse": idx.get("sparse", False),
+                }
+
+        # Reconcile text index (MongoDB allows only one per collection)
+        if desired_text_fields != existing_text_fields:
+            # drop existing text index if any
+            for name, spec in list(existing.items()):
+                if spec.get("text"):
+                    self.log.debug(f"Dropping text index {name}")
+                    await self.collection.drop_index(name)
+                    del existing[name]
+            # create new text index if needed
+            if desired_text_fields:
+                key = [(f, "text") for f in sorted(desired_text_fields)]
+                self.log.debug(f"Creating text index: {key}")
+                await self.collection.create_index(key)
+
+        # Drop indexes that shouldn't exist
+        for name in existing:
+            if existing[name].get("text"):
+                continue  # already handled
+            if name not in desired:
+                self.log.debug(f"Dropping index {name}")
+                await self.collection.drop_index(name)
+
+        # Create or update indexes
+        for name, spec in desired.items():
+            ex = existing.get(name)
+            if ex and not ex.get("text"):
+                # check if options match
+                if ex["unique"] == spec["unique"] and ex["sparse"] == spec["sparse"]:
+                    continue
+                # options differ, drop and recreate
+                self.log.debug(f"Recreating index {name} (options changed)")
+                await self.collection.drop_index(name)
+            self.log.debug(f"Creating index {name}: {spec['key']}")
+            await self.collection.create_index(spec["key"], unique=spec["unique"], sparse=spec["sparse"])
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks
