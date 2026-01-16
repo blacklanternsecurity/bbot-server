@@ -16,7 +16,7 @@ async def make_mongo_cursor(collection, query, fields=None, sort=None, skip=None
     if sort:
         sort = [(f.lstrip("+-"), -1 if f.startswith("-") else 1) if isinstance(f, str) else tuple(f) for f in sort]
 
-    if aggregate is not None:
+    if aggregate:
         aggregate = _sanitize_mongo_aggregation(aggregate)
         pipeline = [{"$match": query}] + aggregate
         if limit is not None:
