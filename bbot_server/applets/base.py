@@ -501,7 +501,7 @@ class BaseApplet:
 
         self.log.info(f"Querying {collection.name}: query={query}, fields={fields}")
 
-        return make_mongo_cursor(
+        return await make_mongo_cursor(
             collection,
             query,
             fields=fields,

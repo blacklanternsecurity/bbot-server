@@ -10,7 +10,7 @@ from bbot_server.utils.misc import _sanitize_mongo_aggregation
 log = logging.getLogger(__name__)
 
 
-def make_mongo_cursor(collection, query, fields=None, sort=None, skip=None, limit=None, aggregate=None):
+async def make_mongo_cursor(collection, query, fields=None, sort=None, skip=None, limit=None, aggregate=None):
     """Build a MongoDB cursor with optional sort/skip/limit or aggregation pipeline."""
     # Process sort spec: "+field"/"-field" strings or (field, direction) tuples
     if sort:
@@ -21,7 +21,7 @@ def make_mongo_cursor(collection, query, fields=None, sort=None, skip=None, limi
         pipeline = [{"$match": query}] + aggregate
         if limit is not None:
             pipeline.append({"$limit": limit})
-        return collection.aggregate(pipeline)
+        return await collection.aggregate(pipeline)
 
     cursor = collection.find(query, fields)
     if sort:

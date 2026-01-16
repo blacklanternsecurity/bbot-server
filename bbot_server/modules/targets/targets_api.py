@@ -321,7 +321,7 @@ class TargetsApplet(BaseApplet):
         sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
         aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
     ):
-        cursor = make_mongo_cursor(
+        cursor = await make_mongo_cursor(
             self.collection,
             query={},
             fields=fields,
