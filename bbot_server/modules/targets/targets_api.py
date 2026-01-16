@@ -1,11 +1,13 @@
 from uuid import UUID
-from typing import Any
+from fastapi import Body
+from typing import Any, Annotated
 from contextlib import asynccontextmanager
 from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.assets import Asset
+from bbot_server.utils.db import make_mongo_cursor
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.modules.targets.targets_models import Target, CreateTarget
@@ -304,14 +306,22 @@ class TargetsApplet(BaseApplet):
         targets = [Target(**target) for target in targets]
         return targets
 
-    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="List targets with customizeable fields and optional pagination")
+    @api_endpoint(
+        "/query",
+        methods=["POST"],
+        type="http_stream",
+        response_model=dict,
+        summary="List targets with customizeable fields and optional pagination",
+    )
     async def query_targets(
         self,
-        fields: list[str] = None,
-        limit: int = None,
-        skip: int = None,
+        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
+        skip: Annotated[int, Body(description="Skip the first N targets")] = None,
+        limit: Annotated[int, Body(description="Limit the number of targets returned")] = None,
+        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
     ):
-        async for target in self.mongo_iter(fields=fields, limit=limit, skip=skip):
+        cursor = make_mongo_cursor(self.collection, query={}, fields=fields, limit=limit, skip=skip, sort=sort)
+        async for target in cursor:
             yield target
 
     @api_endpoint("/list_ids", methods=["GET"], summary="List all target IDs")

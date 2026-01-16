@@ -21,11 +21,12 @@ from bbot_server.utils.db import (
     parse_existing_indexes,
     compute_index_diff,
     merge_desired_indexes,
+    make_mongo_cursor,
 )
 from bbot_server.applets._routing import make_bbotserver_route
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.errors import BBOTServerError, BBOTServerValueError
-from bbot_server.utils.misc import _sanitize_mongo_query, _sanitize_mongo_aggregation
+from bbot_server.utils.misc import _sanitize_mongo_query
 
 word_regex = re.compile(r"\W+")
 
@@ -486,6 +487,7 @@ class BaseApplet:
         collection=None,
         **kwargs,
     ):
+        """Build a MongoDB cursor for querying, with optional aggregation pipeline."""
         query = await self.make_bbot_query(query=query, **kwargs)
         fields = {f: 1 for f in fields} if fields else None
 
@@ -499,32 +501,15 @@ class BaseApplet:
 
         self.log.info(f"Querying {collection.name}: query={query}, fields={fields}")
 
-        if aggregate:
-            # sanitize aggregation pipeline
-            aggregate = _sanitize_mongo_aggregation(aggregate)
-            aggregate_pipeline = [{"$match": query}] + aggregate
-            if limit is not None:
-                aggregate_pipeline.append({"$limit": limit})
-            self.log.info(f"Querying {collection.name}: aggregate={aggregate_pipeline}")
-            cursor = await collection.aggregate(aggregate_pipeline)
-        else:
-            cursor = collection.find(query, fields)
-            if sort:
-                processed_sort = []
-                for field in sort:
-                    if isinstance(field, str):
-                        processed_sort.append((field.lstrip("+-"), -1 if field.startswith("-") else 1))
-                    else:
-                        # assume it's already a tuple (field, direction)
-                        processed_sort.append(tuple(field))
-                cursor = cursor.sort(processed_sort)
-
-            if limit is not None:
-                cursor = cursor.limit(limit)
-            if skip is not None:
-                cursor = cursor.skip(skip)
-
-        return cursor
+        return make_mongo_cursor(
+            collection,
+            query,
+            fields=fields,
+            sort=sort,
+            skip=skip,
+            limit=limit,
+            aggregate=aggregate,
+        )
 
     def include_app(self, app_class):
         self.log.debug(f"{self.name_lowercase} including applet {app_class.name_lowercase}")

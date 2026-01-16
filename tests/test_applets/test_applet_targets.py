@@ -420,6 +420,23 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         )
         self.target2 = await self.bbot_server.create_target(target2)
 
+        # test query_targets with field selection and pagination
+        all_targets = [t async for t in self.bbot_server.query_targets()]
+        assert len(all_targets) == 2
+        assert {t["name"] for t in all_targets} == {"evilcorp", "www evilcorp"}
+
+        # field selection
+        partial = [t async for t in self.bbot_server.query_targets(fields=["name", "id"])]
+        assert len(partial) == 2
+        for t in partial:
+            assert set(t) == {"name", "id", "_id"}
+
+        # pagination
+        assert [t["name"] async for t in self.bbot_server.query_targets(limit=1)] == ["evilcorp"]
+        assert [t["name"] async for t in self.bbot_server.query_targets(skip=1)] == ["www evilcorp"]
+        assert [t["name"] async for t in self.bbot_server.query_targets(limit=1, skip=1)] == ["www evilcorp"]
+        assert [t["name"] async for t in self.bbot_server.query_targets(skip=2)] == []
+
     async def after_scan_1(self):
         assets = [a async for a in self.bbot_server.list_assets()]
         target_1_assets = {a.host for a in assets if self.target1.id in a.scope}
