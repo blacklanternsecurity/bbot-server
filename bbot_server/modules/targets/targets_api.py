@@ -319,8 +319,17 @@ class TargetsApplet(BaseApplet):
         skip: Annotated[int, Body(description="Skip the first N targets")] = None,
         limit: Annotated[int, Body(description="Limit the number of targets returned")] = None,
         sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
+        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
     ):
-        cursor = make_mongo_cursor(self.collection, query={}, fields=fields, limit=limit, skip=skip, sort=sort)
+        cursor = make_mongo_cursor(
+            self.collection,
+            query={},
+            fields=fields,
+            limit=limit,
+            skip=skip,
+            sort=sort,
+            aggregate=aggregate,
+        )
         async for target in cursor:
             yield target
 

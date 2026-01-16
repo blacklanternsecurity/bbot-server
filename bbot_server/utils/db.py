@@ -17,10 +17,11 @@ def make_mongo_cursor(collection, query, fields=None, sort=None, skip=None, limi
         sort = [(f.lstrip("+-"), -1 if f.startswith("-") else 1) if isinstance(f, str) else tuple(f) for f in sort]
 
     if aggregate is not None:
+        aggregate = _sanitize_mongo_aggregation(aggregate)
         pipeline = [{"$match": query}] + aggregate
         if limit is not None:
             pipeline.append({"$limit": limit})
-        return collection.aggregate(_sanitize_mongo_aggregation(pipeline))
+        return collection.aggregate(pipeline)
 
     cursor = collection.find(query, fields)
     if sort:
