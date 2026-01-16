@@ -147,7 +147,7 @@ class TargetsApplet(BaseApplet):
         return Target(**target)
 
     @api_endpoint("/count", methods=["GET"], summary="Get the number of scan targets")
-    async def target_count(self) -> int:
+    async def count_targets(self) -> int:
         return await self.collection.count_documents({})
 
     @api_endpoint("/set_default/{id}", methods=["POST"], summary="Set a target as the default target")
