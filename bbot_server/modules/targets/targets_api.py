@@ -181,7 +181,7 @@ class TargetsApplet(BaseApplet):
             strict_dns_scope=target.strict_dns_scope,
             default=target.default,
         )
-        if await self.target_count() == 0:
+        if await self.count_targets() == 0:
             target.default = True
         async with self._handle_duplicate_target(target, allow_duplicate_hash):
             await self.collection.insert_one(target.model_dump())
@@ -251,7 +251,7 @@ class TargetsApplet(BaseApplet):
         # when we're deleting the default target, we need to set a new one
         if target_is_default:
             if new_default_target_id is None:
-                num_targets = await self.target_count()
+                num_targets = await self.count_targets()
                 # if there are 2 or less targets, we can assume the new default target
                 if num_targets == 2:
                     # find the only other target that's not the one we're deleting

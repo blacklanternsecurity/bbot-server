@@ -24,7 +24,7 @@ async def test_applet_targets(bbot_server):
     targets = await bbot_server.get_targets()
     assert targets == []
 
-    num_targets = await bbot_server.target_count()
+    num_targets = await bbot_server.count_targets()
     assert num_targets == 0
 
     # create a target
@@ -43,7 +43,7 @@ async def test_applet_targets(bbot_server):
     time_diff = abs(target1.created - target1.modified)
     assert time_diff < 0.01, f"Time difference between created and modified is {time_diff}s, expected <0.01s"
 
-    num_targets = await bbot_server.target_count()
+    num_targets = await bbot_server.count_targets()
     assert num_targets == 1
 
     targets = await bbot_server.get_targets()
