@@ -304,6 +304,16 @@ class TargetsApplet(BaseApplet):
         targets = [Target(**target) for target in targets]
         return targets
 
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="List targets with customizeable fields and optional pagination")
+    async def query_targets(
+        self,
+        fields: list[str] = None,
+        limit: int = None,
+        skip: int = None,
+    ):
+        async for target in self.mongo_iter(fields=fields, limit=limit, skip=skip):
+            yield target
+
     @api_endpoint("/list_ids", methods=["GET"], summary="List all target IDs")
     async def get_target_ids(self, debounce: float = 5.0) -> list[UUID]:
         if self._target_ids_modified is None or utc_now() - self._target_ids_modified > debounce:
