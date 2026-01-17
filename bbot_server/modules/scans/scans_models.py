@@ -1,6 +1,6 @@
 import uuid
 from typing import Annotated, Optional
-from pydantic import Field, computed_field
+from pydantic import BaseModel, Field, computed_field
 
 from bbot.constants import get_scan_status_name, SCAN_STATUS_CODES
 
@@ -8,6 +8,33 @@ from bbot_server.models.base import BaseBBOTServerModel
 from bbot_server.modules.presets.presets_models import Preset
 from bbot_server.modules.targets.targets_models import Target
 from bbot_server.utils.misc import utc_now, timestamp_to_human
+
+
+class ScansQueryBody(BaseModel):
+    """Request body for querying scans."""
+
+    query: dict | None = None
+    search: str | None = None
+    name: str | None = None
+    status: str | None = None
+    status_code: int | None = None
+    agent_id: str | None = None
+    fields: list[str] | None = None
+    limit: int | None = None
+    skip: int | None = None
+    sort: list[str | tuple[str, int]] | None = None
+    aggregate: list[dict] | None = None
+
+
+class ScansCountBody(BaseModel):
+    """Request body for counting scans."""
+
+    query: dict | None = None
+    search: str | None = None
+    name: str | None = None
+    status: str | None = None
+    status_code: int | None = None
+    agent_id: str | None = None
 
 
 class Scan(BaseBBOTServerModel):
