@@ -430,7 +430,8 @@ class BaseApplet:
             if target_id != "DEFAULT":
                 target_query_kwargs["id"] = target_id
             target = await self.root.targets._get_target(**target_query_kwargs, fields=["id"])
-            query["scope"] = target["id"]
+            if target is not None:
+                query["scope"] = target["id"]
 
         # if both active and archived are true, we don't need to filter anything, because we are returning all assets
         if not (active and archived) and ("archived" not in query):

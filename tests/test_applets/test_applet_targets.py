@@ -497,3 +497,84 @@ class TestTargetScopeMaintenance(BaseAppletTest):
 
     async def after_archive(self):
         pass
+
+
+class TestTargetUpdateRemovesTargetFromAssets(BaseAppletTest):
+    """
+    Regression test for bug where editing or deleting a target to remove a domain
+    did not update assets to remove that target from their scope.
+
+    https://github.com/blacklanternsecurity/bbot-server/issues/113
+
+    Also tests that deleting a target doesn't break count_assets(target_id="DEFAULT") afterward
+    """
+
+    needs_watchdog = True
+
+    async def setup(self):
+        assert await self.bbot_server.get_hosts() == []
+        assert await self.bbot_server.get_targets() == []
+
+    async def after_scan_1(self):
+        # count assets
+        self.original_asset_count = await self.bbot_server.count_assets(target_id="DEFAULT")
+        self.all_asset_count = await self.bbot_server.count_assets()
+        # without any targets, "DEFAULT" target should return all assets
+        assert self.original_asset_count > 0 and self.original_asset_count == self.all_asset_count
+
+        # Create a target with evilcorp.com
+        target = CreateTarget(
+            name="bugtest",
+            description="test target for bug reproduction",
+            target=["evilcorp.com"],
+        )
+        self.target = await self.bbot_server.create_target(target)
+
+        # wait for new target to be processed
+        await asyncio.sleep(1.0)
+
+        # count assets again
+        self.new_asset_count = await self.bbot_server.count_assets(target_id="DEFAULT")
+        # our new count should be more than zero but less than the original count, since not all assets are in the target
+        assert self.new_asset_count > 0
+        assert self.new_asset_count < self.original_asset_count
+
+        # Verify assets are in scope for our target
+        assets = [a async for a in self.bbot_server.list_assets()]
+        target_assets = {a.host for a in assets if self.target.id in a.scope}
+        # Should have at least some evilcorp.com assets in scope
+        assert len(target_assets) > 0, "Expected assets to be in scope for target"
+        evilcorp_hosts = {h for h in target_assets if h.endswith("evilcorp.com")}
+        assert len(evilcorp_hosts) > 0, f"Expected evilcorp.com hosts in target scope, got: {target_assets}"
+
+        # BUG REPRODUCTION: Update the target to remove evilcorp.com
+        # Replace with a totally different domain
+        self.target.target = ["somethingelse.net"]
+        await self.bbot_server.update_target(self.target.id, self.target)
+
+        # Give watchdog time to process the TARGET_UPDATED activity
+        await asyncio.sleep(1.0)
+
+        # Check that assets no longer have this target in their scope
+        assets = [a async for a in self.bbot_server.list_assets(target_id="DEFAULT")]
+        target_assets = {a.host for a in assets if self.target.id in a.scope}
+        assert len(target_assets) == 0, f"Expected no assets to be in scope for target, got: {target_assets}"
+
+        # count assets again
+        asset_count = await self.bbot_server.count_assets(target_id="DEFAULT")
+        assert asset_count == 0, f"Expected asset count to be zero after target update, got: {asset_count}"
+
+        # BUG: This assertion will fail because assets still have the old target in their scope
+        evilcorp_hosts = {h for h in target_assets if h.endswith("evilcorp.com")}
+        assert len(evilcorp_hosts) == 0, (
+            f"BUG: evilcorp.com hosts should no longer be in target scope after target update, but found: {evilcorp_hosts}"
+        )
+
+        # delete the target
+        await self.bbot_server.delete_target(self.target.id)
+
+        # count assets again
+        asset_count = await self.bbot_server.count_assets(target_id="DEFAULT")
+        assert asset_count == self.original_asset_count == self.all_asset_count, (
+            f"Expected asset count to be the same as before the target update, got: {asset_count}"
+        )
