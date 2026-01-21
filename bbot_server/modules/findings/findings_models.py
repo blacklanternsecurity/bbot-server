@@ -1,7 +1,10 @@
 from typing import Annotated, Optional
+
+from bbot.models.pydantic import BBOTBaseModel
+from fastapi import Body
 from pydantic import Field, computed_field
 
-from bbot_server.models.base import BaseScore
+from bbot_server.models.base import BaseScore, QueryRequestBody, BaseRequestBody
 from bbot_server.models.asset_models import BaseAssetFacet
 
 # Severity levels as constants
@@ -19,7 +22,6 @@ SEVERITY_COLORS = {
     5: "purple",  # CRITICAL = purple
 }
 
-
 class SeverityScore(BaseScore):
     """Maps severity levels to numeric scores and provides conversion methods."""
 
@@ -32,6 +34,29 @@ class ConfidenceScore(BaseScore):
 
     levels = CONFIDENCE_LEVELS
     name = "confidence"
+
+
+class BaseFindingsRequestBody(BBOTBaseModel):
+    host: Annotated[str | None, Body(description="Filter by exact hostname or IP address")] = None
+    domain: Annotated[str | None, Body(description="Filter by domain or subdomain")] = None
+    target_id: Annotated[str | None, Body(description="Filter by target name or id")] = None
+    archived: Annotated[bool, Body(description="Whether to include archived findings")] = False
+    active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True
+    ignored: Annotated[bool, Body(description="Filter on whether the finding is ignored")] = False
+    min_severity: Annotated[
+        int, Body(description="Filter by minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
+    ] = 1
+    max_severity: Annotated[
+        int, Body(description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
+    ] = 5
+
+
+class QueryFindingsRequestBody(BaseFindingsRequestBody, QueryRequestBody):
+    pass
+
+
+class CountFindingsRequestBody(BaseFindingsRequestBody, BaseRequestBody):
+    pass
 
 
 class Finding(BaseAssetFacet):

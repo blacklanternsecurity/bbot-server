@@ -2,6 +2,8 @@ import asyncio
 from fastapi import Query, Body
 from contextlib import suppress
 from typing import AsyncGenerator, Annotated
+
+from bbot_server.models.base import QueryRequestBody
 from bbot_server.models.event_models import Event
 from datetime import datetime, timezone, timedelta
 
@@ -65,10 +67,6 @@ class EventsApplet(BaseApplet):
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
     async def query_events(
         self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
         host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
         domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
         target_id: Annotated[str, Body(description="Filter by target name or id")] = None,
@@ -76,18 +74,12 @@ class EventsApplet(BaseApplet):
         active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True,
         min_timestamp: Annotated[float, Body(description="Filter by minimum timestamp")] = None,
         max_timestamp: Annotated[float, Body(description="Filter by maximum timestamp")] = None,
-        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
-        limit: Annotated[int, Body(description="Limit the number of events returned")] = None,
-        skip: Annotated[int, Body(description="Skip the first N events")] = None,
-        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
-        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
+        body: QueryRequestBody | None = None
     ):
         """
         Advanced querying of events. Choose your own filters and fields.
         """
         async for event in self.mongo_iter(
-            query=query,
-            search=search,
             host=host,
             domain=domain,
             target_id=target_id,
@@ -95,11 +87,7 @@ class EventsApplet(BaseApplet):
             active=active,
             min_timestamp=min_timestamp,
             max_timestamp=max_timestamp,
-            fields=fields,
-            limit=limit,
-            skip=skip,
-            sort=sort,
-            aggregate=aggregate,
+            **(body.model_dump() if body else {})
         ):
             yield event
 

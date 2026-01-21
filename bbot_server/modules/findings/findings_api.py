@@ -3,7 +3,9 @@ from typing import Annotated, Optional
 
 from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
-from bbot_server.modules.findings.findings_models import Finding, SEVERITY_COLORS, SeverityScore
+from bbot_server.models.base import QueryRequestBody
+from bbot_server.modules.findings.findings_models import Finding, SEVERITY_COLORS, SeverityScore, \
+    QueryFindingsRequestBody, CountFindingsRequestBody
 
 
 # add 'findings' field to the main asset model
@@ -66,87 +68,19 @@ class FindingsApplet(BaseApplet):
             yield Finding(**finding)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
-    async def query_findings(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
-        host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
-        domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
-        target_id: Annotated[str, Body(description="Filter by target name or id")] = None,
-        archived: Annotated[bool, Body(description="Whether to include archived findings")] = False,
-        active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True,
-        ignored: Annotated[bool, Body(description="Filter on whether the finding is ignored")] = False,
-        min_severity: Annotated[
-            int, Body(description="Filter by minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
-        ] = 1,
-        max_severity: Annotated[
-            int, Body(description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
-        ] = 5,
-        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
-        limit: Annotated[int, Body(description="Limit the number of findings returned")] = None,
-        skip: Annotated[int, Body(description="Skip the first N findings")] = None,
-        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
-        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
-    ):
+    async def query_findings(self, body: QueryFindingsRequestBody | None = None):
         """
         Advanced querying of findings. Choose your own filters and fields.
         """
-        async for finding in self.mongo_iter(
-            query=query,
-            search=search,
-            host=host,
-            domain=domain,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            ignored=ignored,
-            min_severity=min_severity,
-            max_severity=max_severity,
-            fields=fields,
-            limit=limit,
-            skip=skip,
-            sort=sort,
-            aggregate=aggregate,
-        ):
+        async for finding in self.mongo_iter(**(body.model_dump() if body else {})):
             yield finding
 
     @api_endpoint("/count", methods=["POST"], summary="Count findings")
-    async def count_findings(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
-        host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
-        domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
-        target_id: Annotated[str, Body(description="Filter by target name or id")] = None,
-        archived: Annotated[bool, Body(description="Whether to include archived findings")] = False,
-        active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True,
-        ignored: Annotated[bool, Body(description="Filter on whether the finding is ignored")] = False,
-        min_severity: Annotated[
-            int, Body(description="Filter by minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
-        ] = 1,
-        max_severity: Annotated[
-            int, Body(description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
-        ] = 5,
-    ) -> int:
+    async def count_findings(self, body: CountFindingsRequestBody | None = None) -> int:
         """
         Same as query_findings, except only returns the count
         """
-        return await self.mongo_count(
-            query=query,
-            search=search,
-            host=host,
-            domain=domain,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            ignored=ignored,
-            min_severity=min_severity,
-            max_severity=max_severity,
-        )
+        return await self.mongo_count(**(body.model_dump() if body else {}))
 
     @api_endpoint(
         "/stats_by_name",

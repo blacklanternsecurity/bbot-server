@@ -2,6 +2,8 @@ import random
 import asyncio
 import traceback
 from uuid import UUID
+
+from pydantic_core import MISSING
 from pymongo import ASCENDING
 from contextlib import suppress
 from pymongo.errors import DuplicateKeyError
@@ -16,9 +18,10 @@ from bbot.constants import (
     SCAN_STATUS_FINISHED,
 )
 
-from bbot_server.modules.scans.scans_models import Scan, ScansQueryBody, ScansCountBody
+from bbot_server.modules.scans.scans_models import Scan
 from bbot_server.modules.presets.presets_models import Preset
 from bbot_server.modules.targets.targets_models import Target
+from bbot_server.models.base import BaseRequestBody, QueryRequestBody
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.utils.db import make_mongo_cursor
@@ -91,72 +94,20 @@ class ScansApplet(BaseApplet):
             yield Scan(**scan)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query scans")
-    async def query_scans(self, body: ScansQueryBody = None):
+    async def query_scans(self, body: QueryRequestBody = None):
         """
         Advanced querying of scans. Choose your own filters and fields.
         """
-        body = body or ScansQueryBody()
-        mongo_query = self._build_scan_query(
-            query=body.query,
-            search=body.search,
-            name=body.name,
-            status=body.status,
-            status_code=body.status_code,
-            agent_id=body.agent_id,
-        )
-        cursor = await make_mongo_cursor(
-            self.collection,
-            query=mongo_query,
-            fields=body.fields,
-            limit=body.limit,
-            skip=body.skip,
-            sort=body.sort,
-            aggregate=body.aggregate,
-        )
-        async for scan in cursor:
+        body = body.model_dump() or QueryRequestBody().model_dump()
+        async for scan in await make_mongo_cursor(self.collection, **body):
             yield scan
 
     @api_endpoint("/count", methods=["POST"], summary="Count scans")
-    async def count_scans(self, body: ScansCountBody = None) -> int:
+    async def count_scans(self, body: BaseRequestBody = None) -> int:
         """
         Same as query_scans, except only returns the count.
         """
-        body = body or ScansCountBody()
-        mongo_query = self._build_scan_query(
-            query=body.query,
-            search=body.search,
-            name=body.name,
-            status=body.status,
-            status_code=body.status_code,
-            agent_id=body.agent_id,
-        )
-        return await self.collection.count_documents(mongo_query)
-
-    def _build_scan_query(
-        self,
-        query: dict = None,
-        search: str = None,
-        name: str = None,
-        status: str = None,
-        status_code: int = None,
-        agent_id: str = None,
-    ) -> dict:
-        """Build a MongoDB query for scans based on the provided filters."""
-        mongo_query = dict(query or {})
-        if search is not None:
-            mongo_query["$or"] = [
-                {"name": {"$regex": search, "$options": "i"}},
-                {"description": {"$regex": search, "$options": "i"}},
-            ]
-        if name is not None and "name" not in mongo_query:
-            mongo_query["name"] = name
-        if status is not None and "status" not in mongo_query:
-            mongo_query["status"] = status.upper()
-        if status_code is not None and "status_code" not in mongo_query:
-            mongo_query["status_code"] = status_code
-        if agent_id is not None and "agent_id" not in mongo_query:
-            mongo_query["agent_id"] = agent_id
-        return mongo_query
+        return await self.collection.count_documents(body.query if body.query is not MISSING else {})
 
     @api_endpoint(
         "/list_brief", methods=["GET"], summary="Get all scans in a brief format (without target info)", mcp=True
