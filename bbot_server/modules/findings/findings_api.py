@@ -1,9 +1,8 @@
-from fastapi import Body, Query
+from fastapi import Query
 from typing import Annotated, Optional
 
 from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
-from bbot_server.models.base import QueryRequestBody
 from bbot_server.modules.findings.findings_models import Finding, SEVERITY_COLORS, SeverityScore, \
     QueryFindingsRequestBody, CountFindingsRequestBody
 

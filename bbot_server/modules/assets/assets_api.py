@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import Body, Path, Query
+from fastapi import Path, Query
 
 from bbot_server.assets import Asset
 from bbot_server.modules.activity.activity_models import CountActivitiesRequestBody

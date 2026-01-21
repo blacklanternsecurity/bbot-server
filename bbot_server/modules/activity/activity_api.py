@@ -1,5 +1,3 @@
-from fastapi import Body
-from typing import Annotated
 from contextlib import suppress
 
 from bbot_server.assets import Asset

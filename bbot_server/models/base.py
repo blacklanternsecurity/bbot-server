@@ -1,6 +1,6 @@
 import logging
 from hashlib import sha1
-from typing import Annotated, Union
+from typing import Union
 
 from bbot.models.pydantic import BBOTBaseModel
 from pydantic import Field
