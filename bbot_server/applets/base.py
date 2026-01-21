@@ -7,7 +7,7 @@ from types import UnionType
 
 from fastapi import APIRouter
 from omegaconf import OmegaConf
-from typing import Annotated, Any, get_type_hints, get_origin, get_args, Union, Callable  # noqa
+from typing import Annotated, Any, get_type_hints, get_origin, get_args, Union, Callable, cast  # noqa
 from functools import cached_property, wraps
 from pydantic import BaseModel, Field  # noqa
 from pymongo import WriteConcern
@@ -48,36 +48,30 @@ def api_endpoint(endpoint: str, kwargs_to_body: bool = True, **kwargs):
 
     def decorator(fn):
         if kwargs_to_body:
-            # Find the body parameter and model class from type hints
-            hints = get_type_hints(fn)
-            body_param = None
-            model_class = None
 
-            for name, hint in hints.items():
-                if name in ("self", "cls", "return"):
-                    continue
-                # Handle `Model | None` union types
-                origin = get_origin(hint)
-                if origin is UnionType:
-                    for arg in get_args(hint):
+            # Find model class from Type Hints
+            model_class: type[BaseModel] | None = None
+            type_anno = get_type_hints(fn).get("body", None)
+            if type_anno and (full_type := get_origin(type_anno)) in (Union, UnionType):
+                # For Type hints like `body: Model`
+                if isinstance(full_type, type) and issubclass(full_type, BaseModel):
+                    model_class = type_anno
+                # Type hint is like `body: Model | None = None`
+                else:
+                    for arg in get_args(type_anno):
                         if isinstance(arg, type) and issubclass(arg, BaseModel):
-                            body_param, model_class = name, arg
+                            model_class = arg
                             break
-                elif isinstance(hint, type) and issubclass(hint, BaseModel):
-                    body_param, model_class = name, hint
-                if model_class:
-                    break
 
             # Only wrap if we found a model
             if model_class:
-                model_fields = set(model_class.model_fields.keys())
                 orig_fn = fn
 
                 def convert_kwargs(kw):
-                    if body_param not in kw or kw[body_param] is None:
-                        model_kw = {k: kw.pop(k) for k in list(kw) if k in model_fields}
+                    if "body" not in kw or kw["body"] is None:
+                        model_kw = {k: kw.pop(k) for k in list(kw) if k in set(model_class.model_fields.keys())}
                         if model_kw:
-                            kw[body_param] = model_class(**model_kw)
+                            kw["body"] = model_class(**model_kw)
                     return kw
 
                 # Regular async functions need an async wrapper to await them
