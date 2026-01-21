@@ -2,6 +2,8 @@ from typing import Annotated
 from fastapi import Body, Path, Query
 
 from bbot_server.assets import Asset
+from bbot_server.modules.activity.activity_models import CountActivitiesRequestBody
+from bbot_server.modules.assets.assets_models import QueryAssetsRequestModel
 from bbot_server.utils.misc import utc_now
 from bbot_server.applets.base import BaseApplet, api_endpoint
 
@@ -26,79 +28,19 @@ class AssetsApplet(BaseApplet):
             yield self.model(**asset)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query assets")
-    async def query_assets(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
-        host: Annotated[str, Body(description="Filter assets by host (exact match only)")] = None,
-        domain: Annotated[str, Body(description="Filter assets by domain (subdomains allowed)")] = None,
-        type: Annotated[
-            str, Body(description="Filter assets by type (Asset, Technology, Vulnerability, etc.)")
-        ] = "Asset",
-        target_id: Annotated[str, Body(description="Filter assets by target ID")] = None,
-        archived: Annotated[bool, Body(description="Whether to include archived assets")] = False,
-        active: Annotated[bool, Body(description="Whether to include active assets")] = True,
-        ignored: Annotated[bool, Body(description="Filter on whether the asset is ignored")] = False,
-        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
-        limit: Annotated[int, Body(description="Limit the number of assets returned")] = None,
-        skip: Annotated[int, Body(description="Skip the first N assets")] = None,
-        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
-        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
-    ) -> list[Asset]:
+    async def query_assets(self, body: QueryAssetsRequestModel | None = None):
         """
         Advanced querying of assets. Choose your own filters and fields.
         """
-        async for asset in self.mongo_iter(
-            query=query,
-            search=search,
-            host=host,
-            domain=domain,
-            type=type,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            ignored=ignored,
-            fields=fields,
-            limit=limit,
-            skip=skip,
-            sort=sort,
-            aggregate=aggregate,
-        ):
+        async for asset in self.mongo_iter(**(body.model_dump() if body else {})):
             yield asset
 
     @api_endpoint("/count", methods=["POST"], summary="Count assets")
-    async def count_assets(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
-        host: Annotated[str, Body(description="Filter assets by host (exact match only)")] = None,
-        domain: Annotated[str, Body(description="Filter assets by domain (subdomains allowed)")] = None,
-        type: Annotated[
-            str, Body(description="Filter assets by type (Asset, Technology, Vulnerability, etc.)")
-        ] = "Asset",
-        target_id: Annotated[str, Body(description="Filter assets by target ID")] = None,
-        archived: Annotated[bool, Body(description="Whether to include archived assets")] = False,
-        active: Annotated[bool, Body(description="Whether to include active assets")] = True,
-        ignored: Annotated[bool, Body(description="Filter on whether the asset is ignored")] = False,
-    ) -> int:
+    async def count_assets(self, body: CountActivitiesRequestBody | None = None) -> int:
         """
         Same as query_assets, except only returns the count
         """
-        return await self.mongo_count(
-            query=query,
-            search=search,
-            host=host,
-            domain=domain,
-            type=type,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            ignored=ignored,
-        )
+        return await self.mongo_count(**(body.model_dump() if body else {}))
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: Annotated[str, Path(description="The host of the asset to get")]) -> Asset:
