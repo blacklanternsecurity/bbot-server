@@ -491,9 +491,9 @@ class TestTargetScopeMaintenance(BaseAppletTest):
 
         assets = [a async for a in self.bbot_server.list_assets()]
 
-        # evilcorp.azure.com (127.0.0.3) and b.com (127.0.0.4) are now part of the target
+        # evilcorp.azure.com (127.0.0.3) and evilcorp.amazonaws.com (127.0.0.4) are now part of the target
         target_2_assets = {a.host for a in assets if self.target2.id in a.scope}
-        assert target_2_assets == {"evilcorp.azure.com", "evilcorp.amazonaws.com", "www.evilcorp.com", "127.0.0.1"}
+        assert target_2_assets == {"evilcorp.azure.com", "evilcorp.amazonaws.com"}
 
     async def after_archive(self):
         pass
