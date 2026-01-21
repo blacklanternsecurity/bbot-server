@@ -3,6 +3,8 @@ import asyncio
 from inspect import getmembers, iscoroutinefunction
 import logging
 import traceback
+from types import UnionType
+
 from fastapi import APIRouter
 from omegaconf import OmegaConf
 from typing import Annotated, Any, get_type_hints, get_origin, get_args, Union, Callable  # noqa
@@ -33,7 +35,7 @@ word_regex = re.compile(r"\W+")
 log = logging.getLogger(__name__)
 
 
-def api_endpoint(endpoint: Callable, kwargs_to_body: bool = True, **kwargs):
+def api_endpoint(endpoint: str, kwargs_to_body: bool = True, **kwargs):
     """
     Decorate your applet method with this to add it to FastAPI.
 
@@ -56,7 +58,7 @@ def api_endpoint(endpoint: Callable, kwargs_to_body: bool = True, **kwargs):
                     continue
                 # Handle `Model | None` union types
                 origin = get_origin(hint)
-                if origin is Union:
+                if origin is UnionType:
                     for arg in get_args(hint):
                         if isinstance(arg, type) and issubclass(arg, BaseModel):
                             body_param, model_class = name, arg
