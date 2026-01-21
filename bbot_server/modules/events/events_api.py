@@ -74,7 +74,7 @@ class EventsApplet(BaseApplet):
         active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True,
         min_timestamp: Annotated[float, Body(description="Filter by minimum timestamp")] = None,
         max_timestamp: Annotated[float, Body(description="Filter by maximum timestamp")] = None,
-        body: QueryRequestBody | None = None
+        body: QueryRequestBody | None = None,
     ):
         """
         Advanced querying of events. Choose your own filters and fields.
@@ -87,7 +87,7 @@ class EventsApplet(BaseApplet):
             active=active,
             min_timestamp=min_timestamp,
             max_timestamp=max_timestamp,
-            **(body.model_dump() if body else {})
+            **(body.model_dump() if body else {}),
         ):
             yield event
 

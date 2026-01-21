@@ -3,8 +3,13 @@ from typing import Annotated, Optional
 
 from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
-from bbot_server.modules.findings.findings_models import Finding, SEVERITY_COLORS, SeverityScore, \
-    QueryFindingsRequestBody, CountFindingsRequestBody
+from bbot_server.modules.findings.findings_models import (
+    Finding,
+    SEVERITY_COLORS,
+    SeverityScore,
+    QueryFindingsRequestBody,
+    CountFindingsRequestBody,
+)
 
 
 # add 'findings' field to the main asset model

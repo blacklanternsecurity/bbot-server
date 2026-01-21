@@ -22,8 +22,7 @@ class BaseBBOTServerModel(BBOTBaseModel):
 
 class BaseRequestBody(BBOTBaseModel):
     query: dict | MISSING = Field(
-        MISSING,
-        description="The Mongo filter, a Mongo compatible query in the form of a Python dict"
+        MISSING, description="The Mongo filter, a Mongo compatible query in the form of a Python dict"
     )
 
 
@@ -31,27 +30,19 @@ class QueryRequestBody(BaseRequestBody):
     search: str | MISSING = Field(
         MISSING,
         description="A global search string, "
-                    "dependant on case by case implementation on which fields its searched against"
+        "dependant on case by case implementation on which fields its searched against",
     )
     fields: list[str] | MISSING = Field(
-        MISSING,
-        description="The Mongo projection, specifies which fields to return in data"
+        MISSING, description="The Mongo projection, specifies which fields to return in data"
     )
-    limit: int | MISSING = Field(
-        MISSING,
-        description="Limit how much results to return"
-    )
-    skip: int | MISSING = Field(
-        MISSING,
-        description="Offset/skip this many documents"
-    )
+    limit: int | MISSING = Field(MISSING, description="Limit how much results to return")
+    skip: int | MISSING = Field(MISSING, description="Offset/skip this many documents")
     sort: list[str] | tuple[str, int] | MISSING = Field(
-        MISSING,
-        description="The Mongo sort, specifies which fields to sort by or a tuple specifying desc or asc"
+        MISSING, description="The Mongo sort, specifies which fields to sort by or a tuple specifying desc or asc"
     )
     aggregate: list[dict] | MISSING = Field(
         MISSING,
-        description="The Mongo aggregate, a list of Mongo compatible aggregation operations (each a Python dict)"
+        description="The Mongo aggregate, a list of Mongo compatible aggregation operations (each a Python dict)",
     )
 
 

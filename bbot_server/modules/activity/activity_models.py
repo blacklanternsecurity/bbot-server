@@ -19,6 +19,7 @@ remove_rich_color_pattern = re.compile(r"\[([\w ]+)\](.*?)\[/\1\]")
 
 log = logging.getLogger(__name__)
 
+
 class BaseActivitiesRequestBody(BBOTBaseModel):
     host: Annotated[str | None, Body(description="Filter activities by host (exact match only)")] = None
     domain: Annotated[str | None, Body(description="Filter activities by domain (subdomains allowed)")] = None

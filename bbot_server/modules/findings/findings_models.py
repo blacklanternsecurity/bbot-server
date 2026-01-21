@@ -22,6 +22,7 @@ SEVERITY_COLORS = {
     5: "purple",  # CRITICAL = purple
 }
 
+
 class SeverityScore(BaseScore):
     """Maps severity levels to numeric scores and provides conversion methods."""
 
@@ -43,12 +44,8 @@ class BaseFindingsRequestBody(BBOTBaseModel):
     archived: Annotated[bool, Body(description="Whether to include archived findings")] = False
     active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True
     ignored: Annotated[bool, Body(description="Filter on whether the finding is ignored")] = False
-    min_severity: Annotated[
-        int, Body(description="Filter by minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
-    ] = 1
-    max_severity: Annotated[
-        int, Body(description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
-    ] = 5
+    min_severity: Annotated[int, Body(description="Filter by minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 1
+    max_severity: Annotated[int, Body(description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 5
 
 
 class QueryFindingsRequestBody(BaseFindingsRequestBody, QueryRequestBody):

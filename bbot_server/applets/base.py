@@ -81,14 +81,18 @@ def api_endpoint(endpoint: Callable, kwargs_to_body: bool = True, **kwargs):
                 # Regular async functions need an async wrapper to await them
                 # Async generators just need their kwargs converted before being called
                 if iscoroutinefunction(fn):
+
                     @wraps(fn)
                     async def wrapper(*args, **kw):
                         return await orig_fn(*args, **convert_kwargs(kw))
+
                     fn = wrapper
                 else:
+
                     @wraps(fn)
                     def wrapper(*args, **kw):
                         return orig_fn(*args, **convert_kwargs(kw))
+
                     fn = wrapper
 
         fn._kwargs = kwargs

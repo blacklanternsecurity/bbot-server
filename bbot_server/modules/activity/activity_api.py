@@ -2,8 +2,11 @@ from contextlib import suppress
 
 from bbot_server.assets import Asset
 from bbot_server.applets.base import BaseApplet, api_endpoint
-from bbot_server.modules.activity.activity_models import Activity, QueryActivitiesRequestBody, \
-    CountActivitiesRequestBody
+from bbot_server.modules.activity.activity_models import (
+    Activity,
+    QueryActivitiesRequestBody,
+    CountActivitiesRequestBody,
+)
 
 
 class ActivityApplet(BaseApplet):
