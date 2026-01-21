@@ -1,12 +1,12 @@
 import re
 import asyncio
-import inspect
+from inspect import getmembers, iscoroutinefunction
 import logging
 import traceback
 from fastapi import APIRouter
 from omegaconf import OmegaConf
-from typing import Annotated, Any  # noqa
-from functools import cached_property
+from typing import Annotated, Any, get_type_hints, get_origin, get_args, Union, Callable  # noqa
+from functools import cached_property, wraps
 from pydantic import BaseModel, Field  # noqa
 from pymongo import WriteConcern
 
@@ -33,12 +33,64 @@ word_regex = re.compile(r"\W+")
 log = logging.getLogger(__name__)
 
 
-def api_endpoint(endpoint, **kwargs):
+def api_endpoint(endpoint: Callable, kwargs_to_body: bool = True, **kwargs):
     """
-    Decorate your applet method with this to add it to FastAPI
+    Decorate your applet method with this to add it to FastAPI.
+
+    Args:
+        endpoint: The API endpoint path
+        kwargs_to_body: If True (default), allows calling the function with keyword
+                        arguments that will be automatically converted to the body model
+        **kwargs: Additional FastAPI route kwargs
     """
 
     def decorator(fn):
+        if kwargs_to_body:
+            # Find the body parameter and model class from type hints
+            hints = get_type_hints(fn)
+            body_param = None
+            model_class = None
+
+            for name, hint in hints.items():
+                if name in ("self", "cls", "return"):
+                    continue
+                # Handle `Model | None` union types
+                origin = get_origin(hint)
+                if origin is Union:
+                    for arg in get_args(hint):
+                        if isinstance(arg, type) and issubclass(arg, BaseModel):
+                            body_param, model_class = name, arg
+                            break
+                elif isinstance(hint, type) and issubclass(hint, BaseModel):
+                    body_param, model_class = name, hint
+                if model_class:
+                    break
+
+            # Only wrap if we found a model
+            if model_class:
+                model_fields = set(model_class.model_fields.keys())
+                orig_fn = fn
+
+                def convert_kwargs(kw):
+                    if body_param not in kw or kw[body_param] is None:
+                        model_kw = {k: kw.pop(k) for k in list(kw) if k in model_fields}
+                        if model_kw:
+                            kw[body_param] = model_class(**model_kw)
+                    return kw
+
+                # Regular async functions need an async wrapper to await them
+                # Async generators just need their kwargs converted before being called
+                if iscoroutinefunction(fn):
+                    @wraps(fn)
+                    async def wrapper(*args, **kw):
+                        return await orig_fn(*args, **convert_kwargs(kw))
+                    fn = wrapper
+                else:
+                    @wraps(fn)
+                    def wrapper(*args, **kw):
+                        return orig_fn(*args, **convert_kwargs(kw))
+                    fn = wrapper
+
         fn._kwargs = kwargs
         fn._endpoint = endpoint
         return fn
@@ -287,7 +339,7 @@ class BaseApplet:
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks
-        methods = {name: member for name, member in inspect.getmembers(self) if callable(member)}
+        methods = {name: member for name, member in getmembers(self) if callable(member)}
         for method_name, method in methods.items():
             # handle case where tasks have already been registered
             method = getattr(method, "original_func", method)
