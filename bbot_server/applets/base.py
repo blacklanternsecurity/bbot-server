@@ -48,7 +48,6 @@ def api_endpoint(endpoint: str, kwargs_to_body: bool = True, **kwargs):
 
     def decorator(fn):
         if kwargs_to_body:
-
             # Find model class from Type Hints
             model_class: type[BaseModel] | None = None
             type_anno = get_type_hints(fn).get("body", None)
