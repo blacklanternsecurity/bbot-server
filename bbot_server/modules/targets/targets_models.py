@@ -44,7 +44,7 @@ class BaseTarget(BaseBBOTServerModel):
         description="Hash of the target. This is combined from the target, seeds, and blacklist hashes. Strict scope is also taken into account."
     )
     @cached_property
-    def hash(self) -> Annotated[str, "indexed", "unique"]:
+    def hash(self) -> Annotated[str, "indexed"]:
         return self.bbot_target.hash.hex()
 
     @computed_field(description="Hash of the target list.")

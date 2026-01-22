@@ -1,11 +1,13 @@
 from uuid import UUID
-from typing import Any
-from contextlib import contextmanager
+from fastapi import Body
+from typing import Any, Annotated
+from contextlib import asynccontextmanager
 from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.assets import Asset
+from bbot_server.utils.db import make_mongo_cursor
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.modules.targets.targets_models import Target, CreateTarget
@@ -107,18 +109,18 @@ class TargetsApplet(BaseApplet):
         asset_scope = [UUID(_target_id) for _target_id in asset.get("scope", [])]
         asset_dns_links = asset.get("dns_links", {})
         scope_result = await self._check_scope(host, asset_dns_links, target, target_id, asset_scope)
-        if scope_result is not None:
-            if scope_result.type == "NEW_IN_SCOPE_ASSET":
-                asset_scope = sorted(set(asset_scope) | set([target_id]))
-            else:
-                asset_scope = sorted(set(asset_scope) - set([target_id]))
-            asset_results = await self.root.assets.collection.update_many(
-                {"host": host},
-                {"$set": {"scope": [str(_target_id) for _target_id in asset_scope]}},
-            )
-            self.log.debug(f"Updated {asset_results.modified_count} assets for host {host}")
-            if emit_activity:
-                await self.emit_activity(scope_result)
+        scope_result_type = getattr(scope_result, "type", None)
+        if scope_result_type == "NEW_IN_SCOPE_ASSET":
+            asset_scope = sorted(set(asset_scope) | set([target_id]))
+        else:
+            asset_scope = sorted(set(asset_scope) - set([target_id]))
+        asset_results = await self.root.assets.collection.update_many(
+            {"host": host},
+            {"$set": {"scope": [str(_target_id) for _target_id in asset_scope]}},
+        )
+        self.log.debug(f"Updated {asset_results.modified_count} assets for host {host}")
+        if emit_activity and scope_result:
+            await self.emit_activity(scope_result)
 
     async def get_asset_scope(self, host: str):
         """
@@ -136,7 +138,11 @@ class TargetsApplet(BaseApplet):
                 asset_scope.append(target_id)
         return sorted(asset_scope)
 
-    @api_endpoint("/", methods=["GET"], summary="Get a single scan target by its name, id, or hash")
+    @api_endpoint(
+        "/",
+        methods=["GET"],
+        summary="Get a single scan target by its name, id, or hash. If no ID or hash is provided, the default target is returned.",
+    )
     async def get_target(self, id: str = None, hash: str = None) -> Target:
         """
         'id' can be either a target's ID (UUID) or its name.
@@ -145,7 +151,7 @@ class TargetsApplet(BaseApplet):
         return Target(**target)
 
     @api_endpoint("/count", methods=["GET"], summary="Get the number of scan targets")
-    async def target_count(self) -> int:
+    async def count_targets(self) -> int:
         return await self.collection.count_documents({})
 
     @api_endpoint("/set_default/{id}", methods=["POST"], summary="Set a target as the default target")
@@ -164,6 +170,7 @@ class TargetsApplet(BaseApplet):
     async def create_target(
         self,
         target: CreateTarget,
+        allow_duplicate_hash: bool = True,
     ) -> Target:
         if not target.target and not target.seeds:
             raise self.BBOTServerValueError("Must provide at least one seed or target entry")
@@ -176,10 +183,11 @@ class TargetsApplet(BaseApplet):
             target=target.target,
             blacklist=target.blacklist,
             strict_dns_scope=target.strict_dns_scope,
+            default=target.default,
         )
-        if await self.target_count() == 0:
+        if await self.count_targets() == 0:
             target.default = True
-        with self._handle_duplicate_target(target):
+        async with self._handle_duplicate_target(target, allow_duplicate_hash):
             await self.collection.insert_one(target.model_dump())
         # if target is the default target, set all others to not be default
         if target.default:
@@ -197,11 +205,18 @@ class TargetsApplet(BaseApplet):
         return target
 
     @api_endpoint("/{id}", methods=["PATCH"], summary="Update a scan target by its id")
-    async def update_target(self, id: UUID, target: Target) -> Target:
+    async def update_target(
+        self,
+        id: UUID,
+        target: Target,
+        allow_duplicate_hash: bool = True,
+    ) -> Target:
         target.id = id
         target.modified = utc_now()
-        with self._handle_duplicate_target(target):
+        async with self._handle_duplicate_target(target, allow_duplicate_hash):
             await self.collection.update_one({"id": str(id)}, {"$set": target.model_dump()})
+        if target.default:
+            await self.collection.update_many({"id": {"$ne": str(target.id)}}, {"$set": {"default": False}})
         # emit an activity to show the target was updated
         await self.emit_activity(
             type="TARGET_UPDATED",
@@ -212,8 +227,27 @@ class TargetsApplet(BaseApplet):
         self._cache_put(target)
         return target
 
+    @api_endpoint("/copy", methods=["POST"], summary="Create a duplicate of a target")
+    async def copy_target(self, id: str, name: str = None) -> Target:
+        target = await self._get_target(
+            id=id, fields=["name", "description", "target", "seeds", "blacklist", "strict_dns_scope"]
+        )
+        if not name:
+            name = target["name"] + " Copy"
+        target_copy = await self.create_target(
+            CreateTarget(
+                name=name,
+                description=target["description"],
+                target=target.get("target", []),
+                seeds=target.get("seeds", None),
+                blacklist=target.get("blacklist", []),
+                strict_dns_scope=target["strict_dns_scope"],
+            )
+        )
+        return target_copy
+
     @api_endpoint("/", methods=["DELETE"], summary="Delete a scan target by its id")
-    async def delete_target(self, id: str = None, new_default_target_id: str = None) -> None:
+    async def delete_target(self, id: str, new_default_target_id: str = None) -> None:
         target = await self._get_target(id=id, fields=["id", "default"])
         target_id = str(target["id"])
         target_is_default = target["default"]
@@ -221,7 +255,7 @@ class TargetsApplet(BaseApplet):
         # when we're deleting the default target, we need to set a new one
         if target_is_default:
             if new_default_target_id is None:
-                num_targets = await self.target_count()
+                num_targets = await self.count_targets()
                 # if there are 2 or less targets, we can assume the new default target
                 if num_targets == 2:
                     # find the only other target that's not the one we're deleting
@@ -230,7 +264,7 @@ class TargetsApplet(BaseApplet):
                 # otherwise you're out of luck, you need to specify one
                 elif num_targets > 2:
                     raise self.BBOTServerValueError(
-                        "Must specify a new default target when deleting the default target."
+                        "Cannot delete the default target without specifying a new default target."
                     )
 
         # delete the target
@@ -248,6 +282,7 @@ class TargetsApplet(BaseApplet):
         self._target_ids.discard(target_id)
 
         # after deleting the target, also delete it from all the assets
+        # this saves us from having to do a full target refresh on every asset
         await self.root.assets.collection.update_many(
             {"scope": target_id},  # Find documents that have this target ID in their scope
             {"$pull": {"scope": target_id}},  # Remove this target ID from the scope array
@@ -274,6 +309,33 @@ class TargetsApplet(BaseApplet):
         targets = await cursor.to_list(length=None)
         targets = [Target(**target) for target in targets]
         return targets
+
+    @api_endpoint(
+        "/query",
+        methods=["POST"],
+        type="http_stream",
+        response_model=dict,
+        summary="List targets with customizeable fields and optional pagination",
+    )
+    async def query_targets(
+        self,
+        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
+        skip: Annotated[int, Body(description="Skip the first N targets")] = None,
+        limit: Annotated[int, Body(description="Limit the number of targets returned")] = None,
+        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
+        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
+    ):
+        cursor = await make_mongo_cursor(
+            self.collection,
+            query={},
+            fields=fields,
+            limit=limit,
+            skip=skip,
+            sort=sort,
+            aggregate=aggregate,
+        )
+        async for target in cursor:
+            yield target
 
     @api_endpoint("/list_ids", methods=["GET"], summary="List all target IDs")
     async def get_target_ids(self, debounce: float = 5.0) -> list[UUID]:
@@ -386,6 +448,27 @@ class TargetsApplet(BaseApplet):
                     },
                     description=description,
                 )
+        # if it's not blacklisted and also not in-scope, then its target was probably edited
+        else:
+            scope_after = sorted(set(asset_scope) - set([target_id]))
+            if scope_after != asset_scope:
+                self.log.debug(
+                    f"Host {host} used to be in scope for target {target_name} ({target_id}), but is now out-of-scope"
+                )
+                reason = "target was edited"
+                description = f"Host [COLOR]{host}[/COLOR] became out-of-scope for target [COLOR]{target_name}[/COLOR] because {reason}"
+                return self.make_activity(
+                    type="ASSET_SCOPE_CHANGED",
+                    detail={
+                        "change": "out-of-scope",
+                        "host": host,
+                        "target_id": target_id,
+                        "reason": reason,
+                        "scope_before": asset_scope,
+                        "scope_after": scope_after,
+                    },
+                    description=description,
+                )
 
     async def _get_bbot_target(self, target_id: UUID = None, debounce=5.0) -> BBOTTarget:
         """
@@ -446,15 +529,17 @@ class TargetsApplet(BaseApplet):
             strict_dns_scope=target.strict_dns_scope,
         )
 
-    @contextmanager
-    def _handle_duplicate_target(self, target: Target):
+    @asynccontextmanager
+    async def _handle_duplicate_target(self, target: Target, allow_duplicate_hash: bool = True):
+        # see if there are any existing targets with the same name or hash
+        if not allow_duplicate_hash:
+            if await self.collection.find_one({"hash": target.hash}):
+                raise self.BBOTServerValueError(f"Identical target already exists", detail={"hash": target.hash})
         try:
             yield
         except DuplicateKeyError as e:
             key_value = e.details["keyValue"]
-            if "hash" in key_value:
-                raise self.BBOTServerValueError(f"Identical target already exists", detail={"hash": key_value["hash"]})
-            elif "name" in key_value:
+            if "name" in key_value:
                 raise self.BBOTServerValueError(
                     f'Target with name "{target.name}" already exists', detail={"name": key_value["name"]}
                 )
@@ -478,6 +563,11 @@ class TargetsApplet(BaseApplet):
                 query["name"] = id
         fields = {f: 1 for f in fields} if fields else None
         result = await self.collection.find_one(query, fields)
+        # we only raise an error if we were given an ID or hash, and no target was found
         if result is None:
-            raise self.BBOTServerNotFoundError(f"Target not found.")
+            msg = f"Target not found with query: {query}"
+            if id or hash:
+                raise self.BBOTServerNotFoundError(msg)
+            else:
+                self.log.debug(msg)
         return result

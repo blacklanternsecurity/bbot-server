@@ -1,0 +1,8 @@
+{
+  "files.watcherExclude": {
+    "**/mongodb/**": true
+  },
+  "search.exclude": {
+    "**/mongodb/**": true
+  }
+}

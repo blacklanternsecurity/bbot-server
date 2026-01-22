@@ -8,18 +8,25 @@ from omegaconf import OmegaConf
 from typing import Annotated, Any  # noqa
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
-from pymongo import WriteConcern, ASCENDING
-from pymongo.errors import OperationFailure
+from pymongo import WriteConcern
 
 from bbot_server.assets import Asset
 from bbot.models.pydantic import Event
 from bbot_server.modules import API_MODULES
 from bbot.core.helpers import misc as bbot_misc
 from bbot_server.utils import misc as bbot_server_misc
+from bbot_server.utils.db import (
+    apply_index_diff,
+    desired_indexes_from_model,
+    parse_existing_indexes,
+    compute_index_diff,
+    merge_desired_indexes,
+    make_mongo_cursor,
+)
 from bbot_server.applets._routing import make_bbotserver_route
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.errors import BBOTServerError, BBOTServerValueError
-from bbot_server.utils.misc import _sanitize_mongo_query, _sanitize_mongo_aggregation
+from bbot_server.utils.misc import _sanitize_mongo_query
 
 word_regex = re.compile(r"\W+")
 
@@ -220,9 +227,7 @@ class BaseApplet:
                     # This helps prevent duplicates in asset activity.
                     self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
 
-                if self.collection is not None:
-                    # build indexes
-                    await self.build_indexes(self.model)
+                # index building is deferred to reconcile_all_indexes()
 
         # taskiq broker
         if self.task_broker is None:
@@ -245,78 +250,40 @@ class BaseApplet:
             except Exception as e:
                 raise BBOTServerError(f"Error setting up {self.name}: {e}") from e
 
-    async def build_indexes(self, model):
+    async def reconcile_all_indexes(self):
         """
-        Builds MongoDB indexes for the given model.
+        Reconcile indexes for all collections used by this applet and its children.
 
-        Pydantic annotations on the model determine the type of indexes:
-
-        - indexed - basic ascending index
-        - indexed-text - text index (for quick searching of partial strings - ideal for technology/vuln descriptions etc.)
-        - indexed-compound:field1,field2 - compound index on multiple fields (useful for preventing duplicates)
+        This aggregates desired indexes from all models that share a collection,
+        then applies a single diff per collection.
         """
-        if not model:
-            return
-        for fieldname, metadata in model.indexed_fields().items():
-            unique = "unique" in metadata
-            # normal indexes
-            if "indexed" in metadata:
-                index = [(fieldname, ASCENDING)]
-                self.log.debug(f"Creating index: {index}")
-                try:
-                    await self.collection.create_index(index, unique=unique, sparse=unique)
-                except OperationFailure as e:
-                    if "existing index has the same name" in str(e):
-                        self.log.debug(f"Index {index} already exists, skipping")
-                    else:
-                        raise
-            # text indexes
-            if "indexed-text" in metadata:
-                index = [(fieldname, "text")]
-                self.log.debug(f"Creating text index: {index}")
-                try:
-                    await self.collection.create_index(index)
-                except OperationFailure as e:
-                    # the only purpose of the below code is to add fields to an existing text index
-                    # if there's an easier way to do this, please delete this mess
-                    # ideally we should not have to delete and recreate the index
-                    if "index already exists" in str(e):
-                        # Get existing text index
-                        indexes_cursor = await self.collection.list_indexes()
-                        existing_indexes = [idx async for idx in indexes_cursor]
-                        text_index = next((idx for idx in existing_indexes if "text" in idx["key"].values()), None)
-                        if text_index:
-                            self.log.debug(f"Found existing text index: {text_index}")
-                            # Check if the field is already in the index
-                            existing_fields = text_index["weights"].keys()
-                            if fieldname in existing_fields:
-                                self.log.debug(f"Field {fieldname} already exists in text index, skipping")
-                                continue
+        # Group applets by collection
+        applets_by_collection = {}
+        for applet in self.all_child_applets(include_self=True):
+            if applet.collection is None or applet.model is None:
+                continue
+            collection_name = applet.collection.full_name
+            if collection_name not in applets_by_collection:
+                applets_by_collection[collection_name] = {"collection": applet.collection, "models": []}
+            applets_by_collection[collection_name]["models"].append(applet.model)
 
-                            # Drop the existing text index
-                            index_name = text_index["name"]
-                            self.log.debug(f"Dropping existing text index {index_name}")
-                            await self.collection.drop_index(index_name)
+        # Reconcile each collection
+        for collection_name, data in applets_by_collection.items():
+            collection = data["collection"]
+            models = data["models"]
 
-                            # Create new index with all fields from weights
-                            existing_fields = [(f, "text") for f in text_index["weights"].keys()]
-                            self.log.debug(f"Existing fields from weights: {existing_fields}")
-                            new_index = existing_fields + [(fieldname, "text")]
-                            self.log.debug(f"Creating new text index with fields: {new_index}")
-                            await self.collection.create_index(new_index)
-                        else:
-                            self.log.error(f"Failed to find existing text index: {e}")
-                    else:
-                        self.log.error(f"Error creating text index: {e}")
-            # compound indexes
-            for metadata in metadata:
-                if isinstance(metadata, str) and metadata.startswith("indexed-compound:"):
-                    # create a compound index
-                    fields = metadata.split(":")[-1].split(",")
-                    fields = [fieldname] + fields
-                    index = [(fieldname, ASCENDING) for fieldname in fields]
-                    self.log.debug(f"Creating compound index: {index}")
-                    await self.collection.create_index(index, unique=True)
+            # Merge desired indexes from all models
+            all_desired = [desired_indexes_from_model(m) for m in models]
+            desired, desired_text = merge_desired_indexes(all_desired)
+
+            # Get existing indexes
+            indexes_cursor = await collection.list_indexes()
+            indexes_list = [idx async for idx in indexes_cursor]
+            existing, existing_text = parse_existing_indexes(indexes_list)
+
+            # Compute and apply diff
+            diff = compute_index_diff(desired, desired_text, existing, existing_text)
+            await apply_index_diff(collection, diff, existing)
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks
@@ -463,7 +430,8 @@ class BaseApplet:
             if target_id != "DEFAULT":
                 target_query_kwargs["id"] = target_id
             target = await self.root.targets._get_target(**target_query_kwargs, fields=["id"])
-            query["scope"] = target["id"]
+            if target is not None:
+                query["scope"] = target["id"]
 
         # if both active and archived are true, we don't need to filter anything, because we are returning all assets
         if not (active and archived) and ("archived" not in query):
@@ -520,6 +488,7 @@ class BaseApplet:
         collection=None,
         **kwargs,
     ):
+        """Build a MongoDB cursor for querying, with optional aggregation pipeline."""
         query = await self.make_bbot_query(query=query, **kwargs)
         fields = {f: 1 for f in fields} if fields else None
 
@@ -533,32 +502,15 @@ class BaseApplet:
 
         self.log.info(f"Querying {collection.name}: query={query}, fields={fields}")
 
-        if aggregate:
-            # sanitize aggregation pipeline
-            aggregate = _sanitize_mongo_aggregation(aggregate)
-            aggregate_pipeline = [{"$match": query}] + aggregate
-            if limit is not None:
-                aggregate_pipeline.append({"$limit": limit})
-            self.log.info(f"Querying {collection.name}: aggregate={aggregate_pipeline}")
-            cursor = await collection.aggregate(aggregate_pipeline)
-        else:
-            cursor = collection.find(query, fields)
-            if sort:
-                processed_sort = []
-                for field in sort:
-                    if isinstance(field, str):
-                        processed_sort.append((field.lstrip("+-"), -1 if field.startswith("-") else 1))
-                    else:
-                        # assume it's already a tuple (field, direction)
-                        processed_sort.append(tuple(field))
-                cursor = cursor.sort(processed_sort)
-
-            if limit is not None:
-                cursor = cursor.limit(limit)
-            if skip is not None:
-                cursor = cursor.skip(skip)
-
-        return cursor
+        return await make_mongo_cursor(
+            collection,
+            query,
+            fields=fields,
+            sort=sort,
+            skip=skip,
+            limit=limit,
+            aggregate=aggregate,
+        )
 
     def include_app(self, app_class):
         self.log.debug(f"{self.name_lowercase} including applet {app_class.name_lowercase}")

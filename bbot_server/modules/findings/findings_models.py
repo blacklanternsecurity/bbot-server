@@ -90,7 +90,7 @@ class Finding(BaseAssetFacet):
 
     @computed_field
     @property
-    def id(self) -> Annotated[str, "indexed"]:
+    def id(self) -> Annotated[str, "indexed", "unique"]:
         """
         The unique ID of the finding is the hash of the description and netloc.
         """
