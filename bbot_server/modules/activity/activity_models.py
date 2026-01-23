@@ -5,35 +5,30 @@ from hashlib import sha1
 from functools import cached_property
 from datetime import datetime, timezone
 
-from bbot.models.pydantic import BBOTBaseModel
-from fastapi import Body
 from pydantic import Field, computed_field
 from typing import Annotated, Any, Optional
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.cli.themes import COLOR, DARK_COLOR
 from bbot_server.models.asset_models import BaseHostModel
-from bbot_server.models.base import QueryRequestBody
+from bbot_server.models.base import BaseRequestBody, CommonFilterFields, QueryRequestBody
 
 remove_rich_color_pattern = re.compile(r"\[([\w ]+)\](.*?)\[/\1\]")
 
 log = logging.getLogger(__name__)
 
 
-class BaseActivitiesRequestBody(BBOTBaseModel):
-    host: Annotated[str | None, Body(description="Filter activities by host (exact match only)")] = None
-    domain: Annotated[str | None, Body(description="Filter activities by domain (subdomains allowed)")] = None
-    type: Annotated[str | None, Body(description="Filter activities by type")] = None
-    target_id: Annotated[str | None, Body(description="Filter activities by target ID")] = None
-    archived: Annotated[bool, Body(description="Whether to include archived activities")] = False
-    active: Annotated[bool, Body(description="Whether to include active activities")] = True
+class BaseActivitiesRequestBody(CommonFilterFields):
+    """Base request body for activity query/count endpoints."""
+
+    type: str | None = Field(None, description="Filter by activity type")
 
 
-class QueryActivitiesRequestBody(QueryRequestBody, BaseActivitiesRequestBody):
+class QueryActivitiesRequestBody(BaseActivitiesRequestBody, QueryRequestBody):
     pass
 
 
-class CountActivitiesRequestBody(BaseActivitiesRequestBody):
+class CountActivitiesRequestBody(BaseActivitiesRequestBody, BaseRequestBody):
     pass
 
 

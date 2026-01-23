@@ -46,6 +46,22 @@ class QueryRequestBody(BaseRequestBody):
     )
 
 
+class CommonFilterFields(BBOTBaseModel):
+    """Common filter fields used across query endpoints."""
+
+    host: str | None = Field(None, description="Filter by exact hostname or IP")
+    domain: str | None = Field(None, description="Filter by domain (subdomains allowed)")
+    target_id: str | None = Field(None, description="Filter by target name or ID")
+    archived: bool = Field(False, description="Include archived records")
+    active: bool = Field(True, description="Include active records")
+
+
+class IgnoredFilterField(BBOTBaseModel):
+    """Mixin for models supporting ignored filter."""
+
+    ignored: bool = Field(False, description="Filter by ignored status")
+
+
 class BaseScore:
     """Base class for mapping string levels to numeric scores."""
 

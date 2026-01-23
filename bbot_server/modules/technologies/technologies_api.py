@@ -1,9 +1,13 @@
-from typing import Any
-from fastapi import Body, Query
+from typing import Annotated, Any
+from fastapi import Query
 
 from bbot_server.assets import CustomAssetFields
-from bbot_server.applets.base import BaseApplet, api_endpoint, Annotated
-from bbot_server.modules.technologies.technology_models import Technology
+from bbot_server.applets.base import BaseApplet, api_endpoint
+from bbot_server.modules.technologies.technology_models import (
+    CountTechnologiesRequestBody,
+    QueryTechnologiesRequestBody,
+    Technology,
+)
 
 
 # add one field: 'technologies' to the main asset model
@@ -55,73 +59,19 @@ class TechnologiesApplet(BaseApplet):
             yield Technology(**technology)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query technologies")
-    async def query_technologies(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        technology: Annotated[str, Body(description="filter by technology (must match exactly)")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
-        host: Annotated[str, Body(description="filter by host (exact match only)")] = None,
-        domain: Annotated[str, Body(description="filter by domain (subdomains allowed)")] = None,
-        target_id: Annotated[str, Body(description="filter by target (can be either name or ID)")] = None,
-        archived: Annotated[bool, Body(description="whether to include archived technologies")] = False,
-        active: Annotated[bool, Body(description="whether to include active (non-archived) technologies")] = True,
-        ignored: Annotated[bool, Body(description="filter on whether the technology is ignored")] = False,
-        fields: Annotated[list[str], Body(description="list of fields to return")] = None,
-        limit: Annotated[int, Body(description="Limit the number of technologies returned")] = None,
-        skip: Annotated[int, Body(description="Skip the first N technologies")] = None,
-        sort: Annotated[list[str | tuple[str, int]], Body(description="fields and direction to sort by")] = None,
-        aggregate: Annotated[list[dict], Body(description="optional custom MongoDB aggregation pipeline")] = None,
-    ):
+    async def query_technologies(self, body: QueryTechnologiesRequestBody | None = None, **kwargs):
         """
         Advanced querying of technologies. Choose your own filters and fields.
         """
-        async for technology in self.mongo_iter(
-            query=query,
-            technology=technology,
-            search=search,
-            host=host,
-            domain=domain,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            ignored=ignored,
-            fields=fields,
-            limit=limit,
-            skip=skip,
-            sort=sort,
-            aggregate=aggregate,
-        ):
+        async for technology in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
             yield technology
 
     @api_endpoint("/count", methods=["POST"], summary="Count technologies")
-    async def count_technologies(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        technology: Annotated[str, Body(description="filter by technology (must match exactly)")] = None,
-        search: Annotated[str, Body(description="search for a technology (fuzzy match)")] = None,
-        host: Annotated[str, Body(description="filter by host (exact match only)")] = None,
-        domain: Annotated[str, Body(description="filter by domain (subdomains allowed)")] = None,
-        target_id: Annotated[str, Body(description="filter by target (can be either name or ID)")] = None,
-        archived: Annotated[bool, Body(description="whether to include archived technologies")] = False,
-        active: Annotated[bool, Body(description="whether to include active (non-archived) technologies")] = True,
-        ignored: Annotated[bool, Body(description="filter on whether the technology is ignored")] = False,
-    ) -> int:
+    async def count_technologies(self, body: CountTechnologiesRequestBody | None = None, **kwargs) -> int:
         """
         Same as query_technologies, except only returns the count
         """
-        return await self.mongo_count(
-            query=query,
-            technology=technology,
-            search=search,
-            host=host,
-            domain=domain,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            ignored=ignored,
-        )
+        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
 
     @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database")
     async def get_technologies_summary(

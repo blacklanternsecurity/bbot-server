@@ -1,9 +1,23 @@
-from pydantic import Field
+from pydantic import Field, computed_field
 from typing import Annotated
-from pydantic import computed_field
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.models.asset_models import BaseAssetFacet
+from bbot_server.models.base import BaseRequestBody, CommonFilterFields, IgnoredFilterField, QueryRequestBody
+
+
+class BaseTechnologiesRequestBody(CommonFilterFields, IgnoredFilterField):
+    """Base request body for technology query/count endpoints."""
+
+    technology: str | None = Field(None, description="Filter by technology name")
+
+
+class QueryTechnologiesRequestBody(BaseTechnologiesRequestBody, QueryRequestBody):
+    pass
+
+
+class CountTechnologiesRequestBody(BaseTechnologiesRequestBody, BaseRequestBody):
+    pass
 
 
 class Technology(BaseAssetFacet):

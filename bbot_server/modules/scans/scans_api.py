@@ -3,7 +3,6 @@ import asyncio
 import traceback
 from uuid import UUID
 
-from pydantic_core import MISSING
 from pymongo import ASCENDING
 from contextlib import suppress
 from pymongo.errors import DuplicateKeyError
@@ -24,7 +23,6 @@ from bbot_server.modules.targets.targets_models import Target
 from bbot_server.models.base import BaseRequestBody, QueryRequestBody
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.activity.activity_models import Activity
-from bbot_server.utils.db import make_mongo_cursor
 
 
 class ScansApplet(BaseApplet):
@@ -94,20 +92,19 @@ class ScansApplet(BaseApplet):
             yield Scan(**scan)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query scans")
-    async def query_scans(self, body: QueryRequestBody = None):
+    async def query_scans(self, body: QueryRequestBody | None = None, **kwargs):
         """
         Advanced querying of scans. Choose your own filters and fields.
         """
-        body = body.model_dump() or QueryRequestBody().model_dump()
-        async for scan in await make_mongo_cursor(self.collection, **body):
+        async for scan in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
             yield scan
 
     @api_endpoint("/count", methods=["POST"], summary="Count scans")
-    async def count_scans(self, body: BaseRequestBody = None) -> int:
+    async def count_scans(self, body: BaseRequestBody | None = None, **kwargs) -> int:
         """
         Same as query_scans, except only returns the count.
         """
-        return await self.collection.count_documents(body.query if body.query is not MISSING else {})
+        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
 
     @api_endpoint(
         "/list_brief", methods=["GET"], summary="Get all scans in a brief format (without target info)", mcp=True
@@ -354,6 +351,46 @@ class ScansApplet(BaseApplet):
             {"id": scan_id}, {"$set": {"status": status, "status_code": status_code}}
         )
         return result.modified_count > 0
+
+    async def make_bbot_query(
+        self,
+        query: dict = None,
+        name: str = None,
+        status: str = None,
+        target_id: str = None,
+        agent_id: str = None,
+        min_created_timestamp: float = None,
+        max_created_timestamp: float = None,
+        **kwargs,
+    ):
+        """
+        Custom make_bbot_query for scans.
+
+        Scans don't have archived/active or host/domain fields like assets do.
+        Instead they have status, target (embedded), and agent_id.
+        """
+        query = dict(query or {})
+
+        if name is not None and "name" not in query:
+            query["name"] = name
+        if status is not None and "status" not in query:
+            query["status"] = status
+        if agent_id is not None and "agent_id" not in query:
+            query["agent_id"] = agent_id
+
+        # Handle target_id filtering - scans have target embedded as an object
+        if target_id is not None and "target.id" not in query and "target.name" not in query:
+            query["$or"] = [{"target.id": target_id}, {"target.name": target_id}]
+
+        # Handle created timestamps
+        if "created" not in query and (min_created_timestamp is not None or max_created_timestamp is not None):
+            query["created"] = {}
+            if min_created_timestamp is not None:
+                query["created"]["$gte"] = min_created_timestamp
+            if max_created_timestamp is not None:
+                query["created"]["$lte"] = max_created_timestamp
+
+        return query
 
     async def cleanup(self):
         if self.is_main_server:

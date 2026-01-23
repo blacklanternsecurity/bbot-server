@@ -28,19 +28,19 @@ class AssetsApplet(BaseApplet):
             yield self.model(**asset)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query assets")
-    async def query_assets(self, body: QueryAssetsRequestModel | None = None):
+    async def query_assets(self, body: QueryAssetsRequestModel | None = None, **kwargs):
         """
         Advanced querying of assets. Choose your own filters and fields.
         """
-        async for asset in self.mongo_iter(**(body.model_dump() if body else {})):
+        async for asset in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
             yield asset
 
     @api_endpoint("/count", methods=["POST"], summary="Count assets")
-    async def count_assets(self, body: CountActivitiesRequestBody | None = None) -> int:
+    async def count_assets(self, body: CountActivitiesRequestBody | None = None, **kwargs) -> int:
         """
         Same as query_assets, except only returns the count
         """
-        return await self.mongo_count(**(body.model_dump() if body else {}))
+        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: Annotated[str, Path(description="The host of the asset to get")]) -> Asset:

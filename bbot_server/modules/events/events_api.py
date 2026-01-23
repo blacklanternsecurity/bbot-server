@@ -1,13 +1,12 @@
 import asyncio
-from fastapi import Query, Body
 from contextlib import suppress
-from typing import AsyncGenerator, Annotated
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, AsyncGenerator
 
-from bbot_server.models.base import QueryRequestBody
-from bbot_server.models.event_models import Event
-from datetime import datetime, timezone, timedelta
+from fastapi import Query
 
 from bbot_server.applets.base import BaseApplet, api_endpoint
+from bbot_server.models.event_models import CountEventsRequestBody, Event, QueryEventsRequestBody
 
 
 class EventsApplet(BaseApplet):
@@ -64,62 +63,20 @@ class EventsApplet(BaseApplet):
         ):
             yield self.model(**event)
 
-    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
-    async def query_events(
-        self,
-        host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
-        domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
-        target_id: Annotated[str, Body(description="Filter by target name or id")] = None,
-        archived: Annotated[bool, Body(description="Whether to include archived findings")] = False,
-        active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True,
-        min_timestamp: Annotated[float, Body(description="Filter by minimum timestamp")] = None,
-        max_timestamp: Annotated[float, Body(description="Filter by maximum timestamp")] = None,
-        body: QueryRequestBody | None = None,
-    ):
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query events")
+    async def query_events(self, body: QueryEventsRequestBody | None = None, **kwargs):
         """
         Advanced querying of events. Choose your own filters and fields.
         """
-        async for event in self.mongo_iter(
-            host=host,
-            domain=domain,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            min_timestamp=min_timestamp,
-            max_timestamp=max_timestamp,
-            **(body.model_dump() if body else {}),
-        ):
+        async for event in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
             yield event
 
-    @api_endpoint("/count", methods=["POST"], summary="Count findings")
-    async def count_events(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
-        host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
-        domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
-        target_id: Annotated[str, Body(description="Filter by target name or id")] = None,
-        archived: Annotated[bool, Body(description="Whether to include archived findings")] = False,
-        active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True,
-        min_timestamp: Annotated[float, Body(description="Filter by minimum timestamp")] = None,
-        max_timestamp: Annotated[float, Body(description="Filter by maximum timestamp")] = None,
-    ) -> int:
+    @api_endpoint("/count", methods=["POST"], summary="Count events")
+    async def count_events(self, body: CountEventsRequestBody | None = None, **kwargs) -> int:
         """
         Same as query_events, except only returns the count
         """
-        return await self.mongo_count(
-            query=query,
-            search=search,
-            host=host,
-            domain=domain,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            min_timestamp=min_timestamp,
-            max_timestamp=max_timestamp,
-        )
+        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)
     async def tail_events(self, n: int = 0):
