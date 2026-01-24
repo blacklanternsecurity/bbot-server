@@ -9,6 +9,7 @@ from bbot_server.utils.misc import utc_now
 from bbot_server.assets import Asset
 from bbot_server.utils.db import make_mongo_cursor
 from bbot_server.applets.base import BaseApplet, api_endpoint
+from bbot_server.models.base import BaseRequestBody, QueryRequestBody
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.modules.targets.targets_models import Target, CreateTarget
 
@@ -150,9 +151,9 @@ class TargetsApplet(BaseApplet):
         target = await self._get_target(id=id, hash=hash)
         return Target(**target)
 
-    @api_endpoint("/count", methods=["GET"], summary="Get the number of scan targets")
-    async def count_targets(self) -> int:
-        return await self.collection.count_documents({})
+    @api_endpoint("/count", methods=["POST"], summary="Get the number of scan targets")
+    async def count_targets(self, body: BaseRequestBody | None = None, **kwargs) -> int:
+        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
 
     @api_endpoint("/set_default/{id}", methods=["POST"], summary="Set a target as the default target")
     async def set_default_target(self, id: str):
@@ -317,24 +318,11 @@ class TargetsApplet(BaseApplet):
         response_model=dict,
         summary="List targets with customizeable fields and optional pagination",
     )
-    async def query_targets(
-        self,
-        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
-        skip: Annotated[int, Body(description="Skip the first N targets")] = None,
-        limit: Annotated[int, Body(description="Limit the number of targets returned")] = None,
-        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
-        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
-    ):
-        cursor = await make_mongo_cursor(
-            self.collection,
-            query={},
-            fields=fields,
-            limit=limit,
-            skip=skip,
-            sort=sort,
-            aggregate=aggregate,
-        )
-        async for target in cursor:
+    async def query_targets(self, body: QueryRequestBody | None = None, **kwargs):
+        """
+        Advanced querying of targets. Choose your own filters and fields.
+        """
+        async for target in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
             yield target
 
     @api_endpoint("/list_ids", methods=["GET"], summary="List all target IDs")
