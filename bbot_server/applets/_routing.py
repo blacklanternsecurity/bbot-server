@@ -112,6 +112,7 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
         Wrap the function for optimal compatibility with FastAPI's routing system.
         Returns a regular function (not a bound method) so __signature__ can be set.
         """
+
         @functools.wraps(self.orig_function)
         async def wrapper(*args, **kwargs):
             return await self.orig_function(*args, **kwargs)
@@ -148,7 +149,9 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
         fn = self.wrapped_function()
         # Filter VAR_KEYWORD (**kwargs) so FastAPI doesn't expose it as a query param
         fn.__signature__ = inspect.Signature(
-            parameters=[p for p in self.function_signature.parameters.values() if p.kind != inspect.Parameter.VAR_KEYWORD],
+            parameters=[
+                p for p in self.function_signature.parameters.values() if p.kind != inspect.Parameter.VAR_KEYWORD
+            ],
             return_annotation=self.function_signature.return_annotation,
         )
         router.add_api_route(path, fn, **kwargs)
