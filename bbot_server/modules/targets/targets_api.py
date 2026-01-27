@@ -1,13 +1,11 @@
 from uuid import UUID
-from fastapi import Body
-from typing import Any, Annotated
+from typing import Any
 from contextlib import asynccontextmanager
 from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.assets import Asset
-from bbot_server.utils.db import make_mongo_cursor
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.models.base import BaseRequestBody, QueryRequestBody
 from bbot_server.modules.activity.activity_models import Activity
