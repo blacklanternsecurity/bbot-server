@@ -222,7 +222,10 @@ class http(BaseInterface):
         # convert any args into kwargs
         bound_args = _route.function_signature.bind(*args, **kwargs)
         bound_args.apply_defaults()
-        kwargs = bound_args.arguments
+        kwargs = dict(bound_args.arguments)
+        # Expand VAR_KEYWORD (**kwargs) - bound_args includes it as a literal 'kwargs' key
+        if "kwargs" in kwargs:
+            kwargs.update(kwargs.pop("kwargs"))
 
         # convert kwargs into raw JSON for web request
         kwargs = jsonable_encoder(kwargs)
@@ -248,8 +251,8 @@ class http(BaseInterface):
             for param in fastapi_route.dependant.query_params:
                 with suppress(AttributeError):
                     param = param.name
-                value = kwargs.pop(param)
-                query_params[param] = value
+                if param in kwargs:
+                    query_params[param] = kwargs.pop(param)
             _url = self.add_query_params(_url, query_params)
 
         return method, _url, kwargs

@@ -109,9 +109,14 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
 
     def wrapped_function(self):
         """
-        Optionally wrap the function for optimal compatability with fastapi's routing system
+        Wrap the function for optimal compatibility with FastAPI's routing system.
+        Returns a regular function (not a bound method) so __signature__ can be set.
         """
-        return self.orig_function
+        @functools.wraps(self.orig_function)
+        async def wrapper(*args, **kwargs):
+            return await self.orig_function(*args, **kwargs)
+
+        return wrapper
 
     @property
     def function_name(self):
@@ -140,7 +145,13 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
             kwargs["operation_id"] = self.function_name
         if not "tags" in kwargs:
             kwargs["tags"] = self.tags
-        router.add_api_route(path, self.wrapped_function(), **kwargs)
+        fn = self.wrapped_function()
+        # Filter VAR_KEYWORD (**kwargs) so FastAPI doesn't expose it as a query param
+        fn.__signature__ = inspect.Signature(
+            parameters=[p for p in self.function_signature.parameters.values() if p.kind != inspect.Parameter.VAR_KEYWORD],
+            return_annotation=self.function_signature.return_annotation,
+        )
+        router.add_api_route(path, fn, **kwargs)
 
     def _add_api_websocket_route(self, router, path=None, **fastapi_kwargs):
         path, kwargs = self._prepare_fastapi_kwargs(path=path, **fastapi_kwargs)
