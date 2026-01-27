@@ -2,8 +2,7 @@ from typing import Annotated
 from fastapi import Path, Query
 
 from bbot_server.assets import Asset
-from bbot_server.modules.activity.activity_models import CountActivitiesRequestBody
-from bbot_server.modules.assets.assets_models import QueryAssetsRequestModel
+from bbot_server.modules.assets.assets_models import CountAssetsRequestBody, QueryAssetsRequestModel
 from bbot_server.utils.misc import utc_now
 from bbot_server.applets.base import BaseApplet, api_endpoint
 
@@ -36,7 +35,7 @@ class AssetsApplet(BaseApplet):
             yield asset
 
     @api_endpoint("/count", methods=["POST"], summary="Count assets")
-    async def count_assets(self, body: CountActivitiesRequestBody | None = None, **kwargs) -> int:
+    async def count_assets(self, body: CountAssetsRequestBody | None = None, **kwargs) -> int:
         """
         Same as query_assets, except only returns the count
         """

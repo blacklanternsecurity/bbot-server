@@ -17,7 +17,7 @@ class QueryTechnologiesRequestBody(BaseTechnologiesRequestBody, QueryRequestBody
 
 
 class CountTechnologiesRequestBody(BaseTechnologiesRequestBody, BaseRequestBody):
-    pass
+    search: str | None = Field(None, description="Search for a technology (fuzzy match)")
 
 
 class Technology(BaseAssetFacet):

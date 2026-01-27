@@ -95,14 +95,19 @@ class TechnologiesApplet(BaseApplet):
         """
         # TODO: use mongo aggregation pipeline?
         technologies = {}
-        async for t in self.query_technologies(
-            domain=domain,
-            host=host,
-            technology=technology,
-            search=search,
-            target_id=target_id,
-            fields=["technology", "host", "last_seen"],
-        ):
+        # Build kwargs, filtering out None values so they don't conflict with MISSING defaults
+        query_kwargs = {
+            k: v
+            for k, v in {
+                "domain": domain,
+                "host": host,
+                "technology": technology,
+                "search": search,
+                "target_id": target_id,
+            }.items()
+            if v is not None
+        }
+        async for t in self.query_technologies(fields=["technology", "host", "last_seen"], **query_kwargs):
             technology = t["technology"]
             host = t["host"]
             last_seen = t["last_seen"]
