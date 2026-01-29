@@ -37,7 +37,7 @@ class QueryRequestBody(BaseRequestBody):
     )
     limit: int | MISSING = Field(MISSING, description="Limit how much results to return")
     skip: int | MISSING = Field(MISSING, description="Offset/skip this many documents")
-    sort: list[str] | tuple[str, int] | MISSING = Field(
+    sort: list[str | tuple[str, int]] | MISSING = Field(
         MISSING, description="The Mongo sort, specifies which fields to sort by or a tuple specifying desc or asc"
     )
     aggregate: list[dict] | MISSING = Field(
