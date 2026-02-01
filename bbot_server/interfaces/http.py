@@ -19,10 +19,10 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 
 from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
-from bbot_server.utils.misc import smart_encode
 from bbot_server.interfaces.base import BaseInterface
 from bbot_server.utils.async_utils import async_to_sync_class
 from bbot_server.errors import HTTP_STATUS_MAPPINGS, BBOTServerError
+from bbot_server.utils.misc import smart_encode, detect_translatable_function, convert_human_args
 
 import logging
 
@@ -110,12 +110,12 @@ class http(BaseInterface):
         Similar to _request(), but instead of returning a single object, returns an async generator that yields objects
         """
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
+        print(f"url: {_url}, kwargs {kwargs}")
         try:
             body = self._prepare_http_body(method, kwargs)
         except ValueError as e:
             raise BBOTServerError(f"Error preparing HTTP body for {method} request -> {_url}: {e}") from e
 
-        body = self._prepare_http_body(method, kwargs)
         buffer = b""
         MAX_BUFFER_SIZE = 10 * 1024 * 1024  # 10 MB max buffer size
 
@@ -219,13 +219,17 @@ class http(BaseInterface):
         methods = getattr(_route.fastapi_route, "methods", []) or ["GET"]
         method = sorted(methods)[0]
 
+        fn = _route.orig_function
+
+        # if needed, translate individual human friendly kwargs into a pydantic model
+        param_name, model_class = detect_translatable_function(fn)
+        if param_name is not None:
+            args, kwargs = convert_human_args(fn, param_name, model_class, *args, **kwargs)
+
         # convert any args into kwargs
         bound_args = _route.function_signature.bind(*args, **kwargs)
         bound_args.apply_defaults()
-        kwargs = dict(bound_args.arguments)
-        # Expand VAR_KEYWORD (**kwargs) - bound_args includes it as a literal 'kwargs' key
-        if "kwargs" in kwargs:
-            kwargs.update(kwargs.pop("kwargs"))
+        kwargs = bound_args.arguments
 
         # convert kwargs into raw JSON for web request
         kwargs = jsonable_encoder(kwargs)
@@ -251,8 +255,8 @@ class http(BaseInterface):
             for param in fastapi_route.dependant.query_params:
                 with suppress(AttributeError):
                     param = param.name
-                if param in kwargs:
-                    query_params[param] = kwargs.pop(param)
+                value = kwargs.pop(param)
+                query_params[param] = value
             _url = self.add_query_params(_url, query_params)
 
         return method, _url, kwargs

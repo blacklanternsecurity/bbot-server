@@ -10,26 +10,17 @@ from typing import Annotated, Any, Optional
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.cli.themes import COLOR, DARK_COLOR
-from bbot_server.models.asset_models import BaseHostModel
-from bbot_server.models.base import BaseRequestBody, CommonFilterFields, QueryRequestBody
+from bbot_server.models.base import HostQuery, BaseHostModel
 
 remove_rich_color_pattern = re.compile(r"\[([\w ]+)\](.*?)\[/\1\]")
 
 log = logging.getLogger(__name__)
 
 
-class BaseActivitiesRequestBody(CommonFilterFields):
+class ActivityQuery(HostQuery):
     """Base request body for activity query/count endpoints."""
 
     type: str | None = Field(None, description="Filter by activity type")
-
-
-class QueryActivitiesRequestBody(BaseActivitiesRequestBody, QueryRequestBody):
-    pass
-
-
-class CountActivitiesRequestBody(BaseActivitiesRequestBody, BaseRequestBody):
-    pass
 
 
 class Activity(BaseHostModel):
@@ -45,8 +36,12 @@ class Activity(BaseHostModel):
     __table_name__ = "history"
     # id is a UUID
     id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
-    timestamp: Annotated[float, "indexed"]
-    created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
+    timestamp: Annotated[float, "indexed"] = Field(
+        description="Timestamp matching the event that triggered this activity"
+    )
+    created: Annotated[float, "indexed"] = Field(
+        default_factory=utc_now, description="Time when this activity was created"
+    )
     archived: Annotated[bool, "indexed"] = False
     description: Annotated[str, "indexed"]
     description_colored: str = Field(default="")

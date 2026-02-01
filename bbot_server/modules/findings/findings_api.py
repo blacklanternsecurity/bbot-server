@@ -3,13 +3,7 @@ from typing import Annotated, Optional
 
 from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
-from bbot_server.modules.findings.findings_models import (
-    Finding,
-    SEVERITY_COLORS,
-    SeverityScore,
-    QueryFindingsRequestBody,
-    CountFindingsRequestBody,
-)
+from bbot_server.modules.findings.findings_models import Finding, SEVERITY_COLORS, SeverityScore, FindingsQuery
 
 
 # add 'findings' field to the main asset model
@@ -72,19 +66,19 @@ class FindingsApplet(BaseApplet):
             yield Finding(**finding)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
-    async def query_findings(self, body: QueryFindingsRequestBody | None = None, **kwargs):
+    async def query_findings(self, query: FindingsQuery | None = None):
         """
         Advanced querying of findings. Choose your own filters and fields.
         """
-        async for finding in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
+        async for finding in query.mongo_iter(self):
             yield finding
 
     @api_endpoint("/count", methods=["POST"], summary="Count findings")
-    async def count_findings(self, body: CountFindingsRequestBody | None = None, **kwargs) -> int:
+    async def count_findings(self, query: FindingsQuery | None = None) -> int:
         """
         Same as query_findings, except only returns the count
         """
-        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
+        return await query.mongo_count(self)
 
     @api_endpoint(
         "/stats_by_name",

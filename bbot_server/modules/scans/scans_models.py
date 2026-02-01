@@ -4,10 +4,14 @@ from pydantic import Field, computed_field
 
 from bbot.constants import get_scan_status_name, SCAN_STATUS_CODES
 
-from bbot_server.models.base import BaseBBOTServerModel
+from bbot_server.models.base import BaseBBOTServerModel, BaseQuery
 from bbot_server.modules.presets.presets_models import Preset
 from bbot_server.modules.targets.targets_models import Target
 from bbot_server.utils.misc import utc_now, timestamp_to_human
+
+
+class ScanQuery(BaseQuery):
+    pass
 
 
 class Scan(BaseBBOTServerModel):
@@ -15,8 +19,8 @@ class Scan(BaseBBOTServerModel):
     __store_type__ = "user"
 
     id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: f"SCAN:{uuid.uuid4()}")
-    name: Annotated[str, "indexed", "unique"]
-    description: Annotated[Optional[str], "indexed"] = None
+    name: Annotated[str, "indexed", "indexed-text", "unique"]
+    description: Annotated[Optional[str], "indexed", "indexed-text"] = None
     status_code: Annotated[int, "indexed", Field(ge=min(SCAN_STATUS_CODES), le=max(SCAN_STATUS_CODES))] = 0
     agent_id: Annotated[Optional[uuid.UUID], "indexed"] = None
     target: Target

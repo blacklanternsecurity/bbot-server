@@ -6,14 +6,14 @@ from typing import Annotated, AsyncGenerator
 from fastapi import Query
 
 from bbot_server.applets.base import BaseApplet, api_endpoint
-from bbot_server.models.event_models import CountEventsRequestBody, Event, QueryEventsRequestBody
+from bbot_server.modules.events.events_models import EventsQuery, Event, EventModel
 
 
 class EventsApplet(BaseApplet):
     name = "Events"
     watched_events = ["*"]
     description = "query raw BBOT scan events"
-    model = Event
+    model = EventModel
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -37,7 +37,7 @@ class EventsApplet(BaseApplet):
         event = await self.collection.find_one({"uuid": uuid})
         if event is None:
             raise self.BBOTServerNotFoundError(f"Event {uuid} not found")
-        return self.model(**event)
+        return Event(**event)
 
     @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Event, summary="Stream all events")
     async def list_events(
@@ -61,22 +61,22 @@ class EventsApplet(BaseApplet):
             archived=archived,
             active=active,
         ):
-            yield self.model(**event)
+            yield Event(**event)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query events")
-    async def query_events(self, body: QueryEventsRequestBody | None = None, **kwargs):
+    async def query_events(self, query: EventsQuery | None = None):
         """
         Advanced querying of events. Choose your own filters and fields.
         """
-        async for event in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
+        async for event in query.mongo_iter(self):
             yield event
 
     @api_endpoint("/count", methods=["POST"], summary="Count events")
-    async def count_events(self, body: CountEventsRequestBody | None = None, **kwargs) -> int:
+    async def count_events(self, query: EventsQuery | None = None) -> int:
         """
         Same as query_events, except only returns the count
         """
-        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
+        return await query.mongo_count(self)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)
     async def tail_events(self, n: int = 0):

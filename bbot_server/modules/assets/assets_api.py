@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import Path, Query
 
 from bbot_server.assets import Asset
-from bbot_server.modules.assets.assets_models import CountAssetsRequestBody, QueryAssetsRequestModel
+from bbot_server.modules.assets.assets_models import AssetOnlyQuery, AdvancedAssetQuery
 from bbot_server.utils.misc import utc_now
 from bbot_server.applets.base import BaseApplet, api_endpoint
 
@@ -23,23 +23,24 @@ class AssetsApplet(BaseApplet):
         """
         A simple, easily-curlable endpoint for listing assets, with basic filters
         """
-        async for asset in self.mongo_iter(type="Asset", domain=domain, target_id=target_id, limit=limit):
+        query = AssetOnlyQuery(domain=domain, target_id=target_id, limit=limit)
+        async for asset in query.mongo_iter(self):
             yield self.model(**asset)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query assets")
-    async def query_assets(self, body: QueryAssetsRequestModel | None = None, **kwargs):
+    async def query_assets(self, query: AdvancedAssetQuery | None = None):
         """
         Advanced querying of assets. Choose your own filters and fields.
         """
-        async for asset in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
+        async for asset in query.mongo_iter(self):
             yield asset
 
     @api_endpoint("/count", methods=["POST"], summary="Count assets")
-    async def count_assets(self, body: CountAssetsRequestBody | None = None, **kwargs) -> int:
+    async def count_assets(self, query: AdvancedAssetQuery | None = None) -> int:
         """
         Same as query_assets, except only returns the count
         """
-        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
+        return await query.mongo_count(self)
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: Annotated[str, Path(description="The host of the asset to get")]) -> Asset:
@@ -72,7 +73,8 @@ class AssetsApplet(BaseApplet):
             target_id: Only return hosts belonging to this target (can be either name or ID)
         """
         hosts = []
-        async for asset in self.mongo_iter(type="Asset", domain=domain, target_id=target_id, fields=["host"]):
+        query = AssetOnlyQuery(domain=domain, target_id=target_id, fields=["host"])
+        async for asset in query.mongo_iter(self):
             host = asset.get("host", None)
             if host is not None:
                 hosts.append(host)
@@ -108,16 +110,6 @@ class AssetsApplet(BaseApplet):
 
             # update the asset with any changes made by the child applets
             await self.update_asset(asset)
-
-    async def make_bbot_query(self, type: str = "Asset", query: dict = None, ignored: bool = False, **kwargs):
-        """
-        Extension of make_bbot_query for assets and asset facets (findings, technologies, etc.)
-        """
-        query = dict(query or {})
-        # "ignored" field is unique to assets and asset facets
-        if ignored is not None and "ignored" not in query:
-            query["ignored"] = ignored
-        return await super().make_bbot_query(type=type, query=query, **kwargs)
 
     async def _get_asset(
         self,

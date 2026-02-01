@@ -3,9 +3,8 @@ from fastapi import Query
 
 from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
-from bbot_server.modules.technologies.technology_models import (
-    CountTechnologiesRequestBody,
-    QueryTechnologiesRequestBody,
+from bbot_server.modules.technologies.technologies_models import (
+    TechnologyQuery,
     Technology,
 )
 
@@ -59,19 +58,19 @@ class TechnologiesApplet(BaseApplet):
             yield Technology(**technology)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query technologies")
-    async def query_technologies(self, body: QueryTechnologiesRequestBody | None = None, **kwargs):
+    async def query_technologies(self, query: TechnologyQuery | None = None):
         """
         Advanced querying of technologies. Choose your own filters and fields.
         """
-        async for technology in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
+        async for technology in query.mongo_iter(self):
             yield technology
 
     @api_endpoint("/count", methods=["POST"], summary="Count technologies")
-    async def count_technologies(self, body: CountTechnologiesRequestBody | None = None, **kwargs) -> int:
+    async def count_technologies(self, query: TechnologyQuery | None = None) -> int:
         """
         Same as query_technologies, except only returns the count
         """
-        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
+        return await query.mongo_count(self)
 
     @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database")
     async def get_technologies_summary(

@@ -7,9 +7,8 @@ from bbot.scanner.target import BBOTTarget
 from bbot_server.utils.misc import utc_now
 from bbot_server.assets import Asset
 from bbot_server.applets.base import BaseApplet, api_endpoint
-from bbot_server.models.base import BaseRequestBody, QueryRequestBody
 from bbot_server.modules.activity.activity_models import Activity
-from bbot_server.modules.targets.targets_models import Target, CreateTarget
+from bbot_server.modules.targets.targets_models import Target, CreateTarget, TargetQuery
 
 
 class BlacklistedError(Exception):
@@ -188,8 +187,8 @@ class TargetsApplet(BaseApplet):
         return Target(**target)
 
     @api_endpoint("/count", methods=["POST"], summary="Get the number of scan targets")
-    async def count_targets(self, body: BaseRequestBody | None = None, **kwargs) -> int:
-        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
+    async def count_targets(self, query: TargetQuery | None = None) -> int:
+        return await query.mongo_count(self)
 
     @api_endpoint("/set_default/{id}", methods=["POST"], summary="Set a target as the default target")
     async def set_default_target(self, id: str):
@@ -207,7 +206,6 @@ class TargetsApplet(BaseApplet):
     async def create_target(
         self,
         target: CreateTarget,
-        allow_duplicate_hash: bool = True,
     ) -> Target:
         if not target.target and not target.seeds:
             raise self.BBOTServerValueError("Must provide at least one seed or target entry")
@@ -224,7 +222,7 @@ class TargetsApplet(BaseApplet):
         )
         if await self.count_targets() == 0:
             target.default = True
-        async with self._handle_duplicate_target(target, allow_duplicate_hash):
+        async with self._handle_duplicate_target(target, target.allow_duplicate_hash):
             await self.collection.insert_one(target.model_dump())
         # if target is the default target, set all others to not be default
         if target.default:
@@ -354,11 +352,11 @@ class TargetsApplet(BaseApplet):
         response_model=dict,
         summary="List targets with customizeable fields and optional pagination",
     )
-    async def query_targets(self, body: QueryRequestBody | None = None, **kwargs):
+    async def query_targets(self, query: TargetQuery | None = None):
         """
         Advanced querying of targets. Choose your own filters and fields.
         """
-        async for target in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
+        async for target in query.mongo_iter(self):
             yield target
 
     @api_endpoint("/list_ids", methods=["GET"], summary="List all target IDs")

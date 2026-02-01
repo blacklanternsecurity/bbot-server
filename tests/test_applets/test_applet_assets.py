@@ -94,7 +94,7 @@ class TestAppletAssets(BaseAppletTest):
         assert all(isinstance(a, dict) for a in assets)
 
         # asset types other than findings
-        technologies = [a async for a in self.bbot_server.query_assets(type="Technology", ignored=False)]
+        technologies = [a async for a in self.bbot_server.query_assets(type="Technology")]
         assert technologies
         assert all([a["type"] == "Technology" for a in technologies])
 
@@ -103,7 +103,6 @@ class TestAppletAssets(BaseAppletTest):
             async for a in self.bbot_server.query_assets(
                 active=True,
                 archived=False,
-                ignored=False,
                 query={"cloud_providers": "Akamai"},
                 type="Asset",
             )

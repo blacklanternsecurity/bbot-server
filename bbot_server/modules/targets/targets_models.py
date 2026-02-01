@@ -5,13 +5,17 @@ from pydantic import Field, computed_field
 
 from bbot.scanner.target import BBOTTarget
 from bbot_server.utils.misc import utc_now
-from bbot_server.models.base import BaseBBOTServerModel
+from bbot_server.models.base import BaseBBOTServerModel, BaseQuery
+
+
+class TargetQuery(BaseQuery):
+    pass
 
 
 class BaseTarget(BaseBBOTServerModel):
     """Base class for all target models."""
 
-    description: str = Field("", description="Target description")
+    description: Annotated[str, "indexed-text"] = Field("", description="Target description")
     target: Optional[list[str]] = Field(
         default_factory=list,
         description="List of BBOT targets, e.g. domains, IPs, CIDRs, URLs, etc. These determine the scope of the scan. They are also used as seeds if no seeds are provided.",
@@ -86,11 +90,15 @@ class BaseTarget(BaseBBOTServerModel):
 class CreateTarget(BaseTarget):
     """Used for creating a new target."""
 
-    name: Annotated[str, "indexed", "unique", Field(description="Target name", default="")]
+    name: Annotated[str, "indexed", "indexed-text", "unique", Field(description="Target name", default="")]
     default: Annotated[
         bool,
         "indexed",
         Field(description="If True, this is the default target. There can only be one default target."),
+    ] = False
+    allow_duplicate_hash: Annotated[
+        bool,
+        Field(description="If False, return an error if an identical target already exists"),
     ] = False
 
 

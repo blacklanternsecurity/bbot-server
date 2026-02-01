@@ -1,17 +1,22 @@
 from pydantic import Field
 
-from bbot_server.models.base import BaseRequestBody, CommonFilterFields, IgnoredFilterField, QueryRequestBody
+from bbot_server.models.base import AssetQuery
 
 
-class BaseAssetRequestBody(CommonFilterFields, IgnoredFilterField):
-    """Base request body for asset query/count endpoints."""
-
-    type: str = Field("Asset", description="Filter by asset type")
+class AssetOnlyQuery(AssetQuery):
+    _force_asset_type = "Asset"
 
 
-class QueryAssetsRequestModel(BaseAssetRequestBody, QueryRequestBody):
-    pass
+class AdvancedAssetQuery(AssetQuery):
+    """Allow the user to specify what type of asset they want"""
 
+    type: str = Field(default="Asset", description="Asset type (Asset, Finding, Technology, etc.)")
 
-class CountAssetsRequestBody(BaseAssetRequestBody, BaseRequestBody):
-    pass
+    async def build(self, applet=None):
+        query = await super().build(applet)
+        print(f"QUERERY BEFOREE: {query}")
+        print(f"SELF>TTTYPE: {self.type}")
+        if ("type" not in query) and self.type:
+            query["type"] = self.type
+        print(f"UQYWERQWEYRYRY: {query}")
+        return query

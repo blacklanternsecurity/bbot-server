@@ -1,7 +1,7 @@
 from typing import Any
 
 from bbot_server.assets import Asset
-from bbot_server.models.stats_models import BBOTStats
+from bbot_server.modules.stats.stats_models import BBOTStats
 from bbot_server.applets.base import BaseApplet, api_endpoint
 
 """
