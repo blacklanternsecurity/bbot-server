@@ -59,7 +59,7 @@ class EventsApplet(BaseApplet):
             min_timestamp=min_timestamp,
             max_timestamp=max_timestamp,
             active=active,
-            archived=archived
+            archived=archived,
         )
         async for event in query.mongo_iter(self):
             yield Event(**event)

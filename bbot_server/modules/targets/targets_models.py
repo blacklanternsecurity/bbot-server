@@ -24,7 +24,9 @@ class TargetQuery(BaseQuery):
             query["name"] = self.name
 
         # Handle created timestamps
-        if "created" not in query and (self.min_created_timestamp is not None or self.max_created_timestamp is not None):
+        if "created" not in query and (
+            self.min_created_timestamp is not None or self.max_created_timestamp is not None
+        ):
             query["created"] = {}
             if self.min_created_timestamp is not None:
                 query["created"]["$gte"] = self.min_created_timestamp
@@ -32,7 +34,9 @@ class TargetQuery(BaseQuery):
                 query["created"]["$lte"] = self.max_created_timestamp
 
         # Handle modified timestamps
-        if "modified" not in query and (self.min_modified_timestamp is not None or self.max_modified_timestamp is not None):
+        if "modified" not in query and (
+            self.min_modified_timestamp is not None or self.max_modified_timestamp is not None
+        ):
             query["modified"] = {}
             if self.min_modified_timestamp is not None:
                 query["modified"]["$gte"] = self.min_modified_timestamp

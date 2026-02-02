@@ -37,7 +37,9 @@ class ScanQuery(BaseQuery):
             query["$or"] = [{"target.id": self.target_id}, {"target.name": self.target_id}]
 
         # Handle created timestamps
-        if "created" not in query and (self.min_created_timestamp is not None or self.max_created_timestamp is not None):
+        if "created" not in query and (
+            self.min_created_timestamp is not None or self.max_created_timestamp is not None
+        ):
             query["created"] = {}
             if self.min_created_timestamp is not None:
                 query["created"]["$gte"] = self.min_created_timestamp

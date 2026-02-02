@@ -47,6 +47,7 @@ class FindingsQuery(AssetQuery):
         # Validate severity range
         if self.min_severity > self.max_severity:
             from bbot_server.errors import BBOTServerValueError
+
             raise BBOTServerValueError("min_severity must be less than or equal to max_severity")
 
     async def build(self, applet=None):
@@ -65,7 +66,6 @@ class FindingsQuery(AssetQuery):
             query["ignored"] = self.ignored
 
         return query
-
 
 
 class Finding(BaseAssetFacet):
