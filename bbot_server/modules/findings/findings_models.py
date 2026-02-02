@@ -2,7 +2,7 @@ from typing import Annotated, Optional
 
 from pydantic import Field, computed_field
 
-from bbot_server.models.base import AssetQuery, BaseScore, BaseAssetFacet
+from bbot_server.models.base import ActiveArchivedQuery, BaseScore, BaseAssetFacet
 
 # Severity levels as constants
 SEVERITY_LEVELS = {"INFO": 1, "LOW": 2, "MEDIUM": 3, "HIGH": 4, "CRITICAL": 5}
@@ -34,7 +34,7 @@ class ConfidenceScore(BaseScore):
     name = "confidence"
 
 
-class FindingsQuery(AssetQuery):
+class FindingsQuery(ActiveArchivedQuery):
     """Base request body for findings query/count endpoints."""
 
     min_severity: int = Field(1, description="Filter by minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)

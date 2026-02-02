@@ -1,14 +1,15 @@
 from bbot.models.pydantic import Event
 from pydantic import Field
 
-from bbot_server.models.base import BaseQuery
+from bbot_server.models.base import ActiveArchivedQuery
 
 
-class EventsQuery(BaseQuery):
+class EventsQuery(ActiveArchivedQuery):
     """Base request body for events query/count endpoints."""
 
     min_timestamp: float | None = Field(None, description="Filter by minimum timestamp")
     max_timestamp: float | None = Field(None, description="Filter by maximum timestamp")
+    scan: str | None = Field(None, description="Filter by BBOT scan ID")
 
     async def build(self, applet=None):
         query = await super().build(applet)
@@ -20,6 +21,9 @@ class EventsQuery(BaseQuery):
                 query["timestamp"]["$gte"] = self.min_timestamp
             if self.max_timestamp is not None:
                 query["timestamp"]["$lte"] = self.max_timestamp
+
+        if "scan" not in query and self.scan is not None:
+            query["scan"] = str(self.scan)
 
         return query
 

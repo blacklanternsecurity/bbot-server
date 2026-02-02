@@ -130,7 +130,7 @@ class BaseQuery(BaseModel):
     )
     skip: int | None = Field(None, description="Offset/skip this many documents")
     limit: int | None = Field(None, description="Limit how much results to return")
-    sort: list[str] | tuple[str, int] | None = Field(
+    sort: list[str | tuple[str, int]] | None = Field(
         None, description="The Mongo sort, specifies which fields to sort by or a tuple specifying desc or asc"
     )
     aggregate: list[dict] | None = Field(
@@ -280,12 +280,27 @@ class HostQuery(BaseQuery):
         }
 
 
-class AssetQuery(HostQuery):
+class ActiveArchivedQuery(HostQuery):
+    archived: bool = Field(False, description="Include archived records")
+    active: bool = Field(True, description="Include active records")
+
+    async def build(self, applet=None):
+        query = await super().build(applet)
+        # archived / active filtering
+        # if both active and archived are true, we don't need to filter anything, because we are returning all results
+        if not (self.active and self.archived) and ("archived" not in query):
+            # if both are false, we need to raise an error
+            if not (self.active or self.archived):
+                raise BBOTServerValueError("Must query at least one of active or archived")
+            # only one should be true
+            query["archived"] = {"$eq": self.archived}
+        return query
+
+
+class AssetQuery(ActiveArchivedQuery):
     """Common asset query used across Assets, Findings, Events, Technologies, etc."""
 
     target_id: str | UUID | None = Field(None, description="Filter by target name or ID")
-    archived: bool = Field(False, description="Include archived records")
-    active: bool = Field(True, description="Include active records")
     # force a certain type of asset
     _force_asset_type = None
 
@@ -305,14 +320,6 @@ class AssetQuery(HostQuery):
             target = await self._applet.root.targets._get_target(**target_query_kwargs, fields=["id"])
             if target is not None:
                 query["scope"] = target["id"]
-        # archived / active filtering
-        # if both active and archived are true, we don't need to filter anything, because we are returning all assets
-        if not (self.active and self.archived) and ("archived" not in query):
-            # if both are false, we need to raise an error
-            if not (self.active or self.archived):
-                raise BBOTServerValueError("Must query at least one of active or archived")
-            # only one should be true
-            query["archived"] = {"$eq": self.archived}
         if self._force_asset_type:
             query["type"] = self._force_asset_type
         return query

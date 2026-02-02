@@ -54,7 +54,7 @@ class FindingsApplet(BaseApplet):
             int, Query(description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
         ] = 5,
     ):
-        async for finding in self.mongo_iter(
+        query = FindingsQuery(
             host=host,
             domain=domain,
             target_id=target_id,
@@ -62,7 +62,8 @@ class FindingsApplet(BaseApplet):
             min_severity=min_severity,
             max_severity=max_severity,
             sort=[("severity_score", -1)],
-        ):
+        )
+        async for finding in query.mongo_iter(self):
             yield Finding(**finding)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
@@ -97,9 +98,10 @@ class FindingsApplet(BaseApplet):
         Return a high-level count of findings by name
         """
         findings = {}
-        async for finding in self.mongo_iter(
+        query = FindingsQuery(
             domain=domain, target_id=target_id, min_severity=min_severity, max_severity=max_severity, fields=["name"]
-        ):
+        )
+        async for finding in query.mongo_iter(self):
             finding_name = finding["name"]
             findings[finding_name] = findings.get(finding_name, 0) + 1
         findings = dict(sorted(findings.items(), key=lambda x: x[1], reverse=True))
@@ -119,13 +121,14 @@ class FindingsApplet(BaseApplet):
         max_severity: Annotated[int, Query(description="maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 5,
     ) -> dict[str, int]:
         findings = {}
-        async for finding in self.mongo_iter(
+        query = FindingsQuery(
             domain=domain,
             target_id=target_id,
             min_severity=min_severity,
             max_severity=max_severity,
             fields=["severity"],
-        ):
+        )
+        async for finding in query.mongo_iter(self):
             severity = finding["severity"]
             findings[severity] = findings.get(severity, 0) + 1
         findings = dict(sorted(findings.items(), key=lambda x: x[1], reverse=True))

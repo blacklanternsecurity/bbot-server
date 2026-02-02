@@ -45,7 +45,7 @@ class TechnologiesApplet(BaseApplet):
         active: Annotated[bool, Query(description="whether to include active (non-archived) technologies")] = True,
         sort: Annotated[list[str], Query(description="fields to sort by")] = ["-last_seen"],
     ):
-        async for technology in self.mongo_iter(
+        query = TechnologyQuery(
             technology=technology,
             search=search,
             domain=domain,
@@ -54,7 +54,8 @@ class TechnologiesApplet(BaseApplet):
             archived=archived,
             active=active,
             sort=sort,
-        ):
+        )
+        async for technology in query.mongo_iter(self):
             yield Technology(**technology)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query technologies")
