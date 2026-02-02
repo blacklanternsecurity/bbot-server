@@ -342,7 +342,7 @@ class http(BaseInterface):
                     await response.aread()
                 response_json = response.json()
             except Exception as e:
-                self.log.debug(f"Error decoding response json for {response}: {e} - {getattr(response, 'text', '')}")
+                self.log.warning(f"Error decoding response json for {response}: {e} - {getattr(response, 'text', '')}")
                 raise BBOTServerError(f"Error decoding response JSON for {response}: {e}") from e
 
         if not response.is_success:

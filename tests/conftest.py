@@ -48,8 +48,8 @@ if not bbcfg.get_api_keys():
     bbcfg.add_api_key()
 
 
-# @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
-@pytest_asyncio.fixture(params=[{"interface": "http"}])
+@pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
+# @pytest_asyncio.fixture(params=[{"interface": "http"}])
 async def bbot_server(request, mongo_cleanup, redis_cleanup):
     from bbot_server import BBOTServer
     from bbot_server.message_queue import MessageQueue

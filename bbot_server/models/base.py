@@ -199,6 +199,8 @@ class BaseQuery(BaseModel):
 
     async def _make_mongo_cursor(self, collection=None):
         """Build a MongoDB cursor for querying, with optional aggregation pipeline."""
+        if self._mongo_cursor is not None:
+            return self._mongo_cursor
         query = await self.build()
         sanitized_query = _sanitize_mongo_query(query)
 
@@ -226,6 +228,7 @@ class BaseQuery(BaseModel):
             cursor = cursor.skip(self.skip)
         if self.limit is not None:
             cursor = cursor.limit(self.limit)
+        self._mongo_cursor = cursor
         return cursor
 
 
@@ -244,7 +247,6 @@ class HostQuery(BaseQuery):
         # AI is dumb and likes to pass in blank strings for stuff
         self.host = self.host or None
         self.domain = self.domain or None
-        self.target_id = self.target_id or None
 
     async def build(self, applet=None):
         query = await super().build(applet)
@@ -289,9 +291,6 @@ class AssetQuery(HostQuery):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # AI is dumb and likes to pass in blank strings for stuff
-        self.host = self.host or None
-        self.domain = self.domain or None
         self.target_id = self.target_id or None
 
     async def build(self, applet=None):

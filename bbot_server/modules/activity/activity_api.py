@@ -32,7 +32,7 @@ class ActivityApplet(BaseApplet):
         """
         Advanced querying of activities. Choose your own filters and fields.
         """
-        async for activity in query.mongo_iter():
+        async for activity in query.mongo_iter(self):
             yield activity
 
     @api_endpoint("/count", methods=["POST"], summary="Count activities")
@@ -40,7 +40,7 @@ class ActivityApplet(BaseApplet):
         """
         Same as query_activities, except only returns the count
         """
-        return await query.mongo_count()
+        return await query.mongo_count(self)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Activity)
     async def tail_activities(self, n: int = 0):
