@@ -283,7 +283,7 @@ class HostQuery(BaseQuery):
 class AssetQuery(HostQuery):
     """Common asset query used across Assets, Findings, Events, Technologies, etc."""
 
-    target_id: str | None = Field(None, description="Filter by target name or ID")
+    target_id: str | UUID | None = Field(None, description="Filter by target name or ID")
     archived: bool = Field(False, description="Include archived records")
     active: bool = Field(True, description="Include active records")
     # force a certain type of asset
@@ -292,6 +292,8 @@ class AssetQuery(HostQuery):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.target_id = self.target_id or None
+        if self.target_id is not None:
+            self.target_id = str(self.target_id)
 
     async def build(self, applet=None):
         query = await super().build(applet)
