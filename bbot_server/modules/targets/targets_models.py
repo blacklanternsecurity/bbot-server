@@ -9,7 +9,37 @@ from bbot_server.models.base import BaseBBOTServerModel, BaseQuery
 
 
 class TargetQuery(BaseQuery):
-    pass
+    """Base request body for targets query/count endpoints."""
+
+    name: str | None = Field(None, description="Filter by target name")
+    min_created_timestamp: float | None = Field(None, description="Filter by minimum created timestamp")
+    max_created_timestamp: float | None = Field(None, description="Filter by maximum created timestamp")
+    min_modified_timestamp: float | None = Field(None, description="Filter by minimum modified timestamp")
+    max_modified_timestamp: float | None = Field(None, description="Filter by maximum modified timestamp")
+
+    async def build(self, applet=None):
+        query = await super().build(applet)
+
+        if self.name is not None and "name" not in query:
+            query["name"] = self.name
+
+        # Handle created timestamps
+        if "created" not in query and (self.min_created_timestamp is not None or self.max_created_timestamp is not None):
+            query["created"] = {}
+            if self.min_created_timestamp is not None:
+                query["created"]["$gte"] = self.min_created_timestamp
+            if self.max_created_timestamp is not None:
+                query["created"]["$lte"] = self.max_created_timestamp
+
+        # Handle modified timestamps
+        if "modified" not in query and (self.min_modified_timestamp is not None or self.max_modified_timestamp is not None):
+            query["modified"] = {}
+            if self.min_modified_timestamp is not None:
+                query["modified"]["$gte"] = self.min_modified_timestamp
+            if self.max_modified_timestamp is not None:
+                query["modified"]["$lte"] = self.max_modified_timestamp
+
+        return query
 
 
 class BaseTarget(BaseBBOTServerModel):

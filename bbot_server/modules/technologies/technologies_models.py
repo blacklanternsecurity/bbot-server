@@ -13,7 +13,7 @@ class TechnologyQuery(AssetQuery):
 
     async def build(self, applet=None):
         query = await super().build(applet)
-        if self.technology:
+        if self.technology and "technology" not in query:
             query["technology"] = self.technology
         return query
 

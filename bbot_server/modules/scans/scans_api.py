@@ -351,46 +351,6 @@ class ScansApplet(BaseApplet):
         )
         return result.modified_count > 0
 
-    async def make_bbot_query(
-        self,
-        query: dict = None,
-        name: str = None,
-        status: str = None,
-        target_id: str = None,
-        agent_id: str = None,
-        min_created_timestamp: float = None,
-        max_created_timestamp: float = None,
-        **kwargs,
-    ):
-        """
-        Custom make_bbot_query for scans.
-
-        Scans don't have archived/active or host/domain fields like assets do.
-        Instead they have status, target (embedded), and agent_id.
-        """
-        query = dict(query or {})
-
-        if name is not None and "name" not in query:
-            query["name"] = name
-        if status is not None and "status" not in query:
-            query["status"] = status
-        if agent_id is not None and "agent_id" not in query:
-            query["agent_id"] = agent_id
-
-        # Handle target_id filtering - scans have target embedded as an object
-        if target_id is not None and "target.id" not in query and "target.name" not in query:
-            query["$or"] = [{"target.id": target_id}, {"target.name": target_id}]
-
-        # Handle created timestamps
-        if "created" not in query and (min_created_timestamp is not None or max_created_timestamp is not None):
-            query["created"] = {}
-            if min_created_timestamp is not None:
-                query["created"]["$gte"] = min_created_timestamp
-            if max_created_timestamp is not None:
-                query["created"]["$lte"] = max_created_timestamp
-
-        return query
-
     async def cleanup(self):
         if self.is_main_server:
             self.scan_watch_task.cancel()

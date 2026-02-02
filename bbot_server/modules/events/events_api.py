@@ -51,16 +51,17 @@ class EventsApplet(BaseApplet):
         active: bool = True,
         archived: bool = False,
     ):
-        async for event in self.mongo_iter(
+        query = EventsQuery(
             type=type,
             host=host,
             domain=domain,
             scan=scan,
             min_timestamp=min_timestamp,
             max_timestamp=max_timestamp,
-            archived=archived,
             active=active,
-        ):
+            archived=archived
+        )
+        async for event in query.mongo_iter(self):
             yield Event(**event)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query events")
@@ -120,11 +121,3 @@ class EventsApplet(BaseApplet):
         self.log.info(f"Archived {result.modified_count} events")
         # refresh asset database
         await self.root.assets.refresh_assets()
-
-    async def make_bbot_query(self, query: dict = None, scan: str = None, id: str = None, **kwargs):
-        query = dict(query or {})
-        if scan is not None and "scan" not in query:
-            query["scan"] = scan
-        if id is not None and "id" not in query:
-            query["id"] = id
-        return await super().make_bbot_query(query=query, **kwargs)

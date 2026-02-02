@@ -205,22 +205,6 @@ class FindingsApplet(BaseApplet):
 
         return stats
 
-    async def make_bbot_query(
-        self, query: dict = None, ignored: bool = False, min_severity: int = 1, max_severity: int = 5, **kwargs
-    ):
-        if min_severity > max_severity:
-            raise self.BBOTServerValueError("min_severity must be less than or equal to max_severity")
-        query = dict(query or {})
-        # we are only querying findings
-        query["type"] = "Finding"
-        query["severity_score"] = {
-            "$gte": min_severity,
-            "$lte": max_severity,
-        }
-        if ignored is not None and "ignored" not in query:
-            query["ignored"] = ignored
-        return await super().make_bbot_query(query=query, **kwargs)
-
     async def _insert_or_update_finding(self, finding: Finding, asset, event=None):
         """
         Insert a new finding into the database, or update an existing one.

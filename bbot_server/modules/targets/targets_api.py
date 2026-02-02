@@ -40,44 +40,6 @@ class TargetsApplet(BaseApplet):
         self._target_ids_modified = None
         return True, ""
 
-    async def make_bbot_query(
-        self,
-        query: dict = None,
-        name: str = None,
-        min_created_timestamp: float = None,
-        max_created_timestamp: float = None,
-        min_modified_timestamp: float = None,
-        max_modified_timestamp: float = None,
-        **kwargs,
-    ):
-        """
-        Custom make_bbot_query for targets.
-
-        Targets don't have archived/active or host/domain fields like assets do.
-        """
-        query = dict(query or {})
-
-        if name is not None and "name" not in query:
-            query["name"] = name
-
-        # Handle created timestamps
-        if "created" not in query and (min_created_timestamp is not None or max_created_timestamp is not None):
-            query["created"] = {}
-            if min_created_timestamp is not None:
-                query["created"]["$gte"] = min_created_timestamp
-            if max_created_timestamp is not None:
-                query["created"]["$lte"] = max_created_timestamp
-
-        # Handle modified timestamps
-        if "modified" not in query and (min_modified_timestamp is not None or max_modified_timestamp is not None):
-            query["modified"] = {}
-            if min_modified_timestamp is not None:
-                query["modified"]["$gte"] = min_modified_timestamp
-            if max_modified_timestamp is not None:
-                query["modified"]["$lte"] = max_modified_timestamp
-
-        return query
-
     async def handle_event(self, event, asset):
         """
         Whenever a new event comes in, we check its host and all its A/AAAA records against our targets,

@@ -11,7 +11,40 @@ from bbot_server.utils.misc import utc_now, timestamp_to_human
 
 
 class ScanQuery(BaseQuery):
-    pass
+    """Base request body for scans query/count endpoints."""
+
+    name: str | None = Field(None, description="Filter by scan name")
+    status: str | None = Field(None, description="Filter by scan status")
+    target_id: str | None = Field(None, description="Filter by target ID or name")
+    agent_id: str | None = Field(None, description="Filter by agent ID")
+    min_created_timestamp: float | None = Field(None, description="Filter by minimum created timestamp")
+    max_created_timestamp: float | None = Field(None, description="Filter by maximum created timestamp")
+
+    async def build(self, applet=None):
+        query = await super().build(applet)
+
+        if self.name is not None and "name" not in query:
+            query["name"] = self.name
+
+        if self.status is not None and "status" not in query:
+            query["status"] = self.status
+
+        if self.agent_id is not None and "agent_id" not in query:
+            query["agent_id"] = self.agent_id
+
+        # Handle target_id filtering - scans have target embedded as an object
+        if self.target_id is not None and "target.id" not in query and "target.name" not in query:
+            query["$or"] = [{"target.id": self.target_id}, {"target.name": self.target_id}]
+
+        # Handle created timestamps
+        if "created" not in query and (self.min_created_timestamp is not None or self.max_created_timestamp is not None):
+            query["created"] = {}
+            if self.min_created_timestamp is not None:
+                query["created"]["$gte"] = self.min_created_timestamp
+            if self.max_created_timestamp is not None:
+                query["created"]["$lte"] = self.max_created_timestamp
+
+        return query
 
 
 class Scan(BaseBBOTServerModel):

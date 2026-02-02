@@ -233,19 +233,6 @@ class TechnologiesApplet(BaseApplet):
                 )
         return activities
 
-    async def make_bbot_query(
-        self, query: dict = None, ignored: bool = False, technology: str = None, search: str = None, **kwargs
-    ):
-        if technology and search:
-            raise self.BBOTServerValueError("Cannot filter by both technology and search")
-        query = dict(query or {})
-        query["type"] = "Technology"
-        if technology is not None and "technology" not in query:
-            query["technology"] = technology
-        if ignored is not None and "ignored" not in query:
-            query["ignored"] = ignored
-        return await super().make_bbot_query(query=query, search=search, **kwargs)
-
     async def _update_or_insert_technology(self, t: Technology):
         query = {"type": "Technology", "technology": t.technology, "host": t.host, "port": t.port}
         # check if the technology already exists

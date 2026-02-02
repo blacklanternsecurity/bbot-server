@@ -425,7 +425,7 @@ if __name__ == "__main__":
 When running tests, first start MongoDB and Redis via Docker:
 
 ```bash
-docker run --ulimit nofile=64000:64000 --rm -p 27017:27017 mongo
+docker run --ulimit nofile=64000:64000 --rm -p 127.0.0.1:27017:27017 mongo
 docker run --rm -p 6379:6379 redis
 ```
 
