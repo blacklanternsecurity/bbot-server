@@ -113,11 +113,6 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
         self.log = logging.getLogger(f"bbot_server.routing.{self.__class__.__name__.lower()}")
         self.orig_function = function
         self.function_signature = inspect.signature(self.orig_function)
-        # orig_sig = inspect.signature(self.orig_function)
-        # self.function_signature = inspect.Signature(
-        #     parameters=[p for p in orig_sig.parameters.values() if p.name != "self"],
-        #     return_annotation=orig_sig.return_annotation,
-        # )
 
         self.function = self.wrapped_function()
         self.default_path = getattr(self.orig_function, "_endpoint", None)
