@@ -10,6 +10,7 @@ from textual.reactive import reactive
 from bbot_server.cli.tui.widgets.finding_table import FindingTable
 from bbot_server.cli.tui.widgets.finding_detail import FindingDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
+from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 
 
 class FindingsScreen(Container):
@@ -40,7 +41,11 @@ class FindingsScreen(Container):
             # Main content
             with Horizontal(id="findings-content"):
                 with Vertical(id="findings-table-container"):
-                    yield FindingTable(id="finding-table")
+                    yield PaginatedTableContainer(
+                        FindingTable(id="finding-table"),
+                        auto_page_size=True,
+                        id="finding-pagination"
+                    )
 
                 with Vertical(id="finding-detail-container"):
                     yield Static("[bold]Finding Details[/bold]", id="detail-header")
@@ -70,7 +75,7 @@ class FindingsScreen(Container):
             self._refresh_timer.stop()
 
     async def refresh_findings(self, show_loading: bool = False) -> None:
-        """Fetch and display all findings from server
+        """Fetch and display findings from server with pagination
 
         Args:
             show_loading: If True, show "Loading..." status message (for manual refreshes)
@@ -85,39 +90,35 @@ class FindingsScreen(Container):
             if show_loading:
                 status.update("[cyan]Loading findings...[/cyan]")
 
-            # Fetch all findings
-            findings = await self.bbot_app.data_service.list_findings()
+            # Get pagination parameters
+            pagination = self.query_one("#finding-pagination", PaginatedTableContainer)
+            skip, limit = pagination.get_skip_limit()
 
-            # Apply client-side filters
-            from bbot_server.cli.tui.utils.colors import get_severity_score
-
-            # Apply severity filter
-            if self.min_severity > 1:
-                findings = [
-                    f for f in findings
-                    if get_severity_score(getattr(f, 'severity', 'INFO')) >= self.min_severity
-                ]
-
-            # Apply text search filter
+            # Build filter kwargs for server-side filtering
+            filters = {}
             if self.filter_text:
-                filter_lower = self.filter_text.lower()
-                findings = [
-                    f for f in findings
-                    if filter_lower in getattr(f, 'name', '').lower()
-                    or filter_lower in getattr(f, 'host', '').lower()
-                    or filter_lower in getattr(f, 'description', '').lower()
-                ]
+                filters['search'] = self.filter_text
+            if self.min_severity > 1:
+                filters['min_severity'] = self.min_severity
 
-            # Update table with all filtered findings
+            # Fetch findings with server-side pagination and filters
+            findings, total = await self.bbot_app.data_service.get_findings_paginated(
+                skip=skip, limit=limit, **filters
+            )
+
+            # Update pagination with total count
+            pagination.total_items = total
+
+            # Update table with current page of findings
             table = self.query_one("#finding-table", FindingTable)
             table.update_findings(findings)
 
-            # Update status
-            if findings:
+            # Update status (pagination widget shows page info, status shows filter info)
+            if total > 0:
                 if self.filter_text or self.min_severity > 1:
-                    status.update(f"[green]Showing {len(findings)} filtered findings[/green]")
+                    status.update(f"[green]Filtered: {total} findings match[/green]")
                 else:
-                    status.update(f"[green]Showing {len(findings)} findings[/green]")
+                    status.update(f"[green]{total} total findings[/green]")
             else:
                 status.update("[yellow]No findings found[/yellow]")
 
@@ -142,8 +143,24 @@ class FindingsScreen(Container):
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
         self.filter_text = event.filter_text
+        # Reset to first page when filter changes
+        pagination = self.query_one("#finding-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
         # Trigger refresh (show loading since user-initiated)
         self.run_worker(self.refresh_findings(show_loading=True))
+
+    def on_paginated_table_container_page_changed(
+        self, event: PaginatedTableContainer.PageChanged
+    ) -> None:
+        """Handle page navigation"""
+        self.run_worker(self.refresh_findings())
+
+    def on_paginated_table_container_page_size_changed(
+        self, event: PaginatedTableContainer.PageSizeChanged
+    ) -> None:
+        """Handle page size changes from auto-sizing"""
+        # Refetch data with new page size
+        self.run_worker(self.refresh_findings())
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""
@@ -165,36 +182,54 @@ class FindingsScreen(Container):
         filter_bar = self.query_one("#finding-filter", FilterBar)
         filter_bar.clear_filter()
         self.filter_text = ""
+        # Reset pagination when filter is cleared
+        pagination = self.query_one("#finding-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
 
     def action_filter_info(self) -> None:
         """Show INFO and above"""
         self.min_severity = 1
         self._update_severity_label()
-        self.run_worker(self.refresh_findings())
+        # Reset to first page when filter changes
+        pagination = self.query_one("#finding-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
+        self.run_worker(self.refresh_findings(show_loading=True))
 
     def action_filter_low(self) -> None:
         """Show LOW and above"""
         self.min_severity = 2
         self._update_severity_label()
-        self.run_worker(self.refresh_findings())
+        # Reset to first page when filter changes
+        pagination = self.query_one("#finding-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
+        self.run_worker(self.refresh_findings(show_loading=True))
 
     def action_filter_medium(self) -> None:
         """Show MEDIUM and above"""
         self.min_severity = 3
         self._update_severity_label()
-        self.run_worker(self.refresh_findings())
+        # Reset to first page when filter changes
+        pagination = self.query_one("#finding-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
+        self.run_worker(self.refresh_findings(show_loading=True))
 
     def action_filter_high(self) -> None:
         """Show HIGH and above"""
         self.min_severity = 4
         self._update_severity_label()
-        self.run_worker(self.refresh_findings())
+        # Reset to first page when filter changes
+        pagination = self.query_one("#finding-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
+        self.run_worker(self.refresh_findings(show_loading=True))
 
     def action_filter_critical(self) -> None:
         """Show CRITICAL only"""
         self.min_severity = 5
         self._update_severity_label()
-        self.run_worker(self.refresh_findings())
+        # Reset to first page when filter changes
+        pagination = self.query_one("#finding-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
+        self.run_worker(self.refresh_findings(show_loading=True))
 
     def _update_severity_label(self) -> None:
         """Update the severity filter label"""

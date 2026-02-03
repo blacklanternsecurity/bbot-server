@@ -10,6 +10,7 @@ from textual import work
 from bbot_server.cli.tui.widgets.target_table import TargetTable
 from bbot_server.cli.tui.widgets.target_detail import TargetDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
+from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 from bbot_server.cli.tui.screens.create_target_modal import CreateTargetModal
 
 
@@ -39,7 +40,11 @@ class TargetsScreen(Container):
             # Main content
             with Horizontal(id="targets-content"):
                 with Vertical(id="targets-table-container"):
-                    yield TargetTable(id="target-table")
+                    yield PaginatedTableContainer(
+                        TargetTable(id="target-table"),
+                        auto_page_size=True,
+                        id="target-pagination"
+                    )
 
                 with Vertical(id="target-detail-container"):
                     yield Static("[bold]Target Details[/bold]", id="detail-header")
@@ -68,7 +73,7 @@ class TargetsScreen(Container):
             self._refresh_timer.stop()
 
     async def refresh_targets(self, show_loading: bool = False) -> None:
-        """Fetch and display all targets from server
+        """Fetch and display targets from server with pagination
 
         Args:
             show_loading: If True, show "Loading..." status message (for manual refreshes)
@@ -83,28 +88,29 @@ class TargetsScreen(Container):
             if show_loading:
                 status.update("[cyan]Loading targets...[/cyan]")
 
-            # Fetch all targets
-            targets = await self.bbot_app.data_service.get_targets()
+            # Get pagination parameters
+            pagination = self.query_one("#target-pagination", PaginatedTableContainer)
+            skip, limit = pagination.get_skip_limit()
 
-            # Apply client-side filtering if filter text is present
-            if self.filter_text:
-                filter_lower = self.filter_text.lower()
-                targets = [
-                    t for t in targets
-                    if filter_lower in getattr(t, 'name', '').lower()
-                    or filter_lower in getattr(t, 'description', '').lower()
-                ]
+            # Fetch targets with client-side pagination and filter
+            filter_text = self.filter_text if self.filter_text else None
+            targets, total = await self.bbot_app.data_service.get_targets_paginated(
+                skip=skip, limit=limit, filter_text=filter_text
+            )
 
-            # Update table with all filtered targets
+            # Update pagination with total count
+            pagination.total_items = total
+
+            # Update table with current page of targets
             table = self.query_one("#target-table", TargetTable)
             table.update_targets(targets)
 
-            # Update status
-            if targets:
+            # Update status (pagination widget shows page info, status shows filter info)
+            if total > 0:
                 if self.filter_text:
-                    status.update(f"[green]Showing {len(targets)} filtered targets[/green]")
+                    status.update(f"[green]Filtered: {total} targets match[/green]")
                 else:
-                    status.update(f"[green]Showing {len(targets)} targets[/green]")
+                    status.update(f"[green]{total} total targets[/green]")
             else:
                 status.update("[yellow]No targets found[/yellow]")
 
@@ -129,8 +135,24 @@ class TargetsScreen(Container):
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
         self.filter_text = event.filter_text
+        # Reset to first page when filter changes
+        pagination = self.query_one("#target-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
         # Trigger refresh (show loading since user-initiated)
         self.run_worker(self.refresh_targets(show_loading=True))
+
+    def on_paginated_table_container_page_changed(
+        self, event: PaginatedTableContainer.PageChanged
+    ) -> None:
+        """Handle page navigation"""
+        self.run_worker(self.refresh_targets())
+
+    def on_paginated_table_container_page_size_changed(
+        self, event: PaginatedTableContainer.PageSizeChanged
+    ) -> None:
+        """Handle page size changes from auto-sizing"""
+        # Refetch data with new page size
+        self.run_worker(self.refresh_targets())
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""
@@ -193,3 +215,6 @@ class TargetsScreen(Container):
         filter_bar = self.query_one("#target-filter", FilterBar)
         filter_bar.clear_filter()
         self.filter_text = ""
+        # Reset pagination when filter is cleared
+        pagination = self.query_one("#target-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()

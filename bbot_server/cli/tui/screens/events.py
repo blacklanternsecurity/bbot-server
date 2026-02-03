@@ -9,6 +9,7 @@ from textual.reactive import reactive
 from bbot_server.cli.tui.widgets.event_table import EventTable
 from bbot_server.cli.tui.widgets.event_detail import EventDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
+from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 
 
 class EventsScreen(Container):
@@ -36,7 +37,11 @@ class EventsScreen(Container):
             # Main content
             with Horizontal(id="events-content"):
                 with Vertical(id="events-table-container"):
-                    yield EventTable(id="event-table")
+                    yield PaginatedTableContainer(
+                        EventTable(id="event-table"),
+                        auto_page_size=True,
+                        id="event-pagination"
+                    )
 
                 with Vertical(id="event-detail-container"):
                     yield Static("[bold]Event Details[/bold]", id="detail-header")
@@ -65,7 +70,7 @@ class EventsScreen(Container):
             self._refresh_timer.stop()
 
     async def refresh_events(self, show_loading: bool = False) -> None:
-        """Fetch and display events from server with optional search
+        """Fetch and display events from server with pagination
 
         Args:
             show_loading: If True, show "Loading..." status message (for manual refreshes)
@@ -80,20 +85,29 @@ class EventsScreen(Container):
             if show_loading:
                 status.update("[cyan]Loading events...[/cyan]")
 
-            # Fetch events with server-side search
-            search_term = self.filter_text if self.filter_text else None
-            events = await self.bbot_app.data_service.query_events(search=search_term)
+            # Get pagination parameters
+            pagination = self.query_one("#event-pagination", PaginatedTableContainer)
+            skip, limit = pagination.get_skip_limit()
 
-            # Update table with filtered events
+            # Fetch events with server-side pagination and search
+            search_term = self.filter_text if self.filter_text else None
+            events, total = await self.bbot_app.data_service.get_events_paginated(
+                skip=skip, limit=limit, search=search_term
+            )
+
+            # Update pagination with total count
+            pagination.total_items = total
+
+            # Update table with current page of events
             table = self.query_one("#event-table", EventTable)
             table.update_events(events)
 
-            # Update status
-            if events:
+            # Update status (pagination widget shows page info, status shows filter info)
+            if total > 0:
                 if self.filter_text:
-                    status.update(f"[green]Showing {len(events)} filtered events[/green]")
+                    status.update(f"[green]Filtered: {total} events match[/green]")
                 else:
-                    status.update(f"[green]Showing {len(events)} events[/green]")
+                    status.update(f"[green]{total} total events[/green]")
             else:
                 status.update("[yellow]No events found[/yellow]")
 
@@ -118,8 +132,24 @@ class EventsScreen(Container):
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
         self.filter_text = event.filter_text
+        # Reset to first page when filter changes
+        pagination = self.query_one("#event-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
         # Trigger refresh (show loading since user-initiated)
         self.run_worker(self.refresh_events(show_loading=True))
+
+    def on_paginated_table_container_page_changed(
+        self, event: PaginatedTableContainer.PageChanged
+    ) -> None:
+        """Handle page navigation"""
+        self.run_worker(self.refresh_events())
+
+    def on_paginated_table_container_page_size_changed(
+        self, event: PaginatedTableContainer.PageSizeChanged
+    ) -> None:
+        """Handle page size changes from auto-sizing"""
+        # Refetch data with new page size
+        self.run_worker(self.refresh_events())
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""
@@ -141,3 +171,6 @@ class EventsScreen(Container):
         filter_bar = self.query_one("#event-filter", FilterBar)
         filter_bar.clear_filter()
         self.filter_text = ""
+        # Reset pagination when filter is cleared
+        pagination = self.query_one("#event-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()

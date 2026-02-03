@@ -9,6 +9,7 @@ from textual.reactive import reactive
 from bbot_server.cli.tui.widgets.technology_table import TechnologyTable
 from bbot_server.cli.tui.widgets.technology_detail import TechnologyDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
+from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 
 
 class TechnologiesScreen(Container):
@@ -36,7 +37,11 @@ class TechnologiesScreen(Container):
             # Main content
             with Horizontal(id="technologies-content"):
                 with Vertical(id="technologies-table-container"):
-                    yield TechnologyTable(id="technology-table")
+                    yield PaginatedTableContainer(
+                        TechnologyTable(id="technology-table"),
+                        auto_page_size=True,
+                        id="technology-pagination"
+                    )
 
                 with Vertical(id="technology-detail-container"):
                     yield Static("[bold]Technology Details[/bold]", id="detail-header")
@@ -65,7 +70,7 @@ class TechnologiesScreen(Container):
             self._refresh_timer.stop()
 
     async def refresh_technologies(self, show_loading: bool = False) -> None:
-        """Fetch and display all technologies from server
+        """Fetch and display technologies from server with pagination
 
         Args:
             show_loading: If True, show "Loading..." status message (for manual refreshes)
@@ -80,29 +85,29 @@ class TechnologiesScreen(Container):
             if show_loading:
                 status.update("[cyan]Loading technologies...[/cyan]")
 
-            # Fetch all technologies
-            technologies = await self.bbot_app.data_service.list_technologies()
+            # Get pagination parameters
+            pagination = self.query_one("#technology-pagination", PaginatedTableContainer)
+            skip, limit = pagination.get_skip_limit()
 
-            # Apply client-side filter if any
-            if self.filter_text:
-                filter_lower = self.filter_text.lower()
-                technologies = [
-                    t for t in technologies
-                    if filter_lower in getattr(t, 'technology', '').lower()
-                    or filter_lower in getattr(t, 'host', '').lower()
-                    or filter_lower in getattr(t, 'domain', '').lower()
-                ]
+            # Fetch technologies with client-side pagination and filter
+            filter_text = self.filter_text if self.filter_text else None
+            technologies, total = await self.bbot_app.data_service.get_technologies_paginated(
+                skip=skip, limit=limit, filter_text=filter_text
+            )
 
-            # Update table with all filtered technologies
+            # Update pagination with total count
+            pagination.total_items = total
+
+            # Update table with current page of technologies
             table = self.query_one("#technology-table", TechnologyTable)
             table.update_technologies(technologies)
 
-            # Update status
-            if technologies:
+            # Update status (pagination widget shows page info, status shows filter info)
+            if total > 0:
                 if self.filter_text:
-                    status.update(f"[green]Showing {len(technologies)} filtered technologies[/green]")
+                    status.update(f"[green]Filtered: {total} technologies match[/green]")
                 else:
-                    status.update(f"[green]Showing {len(technologies)} technologies[/green]")
+                    status.update(f"[green]{total} total technologies[/green]")
             else:
                 status.update("[yellow]No technologies found[/yellow]")
 
@@ -127,8 +132,24 @@ class TechnologiesScreen(Container):
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
         self.filter_text = event.filter_text
+        # Reset to first page when filter changes
+        pagination = self.query_one("#technology-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
         # Trigger refresh (show loading since user-initiated)
         self.run_worker(self.refresh_technologies(show_loading=True))
+
+    def on_paginated_table_container_page_changed(
+        self, event: PaginatedTableContainer.PageChanged
+    ) -> None:
+        """Handle page navigation"""
+        self.run_worker(self.refresh_technologies())
+
+    def on_paginated_table_container_page_size_changed(
+        self, event: PaginatedTableContainer.PageSizeChanged
+    ) -> None:
+        """Handle page size changes from auto-sizing"""
+        # Refetch data with new page size
+        self.run_worker(self.refresh_technologies())
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""
@@ -150,3 +171,6 @@ class TechnologiesScreen(Container):
         filter_bar = self.query_one("#technology-filter", FilterBar)
         filter_bar.clear_filter()
         self.filter_text = ""
+        # Reset pagination when filter is cleared
+        pagination = self.query_one("#technology-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()

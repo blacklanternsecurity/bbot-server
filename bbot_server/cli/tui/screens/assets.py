@@ -154,7 +154,6 @@ class AssetsScreen(Container):
         # Refetch data with new page size
         self.run_worker(self.refresh_assets())
 
-
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""
         if event.button.id == "refresh-btn":

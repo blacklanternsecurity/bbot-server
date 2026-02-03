@@ -548,6 +548,168 @@ class DataService:
             log.error(f"Error fetching technologies: {e}")
             return []
 
+    async def get_findings_paginated(
+        self,
+        skip: int = 0,
+        limit: int = 25,
+        **filters
+    ) -> tuple[List[Any], int]:
+        """
+        Fetch findings with pagination and total count
+
+        Args:
+            skip: Number of items to skip
+            limit: Maximum items to return
+            **filters: Query filters (search, domain, target_id, host, min_severity, max_severity)
+
+        Returns:
+            Tuple of (findings list, total count)
+        """
+        return await self._fetch_paginated('query_findings', 'count_findings', skip, limit, **filters)
+
+    async def get_events_paginated(
+        self,
+        skip: int = 0,
+        limit: int = 25,
+        **filters
+    ) -> tuple[List[Any], int]:
+        """
+        Fetch events with pagination and total count
+
+        Args:
+            skip: Number of items to skip
+            limit: Maximum items to return
+            **filters: Query filters (search, domain, target_id, host, active, archived)
+
+        Returns:
+            Tuple of (events list, total count)
+        """
+        return await self._fetch_paginated('query_events', 'count_events', skip, limit, **filters)
+
+    async def get_scans_paginated(
+        self,
+        skip: int = 0,
+        limit: int = 25,
+        filter_text: Optional[str] = None
+    ) -> tuple[List[Any], int]:
+        """
+        Fetch scans with client-side pagination (API doesn't support server-side pagination)
+
+        Args:
+            skip: Number of items to skip
+            limit: Maximum items to return
+            filter_text: Optional filter text for name/targets
+
+        Returns:
+            Tuple of (scans list for current page, total count after filtering)
+        """
+        try:
+            # Fetch all scans (no server-side pagination available)
+            scans = [scan async for scan in self._async_client.get_scans()]
+
+            # Apply client-side filter if any
+            if filter_text:
+                filter_lower = filter_text.lower()
+                scans = [
+                    s for s in scans
+                    if filter_lower in getattr(s, 'name', '').lower()
+                    or filter_lower in ' '.join(getattr(s, 'targets', [])).lower()
+                ]
+
+            total = len(scans)
+            # Apply pagination
+            paginated = scans[skip:skip + limit]
+            log.debug(f"Fetched {len(paginated)} scans (skip={skip}, limit={limit}, total={total})")
+            return paginated, total
+        except BBOTServerUnauthorizedError:
+            raise
+        except BBOTServerError as e:
+            log.error(f"Error fetching scans: {e}")
+            return [], 0
+
+    async def get_technologies_paginated(
+        self,
+        skip: int = 0,
+        limit: int = 25,
+        filter_text: Optional[str] = None,
+        **filters
+    ) -> tuple[List[Any], int]:
+        """
+        Fetch technologies with client-side pagination (API doesn't support server-side pagination)
+
+        Args:
+            skip: Number of items to skip
+            limit: Maximum items to return
+            filter_text: Optional filter text for technology/host/domain
+            **filters: Additional filters (domain, host, technology, target_id)
+
+        Returns:
+            Tuple of (technologies list for current page, total count after filtering)
+        """
+        try:
+            kwargs = {k: v for k, v in filters.items() if v is not None}
+
+            # Fetch all technologies (no server-side pagination available)
+            technologies = [tech async for tech in self._async_client.list_technologies(**kwargs)]
+
+            # Apply client-side text filter if any
+            if filter_text:
+                filter_lower = filter_text.lower()
+                technologies = [
+                    t for t in technologies
+                    if filter_lower in getattr(t, 'technology', '').lower()
+                    or filter_lower in getattr(t, 'host', '').lower()
+                    or filter_lower in getattr(t, 'domain', '').lower()
+                ]
+
+            total = len(technologies)
+            # Apply pagination
+            paginated = technologies[skip:skip + limit]
+            log.debug(f"Fetched {len(paginated)} technologies (skip={skip}, limit={limit}, total={total})")
+            return paginated, total
+        except BBOTServerError as e:
+            log.error(f"Error fetching technologies: {e}")
+            return [], 0
+
+    async def get_targets_paginated(
+        self,
+        skip: int = 0,
+        limit: int = 25,
+        filter_text: Optional[str] = None
+    ) -> tuple[List[Any], int]:
+        """
+        Fetch targets with client-side pagination (API doesn't support server-side pagination)
+
+        Args:
+            skip: Number of items to skip
+            limit: Maximum items to return
+            filter_text: Optional filter text for name/description
+
+        Returns:
+            Tuple of (targets list for current page, total count after filtering)
+        """
+        try:
+            # Fetch all targets (no server-side pagination available)
+            targets = await self._async_client.get_targets()
+
+            # Apply client-side filter if any
+            if filter_text:
+                filter_lower = filter_text.lower()
+                targets = [
+                    t for t in targets
+                    if filter_lower in getattr(t, 'name', '').lower()
+                    or filter_lower in getattr(t, 'description', '').lower()
+                ]
+
+            total = len(targets)
+            # Apply pagination
+            paginated = targets[skip:skip + limit]
+            log.debug(f"Fetched {len(paginated)} targets (skip={skip}, limit={limit}, total={total})")
+            return paginated, total
+        except BBOTServerError as e:
+            log.error(f"Error fetching targets: {e}")
+            return [], 0
+
     async def create_target(self, name: str, description: str = "", target: Optional[List[str]] = None,
                            seeds: Optional[List[str]] = None, blacklist: Optional[List[str]] = None,
                            strict_dns_scope: bool = False) -> Optional[Any]:

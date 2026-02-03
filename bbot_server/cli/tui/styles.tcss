@@ -319,35 +319,49 @@ ActivityFeed, RichLog {
 Button {
     background: #FF8400;
     color: black;
+    border-top: tall #FF8400;
+    border-bottom: tall #FF8400;
 }
 
 Button:focus {
     background: #CC6A00;
     color: white;
+    border-top: tall #CC6A00;
+    border-bottom: tall #CC6A00;
 }
 
 Button.primary {
     background: #FF8400;
     color: black;
+    border-top: tall #FF8400;
+    border-bottom: tall #FF8400;
 }
 
 Button.success {
     background: green;
     color: white;
+    border-top: tall green;
+    border-bottom: tall green;
 }
 
 Button.warning {
     background: gold;
     color: black;
+    border-top: tall gold;
+    border-bottom: tall gold;
 }
 
 Button.error, Button.danger {
     background: red;
     color: white;
+    border-top: tall red;
+    border-bottom: tall red;
 }
 
 Button:hover {
     background: #FF8400 80%;
+    border-top: tall #FF8400 80%;
+    border-bottom: tall #FF8400 80%;
 }
 
 /* Header and Footer styling */

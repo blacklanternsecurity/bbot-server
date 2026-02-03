@@ -10,6 +10,7 @@ from textual.reactive import reactive
 from bbot_server.cli.tui.widgets.scan_table import ScanTable
 from bbot_server.cli.tui.widgets.scan_detail import ScanDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
+from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 
 
 class ScansScreen(Container):
@@ -44,7 +45,11 @@ class ScansScreen(Container):
             # Main content: table on left, detail on right
             with Horizontal(id="scans-content"):
                 with Vertical(id="scans-table-container"):
-                    yield ScanTable(id="scan-table")
+                    yield PaginatedTableContainer(
+                        ScanTable(id="scan-table"),
+                        auto_page_size=True,
+                        id="scan-pagination"
+                    )
 
                 with Vertical(id="scan-detail-container"):
                     yield Static("[bold]Scan Details[/bold]", id="detail-header")
@@ -75,7 +80,7 @@ class ScansScreen(Container):
             self._refresh_timer.stop()
 
     async def refresh_scans(self, show_loading: bool = False) -> None:
-        """Fetch and display all scans from server
+        """Fetch and display scans from server with pagination
 
         Args:
             show_loading: If True, show "Loading..." status message (for manual refreshes)
@@ -90,28 +95,29 @@ class ScansScreen(Container):
             if show_loading:
                 status.update("[cyan]Loading scans...[/cyan]")
 
-            # Fetch all scans
-            scans = await self.bbot_app.data_service.get_scans()
+            # Get pagination parameters
+            pagination = self.query_one("#scan-pagination", PaginatedTableContainer)
+            skip, limit = pagination.get_skip_limit()
 
-            # Apply client-side filter if any
-            if self.filter_text:
-                filter_lower = self.filter_text.lower()
-                scans = [
-                    s for s in scans
-                    if filter_lower in getattr(s, 'name', '').lower()
-                    or filter_lower in ' '.join(getattr(s, 'targets', [])).lower()
-                ]
+            # Fetch scans with client-side pagination and filter
+            filter_text = self.filter_text if self.filter_text else None
+            scans, total = await self.bbot_app.data_service.get_scans_paginated(
+                skip=skip, limit=limit, filter_text=filter_text
+            )
 
-            # Update table with all filtered scans
+            # Update pagination with total count
+            pagination.total_items = total
+
+            # Update table with current page of scans
             table = self.query_one("#scan-table", ScanTable)
             table.update_scans(scans)
 
-            # Update status
-            if scans:
+            # Update status (pagination widget shows page info, status shows filter info)
+            if total > 0:
                 if self.filter_text:
-                    status.update(f"[green]Showing {len(scans)} filtered scans[/green]")
+                    status.update(f"[green]Filtered: {total} scans match[/green]")
                 else:
-                    status.update(f"[green]Showing {len(scans)} scans[/green]")
+                    status.update(f"[green]{total} total scans[/green]")
             else:
                 status.update("[yellow]No scans found[/yellow]")
 
@@ -140,8 +146,24 @@ class ScansScreen(Container):
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
         self.filter_text = event.filter_text
+        # Reset to first page when filter changes
+        pagination = self.query_one("#scan-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
         # Trigger refresh with new filter (show loading since user-initiated)
         self.run_worker(self.refresh_scans(show_loading=True))
+
+    def on_paginated_table_container_page_changed(
+        self, event: PaginatedTableContainer.PageChanged
+    ) -> None:
+        """Handle page navigation"""
+        self.run_worker(self.refresh_scans())
+
+    def on_paginated_table_container_page_size_changed(
+        self, event: PaginatedTableContainer.PageSizeChanged
+    ) -> None:
+        """Handle page size changes from auto-sizing"""
+        # Refetch data with new page size
+        self.run_worker(self.refresh_scans())
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""
@@ -163,5 +185,8 @@ class ScansScreen(Container):
         filter_bar = self.query_one("#scan-filter", FilterBar)
         filter_bar.clear_filter()
         self.filter_text = ""
+        # Reset pagination when filter is cleared
+        pagination = self.query_one("#scan-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
         # Trigger refresh to show all scans
         self.run_worker(self.refresh_scans())
