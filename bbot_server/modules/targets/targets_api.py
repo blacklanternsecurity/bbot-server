@@ -1,5 +1,4 @@
 from uuid import UUID
-from typing import Any
 from contextlib import asynccontextmanager
 from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
@@ -198,12 +197,7 @@ class TargetsApplet(BaseApplet):
         return db_target
 
     @api_endpoint("/{id}", methods=["PATCH"], summary="Update a scan target by its id")
-    async def update_target(
-        self,
-        id: UUID,
-        target: Target,
-        allow_duplicate_hash=True
-    ) -> Target:
+    async def update_target(self, id: UUID, target: Target, allow_duplicate_hash=True) -> Target:
         target.id = id
         target.modified = utc_now()
         async with self._handle_duplicate_target(target, allow_duplicate_hash):
@@ -516,7 +510,7 @@ class TargetsApplet(BaseApplet):
                 )
             raise self.BBOTServerValueError(f"Error creating target: {e}")
 
-    async def _get_target(self, id: str = None, hash: str = None, fields: dict[str, Any] = None) -> dict:
+    async def _get_target(self, id: str = None, hash: str = None, fields: list[str] = None) -> dict:
         """
         Get a target in raw JSON format from the database
         """
@@ -532,8 +526,8 @@ class TargetsApplet(BaseApplet):
                 query["id"] = str(UUID(id))
             except Exception:
                 query["name"] = id
-        fields = {f: 1 for f in fields} if fields else None
-        result = await self.collection.find_one(query, fields)
+        fields_projection = {f: 1 for f in fields} if fields else None
+        result = await self.collection.find_one(query, fields_projection)
         # we only raise an error if we were given an ID or hash, and no target was found
         if result is None:
             msg = f"Target not found with query: {query}"

@@ -140,8 +140,6 @@ class BaseQuery(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # process fields
-        self.fields = {f: 1 for f in self.fields} if self.fields else None
         # process sort spec: "+field"/"-field" strings or (field, direction) tuples
         if self.sort:
             self.sort = [
@@ -212,7 +210,10 @@ class BaseQuery(BaseModel):
         if collection is None:
             raise BBOTServerError(f"Collection is not set for {self._applet.name}")
 
-        log.info(f"Querying {collection.name}: query={sanitized_query}, fields={self.fields}")
+        # Convert fields list to MongoDB projection dict
+        fields_projection = {f: 1 for f in self.fields} if self.fields else None
+
+        log.info(f"Querying {collection.name}: query={sanitized_query}, fields={fields_projection}")
 
         if self.aggregate:
             aggregate = _sanitize_mongo_aggregation(self.aggregate)
@@ -221,7 +222,7 @@ class BaseQuery(BaseModel):
                 pipeline.append({"$limit": self.limit})
             return await collection.aggregate(pipeline)
 
-        cursor = collection.find(query, self.fields)
+        cursor = collection.find(query, fields_projection)
         if self.sort:
             cursor = cursor.sort(self.sort)
         if self.skip is not None:
