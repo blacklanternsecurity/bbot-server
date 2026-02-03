@@ -316,6 +316,16 @@ ActivityFeed, RichLog {
 }
 
 /* Buttons */
+Button {
+    background: #FF8400;
+    color: black;
+}
+
+Button:focus {
+    background: #CC6A00;
+    color: white;
+}
+
 Button.primary {
     background: #FF8400;
     color: black;
@@ -342,21 +352,65 @@ Button:hover {
 
 /* Header and Footer styling */
 Header {
-    background: $primary;
-    color: $text;
+    background: #3a3a3a;
+    color: #FF8400;
 }
 
 Footer {
-    background: $primary;
+    background: #3a3a3a;
 }
 
 Footer > .footer--highlight {
-    background: #FF8400;
+    background: #3a3a3a;
+    color: #FF8400;
 }
 
 Footer > .footer--highlight-key {
-    background: white;
+    background: #FF8400;
     color: black;
+}
+
+Footer > .footer--key {
+    background: #4a4a4a;
+    color: #aaaaaa;
+}
+
+/* Scrollbar styling */
+Scrollbar {
+    background: $surface;
+    scrollbar-color: #FF8400;
+}
+
+Scrollbar > .scrollbar--bar {
+    color: #5a5a5a;
+}
+
+Scrollbar > .scrollbar--bar:hover {
+    color: #FF8400;
+}
+
+Scrollbar > .scrollbar--bar-active {
+    color: #CC6A00;
+}
+
+/* DataTable scrollbars */
+DataTable Scrollbar > .scrollbar--bar {
+    color: #5a5a5a;
+}
+
+DataTable Scrollbar > .scrollbar--bar:hover {
+    color: #FF8400;
+}
+
+DataTable > .datatable--header-hover {
+    background: #CC6A00;
+}
+
+/* Global scrollbar color override */
+* {
+    scrollbar-color: #5a5a5a;
+    scrollbar-color-hover: #FF8400;
+    scrollbar-color-active: #CC6A00;
 }
 
 /* Focus styling */
