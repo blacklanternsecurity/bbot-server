@@ -22,6 +22,10 @@ class BlacklistedError(Exception):
 # we should have a single task for doing this, and automatically cancel or restart it if a new operation comes along
 # this enables extremely fast and precise updates whenever a target is updated
 
+# on second thought, it may not help much, because in most
+# cases, if a target is updated (especially added to), then
+# all assets have to be scanned anyway
+
 
 class TargetsApplet(BaseApplet):
     name = "Targets"
@@ -197,11 +201,12 @@ class TargetsApplet(BaseApplet):
     async def update_target(
         self,
         id: UUID,
-        target: CreateTarget,
+        target: Target,
+        allow_duplicate_hash=True
     ) -> Target:
         target.id = id
         target.modified = utc_now()
-        async with self._handle_duplicate_target(target, target.allow_duplicate_hash):
+        async with self._handle_duplicate_target(target, allow_duplicate_hash):
             await self.collection.update_one(
                 {"id": str(id)}, {"$set": target.model_dump(exclude={"allow_duplicate_hash"})}
             )
