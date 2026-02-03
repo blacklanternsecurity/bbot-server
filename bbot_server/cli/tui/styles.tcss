@@ -1,0 +1,315 @@
+/* BBOT Server TUI Styles */
+
+/* Color scheme - consistent with existing CLI theme */
+/* Primary: #FF8400 (dark orange), Secondary: #808080 (grey50) */
+
+/* Global app styling */
+Screen {
+    background: $surface;
+}
+
+/* Placeholder text */
+.placeholder {
+    content-align: center middle;
+    text-style: bold;
+    color: #FF8400;
+}
+
+/* Severity color classes */
+.severity-critical {
+    background: purple;
+    color: white;
+    text-style: bold;
+}
+
+.severity-high {
+    background: red;
+    color: white;
+    text-style: bold;
+}
+
+.severity-medium {
+    background: darkorange;
+    color: white;
+    text-style: bold;
+}
+
+.severity-low {
+    background: gold;
+    color: black;
+    text-style: bold;
+}
+
+.severity-info {
+    background: deepskyblue;
+    color: white;
+    text-style: bold;
+}
+
+/* Status color classes */
+.status-running {
+    color: darkorange;
+    text-style: bold;
+}
+
+.status-done {
+    color: green;
+    text-style: bold;
+}
+
+.status-failed {
+    color: red;
+    text-style: bold;
+}
+
+.status-queued {
+    color: grey;
+}
+
+/* Dashboard stats cards */
+#stats-grid {
+    grid-size: 5 1;
+    grid-gutter: 1;
+    height: auto;
+    padding: 1;
+}
+
+.stat-card {
+    height: 7;
+    border: solid #FF8400;
+    padding: 1;
+    content-align: center middle;
+}
+
+.stat-value {
+    text-align: center;
+    text-style: bold;
+    color: #FF8400;
+}
+
+.stat-label {
+    text-align: center;
+    color: grey;
+}
+
+/* Dashboard lists section */
+#dashboard-lists {
+    height: 1fr;
+    padding: 1;
+}
+
+#findings-section, #scans-section {
+    width: 1fr;
+    height: 100%;
+}
+
+#findings-section {
+    margin-right: 1;
+}
+
+.section-title {
+    height: 1;
+    padding: 0 1;
+    color: #FF8400;
+}
+
+#recent-findings-table, #recent-scans-table {
+    height: 1fr;
+    border: solid #808080;
+}
+
+/* Common layout containers */
+Container {
+    height: 100%;
+}
+
+Horizontal {
+    height: auto;
+}
+
+Vertical {
+    width: 100%;
+}
+
+/* Filter controls */
+#filter-container,
+#activity-controls,
+#asset-controls,
+#finding-controls,
+#dashboard-header {
+    height: 3;
+    padding: 0 1;
+}
+
+#agent-controls {
+    height: 3;
+    padding: 0 1;
+}
+
+#agents-title {
+    width: 1fr;
+}
+
+FilterBar, Input {
+    width: 3fr;
+}
+
+Button {
+    width: auto;
+    margin: 0 1;
+}
+
+Checkbox {
+    width: auto;
+    margin: 0 1;
+}
+
+/* Status bars */
+#scans-status,
+#assets-status,
+#findings-status,
+#agents-status,
+#activity-status,
+#dashboard-status {
+    height: 1;
+    padding: 0 1;
+}
+
+/* Main content areas */
+#scans-content,
+#assets-content,
+#findings-content {
+    height: 1fr;
+}
+
+/* Table containers */
+#scans-table-container,
+#assets-table-container,
+#findings-table-container {
+    width: 2fr;
+    border: solid #808080;
+}
+
+/* Detail panel containers */
+#scan-detail-container,
+#asset-detail-container,
+#finding-detail-container {
+    width: 1fr;
+    border: solid #808080;
+    margin-left: 1;
+}
+
+#detail-header {
+    height: 1;
+    background: #FF8400;
+    color: black;
+    text-style: bold;
+    padding: 0 1;
+}
+
+#scan-detail,
+#asset-detail,
+#finding-detail {
+    height: 1fr;
+    padding: 1;
+    overflow-y: auto;
+}
+
+/* DataTable styling */
+DataTable {
+    height: 1fr;
+}
+
+DataTable > .datatable--header {
+    background: #FF8400;
+    color: black;
+    text-style: bold;
+}
+
+DataTable > .datatable--cursor {
+    background: #FF8400 50%;
+}
+
+/* Activity feed */
+#activity-feed-container {
+    height: 1fr;
+    border: solid #808080;
+    margin: 1;
+}
+
+ActivityFeed, RichLog {
+    height: 1fr;
+    border: none;
+}
+
+/* Agent list */
+#agent-table {
+    height: 1fr;
+    border: solid #808080;
+    margin: 1;
+}
+
+/* Buttons */
+Button.primary {
+    background: #FF8400;
+    color: black;
+}
+
+Button.success {
+    background: green;
+    color: white;
+}
+
+Button.warning {
+    background: gold;
+    color: black;
+}
+
+Button.error, Button.danger {
+    background: red;
+    color: white;
+}
+
+Button:hover {
+    background: #FF8400 80%;
+}
+
+/* Header and Footer styling */
+Header {
+    background: $primary;
+    color: $text;
+}
+
+Footer {
+    background: $primary;
+}
+
+Footer > .footer--highlight {
+    background: #FF8400;
+}
+
+Footer > .footer--highlight-key {
+    background: white;
+    color: black;
+}
+
+/* Focus styling */
+Input:focus {
+    border: solid #FF8400;
+}
+
+/* Remove focus border from DataTable and containers */
+DataTable:focus {
+    border: solid #808080;
+}
+
+#scans-table-container:focus-within,
+#assets-table-container:focus-within,
+#findings-table-container:focus-within {
+    border: solid #808080;
+}
+
+Vertical:focus-within,
+Container:focus-within {
+    border: none;
+}
