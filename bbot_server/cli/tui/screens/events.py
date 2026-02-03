@@ -10,6 +10,9 @@ from bbot_server.cli.tui.widgets.event_table import EventTable
 from bbot_server.cli.tui.widgets.event_detail import EventDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
+from bbot_server.cli.tui.utils.colors import (
+    loading_text, success_text, warning_text, error_text
+)
 
 
 class EventsScreen(Container):
@@ -83,7 +86,7 @@ class EventsScreen(Container):
             status = self.query_one("#events-status", Static)
             # Only show loading message on initial load or manual refresh
             if show_loading:
-                status.update("[cyan]Loading events...[/cyan]")
+                status.update(loading_text("Loading events..."))
 
             # Get pagination parameters
             pagination = self.query_one("#event-pagination", PaginatedTableContainer)
@@ -105,16 +108,16 @@ class EventsScreen(Container):
             # Update status (pagination widget shows page info, status shows filter info)
             if total > 0:
                 if self.filter_text:
-                    status.update(f"[green]Filtered: {total} events match[/green]")
+                    status.update(success_text(f"Filtered: {total} events match"))
                 else:
-                    status.update(f"[green]{total} total events[/green]")
+                    status.update(success_text(f"{total} total events"))
             else:
-                status.update("[yellow]No events found[/yellow]")
+                status.update(warning_text("No events found"))
 
         except Exception as e:
             # Show error
             status = self.query_one("#events-status", Static)
-            status.update(f"[red]Error loading events: {e}[/red]")
+            status.update(error_text(f"Error loading events: {e}"))
 
     def on_data_table_row_highlighted(self, event) -> None:
         """Handle row selection"""

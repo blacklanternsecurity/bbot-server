@@ -10,6 +10,9 @@ from textual import work
 
 from bbot_server.cli.tui.widgets.activity_feed import ActivityFeed
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
+from bbot_server.cli.tui.utils.colors import (
+    SUCCESS, WARNING, ERROR, success_text, warning_text, error_text
+)
 
 
 class ActivityScreen(Container):
@@ -44,7 +47,7 @@ class ActivityScreen(Container):
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
             # Status bar
-            yield Static("[green]● LIVE[/green] Auto-scroll: ON", id="activity-status")
+            yield Static(f"[{SUCCESS}]● LIVE[/{SUCCESS}] Auto-scroll: ON", id="activity-status")
 
             # Activity feed
             with Vertical(id="activity-feed-container"):
@@ -146,7 +149,7 @@ class ActivityScreen(Container):
             # Show error in status (with error handling)
             try:
                 status = self.query_one("#activity-status", Static)
-                status.update(f"[red]● ERROR: {e}[/red]")
+                status.update(error_text(f"● ERROR: {e}"))
             except Exception:
                 pass
 
@@ -243,11 +246,11 @@ class ActivityScreen(Container):
         # Streaming status
         if self.is_streaming:
             if self.is_paused:
-                parts.append("[yellow]● PAUSED[/yellow]")
+                parts.append(f"[{WARNING}]● PAUSED[/{WARNING}]")
             else:
-                parts.append("[green]● LIVE[/green]")
+                parts.append(f"[{SUCCESS}]● LIVE[/{SUCCESS}]")
         else:
-            parts.append("[red]● OFFLINE[/red]")
+            parts.append(f"[{ERROR}]● OFFLINE[/{ERROR}]")
 
         # Auto-scroll status and activity count
         try:

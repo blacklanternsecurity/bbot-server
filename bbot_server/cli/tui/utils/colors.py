@@ -1,74 +1,91 @@
 """
 Color and style utilities for BBOT Server TUI
 
-Maps BBOT Server color schemes to Textual-compatible styles.
-Reuses existing color constants from the CLI theme.
+Defines semantic color constants for Rich markup that match the Textual theme
+defined in app.py. Use these constants instead of hard-coding color names.
+
+Theme colors are defined in: bbot_server/cli/tui/app.py (BBOT_THEME)
+TCSS variables are in: bbot_server/cli/tui/styles.tcss
 """
 from typing import Dict
 
-# Import existing theme colors
+# =============================================================================
+# SEMANTIC COLOR CONSTANTS FOR RICH MARKUP
+# =============================================================================
+# These match the BBOT_THEME defined in app.py
+# Use these in f-strings: f"[{SUCCESS}]text[/{SUCCESS}]"
 
-# Import severity colors from findings models
-try:
-    from bbot_server.modules.findings.findings_models import SEVERITY_COLORS, SEVERITY_LEVELS
-except ImportError:
-    # Fallback if models aren't loaded yet
-    SEVERITY_COLORS = {
-        1: "deep_sky_blue1",   # INFO
-        2: "gold1",             # LOW
-        3: "dark_orange",       # MEDIUM
-        4: "bright_red",        # HIGH
-        5: "purple",            # CRITICAL
-    }
-    SEVERITY_LEVELS = {
-        "INFO": 1,
-        "LOW": 2,
-        "MEDIUM": 3,
-        "HIGH": 4,
-        "CRITICAL": 5,
-    }
+# Primary theme colors
+PRIMARY = "dark_orange"       # #FF8400 - BBOT signature orange
+SECONDARY = "grey50"          # #808080 - Grey
 
+# Semantic status colors (for status messages)
+SUCCESS = "bright_green"      # #4caf50 - Bright green, readable on dark
+ERROR = "red"                 # #f44336 - Red for errors
+WARNING = "dark_orange"       # #ffa62b - Orange-yellow warnings
+INFO = "cyan"                 # Cyan for informational
+LOADING = "cyan"              # Cyan for loading states
+MUTED = "grey50"              # Grey for muted/secondary text
 
-# BBOT Theme colors (from existing CLI)
-PRIMARY_COLOR = "#FF8400"  # dark orange
-SECONDARY_COLOR = "#808080"  # grey50
+# Scan status colors (for Rich markup)
+STATUS_RUNNING = "dark_orange"
+STATUS_DONE = "bright_green"
+STATUS_FAILED = "red"
+STATUS_QUEUED = "grey50"
+STATUS_CANCELLED = "yellow"
+STATUS_STARTING = "cyan"
 
+# Severity colors (for Rich markup in tables/text)
+SEVERITY_CRITICAL = "magenta"
+SEVERITY_HIGH = "red"
+SEVERITY_MEDIUM = "dark_orange"
+SEVERITY_LOW = "yellow"
+SEVERITY_INFO = "bright_blue"
+
+# Severity level name to score mapping
+SEVERITY_LEVELS: Dict[str, int] = {
+    "INFO": 1,
+    "LOW": 2,
+    "MEDIUM": 3,
+    "HIGH": 4,
+    "CRITICAL": 5,
+}
 
 # Textual-compatible severity color mapping
 SEVERITY_COLORS_TEXTUAL: Dict[int, str] = {
-    1: "blue",              # INFO
-    2: "yellow",            # LOW
-    3: "bright_magenta",    # MEDIUM (orange-ish)
-    4: "red",               # HIGH
-    5: "magenta",           # CRITICAL (purple)
+    1: "bright_blue",         # INFO
+    2: "yellow",              # LOW
+    3: "dark_orange",         # MEDIUM
+    4: "red",                 # HIGH
+    5: "magenta",             # CRITICAL
 }
 
 SEVERITY_COLORS_CSS: Dict[int, str] = {
-    1: "deepskyblue",       # INFO
-    2: "gold",              # LOW
-    3: "darkorange",        # MEDIUM
-    4: "red",               # HIGH
-    5: "purple",            # CRITICAL
+    1: "#03a9f4",             # INFO - light blue
+    2: "#ffeb3b",             # LOW - yellow
+    3: "#ff9800",             # MEDIUM - orange
+    4: "#f44336",             # HIGH - red
+    5: "#9c27b0",             # CRITICAL - purple
 }
 
 
-# Status colors for scans
+# Status colors for scans (Rich markup names)
 STATUS_COLORS: Dict[str, str] = {
-    "RUNNING": "bright_magenta",  # orange-ish
-    "QUEUED": "white",
-    "DONE": "green",
+    "RUNNING": "dark_orange",
+    "QUEUED": "grey50",
+    "DONE": "bright_green",
     "FAILED": "red",
     "CANCELLED": "yellow",
     "STARTING": "cyan",
 }
 
 STATUS_COLORS_CSS: Dict[str, str] = {
-    "RUNNING": "darkorange",
-    "QUEUED": "grey",
-    "DONE": "green",
-    "FAILED": "red",
-    "CANCELLED": "yellow",
-    "STARTING": "cyan",
+    "RUNNING": "#ff9800",     # Orange
+    "QUEUED": "#9e9e9e",      # Grey
+    "DONE": "#4caf50",        # Green
+    "FAILED": "#f44336",      # Red
+    "CANCELLED": "#ffeb3b",   # Yellow
+    "STARTING": "#00bcd4",    # Cyan
 }
 
 
@@ -198,12 +215,12 @@ def get_status_class(status: str) -> str:
 
 # Rich console markup colors (for direct terminal output)
 RICH_COLORS = {
-    "primary": "bold dark_orange",
-    "secondary": "grey50",
-    "success": "green",
-    "warning": "yellow",
-    "error": "red",
-    "info": "cyan",
+    "primary": f"bold {PRIMARY}",
+    "secondary": SECONDARY,
+    "success": SUCCESS,
+    "warning": WARNING,
+    "error": ERROR,
+    "info": INFO,
 }
 
 
@@ -218,3 +235,37 @@ def get_rich_color(name: str) -> str:
         Rich color string
     """
     return RICH_COLORS.get(name, "white")
+
+
+# =============================================================================
+# HELPER FUNCTIONS FOR COMMON MARKUP PATTERNS
+# =============================================================================
+
+def success_text(text: str) -> str:
+    """Wrap text in success (green) color markup"""
+    return f"[{SUCCESS}]{text}[/{SUCCESS}]"
+
+
+def error_text(text: str) -> str:
+    """Wrap text in error (red) color markup"""
+    return f"[{ERROR}]{text}[/{ERROR}]"
+
+
+def warning_text(text: str) -> str:
+    """Wrap text in warning (orange) color markup"""
+    return f"[{WARNING}]{text}[/{WARNING}]"
+
+
+def info_text(text: str) -> str:
+    """Wrap text in info (cyan) color markup"""
+    return f"[{INFO}]{text}[/{INFO}]"
+
+
+def muted_text(text: str) -> str:
+    """Wrap text in muted (grey) color markup"""
+    return f"[{MUTED}]{text}[/{MUTED}]"
+
+
+def loading_text(text: str) -> str:
+    """Wrap text in loading (cyan) color markup"""
+    return f"[{LOADING}]{text}[/{LOADING}]"

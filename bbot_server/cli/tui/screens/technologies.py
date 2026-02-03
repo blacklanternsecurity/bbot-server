@@ -10,6 +10,9 @@ from bbot_server.cli.tui.widgets.technology_table import TechnologyTable
 from bbot_server.cli.tui.widgets.technology_detail import TechnologyDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
+from bbot_server.cli.tui.utils.colors import (
+    loading_text, success_text, warning_text, error_text
+)
 
 
 class TechnologiesScreen(Container):
@@ -83,16 +86,15 @@ class TechnologiesScreen(Container):
             status = self.query_one("#technologies-status", Static)
             # Only show loading message on initial load or manual refresh
             if show_loading:
-                status.update("[cyan]Loading technologies...[/cyan]")
+                status.update(loading_text("Loading technologies..."))
 
             # Get pagination parameters
             pagination = self.query_one("#technology-pagination", PaginatedTableContainer)
             skip, limit = pagination.get_skip_limit()
 
-            # Fetch technologies with client-side pagination and filter
-            filter_text = self.filter_text if self.filter_text else None
+            # Fetch technologies with server-side pagination and search
             technologies, total = await self.bbot_app.data_service.get_technologies_paginated(
-                skip=skip, limit=limit, filter_text=filter_text
+                skip=skip, limit=limit, search=self.filter_text or None
             )
 
             # Update pagination with total count
@@ -105,16 +107,16 @@ class TechnologiesScreen(Container):
             # Update status (pagination widget shows page info, status shows filter info)
             if total > 0:
                 if self.filter_text:
-                    status.update(f"[green]Filtered: {total} technologies match[/green]")
+                    status.update(success_text(f"Filtered: {total} technologies match"))
                 else:
-                    status.update(f"[green]{total} total technologies[/green]")
+                    status.update(success_text(f"{total} total technologies"))
             else:
-                status.update("[yellow]No technologies found[/yellow]")
+                status.update(warning_text("No technologies found"))
 
         except Exception as e:
             # Show error
             status = self.query_one("#technologies-status", Static)
-            status.update(f"[red]Error loading technologies: {e}[/red]")
+            status.update(error_text(f"Error loading technologies: {e}"))
 
     def on_data_table_row_highlighted(self, event) -> None:
         """Handle row selection"""

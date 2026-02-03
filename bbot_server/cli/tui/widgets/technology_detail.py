@@ -35,30 +35,30 @@ class TechnologyDetail(VerticalScroll):
         details = []
 
         # Basic info
-        details.append(f"[bold]Technology:[/bold] {getattr(technology, 'technology', 'UNKNOWN')}")
-        details.append(f"[bold]Host:[/bold] {getattr(technology, 'host', 'N/A')}")
+        details.append(f"[bold]Technology:[/bold] {technology.get('technology', 'UNKNOWN')}")
+        details.append(f"[bold]Host:[/bold] {technology.get('host', 'N/A')}")
 
         # Port and netloc
-        port = getattr(technology, 'port', 'N/A')
+        port = technology.get('port', 'N/A')
         details.append(f"[bold]Port:[/bold] {port}")
 
-        netloc = getattr(technology, 'netloc', 'N/A')
+        netloc = technology.get('netloc', 'N/A')
         details.append(f"[bold]Netloc:[/bold] {netloc}")
 
         # ID
-        tech_id = getattr(technology, 'id', 'N/A')
+        tech_id = technology.get('id', 'N/A')
         details.append(f"[bold]ID:[/bold] {tech_id}")
 
         # Timestamps
-        last_seen = getattr(technology, 'last_seen', 0)
+        last_seen = technology.get('last_seen', 0)
         details.append(f"[bold]Last Seen:[/bold] {format_timestamp(last_seen)}")
 
         # Type
-        tech_type = getattr(technology, 'type', 'N/A')
+        tech_type = technology.get('type', 'N/A')
         details.append(f"[bold]Type:[/bold] {tech_type}")
 
         # Scope (if available)
-        scope = getattr(technology, 'scope', None)
+        scope = technology.get('scope')
         if scope:
             details.append(f"[bold]Scope:[/bold] {scope}")
 

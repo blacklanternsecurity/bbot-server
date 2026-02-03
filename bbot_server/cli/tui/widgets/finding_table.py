@@ -39,25 +39,23 @@ class FindingTable(DataTable):
         self.clear()
 
         # Sort by severity (highest first), then by timestamp
-        sorted_findings = sorted(
-            findings,
-            key=lambda f: (-get_severity_score(getattr(f, 'severity', 'INFO')), -getattr(f, 'modified', 0))
-        )
+        def sort_key(f):
+            sev = f.get('severity', 'INFO')
+            mod = f.get('modified', 0) or 0
+            return (-get_severity_score(sev), -mod)
+        sorted_findings = sorted(findings, key=sort_key)
 
         for finding in sorted_findings:
-            # Format data
-            severity_value = getattr(finding, 'severity', 'INFO')
+            severity_value = finding.get('severity', 'INFO')
             severity = colorize_severity(severity_value, severity_value)
-            name = getattr(finding, 'name', '-')
-            host = getattr(finding, 'host', '-')
-            description_text = getattr(finding, 'description', '-')
+            name = finding.get('name', '-') or '-'
+            host = finding.get('host', '-') or '-'
+            description_text = finding.get('description', '-') or '-'
             description = truncate_string(description_text, 60) if description_text != '-' else '-'
 
-            # Last seen
-            modified = getattr(finding, 'modified', None)
+            modified = finding.get('modified')
             last_seen = format_timestamp_short(modified) if modified else "-"
 
-            # Add row
             row_key = self.add_row(
                 severity,
                 name,
@@ -66,8 +64,7 @@ class FindingTable(DataTable):
                 last_seen
             )
 
-            # Map row key to finding ID
-            finding_id = getattr(finding, 'id', None)
+            finding_id = finding.get('id')
             if finding_id:
                 self._finding_id_map[row_key] = finding_id
 
@@ -89,7 +86,7 @@ class FindingTable(DataTable):
     def get_finding_by_id(self, finding_id: str):
         """Get finding by ID"""
         for finding in self._findings:
-            if getattr(finding, 'id', None) == finding_id:
+            if finding.get('id') == finding_id:
                 return finding
         return None
 

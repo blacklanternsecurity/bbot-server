@@ -29,49 +29,54 @@ class FindingDetail(Container):
             content_widget.update("[dim]Select a finding to view details[/dim]")
             return
 
-        # Build detail text
         lines = []
-        lines.append(f"[bold]{finding.name}[/bold]")
+        name = finding.get('name', 'Unknown')
+        lines.append(f"[bold]{name}[/bold]")
         lines.append("")
 
-        # Severity and confidence
-        severity_colored = colorize_severity(finding.severity, finding.severity)
+        severity = finding.get('severity', 'INFO')
+        severity_colored = colorize_severity(severity, severity)
         lines.append(f"Severity: {severity_colored}")
 
-        if hasattr(finding, 'confidence'):
-            lines.append(f"Confidence: {finding.confidence}")
+        confidence = finding.get('confidence')
+        if confidence:
+            lines.append(f"Confidence: {confidence}")
 
         lines.append("")
 
-        # Host information
-        if hasattr(finding, 'host') and finding.host:
-            lines.append(f"[bold]Host:[/bold] {finding.host}")
+        host = finding.get('host')
+        if host:
+            lines.append(f"[bold]Host:[/bold] {host}")
 
-        if hasattr(finding, 'netloc') and finding.netloc:
-            lines.append(f"[bold]Location:[/bold] {finding.netloc}")
+        netloc = finding.get('netloc')
+        if netloc:
+            lines.append(f"[bold]Location:[/bold] {netloc}")
 
-        if hasattr(finding, 'url') and finding.url:
-            lines.append(f"[bold]URL:[/bold] {finding.url}")
+        url = finding.get('url')
+        if url:
+            lines.append(f"[bold]URL:[/bold] {url}")
 
         lines.append("")
 
-        # Description
-        if hasattr(finding, 'description') and finding.description:
+        description = finding.get('description')
+        if description:
             lines.append("[bold]Description:[/bold]")
-            lines.append(finding.description)
+            lines.append(description)
             lines.append("")
 
-        # CVEs
-        if hasattr(finding, 'cves') and finding.cves:
+        cves = finding.get('cves')
+        if cves:
             lines.append("[bold]CVEs:[/bold]")
-            for cve in finding.cves:
+            for cve in cves:
                 lines.append(f"  • {cve}")
             lines.append("")
 
-        # Timestamps
-        lines.append(f"Last Seen: {format_timestamp(finding.modified)}")
-        if hasattr(finding, 'created'):
-            lines.append(f"First Seen: {format_timestamp(finding.created)}")
+        modified = finding.get('modified')
+        if modified:
+            lines.append(f"Last Seen: {format_timestamp(modified)}")
+        created = finding.get('created')
+        if created:
+            lines.append(f"First Seen: {format_timestamp(created)}")
 
         content_widget.update("\n".join(lines))
 

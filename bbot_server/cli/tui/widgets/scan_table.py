@@ -55,18 +55,20 @@ class ScanTable(DataTable):
         self.clear()
 
         # Sort by creation time (newest first)
-        sorted_scans = sorted(scans, key=lambda s: s.created, reverse=True)
+        sorted_scans = sorted(scans, key=lambda s: s['created'] or '', reverse=True)
 
         for scan in sorted_scans:
-            # Format the data
-            name = scan.name or scan.id
-            status = colorize_status(scan.status, scan.status)
-            target_name = scan.target.name if hasattr(scan, 'target') and scan.target else "-"
-            preset_name = scan.preset.name if hasattr(scan, 'preset') and scan.preset else "-"
-            started = format_timestamp_short(scan.started_at) if scan.started_at else "-"
-            finished = format_timestamp_short(scan.finished_at) if scan.finished_at else "-"
-            duration = format_duration_short(scan.duration_seconds) if scan.duration_seconds else "-"
-            scan_id = scan.id
+            name = scan['name'] or scan['id']
+            status_val = scan['status']
+            status = colorize_status(status_val, status_val)
+            target = scan.get('target')
+            target_name = target['name'] if target else '-'
+            preset = scan.get('preset')
+            preset_name = preset['name'] if preset else '-'
+            started = format_timestamp_short(scan['started_at']) if scan['started_at'] else "-"
+            finished = format_timestamp_short(scan['finished_at']) if scan['finished_at'] else "-"
+            duration = format_duration_short(scan['duration_seconds']) if scan['duration_seconds'] else "-"
+            scan_id = scan['id']
 
             # Add row
             row_key = self.add_row(
@@ -80,8 +82,7 @@ class ScanTable(DataTable):
                 scan_id,
             )
 
-            # Map row key to scan ID for later lookup
-            self._scan_id_map[row_key] = scan.id
+            self._scan_id_map[row_key] = scan_id
 
         # Restore selection if the previously selected scan is still in the table
         if selected_scan_id:
@@ -104,17 +105,8 @@ class ScanTable(DataTable):
             return None
 
     def get_scan_by_id(self, scan_id: str):
-        """
-        Get a scan model by ID
-
-        Args:
-            scan_id: Scan identifier
-
-        Returns:
-            Scan model or None if not found
-        """
         for scan in self._scans:
-            if scan.id == scan_id:
+            if scan['id'] == scan_id:
                 return scan
         return None
 
@@ -174,65 +166,3 @@ class ScanTable(DataTable):
                 event.prevent_default()
                 event.stop()
 
-    def filter_scans(self, filter_text: str) -> None:
-        """
-        Filter scans by search text
-
-        Args:
-            filter_text: Text to search for in scan name, target, or preset
-        """
-        if not filter_text:
-            # Show all scans
-            self.update_scans(self._scans)
-            return
-
-        # Filter scans
-        filter_lower = filter_text.lower()
-        filtered = []
-
-        for scan in self._scans:
-            # Search in name, target, preset, status
-            searchable = [
-                scan.name or "",
-                scan.id or "",
-                scan.status or "",
-            ]
-
-            if hasattr(scan, 'target') and scan.target:
-                searchable.append(scan.target.name or "")
-
-            if hasattr(scan, 'preset') and scan.preset:
-                searchable.append(scan.preset.name or "")
-
-            # Check if filter text appears in any field
-            if any(filter_lower in field.lower() for field in searchable):
-                filtered.append(scan)
-
-        # Update display with filtered scans
-        self._scan_id_map.clear()
-        self.clear()
-
-        sorted_filtered = sorted(filtered, key=lambda s: s.created, reverse=True)
-
-        for scan in sorted_filtered:
-            name = scan.name or scan.id
-            status = colorize_status(scan.status, scan.status)
-            target_name = scan.target.name if hasattr(scan, 'target') and scan.target else "-"
-            preset_name = scan.preset.name if hasattr(scan, 'preset') and scan.preset else "-"
-            started = format_timestamp_short(scan.started_at) if scan.started_at else "-"
-            finished = format_timestamp_short(scan.finished_at) if scan.finished_at else "-"
-            duration = format_duration_short(scan.duration_seconds) if scan.duration_seconds else "-"
-            scan_id = scan.id
-
-            row_key = self.add_row(
-                name,
-                status,
-                target_name,
-                preset_name,
-                started,
-                finished,
-                duration,
-                scan_id,
-            )
-
-            self._scan_id_map[row_key] = scan.id

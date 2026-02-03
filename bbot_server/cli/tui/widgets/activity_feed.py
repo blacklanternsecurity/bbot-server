@@ -6,6 +6,7 @@ from textual.widgets import RichLog
 from textual.reactive import reactive
 
 from bbot_server.cli.tui.utils.formatters import format_timestamp_short
+from bbot_server.cli.tui.utils.colors import MUTED, WARNING
 
 
 class ActivityFeed(RichLog):
@@ -48,7 +49,7 @@ class ActivityFeed(RichLog):
         description = activity.description_colored if hasattr(activity, 'description_colored') else str(activity.description)
 
         # Add to display
-        self.write(f"[grey50][{timestamp}][/grey50] {description}")
+        self.write(f"[{MUTED}][{timestamp}][/{MUTED}] {description}")
 
         # Store activity
         self._activities.append(activity)
@@ -85,7 +86,7 @@ class ActivityFeed(RichLog):
         # Just need to display the most recent ones that weren't shown
 
         # For simplicity, just note we're resuming
-        self.write("[yellow]--- Resumed ---[/yellow]")
+        self.write(f"[{WARNING}]--- Resumed ---[/{WARNING}]")
 
         return 0
 
@@ -128,7 +129,7 @@ class ActivityFeed(RichLog):
         for activity in filtered:
             timestamp = format_timestamp_short(activity.timestamp)
             description = activity.description_colored if hasattr(activity, 'description_colored') else str(activity.description)
-            self.write(f"[grey50][{timestamp}][/grey50] {description}")
+            self.write(f"[{MUTED}][{timestamp}][/{MUTED}] {description}")
 
     @property
     def is_auto_scrolling(self) -> bool:

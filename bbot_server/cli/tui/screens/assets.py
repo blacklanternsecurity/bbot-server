@@ -11,6 +11,9 @@ from bbot_server.cli.tui.widgets.asset_table import AssetTable
 from bbot_server.cli.tui.widgets.asset_detail import AssetDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
+from bbot_server.cli.tui.utils.colors import (
+    loading_text, success_text, warning_text, error_text
+)
 
 
 class AssetsScreen(Container):
@@ -86,7 +89,7 @@ class AssetsScreen(Container):
             status = self.query_one("#assets-status", Static)
             # Only show loading message on initial load or manual refresh
             if show_loading:
-                status.update("[cyan]Loading assets...[/cyan]")
+                status.update(loading_text("Loading assets..."))
 
             # Get pagination parameters
             pagination = self.query_one("#asset-pagination", PaginatedTableContainer)
@@ -108,16 +111,16 @@ class AssetsScreen(Container):
             # Update status (pagination widget shows page info, status shows filter info)
             if total > 0:
                 if self.filter_text:
-                    status.update(f"[green]Filtered: {total} assets match[/green]")
+                    status.update(success_text(f"Filtered: {total} assets match"))
                 else:
-                    status.update(f"[green]{total} total assets[/green]")
+                    status.update(success_text(f"{total} total assets"))
             else:
-                status.update("[yellow]No assets found[/yellow]")
+                status.update(warning_text("No assets found"))
 
         except Exception as e:
             # Show error
             status = self.query_one("#assets-status", Static)
-            status.update(f"[red]Error loading assets: {e}[/red]")
+            status.update(error_text(f"Error loading assets: {e}"))
 
     def on_data_table_row_highlighted(self, event) -> None:
         """Handle row selection"""

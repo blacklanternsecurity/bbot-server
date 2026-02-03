@@ -13,6 +13,9 @@ from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 from bbot_server.cli.tui.screens.create_target_modal import TargetModal
 from bbot_server.cli.tui.screens.confirm_modal import ConfirmModal
+from bbot_server.cli.tui.utils.colors import (
+    loading_text, success_text, warning_text, error_text
+)
 
 
 class TargetsScreen(Container):
@@ -89,16 +92,15 @@ class TargetsScreen(Container):
             status = self.query_one("#targets-status", Static)
             # Only show loading message on initial load or manual refresh
             if show_loading:
-                status.update("[cyan]Loading targets...[/cyan]")
+                status.update(loading_text("Loading targets..."))
 
             # Get pagination parameters
             pagination = self.query_one("#target-pagination", PaginatedTableContainer)
             skip, limit = pagination.get_skip_limit()
 
-            # Fetch targets with client-side pagination and filter
-            filter_text = self.filter_text if self.filter_text else None
+            # Fetch targets with server-side pagination and search
             targets, total = await self.bbot_app.data_service.get_targets_paginated(
-                skip=skip, limit=limit, filter_text=filter_text
+                skip=skip, limit=limit, search=self.filter_text or None
             )
 
             # Update pagination with total count
@@ -111,16 +113,16 @@ class TargetsScreen(Container):
             # Update status (pagination widget shows page info, status shows filter info)
             if total > 0:
                 if self.filter_text:
-                    status.update(f"[green]Filtered: {total} targets match[/green]")
+                    status.update(success_text(f"Filtered: {total} targets match"))
                 else:
-                    status.update(f"[green]{total} total targets[/green]")
+                    status.update(success_text(f"{total} total targets"))
             else:
-                status.update("[yellow]No targets found[/yellow]")
+                status.update(warning_text("No targets found"))
 
         except Exception as e:
             # Show error
             status = self.query_one("#targets-status", Static)
-            status.update(f"[red]Error loading targets: {e}[/red]")
+            status.update(error_text(f"Error loading targets: {e}"))
 
     def on_data_table_row_highlighted(self, event) -> None:
         """Handle row selection"""

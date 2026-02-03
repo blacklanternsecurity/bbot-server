@@ -1,9 +1,47 @@
 """
 Main Textual application for BBOT Server TUI
 """
-from textual.app import App, ComposeResult
+from typing import Iterable
+
+from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
+from textual.screen import Screen
+from textual.theme import Theme
 from textual.widgets import Header as TextualHeader, Footer, TabbedContent, TabPane
+
+
+# BBOT Dark Theme - uses Textual's design system
+# Custom colors (severity, status) are defined in styles.tcss as CSS variables
+BBOT_DARK_THEME = Theme(
+    name="bbot-dark",
+    primary="#FF8400",      # BBOT signature orange
+    secondary="#808080",    # Grey
+    accent="#ffa62b",       # Lighter orange for accents
+    foreground="#e0e0e0",   # Light text
+    background="#000000",   # True black background
+    surface="#121212",      # Widget backgrounds (very dark)
+    panel="#1a1a1a",        # Panel backgrounds (slightly lighter)
+    warning="#ffa62b",      # Orange-yellow warnings
+    error="#f44336",        # Red errors
+    success="#4caf50",      # Bright green (readable on dark)
+    dark=True,
+)
+
+# BBOT Light Theme - light mode variant
+BBOT_LIGHT_THEME = Theme(
+    name="bbot-light",
+    primary="#FF8400",      # BBOT signature orange
+    secondary="#606060",    # Darker grey for light mode
+    accent="#e67600",       # Darker orange for accents on light
+    foreground="#1a1a1a",   # Dark text
+    background="#ffffff",   # White background
+    surface="#f5f5f5",      # Widget backgrounds (light grey)
+    panel="#eeeeee",        # Panel backgrounds
+    warning="#e67600",      # Darker orange warnings
+    error="#d32f2f",        # Darker red errors
+    success="#388e3c",      # Darker green (readable on light)
+    dark=False,
+)
 
 
 from bbot_server.cli.tui.screens.dashboard import DashboardScreen
@@ -118,6 +156,11 @@ class BBOTServerTUI(App):
         from bbot_server.cli.tui.services.data_service import DataService
         from bbot_server.cli.tui.services.websocket_service import WebSocketService
         from bbot_server.cli.tui.services.state_service import StateService
+
+        # Register and apply the BBOT themes
+        self.register_theme(BBOT_DARK_THEME)
+        self.register_theme(BBOT_LIGHT_THEME)
+        self.theme = "bbot-dark"
 
         # Filter to suppress "taking a while" warnings from HTTP client
         class SlowRequestFilter(logging.Filter):
@@ -275,3 +318,17 @@ class BBOTServerTUI(App):
     def action_show_help(self) -> None:
         """Show help modal with keyboard shortcuts"""
         self.notify("Help: d=Dashboard s=Scans a=Assets f=Findings e=Events t=Technologies r=Targets v=Activity q=Quit")
+
+    def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
+        """Add BBOT theme shortcuts to the system menu"""
+        yield from super().get_system_commands(screen)
+        yield SystemCommand("BBOT Dark Theme", "Switch to BBOT dark theme", self.action_theme_bbot_dark)
+        yield SystemCommand("BBOT Light Theme", "Switch to BBOT light theme", self.action_theme_bbot_light)
+
+    def action_theme_bbot_dark(self) -> None:
+        """Switch to BBOT dark theme"""
+        self.theme = "bbot-dark"
+
+    def action_theme_bbot_light(self) -> None:
+        """Switch to BBOT light theme"""
+        self.theme = "bbot-light"

@@ -11,6 +11,9 @@ from bbot_server.cli.tui.widgets.scan_table import ScanTable
 from bbot_server.cli.tui.widgets.scan_detail import ScanDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
+from bbot_server.cli.tui.utils.colors import (
+    loading_text, success_text, warning_text, error_text
+)
 
 
 class ScansScreen(Container):
@@ -93,16 +96,15 @@ class ScansScreen(Container):
             status = self.query_one("#scans-status", Static)
             # Only show loading message on initial load or manual refresh
             if show_loading:
-                status.update("[cyan]Loading scans...[/cyan]")
+                status.update(loading_text("Loading scans..."))
 
             # Get pagination parameters
             pagination = self.query_one("#scan-pagination", PaginatedTableContainer)
             skip, limit = pagination.get_skip_limit()
 
-            # Fetch scans with client-side pagination and filter
-            filter_text = self.filter_text if self.filter_text else None
+            # Fetch scans with server-side pagination and search
             scans, total = await self.bbot_app.data_service.get_scans_paginated(
-                skip=skip, limit=limit, filter_text=filter_text
+                skip=skip, limit=limit, search=self.filter_text or None
             )
 
             # Update pagination with total count
@@ -115,16 +117,16 @@ class ScansScreen(Container):
             # Update status (pagination widget shows page info, status shows filter info)
             if total > 0:
                 if self.filter_text:
-                    status.update(f"[green]Filtered: {total} scans match[/green]")
+                    status.update(success_text(f"Filtered: {total} scans match"))
                 else:
-                    status.update(f"[green]{total} total scans[/green]")
+                    status.update(success_text(f"{total} total scans"))
             else:
-                status.update("[yellow]No scans found[/yellow]")
+                status.update(warning_text("No scans found"))
 
         except Exception as e:
             # Show error
             status = self.query_one("#scans-status", Static)
-            status.update(f"[red]Error loading scans: {e}[/red]")
+            status.update(error_text(f"Error loading scans: {e}"))
 
     def on_data_table_row_highlighted(self, event) -> None:
         """Handle row selection in scan table"""
@@ -141,7 +143,7 @@ class ScansScreen(Container):
 
         # Update selected scan ID
         if scan:
-            self.selected_scan_id = scan.id
+            self.selected_scan_id = scan['id']
 
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""

@@ -35,14 +35,14 @@ class TechnologyTable(DataTable):
 
         # Add new rows
         for tech in technologies:
-            technology = getattr(tech, 'technology', 'UNKNOWN')
+            technology = tech.get('technology', 'UNKNOWN')
             # Truncate long technology names
             if len(technology) > 50:
                 technology = technology[:47] + "..."
 
-            host = getattr(tech, 'host', '')
-            port = str(getattr(tech, 'port', ''))
-            last_seen = format_timestamp(getattr(tech, 'last_seen', 0))
+            host = tech.get('host', '')
+            port = str(tech.get('port', ''))
+            last_seen = format_timestamp(tech.get('last_seen', 0))
 
             self.add_row(technology, host, port, last_seen)
 
