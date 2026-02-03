@@ -1,9 +1,13 @@
-from typing import Any
-from fastapi import Body, Query
+from typing import Annotated, Any
+from fastapi import Query
 
+from bbot_server.models.base import AssetQuery
 from bbot_server.assets import CustomAssetFields
-from bbot_server.applets.base import BaseApplet, api_endpoint, Annotated
-from bbot_server.modules.technologies.technology_models import Technology
+from bbot_server.applets.base import BaseApplet, api_endpoint
+from bbot_server.modules.technologies.technologies_models import (
+    TechnologyQuery,
+    Technology,
+)
 
 
 # add one field: 'technologies' to the main asset model
@@ -42,7 +46,7 @@ class TechnologiesApplet(BaseApplet):
         active: Annotated[bool, Query(description="whether to include active (non-archived) technologies")] = True,
         sort: Annotated[list[str], Query(description="fields to sort by")] = ["-last_seen"],
     ):
-        async for technology in self.mongo_iter(
+        query = TechnologyQuery(
             technology=technology,
             search=search,
             domain=domain,
@@ -51,77 +55,24 @@ class TechnologiesApplet(BaseApplet):
             archived=archived,
             active=active,
             sort=sort,
-        ):
+        )
+        async for technology in query.mongo_iter(self):
             yield Technology(**technology)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query technologies")
-    async def query_technologies(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        technology: Annotated[str, Body(description="filter by technology (must match exactly)")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
-        host: Annotated[str, Body(description="filter by host (exact match only)")] = None,
-        domain: Annotated[str, Body(description="filter by domain (subdomains allowed)")] = None,
-        target_id: Annotated[str, Body(description="filter by target (can be either name or ID)")] = None,
-        archived: Annotated[bool, Body(description="whether to include archived technologies")] = False,
-        active: Annotated[bool, Body(description="whether to include active (non-archived) technologies")] = True,
-        ignored: Annotated[bool, Body(description="filter on whether the technology is ignored")] = False,
-        fields: Annotated[list[str], Body(description="list of fields to return")] = None,
-        limit: Annotated[int, Body(description="Limit the number of technologies returned")] = None,
-        skip: Annotated[int, Body(description="Skip the first N technologies")] = None,
-        sort: Annotated[list[str | tuple[str, int]], Body(description="fields and direction to sort by")] = None,
-        aggregate: Annotated[list[dict], Body(description="optional custom MongoDB aggregation pipeline")] = None,
-    ):
+    async def query_technologies(self, query: TechnologyQuery | None = None):
         """
         Advanced querying of technologies. Choose your own filters and fields.
         """
-        async for technology in self.mongo_iter(
-            query=query,
-            technology=technology,
-            search=search,
-            host=host,
-            domain=domain,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            ignored=ignored,
-            fields=fields,
-            limit=limit,
-            skip=skip,
-            sort=sort,
-            aggregate=aggregate,
-        ):
+        async for technology in query.mongo_iter(self):
             yield technology
 
     @api_endpoint("/count", methods=["POST"], summary="Count technologies")
-    async def count_technologies(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        technology: Annotated[str, Body(description="filter by technology (must match exactly)")] = None,
-        search: Annotated[str, Body(description="search for a technology (fuzzy match)")] = None,
-        host: Annotated[str, Body(description="filter by host (exact match only)")] = None,
-        domain: Annotated[str, Body(description="filter by domain (subdomains allowed)")] = None,
-        target_id: Annotated[str, Body(description="filter by target (can be either name or ID)")] = None,
-        archived: Annotated[bool, Body(description="whether to include archived technologies")] = False,
-        active: Annotated[bool, Body(description="whether to include active (non-archived) technologies")] = True,
-        ignored: Annotated[bool, Body(description="filter on whether the technology is ignored")] = False,
-    ) -> int:
+    async def count_technologies(self, query: TechnologyQuery | None = None) -> int:
         """
         Same as query_technologies, except only returns the count
         """
-        return await self.mongo_count(
-            query=query,
-            technology=technology,
-            search=search,
-            host=host,
-            domain=domain,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            ignored=ignored,
-        )
+        return await query.mongo_count(self)
 
     @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database")
     async def get_technologies_summary(
@@ -145,14 +96,19 @@ class TechnologiesApplet(BaseApplet):
         """
         # TODO: use mongo aggregation pipeline?
         technologies = {}
-        async for t in self.query_technologies(
-            domain=domain,
-            host=host,
-            technology=technology,
-            search=search,
-            target_id=target_id,
-            fields=["technology", "host", "last_seen"],
-        ):
+        # Build kwargs, filtering out None values so they don't conflict with MISSING defaults
+        query_kwargs = {
+            k: v
+            for k, v in {
+                "domain": domain,
+                "host": host,
+                "technology": technology,
+                "search": search,
+                "target_id": target_id,
+            }.items()
+            if v is not None
+        }
+        async for t in self.query_technologies(fields=["technology", "host", "last_seen"], **query_kwargs):
             technology = t["technology"]
             host = t["host"]
             last_seen = t["last_seen"]
@@ -183,12 +139,14 @@ class TechnologiesApplet(BaseApplet):
         target_id: Annotated[str, Query(description="filter by target (can be either name or ID)")] = None,
     ) -> dict[str, int]:
         technologies = {}
-        async for asset in self.root.assets.mongo_iter(
+        query = AssetQuery(
+            type="Asset",
             domain=domain,
             host=host,
             target_id=target_id,
             fields=["technologies", "host"],
-        ):
+        )
+        async for asset in query.mongo_iter(self):
             for technology in asset.get("technologies", []):
                 technologies[technology] = technologies.get(technology, 0) + 1
         technologies = dict(sorted(technologies.items(), key=lambda x: x[1], reverse=True))
@@ -277,19 +235,6 @@ class TechnologiesApplet(BaseApplet):
                     {"$set": {"archived": True}},
                 )
         return activities
-
-    async def make_bbot_query(
-        self, query: dict = None, ignored: bool = False, technology: str = None, search: str = None, **kwargs
-    ):
-        if technology and search:
-            raise self.BBOTServerValueError("Cannot filter by both technology and search")
-        query = dict(query or {})
-        query["type"] = "Technology"
-        if technology is not None and "technology" not in query:
-            query["technology"] = technology
-        if ignored is not None and "ignored" not in query:
-            query["ignored"] = ignored
-        return await super().make_bbot_query(query=query, search=search, **kwargs)
 
     async def _update_or_insert_technology(self, t: Technology):
         query = {"type": "Technology", "technology": t.technology, "host": t.host, "port": t.port}

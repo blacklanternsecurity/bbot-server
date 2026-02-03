@@ -74,10 +74,9 @@ async def test_applet_targets(bbot_server):
             raise
 
     # we can create an identical target with allow_duplicate_hash=True (the default)
-    duptarget1 = CreateTarget(
+    duptarget1 = await bbot_server.create_target(
         name="duptarget1", target=["127.0.0.1", "evilcorp.com"], seeds=["localhost"], blacklist=["127.0.0.2"]
     )
-    duptarget1 = await bbot_server.create_target(duptarget1)
     assert duptarget1.hash == target1.hash
 
     all_targets = await bbot_server.get_targets()
@@ -86,11 +85,14 @@ async def test_applet_targets(bbot_server):
     assert target1.id in [t.id for t in all_targets]
 
     # creating a target with the same hash should raise an error with allow_duplicate_hash=False
-    target3 = CreateTarget(
-        name="target3", target=["127.0.0.1", "evilcorp.com"], seeds=["localhost"], blacklist=["127.0.0.2"]
-    )
     with pytest.raises(BBOTServerValueError, match="Identical target already exists"):
-        target3 = await bbot_server.create_target(target3, allow_duplicate_hash=False)
+        await bbot_server.create_target(
+            name="target3",
+            target=["127.0.0.1", "evilcorp.com"],
+            seeds=["localhost"],
+            blacklist=["127.0.0.2"],
+            allow_duplicate_hash=False,
+        )
     all_targets = await bbot_server.get_targets()
     assert len(all_targets) == 2
     assert duptarget1.id in [t.id for t in all_targets]
@@ -99,14 +101,13 @@ async def test_applet_targets(bbot_server):
     await bbot_server.delete_target(duptarget1.id)
 
     # create a second target
-    target2 = CreateTarget(
+    target2 = await bbot_server.create_target(
         name="target2",
         description="target2 description",
         seeds=["localhost"],
         target=["127.0.0.1", "evilcorp.com", "localhost2"],
         blacklist=["127.0.0.2"],
     )
-    target2 = await bbot_server.create_target(target2)
 
     assert target2.target_hash != target1.target_hash
     assert target2.blacklist_hash == target1.blacklist_hash
@@ -162,14 +163,13 @@ async def test_applet_targets(bbot_server):
     assert abs(target.created - target.modified) >= 0.1, "Modified timestamp wasn't updated"
 
     # add target3
-    target3 = CreateTarget(
+    target3 = await bbot_server.create_target(
         name="target3",
         description="target3 description",
         seeds=["localhost", "localhost3"],
         target=["127.0.0.1", "evilcorp.com", "localhost3"],
         blacklist=["127.0.0.2"],
     )
-    target3 = await bbot_server.create_target(target3)
 
     # set target3 as the default target
     await bbot_server.set_default_target(target3.id)
@@ -183,14 +183,13 @@ async def test_applet_targets(bbot_server):
     assert target.default is False
 
     # create target4
-    target4 = CreateTarget(
+    await bbot_server.create_target(
         name="target4",
         description="target4 description",
         seeds=["localhost"],
         target=["127.0.0.1", "evilcorp.com", "localhost4"],
         blacklist=["127.0.0.2"],
     )
-    target4 = await bbot_server.create_target(target4)
 
     # deleting the default target without specifying a new default target should raise an error
     with pytest.raises(
@@ -232,9 +231,8 @@ async def test_applet_targets(bbot_server):
 async def test_target_default_names(bbot_server):
     bbot_server = await bbot_server()
 
-    target1 = CreateTarget()
     with pytest.raises(BBOTServerValueError, match="Must provide at least one seed or target entry"):
-        await bbot_server.create_target(target1)
+        await bbot_server.create_target()
 
     target1 = CreateTarget(target=["evilcorp.com"])
     target1 = await bbot_server.create_target(target1)
@@ -250,12 +248,11 @@ async def test_target_default_names(bbot_server):
 async def test_target_size(bbot_server):
     bbot_server = await bbot_server()
 
-    target = CreateTarget(
+    target = await bbot_server.create_target(
         seeds=["evilcorp.com", "1.2.3.4/30"],
         target=["evilcorp.com", "1.2.3.4/29"],
         blacklist=["www.evilcorp.com", "test.evilcorp.com", "1.2.3.5/28"],
     )
-    target = await bbot_server.create_target(target)
     assert target.seed_size == 5  # /30 (4 hosts) + 1 domain
     assert target.target_size == 9  # /29 (8 hosts) + 1 domain
     assert target.blacklist_size == 18  # /28 (16 hosts) + 2 domains
@@ -265,12 +262,11 @@ async def test_scope_checks(bbot_server):
     bbot_server = await bbot_server()
 
     # simple target
-    target1 = CreateTarget(
+    await bbot_server.create_target(
         name="target1",
         description="target1 description",
         target=["evilcorp.com"],
     )
-    await bbot_server.create_target(target1)
 
     targets = await bbot_server.get_targets()
     assert len(targets) == 1
@@ -288,14 +284,13 @@ async def test_scope_checks(bbot_server):
     assert await bbot_server.in_scope("http://test.evilcorp.net") == False
 
     # complex target
-    target2 = CreateTarget(
+    target2 = await bbot_server.create_target(
         name="target2",
         description="target2 description",
         seeds=["evilcorp.org"],
         target=["127.0.0.1/24", "external.evilcorp.org"],
         blacklist=["127.0.0.2", "test.external.evilcorp.org", "RE:plumbus"],
     )
-    target2 = await bbot_server.create_target(target2)
 
     # default target is still target1
     assert await bbot_server.in_scope("evilcorp.org") == False
@@ -325,12 +320,11 @@ async def test_scope_checks(bbot_server):
 
 async def test_target_copy(bbot_server):
     bbot_server = await bbot_server()
-    target = CreateTarget(
+    target = await bbot_server.create_target(
         name="target",
         description="target description",
         target=["evilcorp.com"],
     )
-    target = await bbot_server.create_target(target)
     target_copy = await bbot_server.copy_target(target.id)
 
     assert target_copy.name == "target Copy"
@@ -353,22 +347,20 @@ async def test_target_copy(bbot_server):
 async def test_target_default_uniqueness(bbot_server):
     bbot_server = await bbot_server()
 
-    target1 = CreateTarget(
+    target1 = await bbot_server.create_target(
         name="target1",
         description="target1 description",
         target=["evilcorp.com"],
     )
-    target1 = await bbot_server.create_target(target1)
     target1 = await bbot_server.get_target(id=target1.id)
     # the first target should be the default target
     assert target1.default is True
-    target2 = CreateTarget(
+    target2 = await bbot_server.create_target(
         name="target2",
         description="target2 description",
         target=["evilcorp.com"],
         default=True,
     )
-    target2 = await bbot_server.create_target(target2)
     target2 = await bbot_server.get_target(id=target2.id)
     # when a new target is created with default=True, it should replace the default target
     assert target2.default is True
@@ -402,23 +394,21 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         assert await self.bbot_server.get_targets() == []
 
         # target with domain blacklist
-        target1 = CreateTarget(
+        self.target1 = await self.bbot_server.create_target(
             name="evilcorp",
             description="evilcorp target",
             seeds=["evilcorp.com"],
             target=["evilcorp.com"],
             blacklist=["www.evilcorp.com"],
         )
-        self.target1 = await self.bbot_server.create_target(target1)
         # target with IP blacklist
-        target2 = CreateTarget(
+        self.target2 = await self.bbot_server.create_target(
             name="www evilcorp",
             description="www evilcorp target",
             seeds=["evilcorp.com"],
             target=["www.evilcorp.com", "localhost.evilcorp.com", "127.0.0.1"],
             blacklist=["127.0.0.2"],
         )
-        self.target2 = await self.bbot_server.create_target(target2)
 
         # test query_targets with field selection and pagination
         all_targets = [t async for t in self.bbot_server.query_targets()]
@@ -525,12 +515,11 @@ class TestTargetUpdateRemovesTargetFromAssets(BaseAppletTest):
         assert self.original_asset_count > 0 and self.original_asset_count == self.all_asset_count
 
         # Create a target with evilcorp.com
-        target = CreateTarget(
+        self.target = await self.bbot_server.create_target(
             name="bugtest",
             description="test target for bug reproduction",
             target=["evilcorp.com"],
         )
-        self.target = await self.bbot_server.create_target(target)
 
         # wait for new target to be processed
         await asyncio.sleep(1.0)

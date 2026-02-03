@@ -1,11 +1,12 @@
 import re
 import asyncio
-import inspect
+from inspect import getmembers
 import logging
 import traceback
+
 from fastapi import APIRouter
 from omegaconf import OmegaConf
-from typing import Annotated, Any  # noqa
+from typing import Annotated, Any, get_origin, get_args, Union, Callable, cast  # noqa
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
 from pymongo import WriteConcern
@@ -21,27 +22,29 @@ from bbot_server.utils.db import (
     parse_existing_indexes,
     compute_index_diff,
     merge_desired_indexes,
-    make_mongo_cursor,
 )
 from bbot_server.applets._routing import make_bbotserver_route
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.errors import BBOTServerError, BBOTServerValueError
-from bbot_server.utils.misc import _sanitize_mongo_query
 
 word_regex = re.compile(r"\W+")
 
 log = logging.getLogger(__name__)
 
 
-def api_endpoint(endpoint, **kwargs):
+def api_endpoint(endpoint: str, **kwargs):
     """
-    Decorate your applet method with this to add it to FastAPI
+    Decorate your applet method with this to add it to FastAPI.
+
+    Args:
+        endpoint: The API endpoint path
+        **kwargs: Additional FastAPI route kwargs
     """
 
     def decorator(fn):
         fn._kwargs = kwargs
         fn._endpoint = endpoint
-        return fn
+        return bbot_server_misc.human_friendly_kwargs(fn)
 
     return decorator
 
@@ -287,7 +290,7 @@ class BaseApplet:
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks
-        methods = {name: member for name, member in inspect.getmembers(self) if callable(member)}
+        methods = {name: member for name, member in getmembers(self) if callable(member)}
         for method_name, method in methods.items():
             # handle case where tasks have already been registered
             method = getattr(method, "original_func", method)
@@ -353,164 +356,6 @@ class BaseApplet:
     async def _emit_activity(self, activity: Activity):
         self.log.info(f"Emitting activity: {activity.type} - {activity.description}")
         await self.root.message_queue.publish_asset(activity)
-
-    async def make_bbot_query(
-        self,
-        query: dict = None,
-        search: str = None,
-        host: str = None,
-        domain: str = None,
-        type: str = None,
-        target_id: str = None,
-        archived: bool = False,
-        active: bool = True,
-        min_timestamp: float = None,
-        max_timestamp: float = None,
-        min_created_timestamp: float = None,
-        max_created_timestamp: float = None,
-        min_modified_timestamp: float = None,
-        max_modified_timestamp: float = None,
-    ):
-        """
-        Streamlines querying of a Mongo collection with BBOT-specific filters like "host", "reverse_host", etc.
-
-        This is meant to be a base method with only query logic common to all collections in BBOT server.
-
-        For any additional custom logic like different default kwarg values, etc., override this method on applet-by-applet basis.
-
-        Example:
-            async def make_bbot_query(self, type: str = "Asset", query: dict = None, ignored: bool = False, **kwargs):
-                query = dict(query or {})
-                if ignored is not None and "ignored" not in query:
-                    query["ignored"] = ignored
-                return await super().make_bbot_query(type=type, query=query, **kwargs)
-        """
-        query = dict(query or {})
-        # AI is dumb and likes to pass in blank strings for stuff
-        domain = domain or None
-        target_id = target_id or None
-        type = type or None
-        host = host or None
-
-        if ("type" not in query) and (type is not None):
-            query["type"] = type
-        if ("host" not in query) and (host is not None):
-            query["host"] = host
-        if ("reverse_host" not in query) and (domain is not None):
-            reversed_host = re.escape(domain[::-1])
-            # Match exact domain or subdomains (with dot separator)
-            query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
-
-        # timestamps
-        if "timestamp" not in query and (min_timestamp is not None or max_timestamp is not None):
-            query["timestamp"] = {}
-            if min_timestamp is not None:
-                query["timestamp"]["$gte"] = min_timestamp
-            if max_timestamp is not None:
-                query["timestamp"]["$lte"] = max_timestamp
-
-        # created timestamps
-        if "created" not in query and (min_created_timestamp is not None or max_created_timestamp is not None):
-            query["created"] = {}
-            if min_created_timestamp is not None:
-                query["created"]["$gte"] = min_created_timestamp
-            if max_created_timestamp is not None:
-                query["created"]["$lte"] = max_created_timestamp
-
-        # modified timestamps
-        if "modified" not in query and (min_modified_timestamp is not None or max_modified_timestamp is not None):
-            query["modified"] = {}
-            if min_modified_timestamp is not None:
-                query["modified"]["$gte"] = min_modified_timestamp
-            if max_modified_timestamp is not None:
-                query["modified"]["$lte"] = max_modified_timestamp
-
-        if ("scope" not in query) and (target_id is not None):
-            target_query_kwargs = {}
-            if target_id != "DEFAULT":
-                target_query_kwargs["id"] = target_id
-            target = await self.root.targets._get_target(**target_query_kwargs, fields=["id"])
-            if target is not None:
-                query["scope"] = target["id"]
-
-        # if both active and archived are true, we don't need to filter anything, because we are returning all assets
-        if not (active and archived) and ("archived" not in query):
-            # if both are false, we need to raise an error
-            if not (active or archived):
-                raise BBOTServerValueError("Must query at least one of active or archived")
-            # only one should be true
-            query["archived"] = {"$eq": archived}
-
-        if search:
-            search_query = await self.make_search_query(search)
-            if search_query:
-                query = {"$and": [query, search_query]}
-
-        return _sanitize_mongo_query(query)
-
-    async def make_search_query(self, search: str):
-        """
-        Given a search term, construct a human-friendly search against multiple fields.
-        """
-        search_str = search.strip().lower()
-        if not search_str:
-            return None
-        search_str_escaped = re.escape(search_str)
-        return {
-            "$or": [
-                {"$text": {"$search": search_str}},
-                {"host_parts": {"$regex": f"^{search_str_escaped}"}},
-                {"host": {"$regex": f"^{search_str_escaped}"}},
-                {"reverse_host": {"$regex": f"^{re.escape(search_str[::-1])}"}},
-            ]
-        }
-
-    async def mongo_iter(self, *args, **kwargs):
-        """
-        Lazy iterator over a Mongo collection with BBOT-specific filters and aggregation
-        """
-        cursor = await self._make_mongo_cursor(*args, **kwargs)
-        async for asset in cursor:
-            yield asset
-
-    async def mongo_count(self, *args, **kwargs):
-        query = await self.make_bbot_query(*args, **kwargs)
-        return await self.collection.count_documents(query)
-
-    async def _make_mongo_cursor(
-        self,
-        query: dict = None,
-        aggregate: list[dict] = None,
-        sort: list[str | tuple[str, int]] = None,
-        fields: list[str] = None,
-        skip: int = None,
-        limit: int = None,
-        collection=None,
-        **kwargs,
-    ):
-        """Build a MongoDB cursor for querying, with optional aggregation pipeline."""
-        query = await self.make_bbot_query(query=query, **kwargs)
-        fields = {f: 1 for f in fields} if fields else None
-
-        # collection defaults to self.collection
-        if collection is None:
-            collection = self.collection
-
-        # if we don't have a default collection and none was passed in, raise an error
-        if collection is None:
-            raise BBOTServerError(f"Collection is not set for {self.name}")
-
-        self.log.info(f"Querying {collection.name}: query={query}, fields={fields}")
-
-        return await make_mongo_cursor(
-            collection,
-            query,
-            fields=fields,
-            sort=sort,
-            skip=skip,
-            limit=limit,
-            aggregate=aggregate,
-        )
 
     def include_app(self, app_class):
         self.log.debug(f"{self.name_lowercase} including applet {app_class.name_lowercase}")

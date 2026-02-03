@@ -1,16 +1,13 @@
 from uuid import UUID
-from fastapi import Body
-from typing import Any, Annotated
 from contextlib import asynccontextmanager
 from pymongo.errors import DuplicateKeyError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.assets import Asset
-from bbot_server.utils.db import make_mongo_cursor
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.activity.activity_models import Activity
-from bbot_server.modules.targets.targets_models import Target, CreateTarget
+from bbot_server.modules.targets.targets_models import Target, CreateTarget, TargetQuery
 
 
 class BlacklistedError(Exception):
@@ -23,6 +20,10 @@ class BlacklistedError(Exception):
 # this way we know whether the scope is up to date
 # we should have a single task for doing this, and automatically cancel or restart it if a new operation comes along
 # this enables extremely fast and precise updates whenever a target is updated
+
+# on second thought, it may not help much, because in most
+# cases, if a target is updated (especially added to), then
+# all assets have to be scanned anyway
 
 
 class TargetsApplet(BaseApplet):
@@ -150,9 +151,9 @@ class TargetsApplet(BaseApplet):
         target = await self._get_target(id=id, hash=hash)
         return Target(**target)
 
-    @api_endpoint("/count", methods=["GET"], summary="Get the number of scan targets")
-    async def count_targets(self) -> int:
-        return await self.collection.count_documents({})
+    @api_endpoint("/count", methods=["POST"], summary="Get the number of scan targets")
+    async def count_targets(self, query: TargetQuery | None = None) -> int:
+        return await query.mongo_count(self)
 
     @api_endpoint("/set_default/{id}", methods=["POST"], summary="Set a target as the default target")
     async def set_default_target(self, id: str):
@@ -170,51 +171,39 @@ class TargetsApplet(BaseApplet):
     async def create_target(
         self,
         target: CreateTarget,
-        allow_duplicate_hash: bool = True,
     ) -> Target:
         if not target.target and not target.seeds:
             raise self.BBOTServerValueError("Must provide at least one seed or target entry")
         if not target.name:
             target.name = await self.get_available_target_name()
-        target = Target(
-            name=target.name,
-            description=target.description,
-            seeds=target.seeds,
-            target=target.target,
-            blacklist=target.blacklist,
-            strict_dns_scope=target.strict_dns_scope,
-            default=target.default,
-        )
+        db_target = Target(**target.model_dump(exclude={"allow_duplicate_hash"}))
         if await self.count_targets() == 0:
-            target.default = True
-        async with self._handle_duplicate_target(target, allow_duplicate_hash):
-            await self.collection.insert_one(target.model_dump())
+            db_target.default = True
+        async with self._handle_duplicate_target(db_target, allow_duplicate_hash=target.allow_duplicate_hash):
+            await self.collection.insert_one(db_target.model_dump())
         # if target is the default target, set all others to not be default
-        if target.default:
-            await self.collection.update_many({"id": {"$ne": str(target.id)}}, {"$set": {"default": False}})
+        if db_target.default:
+            await self.collection.update_many({"id": {"$ne": str(db_target.id)}}, {"$set": {"default": False}})
         # emit an activity to show the target was created
         await self.emit_activity(
             type="TARGET_CREATED",
-            detail={"target_id": str(target.id), "hash": target.hash, "scope_hash": target.scope_hash},
-            description=f"Target [COLOR]{target.name}[/COLOR] created",
+            detail={"target_id": str(db_target.id), "hash": db_target.hash, "scope_hash": db_target.scope_hash},
+            description=f"Target [COLOR]{db_target.name}[/COLOR] created",
         )
         # update caches
-        self._cache_put(target)
-        self._target_ids.add(str(target.id))
+        self._cache_put(db_target)
+        self._target_ids.add(str(db_target.id))
         self._target_ids_modified = None
-        return target
+        return db_target
 
     @api_endpoint("/{id}", methods=["PATCH"], summary="Update a scan target by its id")
-    async def update_target(
-        self,
-        id: UUID,
-        target: Target,
-        allow_duplicate_hash: bool = True,
-    ) -> Target:
+    async def update_target(self, id: UUID, target: Target, allow_duplicate_hash=True) -> Target:
         target.id = id
         target.modified = utc_now()
         async with self._handle_duplicate_target(target, allow_duplicate_hash):
-            await self.collection.update_one({"id": str(id)}, {"$set": target.model_dump()})
+            await self.collection.update_one(
+                {"id": str(id)}, {"$set": target.model_dump(exclude={"allow_duplicate_hash"})}
+            )
         if target.default:
             await self.collection.update_many({"id": {"$ne": str(target.id)}}, {"$set": {"default": False}})
         # emit an activity to show the target was updated
@@ -317,24 +306,11 @@ class TargetsApplet(BaseApplet):
         response_model=dict,
         summary="List targets with customizeable fields and optional pagination",
     )
-    async def query_targets(
-        self,
-        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
-        skip: Annotated[int, Body(description="Skip the first N targets")] = None,
-        limit: Annotated[int, Body(description="Limit the number of targets returned")] = None,
-        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
-        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
-    ):
-        cursor = await make_mongo_cursor(
-            self.collection,
-            query={},
-            fields=fields,
-            limit=limit,
-            skip=skip,
-            sort=sort,
-            aggregate=aggregate,
-        )
-        async for target in cursor:
+    async def query_targets(self, query: TargetQuery | None = None):
+        """
+        Advanced querying of targets. Choose your own filters and fields.
+        """
+        async for target in query.mongo_iter(self):
             yield target
 
     @api_endpoint("/list_ids", methods=["GET"], summary="List all target IDs")
@@ -503,7 +479,7 @@ class TargetsApplet(BaseApplet):
         """
         Put a target into the cache
         """
-        self._scope_cache[str(target.id)] = (target.modified, self._bbot_target(target))
+        self._scope_cache[str(target.id)] = (target.modified, target.bbot_target)
 
     def _cache_get(self, target_id: UUID) -> BBOTTarget:
         """
@@ -518,19 +494,8 @@ class TargetsApplet(BaseApplet):
         for target in await self.get_targets():
             self._cache_put(target)
 
-    def _bbot_target(self, target: Target) -> BBOTTarget:
-        """
-        Given a target pydantic instance, return a BBOTTarget instance capable of fast host lookups
-        """
-        return BBOTTarget(
-            target=target.target,
-            seeds=target.seeds,
-            blacklist=target.blacklist,
-            strict_dns_scope=target.strict_dns_scope,
-        )
-
     @asynccontextmanager
-    async def _handle_duplicate_target(self, target: Target, allow_duplicate_hash: bool = True):
+    async def _handle_duplicate_target(self, target: CreateTarget, allow_duplicate_hash=True):
         # see if there are any existing targets with the same name or hash
         if not allow_duplicate_hash:
             if await self.collection.find_one({"hash": target.hash}):
@@ -545,7 +510,7 @@ class TargetsApplet(BaseApplet):
                 )
             raise self.BBOTServerValueError(f"Error creating target: {e}")
 
-    async def _get_target(self, id: str = None, hash: str = None, fields: dict[str, Any] = None) -> dict:
+    async def _get_target(self, id: str = None, hash: str = None, fields: list[str] = None) -> dict:
         """
         Get a target in raw JSON format from the database
         """
@@ -561,8 +526,8 @@ class TargetsApplet(BaseApplet):
                 query["id"] = str(UUID(id))
             except Exception:
                 query["name"] = id
-        fields = {f: 1 for f in fields} if fields else None
-        result = await self.collection.find_one(query, fields)
+        fields_projection = {f: 1 for f in fields} if fields else None
+        result = await self.collection.find_one(query, fields_projection)
         # we only raise an error if we were given an ID or hash, and no target was found
         if result is None:
             msg = f"Target not found with query: {query}"

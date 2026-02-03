@@ -94,27 +94,19 @@ class TestAppletAssets(BaseAppletTest):
         assert all(isinstance(a, dict) for a in assets)
 
         # asset types other than findings
-        technologies = [a async for a in self.bbot_server.query_assets(type="Technology", ignored=False)]
+        technologies = [a async for a in self.bbot_server.query_assets(type="Technology")]
         assert technologies
         assert all([a["type"] == "Technology" for a in technologies])
 
-        kwargs = {
-            "active": True,
-            "aggregate": None,
-            "archived": False,
-            "domain": None,
-            "fields": None,
-            "host": None,
-            "ignored": False,
-            "limit": None,
-            "query": {"cloud_providers": "Akamai"},
-            "search": None,
-            "skip": None,
-            "sort": None,
-            "target_id": None,
-            "type": "Asset",
-        }
-        assets = [a async for a in self.bbot_server.query_assets(**kwargs)]
+        assets = [
+            a
+            async for a in self.bbot_server.query_assets(
+                active=True,
+                archived=False,
+                query={"cloud_providers": "Akamai"},
+                type="Asset",
+            )
+        ]
         assert not assets
 
         # query should override type

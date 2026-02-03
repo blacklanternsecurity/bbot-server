@@ -4,7 +4,7 @@ from time import sleep
 
 from bbot_server.modules.targets.targets_models import Target
 
-from bbot_server.modules.technologies.technology_models import Technology
+from bbot_server.modules.technologies.technologies_models import Technology
 from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY, BBOT_SERVER_TEST_DIR
 
 

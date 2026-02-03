@@ -5,32 +5,8 @@ import logging
 from pymongo import ASCENDING
 from pymongo.errors import DuplicateKeyError, OperationFailure
 
-from bbot_server.utils.misc import _sanitize_mongo_aggregation
 
 log = logging.getLogger(__name__)
-
-
-async def make_mongo_cursor(collection, query, fields=None, sort=None, skip=None, limit=None, aggregate=None):
-    """Build a MongoDB cursor with optional sort/skip/limit or aggregation pipeline."""
-    # Process sort spec: "+field"/"-field" strings or (field, direction) tuples
-    if sort:
-        sort = [(f.lstrip("+-"), -1 if f.startswith("-") else 1) if isinstance(f, str) else tuple(f) for f in sort]
-
-    if aggregate:
-        aggregate = _sanitize_mongo_aggregation(aggregate)
-        pipeline = [{"$match": query}] + aggregate
-        if limit is not None:
-            pipeline.append({"$limit": limit})
-        return await collection.aggregate(pipeline)
-
-    cursor = collection.find(query, fields)
-    if sort:
-        cursor = cursor.sort(sort)
-    if skip is not None:
-        cursor = cursor.skip(skip)
-    if limit is not None:
-        cursor = cursor.limit(limit)
-    return cursor
 
 
 def merge_desired_indexes(all_desired):

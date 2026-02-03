@@ -92,7 +92,7 @@ for file in python_files:
 
 # now we merge all the custom asset fields into the master asset model
 
-from ..models.asset_models import BaseAssetFacet
+from ..models.base import BaseAssetFacet
 from bbot_server.utils.misc import combine_pydantic_models
 import bbot_server.assets as assetlib
 

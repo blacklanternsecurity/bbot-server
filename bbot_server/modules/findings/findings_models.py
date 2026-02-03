@@ -1,8 +1,8 @@
 from typing import Annotated, Optional
+
 from pydantic import Field, computed_field
 
-from bbot_server.models.base import BaseScore
-from bbot_server.models.asset_models import BaseAssetFacet
+from bbot_server.models.base import AssetQuery, BaseScore, BaseAssetFacet
 
 # Severity levels as constants
 SEVERITY_LEVELS = {"INFO": 1, "LOW": 2, "MEDIUM": 3, "HIGH": 4, "CRITICAL": 5}
@@ -32,6 +32,40 @@ class ConfidenceScore(BaseScore):
 
     levels = CONFIDENCE_LEVELS
     name = "confidence"
+
+
+class FindingsQuery(AssetQuery):
+    """Base request body for findings query/count endpoints."""
+
+    min_severity: int = Field(1, description="Filter by minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
+    max_severity: int = Field(5, description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
+    ignored: bool | None = Field(None, description="Filter by ignored status")
+    _force_asset_type = "Finding"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Validate severity range
+        if self.min_severity > self.max_severity:
+            from bbot_server.errors import BBOTServerValueError
+
+            raise BBOTServerValueError("min_severity must be less than or equal to max_severity")
+
+    async def build(self, applet=None):
+        query = await super().build(applet)
+
+        # severity filtering
+        if "severity_score" not in query and (self.min_severity != 1 or self.max_severity != 5):
+            query["severity_score"] = {}
+            if self.min_severity != 1:
+                query["severity_score"]["$gte"] = self.min_severity
+            if self.max_severity != 5:
+                query["severity_score"]["$lte"] = self.max_severity
+
+        # ignored filtering
+        if self.ignored is not None and "ignored" not in query:
+            query["ignored"] = self.ignored
+
+        return query
 
 
 class Finding(BaseAssetFacet):

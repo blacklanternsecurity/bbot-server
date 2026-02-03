@@ -1,7 +1,8 @@
 from typing import Annotated
-from fastapi import Body, Path, Query
+from fastapi import Path, Query
 
 from bbot_server.assets import Asset
+from bbot_server.modules.assets.assets_models import AssetOnlyQuery, AdvancedAssetQuery
 from bbot_server.utils.misc import utc_now
 from bbot_server.applets.base import BaseApplet, api_endpoint
 
@@ -22,83 +23,24 @@ class AssetsApplet(BaseApplet):
         """
         A simple, easily-curlable endpoint for listing assets, with basic filters
         """
-        async for asset in self.mongo_iter(type="Asset", domain=domain, target_id=target_id, limit=limit):
+        query = AssetOnlyQuery(domain=domain, target_id=target_id, limit=limit)
+        async for asset in query.mongo_iter(self):
             yield self.model(**asset)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query assets")
-    async def query_assets(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
-        host: Annotated[str, Body(description="Filter assets by host (exact match only)")] = None,
-        domain: Annotated[str, Body(description="Filter assets by domain (subdomains allowed)")] = None,
-        type: Annotated[
-            str, Body(description="Filter assets by type (Asset, Technology, Vulnerability, etc.)")
-        ] = "Asset",
-        target_id: Annotated[str, Body(description="Filter assets by target ID")] = None,
-        archived: Annotated[bool, Body(description="Whether to include archived assets")] = False,
-        active: Annotated[bool, Body(description="Whether to include active assets")] = True,
-        ignored: Annotated[bool, Body(description="Filter on whether the asset is ignored")] = False,
-        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
-        limit: Annotated[int, Body(description="Limit the number of assets returned")] = None,
-        skip: Annotated[int, Body(description="Skip the first N assets")] = None,
-        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
-        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
-    ) -> list[Asset]:
+    async def query_assets(self, query: AdvancedAssetQuery | None = None):
         """
         Advanced querying of assets. Choose your own filters and fields.
         """
-        async for asset in self.mongo_iter(
-            query=query,
-            search=search,
-            host=host,
-            domain=domain,
-            type=type,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            ignored=ignored,
-            fields=fields,
-            limit=limit,
-            skip=skip,
-            sort=sort,
-            aggregate=aggregate,
-        ):
+        async for asset in query.mongo_iter(self):
             yield asset
 
     @api_endpoint("/count", methods=["POST"], summary="Count assets")
-    async def count_assets(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
-        host: Annotated[str, Body(description="Filter assets by host (exact match only)")] = None,
-        domain: Annotated[str, Body(description="Filter assets by domain (subdomains allowed)")] = None,
-        type: Annotated[
-            str, Body(description="Filter assets by type (Asset, Technology, Vulnerability, etc.)")
-        ] = "Asset",
-        target_id: Annotated[str, Body(description="Filter assets by target ID")] = None,
-        archived: Annotated[bool, Body(description="Whether to include archived assets")] = False,
-        active: Annotated[bool, Body(description="Whether to include active assets")] = True,
-        ignored: Annotated[bool, Body(description="Filter on whether the asset is ignored")] = False,
-    ) -> int:
+    async def count_assets(self, query: AdvancedAssetQuery | None = None) -> int:
         """
         Same as query_assets, except only returns the count
         """
-        return await self.mongo_count(
-            query=query,
-            search=search,
-            host=host,
-            domain=domain,
-            type=type,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            ignored=ignored,
-        )
+        return await query.mongo_count(self)
 
     @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
     async def get_asset(self, host: Annotated[str, Path(description="The host of the asset to get")]) -> Asset:
@@ -131,7 +73,8 @@ class AssetsApplet(BaseApplet):
             target_id: Only return hosts belonging to this target (can be either name or ID)
         """
         hosts = []
-        async for asset in self.mongo_iter(type="Asset", domain=domain, target_id=target_id, fields=["host"]):
+        query = AssetOnlyQuery(domain=domain, target_id=target_id, fields=["host"])
+        async for asset in query.mongo_iter(self):
             host = asset.get("host", None)
             if host is not None:
                 hosts.append(host)
@@ -167,16 +110,6 @@ class AssetsApplet(BaseApplet):
 
             # update the asset with any changes made by the child applets
             await self.update_asset(asset)
-
-    async def make_bbot_query(self, type: str = "Asset", query: dict = None, ignored: bool = False, **kwargs):
-        """
-        Extension of make_bbot_query for assets and asset facets (findings, technologies, etc.)
-        """
-        query = dict(query or {})
-        # "ignored" field is unique to assets and asset facets
-        if ignored is not None and "ignored" not in query:
-            query["ignored"] = ignored
-        return await super().make_bbot_query(type=type, query=query, **kwargs)
 
     async def _get_asset(
         self,
