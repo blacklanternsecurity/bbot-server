@@ -26,7 +26,7 @@ class EventsQuery(ActiveArchivedQuery):
         if "scan" not in query and self.scan is not None:
             query["scan"] = str(self.scan)
 
-        if not "type" in query and self.type is not None:
+        if "type" not in query and self.type is not None:
             query["type"] = self.type
 
         return query

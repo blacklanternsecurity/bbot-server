@@ -1,5 +1,6 @@
 import orjson
 import logging
+import inspect
 from bson import ObjectId
 from functools import wraps
 from types import UnionType
@@ -126,11 +127,25 @@ def human_friendly_kwargs(fn):
     param_name, model_class = detect_translatable_function(fn)
 
     if param_name is not None:
+        if inspect.iscoroutinefunction(fn):
 
-        @wraps(fn)
-        def wrapper(*args, **kwargs):
-            args, kwargs = convert_human_args(fn, param_name, model_class, *args, **kwargs)
-            return fn(*args, **kwargs)
+            @wraps(fn)
+            async def wrapper(*args, **kwargs):
+                args, kwargs = convert_human_args(fn, param_name, model_class, *args, **kwargs)
+                return await fn(*args, **kwargs)
+        elif inspect.isasyncgenfunction(fn):
+
+            @wraps(fn)
+            async def wrapper(*args, **kwargs):
+                args, kwargs = convert_human_args(fn, param_name, model_class, *args, **kwargs)
+                async for _ in fn(*args, **kwargs):
+                    yield _
+        else:
+
+            @wraps(fn)
+            def wrapper(*args, **kwargs):
+                args, kwargs = convert_human_args(fn, param_name, model_class, *args, **kwargs)
+                return fn(*args, **kwargs)
 
         return wrapper
 
