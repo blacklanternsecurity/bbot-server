@@ -8,6 +8,7 @@ from textual.containers import Container, Horizontal
 from textual.widgets import Static, Button
 from textual.reactive import reactive
 from textual.message import Message
+from textual.events import Resize
 
 
 class PaginatedTableContainer(Container):
@@ -16,6 +17,9 @@ class PaginatedTableContainer(Container):
 
     Adds Previous/Next buttons and page indicator below the table.
     Manages page state and exposes methods for data fetching.
+
+    If auto_page_size=True, automatically calculates items_per_page based
+    on the available height of the container.
     """
 
     current_page = reactive(1)
@@ -23,20 +27,31 @@ class PaginatedTableContainer(Container):
     items_per_page = reactive(25)
     total_items = reactive(0)
 
-    def __init__(self, table_widget, items_per_page=25, **kwargs):
+    # Height constants for auto-sizing
+    PAGINATION_CONTROLS_HEIGHT = 3  # Height of prev/next buttons row
+    TABLE_HEADER_HEIGHT = 1  # Height of DataTable header
+    SCROLLBAR_HEIGHT = 1  # Height of horizontal scrollbar
+    MIN_PAGE_SIZE = 5  # Minimum rows to show
+
+    def __init__(self, table_widget, items_per_page=25, auto_page_size=False, **kwargs):
         """
         Initialize paginated table container
 
         Args:
             table_widget: The DataTable widget to wrap
-            items_per_page: Number of items to show per page (default: 25)
+            items_per_page: Number of items to show per page (default: 25, ignored if auto_page_size=True)
+            auto_page_size: If True, automatically calculate page size based on available height
         """
         super().__init__(**kwargs)
         self.table = table_widget
-        self.items_per_page = items_per_page
+        self._auto_page_size = auto_page_size
+        self._initial_items_per_page = items_per_page
+        if not auto_page_size:
+            self.items_per_page = items_per_page
         self._status_id = f"{self.id}-pagination-status" if self.id else "pagination-status"
         self._prev_btn_id = f"{self.id}-prev-btn" if self.id else "prev-btn"
         self._next_btn_id = f"{self.id}-next-btn" if self.id else "next-btn"
+        self._last_calculated_page_size = 0
 
     def compose(self) -> ComposeResult:
         """Create child widgets"""
@@ -133,3 +148,50 @@ class PaginatedTableContainer(Container):
         def __init__(self, page: int):
             super().__init__()
             self.page = page
+
+    class PageSizeChanged(Message):
+        """Message sent when auto-calculated page size changes"""
+
+        def __init__(self, new_size: int, old_size: int):
+            super().__init__()
+            self.new_size = new_size
+            self.old_size = old_size
+
+    def on_mount(self) -> None:
+        """Calculate initial page size when mounted"""
+        if self._auto_page_size:
+            self._calculate_page_size(self.size.height)
+
+    def on_resize(self, event: Resize) -> None:
+        """Recalculate page size when container is resized"""
+        if self._auto_page_size:
+            self._calculate_page_size(event.size.height)
+
+    def _calculate_page_size(self, height: int) -> None:
+        """Calculate items_per_page based on available height"""
+        if height <= 0:
+            return
+
+        # Calculate available rows for data
+        # Total height - pagination controls - table header - scrollbar
+        available_rows = height - self.PAGINATION_CONTROLS_HEIGHT - self.TABLE_HEADER_HEIGHT - self.SCROLLBAR_HEIGHT
+
+        # Ensure minimum page size
+        new_page_size = max(self.MIN_PAGE_SIZE, available_rows)
+
+        # Only update if changed significantly (avoid constant updates)
+        if new_page_size != self._last_calculated_page_size:
+            old_size = self.items_per_page
+            self._last_calculated_page_size = new_page_size
+            self.items_per_page = new_page_size
+
+            # Recalculate total pages with new page size
+            if self.total_items > 0:
+                self.total_pages = max(1, (self.total_items + self.items_per_page - 1) // self.items_per_page)
+                # Clamp current page if needed
+                if self.current_page > self.total_pages:
+                    self.current_page = self.total_pages
+
+            # Notify parent that page size changed (so it can refetch data)
+            if old_size != new_page_size:
+                self.post_message(self.PageSizeChanged(new_page_size, old_size))

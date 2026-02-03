@@ -10,6 +10,7 @@ from textual.reactive import reactive
 from bbot_server.cli.tui.widgets.asset_table import AssetTable
 from bbot_server.cli.tui.widgets.asset_detail import AssetDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
+from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 
 
 class AssetsScreen(Container):
@@ -38,7 +39,11 @@ class AssetsScreen(Container):
             # Main content
             with Horizontal(id="assets-content"):
                 with Vertical(id="assets-table-container"):
-                    yield AssetTable(id="asset-table")
+                    yield PaginatedTableContainer(
+                        AssetTable(id="asset-table"),
+                        auto_page_size=True,
+                        id="asset-pagination"
+                    )
 
                 with Vertical(id="asset-detail-container"):
                     yield Static("[bold]Asset Details[/bold]", id="detail-header")
@@ -68,7 +73,7 @@ class AssetsScreen(Container):
             self._refresh_timer.stop()
 
     async def refresh_assets(self, show_loading: bool = False) -> None:
-        """Fetch and display assets from server with optional search
+        """Fetch and display assets from server with pagination
 
         Args:
             show_loading: If True, show "Loading..." status message (for manual refreshes)
@@ -83,20 +88,29 @@ class AssetsScreen(Container):
             if show_loading:
                 status.update("[cyan]Loading assets...[/cyan]")
 
-            # Fetch assets with server-side search
-            search_term = self.filter_text if self.filter_text else None
-            assets = await self.bbot_app.data_service.query_assets(search=search_term)
+            # Get pagination parameters
+            pagination = self.query_one("#asset-pagination", PaginatedTableContainer)
+            skip, limit = pagination.get_skip_limit()
 
-            # Update table with filtered assets
+            # Fetch assets with server-side pagination and search
+            search_term = self.filter_text if self.filter_text else None
+            assets, total = await self.bbot_app.data_service.get_assets_paginated(
+                skip=skip, limit=limit, search=search_term
+            )
+
+            # Update pagination with total count
+            pagination.total_items = total
+
+            # Update table with current page of assets
             table = self.query_one("#asset-table", AssetTable)
             table.update_assets(assets)
 
-            # Update status
-            if assets:
+            # Update status (pagination widget shows page info, status shows filter info)
+            if total > 0:
                 if self.filter_text:
-                    status.update(f"[green]Showing {len(assets)} filtered assets[/green]")
+                    status.update(f"[green]Filtered: {total} assets match[/green]")
                 else:
-                    status.update(f"[green]Showing {len(assets)} assets[/green]")
+                    status.update(f"[green]{total} total assets[/green]")
             else:
                 status.update("[yellow]No assets found[/yellow]")
 
@@ -121,8 +135,24 @@ class AssetsScreen(Container):
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
         self.filter_text = event.filter_text
+        # Reset to first page when filter changes
+        pagination = self.query_one("#asset-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()
         # Trigger refresh with new filter (show loading since user-initiated)
         self.run_worker(self.refresh_assets(show_loading=True))
+
+    def on_paginated_table_container_page_changed(
+        self, event: PaginatedTableContainer.PageChanged
+    ) -> None:
+        """Handle page navigation"""
+        self.run_worker(self.refresh_assets())
+
+    def on_paginated_table_container_page_size_changed(
+        self, event: PaginatedTableContainer.PageSizeChanged
+    ) -> None:
+        """Handle page size changes from auto-sizing"""
+        # Refetch data with new page size
+        self.run_worker(self.refresh_assets())
 
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -145,3 +175,6 @@ class AssetsScreen(Container):
         filter_bar = self.query_one("#asset-filter", FilterBar)
         filter_bar.clear_filter()
         self.filter_text = ""
+        # Reset pagination when filter is cleared
+        pagination = self.query_one("#asset-pagination", PaginatedTableContainer)
+        pagination.reset_to_first_page()

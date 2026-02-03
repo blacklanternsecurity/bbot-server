@@ -40,6 +40,69 @@ class DataService:
             self._async_client = bbot_server
             log.warning("._instance not found, using sync wrapper as fallback")
 
+    async def _fetch_paginated(
+        self,
+        query_method: str,
+        count_method: str,
+        skip: int = 0,
+        limit: int = 25,
+        **filters
+    ) -> tuple[List[Any], int]:
+        """
+        Generic paginated fetch with count
+
+        Calls the query endpoint for items and count endpoint for total.
+        Both endpoints accept the same Query model, ensuring filter consistency.
+
+        Args:
+            query_method: Name of the async generator method (e.g., 'query_assets')
+            count_method: Name of the count method (e.g., 'count_assets')
+            skip: Number of items to skip
+            limit: Maximum items to return
+            **filters: Query filters (search, domain, target_id, etc.)
+
+        Returns:
+            Tuple of (items list, total count)
+        """
+        # Filter out None values
+        kwargs = {k: v for k, v in filters.items() if v is not None}
+
+        try:
+            # Get items via streaming query
+            query_fn = getattr(self._async_client, query_method)
+            items = [item async for item in query_fn(skip=skip, limit=limit, **kwargs)]
+
+            # Get total count (same filters, no skip/limit)
+            count_fn = getattr(self._async_client, count_method)
+            total = await count_fn(**kwargs)
+
+            log.debug(f"Fetched {len(items)} items (skip={skip}, limit={limit}, total={total})")
+            return items, total
+        except BBOTServerUnauthorizedError:
+            raise
+        except BBOTServerError as e:
+            log.error(f"Error in {query_method}: {e}")
+            return [], 0
+
+    async def get_assets_paginated(
+        self,
+        skip: int = 0,
+        limit: int = 25,
+        **filters
+    ) -> tuple[List[Any], int]:
+        """
+        Fetch assets with pagination and total count
+
+        Args:
+            skip: Number of items to skip
+            limit: Maximum items to return
+            **filters: Query filters (search, domain, target_id, host)
+
+        Returns:
+            Tuple of (assets list, total count)
+        """
+        return await self._fetch_paginated('query_assets', 'count_assets', skip, limit, **filters)
+
     async def get_scans(self, skip: int = 0, limit: Optional[int] = None) -> List[Any]:
         """
         Fetch all scans
