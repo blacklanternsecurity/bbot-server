@@ -86,48 +86,6 @@ class DataService:
             log.error(f"Error fetching scan {scan_id}: {e}")
             return None
 
-    async def start_scan(self, target_name: str, preset_name: str, scan_name: Optional[str] = None) -> Optional[Any]:
-        """
-        Start a new scan
-
-        Args:
-            target_name: Name of the target
-            preset_name: Name of the preset
-            scan_name: Optional custom scan name
-
-        Returns:
-            Created Scan model or None on error
-        """
-        try:
-            scan = await self._async_client.start_scan(
-                target_name=target_name,
-                preset_name=preset_name,
-                scan_name=scan_name
-            )
-            log.info(f"Started scan: {scan.name}")
-            return scan
-        except BBOTServerError as e:
-            log.error(f"Error starting scan: {e}")
-            raise
-
-    async def cancel_scan(self, scan_id: str) -> bool:
-        """
-        Cancel a running scan
-
-        Args:
-            scan_id: Scan identifier
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            await self._async_client.cancel_scan(scan_id)
-            log.info(f"Cancelled scan: {scan_id}")
-            return True
-        except BBOTServerError as e:
-            log.error(f"Error cancelling scan {scan_id}: {e}")
-            return False
-
     async def list_assets(self, domain: Optional[str] = None, target_id: Optional[str] = None,
                          limit: int = 1000, skip: int = 0) -> List[Any]:
         """
@@ -335,58 +293,6 @@ class DataService:
             log.error(f"Error fetching activities: {e}")
             return []
 
-    async def get_agents(self) -> List[Any]:
-        """
-        Fetch all agents
-
-        Returns:
-            List of Agent models
-        """
-        try:
-            agents = await self._async_client.get_agents()
-            log.debug(f"Fetched {len(agents)} agents")
-            return agents
-        except BBOTServerError as e:
-            log.error(f"Error fetching agents: {e}")
-            return []
-
-    async def create_agent(self, name: str, description: str = "") -> Optional[Any]:
-        """
-        Create a new agent
-
-        Args:
-            name: Name for the new agent
-            description: Optional description
-
-        Returns:
-            Created Agent model or None on error
-        """
-        try:
-            agent = await self._async_client.create_agent(name=name, description=description)
-            log.info(f"Created agent: {agent.id}")
-            return agent
-        except BBOTServerError as e:
-            log.error(f"Error creating agent: {e}")
-            raise
-
-    async def delete_agent(self, agent_id: str) -> bool:
-        """
-        Delete an agent
-
-        Args:
-            agent_id: Agent identifier
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            await self._async_client.delete_agent(agent_id)
-            log.info(f"Deleted agent: {agent_id}")
-            return True
-        except BBOTServerError as e:
-            log.error(f"Error deleting agent {agent_id}: {e}")
-            return False
-
     async def get_stats(self) -> dict:
         """
         Fetch aggregate statistics
@@ -405,7 +311,6 @@ class DataService:
                 'active_scan_count': 0,
                 'asset_count': 0,
                 'finding_count': 0,
-                'agent_count': 0,
             }
 
     async def get_targets(self, skip: int = 0, limit: Optional[int] = None) -> List[Any]:

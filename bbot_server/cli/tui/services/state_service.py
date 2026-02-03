@@ -13,7 +13,6 @@ class StateService:
         self.scans = {}
         self.assets = {}
         self.findings = {}
-        self.agents = {}
         self.activities = []
 
     def update_scan(self, scan):
@@ -27,10 +26,6 @@ class StateService:
     def update_finding(self, finding):
         """Update or add a finding to state"""
         self.findings[finding.id] = finding
-
-    def update_agent(self, agent):
-        """Update or add an agent to state"""
-        self.agents[agent.id] = agent
 
     def add_activity(self, activity):
         """Add an activity to the history"""

@@ -14,7 +14,6 @@ from bbot_server.cli.tui.screens.events import EventsScreen
 from bbot_server.cli.tui.screens.technologies import TechnologiesScreen
 from bbot_server.cli.tui.screens.targets import TargetsScreen
 from bbot_server.cli.tui.screens.activity import ActivityScreen
-from bbot_server.cli.tui.screens.agents import AgentsScreen
 
 
 class BBOTServerTUI(App):
@@ -38,7 +37,6 @@ class BBOTServerTUI(App):
         Binding("t", "show_technologies", "Technologies"),
         Binding("r", "show_targets", "Targets"),
         Binding("v", "show_activity", "Activity"),
-        Binding("g", "show_agents", "Agents"),
         Binding("question_mark", "show_help", "Help"),
     ]
 
@@ -71,7 +69,6 @@ class BBOTServerTUI(App):
         self.technologies_screen = None
         self.targets_screen = None
         self.activity_screen = None
-        self.agents_screen = None
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app"""
@@ -110,10 +107,6 @@ class BBOTServerTUI(App):
             with TabPane("Activity", id="tab-activity"):
                 self.activity_screen = ActivityScreen(self)
                 yield self.activity_screen
-
-            with TabPane("Agents", id="tab-agents"):
-                self.agents_screen = AgentsScreen(self)
-                yield self.agents_screen
 
         yield Footer()
 
@@ -194,7 +187,6 @@ class BBOTServerTUI(App):
             "tab-technologies": self.technologies_screen,
             "tab-targets": self.targets_screen,
             "tab-activity": self.activity_screen,
-            "tab-agents": self.agents_screen,
         }
 
         # Get the screen for this tab and trigger lazy load
@@ -213,7 +205,6 @@ class BBOTServerTUI(App):
             self.events_screen,
             self.technologies_screen,
             self.targets_screen,
-            self.agents_screen,
         ]
 
         for screen in screens_with_timers:
@@ -274,11 +265,6 @@ class BBOTServerTUI(App):
         tabs = self.query_one(TabbedContent)
         tabs.active = "tab-activity"
 
-    def action_show_agents(self) -> None:
-        """Show the agents tab"""
-        tabs = self.query_one(TabbedContent)
-        tabs.active = "tab-agents"
-
     def action_show_help(self) -> None:
         """Show help modal with keyboard shortcuts"""
-        self.notify("Help: d=Dashboard s=Scans a=Assets f=Findings e=Events t=Technologies r=Targets v=Activity g=Agents q=Quit")
+        self.notify("Help: d=Dashboard s=Scans a=Assets f=Findings e=Events t=Technologies r=Targets v=Activity q=Quit")

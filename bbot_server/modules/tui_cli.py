@@ -1,7 +1,7 @@
 """
 CLI integration for BBOT Server TUI
 """
-from bbot_server.cli.base import BaseBBCTL, subcommand
+from bbot_server.cli.base import BaseBBCTL
 
 
 class TUICTL(BaseBBCTL):

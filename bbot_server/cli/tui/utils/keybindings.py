@@ -25,15 +25,12 @@ GLOBAL_BINDINGS: List[KeyBinding] = [
     KeyBinding("a", "show_assets", "Assets"),
     KeyBinding("f", "show_findings", "Findings"),
     KeyBinding("v", "show_activity", "Activity"),
-    KeyBinding("g", "show_agents", "Agents"),
     KeyBinding("?", "show_help", "Help"),
 ]
 
 
 # Screen-specific bindings
 SCAN_BINDINGS: List[KeyBinding] = [
-    KeyBinding("n", "new_scan", "New Scan"),
-    KeyBinding("c", "cancel_scan", "Cancel"),
     KeyBinding("r", "refresh", "Refresh"),
     KeyBinding("enter", "show_details", "Details"),
     KeyBinding("/", "focus_filter", "Filter"),
@@ -64,13 +61,6 @@ ACTIVITY_BINDINGS: List[KeyBinding] = [
     KeyBinding("r", "refresh", "Refresh"),
 ]
 
-AGENT_BINDINGS: List[KeyBinding] = [
-    KeyBinding("n", "create_agent", "New Agent"),
-    KeyBinding("d", "delete_agent", "Delete"),
-    KeyBinding("r", "refresh", "Refresh"),
-    KeyBinding("enter", "show_details", "Details"),
-]
-
 DASHBOARD_BINDINGS: List[KeyBinding] = [
     KeyBinding("r", "refresh", "Refresh"),
 ]
@@ -91,7 +81,6 @@ def get_bindings_for_screen(screen_name: str) -> List[KeyBinding]:
         "assets": ASSET_BINDINGS,
         "findings": FINDING_BINDINGS,
         "activity": ACTIVITY_BINDINGS,
-        "agents": AGENT_BINDINGS,
         "dashboard": DASHBOARD_BINDINGS,
     }
 

@@ -37,7 +37,6 @@ class ScansScreen(Container):
             with Horizontal(id="filter-container"):
                 yield FilterBar(placeholder="Filter by scan name or target...", id="scan-filter")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
-                yield Button("New Scan", id="new-scan-btn", variant="success")
 
             # Status bar
             yield Static("Loading scans...", id="scans-status")
@@ -148,47 +147,11 @@ class ScansScreen(Container):
         """Handle button presses"""
         if event.button.id == "refresh-btn":
             await self.action_refresh()
-        elif event.button.id == "new-scan-btn":
-            await self.action_new_scan()
 
     async def action_refresh(self) -> None:
         """Refresh scans"""
         await self.refresh_scans(show_loading=True)
         self.notify("Scans refreshed", timeout=2)
-
-    async def action_new_scan(self) -> None:
-        """Create a new scan"""
-        # TODO: Implement scan creation modal in Phase 7+
-        self.notify("Scan creation coming soon!", severity="information", timeout=3)
-
-    async def action_cancel_scan(self) -> None:
-        """Cancel the selected scan"""
-        table = self.query_one("#scan-table", ScanTable)
-        scan = table.get_selected_scan()
-
-        if not scan:
-            self.notify("No scan selected", severity="warning", timeout=2)
-            return
-
-        # Check if scan is running
-        if scan.status not in ["RUNNING", "QUEUED", "STARTING"]:
-            self.notify(f"Cannot cancel scan with status: {scan.status}",
-                       severity="warning", timeout=3)
-            return
-
-        try:
-            # Cancel via data service
-            success = await self.bbot_app.data_service.cancel_scan(scan.id)
-
-            if success:
-                self.notify(f"Cancelled scan: {scan.name}", timeout=3)
-                # Refresh to show updated status
-                await self.refresh_scans()
-            else:
-                self.notify("Failed to cancel scan", severity="error", timeout=3)
-
-        except Exception as e:
-            self.notify(f"Error cancelling scan: {e}", severity="error", timeout=5)
 
     def action_focus_filter(self) -> None:
         """Focus the filter input"""
