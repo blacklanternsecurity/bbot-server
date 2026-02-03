@@ -110,7 +110,6 @@ class http(BaseInterface):
         Similar to _request(), but instead of returning a single object, returns an async generator that yields objects
         """
         method, _url, kwargs = self._prepare_api_request(_url, _route, *args, **kwargs)
-        print(f"url: {_url}, kwargs {kwargs}")
         try:
             body = self._prepare_http_body(method, kwargs)
         except ValueError as e:
