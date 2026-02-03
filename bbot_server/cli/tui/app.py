@@ -113,6 +113,8 @@ class BBOTServerTUI(App):
     def on_mount(self) -> None:
         """Called when app is mounted - initialize services"""
         import logging
+        from logging.handlers import RotatingFileHandler
+        from pathlib import Path
         from bbot_server.cli.tui.services.data_service import DataService
         from bbot_server.cli.tui.services.websocket_service import WebSocketService
         from bbot_server.cli.tui.services.state_service import StateService
@@ -125,9 +127,14 @@ class BBOTServerTUI(App):
                     return False
                 return True
 
-        # Setup file logging for debugging
-        log_file = "/tmp/bbot_tui_debug.log"
-        file_handler = logging.FileHandler(log_file, mode='w')
+        # Setup file logging with rotation
+        log_dir = Path.home() / ".bbot_server"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "tui.log"
+        # 10MB max size, keep 1 backup (2 files total)
+        file_handler = RotatingFileHandler(
+            log_file, maxBytes=10 * 1024 * 1024, backupCount=1
+        )
         file_handler.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(formatter)
@@ -154,7 +161,7 @@ class BBOTServerTUI(App):
         for handler in http_logger.handlers:
             handler.addFilter(slow_filter)
 
-        self.log.info(f"TUI debug logging to: {log_file}")
+        self.log.info(f"TUI logging to: {log_file}")
 
         # Initialize services
         self.data_service = DataService(self.bbot_server)

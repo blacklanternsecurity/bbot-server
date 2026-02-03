@@ -81,7 +81,10 @@ class DataService:
         except BBOTServerUnauthorizedError:
             raise
         except BBOTServerError as e:
-            log.error(f"Error in {query_method}: {e}")
+            log.exception(f"Error in {query_method} (filters={kwargs})")
+            return [], 0
+        except Exception as e:
+            log.exception(f"Unexpected error in {query_method} (filters={kwargs})")
             return [], 0
 
     async def get_assets_paginated(
@@ -123,10 +126,10 @@ class DataService:
                 return scans[skip:skip + limit]
             return scans[skip:]
         except BBOTServerUnauthorizedError as e:
-            log.error(f"Authentication failed: {e}")
+            log.exception("Authentication failed")
             raise
         except BBOTServerError as e:
-            log.error(f"Error fetching scans: {e}")
+            log.exception("Error fetching scans")
             return []
 
     async def get_scan(self, scan_id: str) -> Optional[Any]:
@@ -146,7 +149,7 @@ class DataService:
             log.warning(f"Scan not found: {scan_id}")
             return None
         except BBOTServerError as e:
-            log.error(f"Error fetching scan {scan_id}: {e}")
+            log.exception(f"Error fetching scan {scan_id}")
             return None
 
     async def list_assets(self, domain: Optional[str] = None, target_id: Optional[str] = None,
@@ -175,7 +178,7 @@ class DataService:
             # Apply skip and limit client-side
             return assets[skip:skip + limit]
         except BBOTServerError as e:
-            log.error(f"Error fetching assets: {e}")
+            log.exception("Error fetching assets")
             return []
 
     async def query_assets(self, domain: Optional[str] = None, target_id: Optional[str] = None,
@@ -214,7 +217,7 @@ class DataService:
             log.debug(f"Fetched {len(assets)} assets (skip={skip}, limit={limit})")
             return assets
         except BBOTServerError as e:
-            log.error(f"Error querying assets: {e}")
+            log.exception("Error querying assets")
             return []
 
     async def get_asset(self, host: str) -> Optional[Any]:
@@ -234,7 +237,7 @@ class DataService:
             log.warning(f"Asset not found: {host}")
             return None
         except BBOTServerError as e:
-            log.error(f"Error fetching asset {host}: {e}")
+            log.exception(f"Error fetching asset {host}")
             return None
 
     async def list_findings(self, host: Optional[str] = None, domain: Optional[str] = None,
@@ -277,7 +280,7 @@ class DataService:
             # Apply skip and limit client-side
             return findings[skip:skip + limit]
         except BBOTServerError as e:
-            log.error(f"Error fetching findings: {e}")
+            log.exception("Error fetching findings")
             return []
 
     async def query_findings(self, host: Optional[str] = None, domain: Optional[str] = None,
@@ -325,7 +328,7 @@ class DataService:
             log.debug(f"Fetched {len(findings)} findings (skip={skip}, limit={limit})")
             return findings
         except BBOTServerError as e:
-            log.error(f"Error querying findings: {e}")
+            log.exception("Error querying findings")
             return []
 
     async def list_activities(self, host: Optional[str] = None, activity_type: Optional[str] = None,
@@ -353,7 +356,7 @@ class DataService:
             # Apply skip and limit client-side
             return activities[skip:skip + limit]
         except BBOTServerError as e:
-            log.error(f"Error fetching activities: {e}")
+            log.exception("Error fetching activities")
             return []
 
     async def get_stats(self) -> dict:
@@ -368,7 +371,7 @@ class DataService:
             log.debug(f"Fetched stats: {stats}")
             return stats
         except BBOTServerError as e:
-            log.error(f"Error fetching stats: {e}")
+            log.exception("Error fetching stats")
             return {
                 'scan_count': 0,
                 'active_scan_count': 0,
@@ -395,7 +398,7 @@ class DataService:
                 return targets[skip:skip + limit]
             return targets[skip:]
         except BBOTServerError as e:
-            log.error(f"Error fetching targets: {e}")
+            log.exception("Error fetching targets")
             return []
 
     async def get_presets(self) -> List[Any]:
@@ -410,7 +413,7 @@ class DataService:
             log.debug(f"Fetched {len(presets)} presets")
             return presets
         except BBOTServerError as e:
-            log.error(f"Error fetching presets: {e}")
+            log.exception("Error fetching presets")
             return []
 
     async def list_events(self, event_type: Optional[str] = None, host: Optional[str] = None,
@@ -453,7 +456,7 @@ class DataService:
             # Apply skip and limit client-side
             return events[skip:skip + limit]
         except BBOTServerError as e:
-            log.error(f"Error fetching events: {e}")
+            log.exception("Error fetching events")
             return []
 
     async def query_events(self, host: Optional[str] = None, domain: Optional[str] = None,
@@ -504,7 +507,7 @@ class DataService:
             log.debug(f"Fetched {len(events)} events (skip={skip}, limit={limit})")
             return events
         except BBOTServerError as e:
-            log.error(f"Error querying events: {e}")
+            log.exception("Error querying events")
             return []
 
     async def list_technologies(self, domain: Optional[str] = None, host: Optional[str] = None,
@@ -545,7 +548,7 @@ class DataService:
             # Apply skip and limit client-side
             return technologies[skip:skip + limit]
         except BBOTServerError as e:
-            log.error(f"Error fetching technologies: {e}")
+            log.exception("Error fetching technologies")
             return []
 
     async def get_findings_paginated(
@@ -624,7 +627,7 @@ class DataService:
         except BBOTServerUnauthorizedError:
             raise
         except BBOTServerError as e:
-            log.error(f"Error fetching scans: {e}")
+            log.exception("Error fetching scans (paginated)")
             return [], 0
 
     async def get_technologies_paginated(
@@ -668,7 +671,7 @@ class DataService:
             log.debug(f"Fetched {len(paginated)} technologies (skip={skip}, limit={limit}, total={total})")
             return paginated, total
         except BBOTServerError as e:
-            log.error(f"Error fetching technologies: {e}")
+            log.exception("Error fetching technologies (paginated)")
             return [], 0
 
     async def get_targets_paginated(
@@ -707,7 +710,7 @@ class DataService:
             log.debug(f"Fetched {len(paginated)} targets (skip={skip}, limit={limit}, total={total})")
             return paginated, total
         except BBOTServerError as e:
-            log.error(f"Error fetching targets: {e}")
+            log.exception("Error fetching targets (paginated)")
             return [], 0
 
     async def create_target(self, name: str, description: str = "", target: Optional[List[str]] = None,
@@ -755,7 +758,7 @@ class DataService:
             log.info(f"Created target: {name}, returned: {created_target.name if created_target else 'None'}")
             return created_target
         except BBOTServerError as e:
-            log.error(f"Error creating target: {e}")
+            log.exception("Error creating target")
             raise
 
     async def update_target(self, target_id: str, name: str, description: str = "",
@@ -802,7 +805,7 @@ class DataService:
             log.info(f"Updated target: {name}")
             return updated_target
         except BBOTServerError as e:
-            log.error(f"Error updating target: {e}")
+            log.exception("Error updating target")
             raise
 
     async def delete_target(self, target_id: str) -> None:
@@ -817,5 +820,5 @@ class DataService:
             await self._async_client.delete_target(id=target_id)
             log.info(f"Deleted target: {target_id}")
         except BBOTServerError as e:
-            log.error(f"Error deleting target: {e}")
+            log.exception("Error deleting target")
             raise

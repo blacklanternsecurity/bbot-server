@@ -1,3 +1,5 @@
+import re
+
 from bbot.models.pydantic import Event
 from pydantic import Field
 
@@ -30,6 +32,25 @@ class EventsQuery(ActiveArchivedQuery):
             query["type"] = self.type
 
         return query
+
+    async def build_search_query(self):
+        """
+        Build search query for events using regex (no text index required).
+        Searches across type and host fields.
+        All patterns are left-anchored for index efficiency.
+
+        Note: Events don't have host_parts/reverse_host (those are on HostModel/AssetModel).
+        """
+        search_str = self.search.strip().lower()
+        if not search_str:
+            return None
+        search_str_escaped = re.escape(search_str)
+        return {
+            "$or": [
+                {"type": {"$regex": f"^{search_str_escaped.upper()}"}},
+                {"host": {"$regex": f"^{search_str_escaped}"}},
+            ]
+        }
 
 
 class EventModel(Event):

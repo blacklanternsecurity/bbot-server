@@ -15,19 +15,24 @@ TabbedContent {
 
 Tabs {
     background: $surface;
+    height: 5;
 }
 
 Tab {
     background: $surface;
     color: grey;
-    padding: 0 1;
+    padding: 0 3;
+    min-height: 3;
+    content-align: center middle;
 }
 
 Tab.-active {
     background: #FF8400;
     color: black;
     text-style: bold;
-    padding: 0 1;
+    padding: 0 3;
+    min-height: 3;
+    content-align: center middle;
 }
 
 Tab:hover {
