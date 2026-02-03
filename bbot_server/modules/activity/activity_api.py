@@ -2,11 +2,7 @@ from contextlib import suppress
 
 from bbot_server.assets import Asset
 from bbot_server.applets.base import BaseApplet, api_endpoint
-from bbot_server.modules.activity.activity_models import (
-    Activity,
-    QueryActivitiesRequestBody,
-    CountActivitiesRequestBody,
-)
+from bbot_server.modules.activity.activity_models import Activity, ActivityQuery
 
 
 class ActivityApplet(BaseApplet):
@@ -32,19 +28,19 @@ class ActivityApplet(BaseApplet):
             yield self.model(**activity)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="List activities")
-    async def query_activities(self, body: QueryActivitiesRequestBody | None = None, **kwargs):
+    async def query_activities(self, query: ActivityQuery):
         """
         Advanced querying of activities. Choose your own filters and fields.
         """
-        async for activity in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
+        async for activity in query.mongo_iter(self):
             yield activity
 
     @api_endpoint("/count", methods=["POST"], summary="Count activities")
-    async def count_activities(self, body: CountActivitiesRequestBody | None = None, **kwargs) -> int:
+    async def count_activities(self, query: ActivityQuery) -> int:
         """
         Same as query_activities, except only returns the count
         """
-        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
+        return await query.mongo_count(self)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Activity)
     async def tail_activities(self, n: int = 0):

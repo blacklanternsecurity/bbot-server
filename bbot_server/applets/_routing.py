@@ -18,6 +18,28 @@ log = logging.getLogger("bbot_server.applets.routing")
 ROUTE_TYPES = {}
 
 
+def _unwrap_method(method):
+    """
+    Unwrap a method to get the original function, preserving binding if it's a bound method.
+
+    This handles the case where a method is wrapped by decorators like @human_friendly_kwargs,
+    and we need to access the original function while keeping it bound to the same instance.
+    """
+    # Check for wrapped function (standard Python convention via functools.wraps)
+    wrapped = getattr(method, "__wrapped__", None)
+
+    if wrapped is None:
+        # Not wrapped, return as-is
+        return method
+
+    # If the method is bound, bind the wrapped function to the same instance
+    if hasattr(method, "__self__"):
+        return wrapped.__get__(method.__self__, type(method.__self__))
+
+    # Unbound function, return the wrapped function as-is
+    return wrapped
+
+
 def _patch_websocket_signature(original_function, wrapper_function):
     """
     Creates a signature for a websocket wrapper function that includes the websocket parameter
@@ -51,6 +73,8 @@ def make_bbotserver_route(function, tags=[]):
         function: The BBOTServer applet method to add to the FastAPI app.
         **fastapi_kwargs: Additional keyword arguments to pass to the FastAPI app. These will override any arguments specified in the @api_endpoint decorator.
     """
+    function = _unwrap_method(function)
+
     # see if the value has an "_endpoint" attribute
     path = getattr(function, "_endpoint", None)
     # if it's a callable function and it has _endpoint, it's an @api_endpoint
@@ -112,12 +136,7 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
         Wrap the function for optimal compatibility with FastAPI's routing system.
         Returns a regular function (not a bound method) so __signature__ can be set.
         """
-
-        @functools.wraps(self.orig_function)
-        async def wrapper(*args, **kwargs):
-            return await self.orig_function(*args, **kwargs)
-
-        return wrapper
+        return self.orig_function
 
     @property
     def function_name(self):
@@ -146,15 +165,7 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
             kwargs["operation_id"] = self.function_name
         if not "tags" in kwargs:
             kwargs["tags"] = self.tags
-        fn = self.wrapped_function()
-        # Filter VAR_KEYWORD (**kwargs) so FastAPI doesn't expose it as a query param
-        fn.__signature__ = inspect.Signature(
-            parameters=[
-                p for p in self.function_signature.parameters.values() if p.kind != inspect.Parameter.VAR_KEYWORD
-            ],
-            return_annotation=self.function_signature.return_annotation,
-        )
-        router.add_api_route(path, fn, **kwargs)
+        router.add_api_route(path, self.wrapped_function(), **kwargs)
 
     def _add_api_websocket_route(self, router, path=None, **fastapi_kwargs):
         path, kwargs = self._prepare_fastapi_kwargs(path=path, **fastapi_kwargs)

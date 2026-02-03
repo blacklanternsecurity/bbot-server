@@ -113,6 +113,9 @@ def _test_synchronous_api(interface, bbot_events):
         events = list(bbot_server.list_events())
         assert events == [bbot_event]
 
+        events = list(bbot_server.query_events())
+        assert len(events) == 1
+
         event = bbot_server.get_event(bbot_event.uuid)
         assert event == bbot_event
     finally:

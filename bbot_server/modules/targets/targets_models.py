@@ -5,13 +5,57 @@ from pydantic import Field, computed_field
 
 from bbot.scanner.target import BBOTTarget
 from bbot_server.utils.misc import utc_now
-from bbot_server.models.base import BaseBBOTServerModel
+from bbot_server.models.base import BaseBBOTServerModel, BaseQuery
+
+
+class TargetQuery(BaseQuery):
+    """Base request body for targets query/count endpoints."""
+
+    name: str | None = Field(None, description="Filter by target name")
+    min_created_timestamp: float | None = Field(None, description="Filter by minimum created timestamp")
+    max_created_timestamp: float | None = Field(None, description="Filter by maximum created timestamp")
+    min_modified_timestamp: float | None = Field(None, description="Filter by minimum modified timestamp")
+    max_modified_timestamp: float | None = Field(None, description="Filter by maximum modified timestamp")
+
+    async def build(self, applet=None):
+        query = await super().build(applet)
+
+        if self.name is not None and "name" not in query:
+            query["name"] = self.name
+
+        # Handle created timestamps
+        if "created" not in query and (
+            self.min_created_timestamp is not None or self.max_created_timestamp is not None
+        ):
+            query["created"] = {}
+            if self.min_created_timestamp is not None:
+                query["created"]["$gte"] = self.min_created_timestamp
+            if self.max_created_timestamp is not None:
+                query["created"]["$lte"] = self.max_created_timestamp
+
+        # Handle modified timestamps
+        if "modified" not in query and (
+            self.min_modified_timestamp is not None or self.max_modified_timestamp is not None
+        ):
+            query["modified"] = {}
+            if self.min_modified_timestamp is not None:
+                query["modified"]["$gte"] = self.min_modified_timestamp
+            if self.max_modified_timestamp is not None:
+                query["modified"]["$lte"] = self.max_modified_timestamp
+
+        return query
 
 
 class BaseTarget(BaseBBOTServerModel):
     """Base class for all target models."""
 
-    description: str = Field("", description="Target description")
+    name: Annotated[str, "indexed", "indexed-text", "unique", Field(description="Target name", default="")]
+    default: Annotated[
+        bool,
+        "indexed",
+        Field(description="If True, this is the default target. There can only be one default target."),
+    ] = False
+    description: Annotated[str, "indexed-text"] = Field("", description="Target description")
     target: Optional[list[str]] = Field(
         default_factory=list,
         description="List of BBOT targets, e.g. domains, IPs, CIDRs, URLs, etc. These determine the scope of the scan. They are also used as seeds if no seeds are provided.",
@@ -27,6 +71,31 @@ class BaseTarget(BaseBBOTServerModel):
     strict_dns_scope: bool = Field(
         False,
         description="If True, only the exact hosts themselves should be considered in-scope, not their subdomains",
+    )
+
+
+class CreateTarget(BaseTarget):
+    """Used for creating a new target."""
+
+    allow_duplicate_hash: Annotated[
+        bool,
+        Field(description="If False, return an error if an identical target already exists"),
+    ] = True
+
+
+class Target(BaseTarget):
+    """Used for storing a target in the database."""
+
+    __table_name__ = "targets"
+    __store_type__ = "user"
+    id: Annotated[uuid.UUID, "indexed", "unique"] = Field(
+        default_factory=uuid.uuid4, description="Universally Unique Target ID"
+    )
+    created: Annotated[float, "indexed"] = Field(
+        default_factory=utc_now, description="Timestamp of when the target was created"
+    )
+    modified: Annotated[float, "indexed"] = Field(
+        default_factory=utc_now, description="Timestamp of when the target was last modified"
     )
 
     def __init__(self, *args, **kwargs):
@@ -50,22 +119,22 @@ class BaseTarget(BaseBBOTServerModel):
     @computed_field(description="Hash of the target list.")
     @cached_property
     def target_hash(self) -> Annotated[str, "indexed"]:
-        return self._bbot_target.target.hash.hex()
+        return self.bbot_target.target.hash.hex()
 
     @computed_field(description="Hash of the blacklist.")
     @cached_property
     def blacklist_hash(self) -> Annotated[str, "indexed"]:
-        return self._bbot_target.blacklist.hash.hex()
+        return self.bbot_target.blacklist.hash.hex()
 
     @computed_field(description="Hash of the seeds.")
     @cached_property
     def seed_hash(self) -> Annotated[str, "indexed"]:
-        return self._bbot_target.seeds.hash.hex()
+        return self.bbot_target.seeds.hash.hex()
 
     @computed_field(description="Hash of the scope (target + blacklist + strict scope setting).")
     @cached_property
     def scope_hash(self) -> Annotated[str, "indexed"]:
-        return self._bbot_target.scope_hash.hex()
+        return self.bbot_target.scope_hash.hex()
 
     @computed_field(description="Number of entries in the target list.")
     @cached_property
@@ -81,30 +150,3 @@ class BaseTarget(BaseBBOTServerModel):
     @cached_property
     def seed_size(self) -> int:
         return 0 if not self.bbot_target._orig_seeds else len(self.bbot_target.seeds)
-
-
-class CreateTarget(BaseTarget):
-    """Used for creating a new target."""
-
-    name: Annotated[str, "indexed", "unique", Field(description="Target name", default="")]
-    default: Annotated[
-        bool,
-        "indexed",
-        Field(description="If True, this is the default target. There can only be one default target."),
-    ] = False
-
-
-class Target(CreateTarget):
-    """Used for storing a target in the database."""
-
-    __table_name__ = "targets"
-    __store_type__ = "user"
-    id: Annotated[uuid.UUID, "indexed", "unique"] = Field(
-        default_factory=uuid.uuid4, description="Universally Unique Target ID"
-    )
-    created: Annotated[float, "indexed"] = Field(
-        default_factory=utc_now, description="Timestamp of when the target was created"
-    )
-    modified: Annotated[float, "indexed"] = Field(
-        default_factory=utc_now, description="Timestamp of when the target was last modified"
-    )

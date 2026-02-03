@@ -3,13 +3,7 @@ from typing import Annotated, Optional
 
 from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
-from bbot_server.modules.findings.findings_models import (
-    Finding,
-    SEVERITY_COLORS,
-    SeverityScore,
-    QueryFindingsRequestBody,
-    CountFindingsRequestBody,
-)
+from bbot_server.modules.findings.findings_models import Finding, SEVERITY_COLORS, SeverityScore, FindingsQuery
 
 
 # add 'findings' field to the main asset model
@@ -60,7 +54,7 @@ class FindingsApplet(BaseApplet):
             int, Query(description="Filter by maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)
         ] = 5,
     ):
-        async for finding in self.mongo_iter(
+        query = FindingsQuery(
             host=host,
             domain=domain,
             target_id=target_id,
@@ -68,23 +62,24 @@ class FindingsApplet(BaseApplet):
             min_severity=min_severity,
             max_severity=max_severity,
             sort=[("severity_score", -1)],
-        ):
+        )
+        async for finding in query.mongo_iter(self):
             yield Finding(**finding)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
-    async def query_findings(self, body: QueryFindingsRequestBody | None = None, **kwargs):
+    async def query_findings(self, query: FindingsQuery | None = None):
         """
         Advanced querying of findings. Choose your own filters and fields.
         """
-        async for finding in self.mongo_iter(**(body.model_dump() if body else {}), **kwargs):
+        async for finding in query.mongo_iter(self):
             yield finding
 
     @api_endpoint("/count", methods=["POST"], summary="Count findings")
-    async def count_findings(self, body: CountFindingsRequestBody | None = None, **kwargs) -> int:
+    async def count_findings(self, query: FindingsQuery | None = None) -> int:
         """
         Same as query_findings, except only returns the count
         """
-        return await self.mongo_count(**(body.model_dump() if body else {}), **kwargs)
+        return await query.mongo_count(self)
 
     @api_endpoint(
         "/stats_by_name",
@@ -103,9 +98,10 @@ class FindingsApplet(BaseApplet):
         Return a high-level count of findings by name
         """
         findings = {}
-        async for finding in self.mongo_iter(
+        query = FindingsQuery(
             domain=domain, target_id=target_id, min_severity=min_severity, max_severity=max_severity, fields=["name"]
-        ):
+        )
+        async for finding in query.mongo_iter(self):
             finding_name = finding["name"]
             findings[finding_name] = findings.get(finding_name, 0) + 1
         findings = dict(sorted(findings.items(), key=lambda x: x[1], reverse=True))
@@ -125,13 +121,14 @@ class FindingsApplet(BaseApplet):
         max_severity: Annotated[int, Query(description="maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 5,
     ) -> dict[str, int]:
         findings = {}
-        async for finding in self.mongo_iter(
+        query = FindingsQuery(
             domain=domain,
             target_id=target_id,
             min_severity=min_severity,
             max_severity=max_severity,
             fields=["severity"],
-        ):
+        )
+        async for finding in query.mongo_iter(self):
             severity = finding["severity"]
             findings[severity] = findings.get(severity, 0) + 1
         findings = dict(sorted(findings.items(), key=lambda x: x[1], reverse=True))
@@ -207,22 +204,6 @@ class FindingsApplet(BaseApplet):
         stats["findings"] = finding_stats
 
         return stats
-
-    async def make_bbot_query(
-        self, query: dict = None, ignored: bool = False, min_severity: int = 1, max_severity: int = 5, **kwargs
-    ):
-        if min_severity > max_severity:
-            raise self.BBOTServerValueError("min_severity must be less than or equal to max_severity")
-        query = dict(query or {})
-        # we are only querying findings
-        query["type"] = "Finding"
-        query["severity_score"] = {
-            "$gte": min_severity,
-            "$lte": max_severity,
-        }
-        if ignored is not None and "ignored" not in query:
-            query["ignored"] = ignored
-        return await super().make_bbot_query(query=query, **kwargs)
 
     async def _insert_or_update_finding(self, finding: Finding, asset, event=None):
         """
