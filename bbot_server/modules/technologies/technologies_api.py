@@ -1,6 +1,7 @@
 from typing import Annotated, Any
 from fastapi import Query
 
+from bbot_server.models.base import AssetQuery
 from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.technologies.technologies_models import (
@@ -138,12 +139,14 @@ class TechnologiesApplet(BaseApplet):
         target_id: Annotated[str, Query(description="filter by target (can be either name or ID)")] = None,
     ) -> dict[str, int]:
         technologies = {}
-        async for asset in self.root.assets.mongo_iter(
+        query = AssetQuery(
+            type="Asset",
             domain=domain,
             host=host,
             target_id=target_id,
             fields=["technologies", "host"],
-        ):
+        )
+        async for asset in query.mongo_iter(self):
             for technology in asset.get("technologies", []):
                 technologies[technology] = technologies.get(technology, 0) + 1
         technologies = dict(sorted(technologies.items(), key=lambda x: x[1], reverse=True))

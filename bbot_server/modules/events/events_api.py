@@ -28,8 +28,6 @@ class EventsApplet(BaseApplet):
         """
         Insert a BBOT event into the asset database
         """
-        self.log.critical(f"INSERTING EVENT {event.type}")
-        print(f"INSERTING EVENT {event.type}")
         # publish event to the message queue
         # it will be picked up by the watchdog and ingested
         await self.root.message_queue.publish_event(event)
