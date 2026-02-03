@@ -4,12 +4,10 @@ Dashboard screen for BBOT Server TUI
 from textual.app import ComposeResult
 # Removed Screen import
 from textual.containers import Container, Horizontal, Vertical, Grid
-from textual.widgets import Static, Button, Footer, DataTable
-from textual.binding import Binding
-from textual.css.query import NoMatches
+from textual.widgets import Static, Button, DataTable
 
 from bbot_server.cli.tui.utils.formatters import format_number, format_timestamp_short
-from bbot_server.cli.tui.utils.colors import get_severity_color, colorize_severity
+from bbot_server.cli.tui.utils.colors import colorize_severity
 
 
 class DashboardScreen(Container):
@@ -259,7 +257,7 @@ class DashboardScreen(Container):
             if not scans_sorted:
                 table.add_row("-", "No recent scans", "-", "-")
 
-        except Exception as e:
+        except Exception:
             # Silent fail - don't break the dashboard
             pass
 

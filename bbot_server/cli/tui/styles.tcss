@@ -20,16 +20,28 @@ Tabs {
 Tab {
     background: $surface;
     color: grey;
+    padding: 0 1;
 }
 
 Tab.-active {
     background: #FF8400;
     color: black;
     text-style: bold;
+    padding: 0 1;
 }
 
 Tab:hover {
     background: #FF8400 50%;
+}
+
+Tabs Underline > .underline--bar {
+    color: #FF8400;
+    background: $foreground 10%;
+}
+
+Tabs:focus Underline > .underline--bar {
+    color: #FF8400;
+    background: $foreground 30%;
 }
 
 TabPane {
@@ -350,11 +362,6 @@ Footer > .footer--highlight-key {
 /* Focus styling */
 Input:focus {
     border: solid #FF8400;
-}
-
-/* Remove focus border from DataTable and containers */
-DataTable:focus {
-    border: solid #808080;
 }
 
 #scans-table-container:focus-within,

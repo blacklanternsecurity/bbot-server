@@ -20,7 +20,7 @@ class EventDetail(VerticalScroll):
         Update the detail view with event information
 
         Args:
-            event: Event model
+            event: Event dict
         """
         try:
             detail_text = self.query_one("#event-detail-text", Static)
@@ -35,41 +35,41 @@ class EventDetail(VerticalScroll):
         details = []
 
         # Basic info
-        details.append(f"[bold]Type:[/bold] {getattr(event, 'type', 'UNKNOWN')}")
-        details.append(f"[bold]Data:[/bold] {getattr(event, 'data', 'N/A')}")
-        details.append(f"[bold]Host:[/bold] {getattr(event, 'host', 'N/A')}")
+        details.append(f"[bold]Type:[/bold] {event.get('type', 'UNKNOWN')}")
+        details.append(f"[bold]Data:[/bold] {event.get('data', 'N/A')}")
+        details.append(f"[bold]Host:[/bold] {event.get('host', 'N/A')}")
 
         # Scan info
-        scan_id = getattr(event, 'scan', 'N/A')
+        scan_id = event.get('scan', 'N/A')
         details.append(f"[bold]Scan ID:[/bold] {scan_id}")
 
         # Timestamps
-        timestamp = getattr(event, 'timestamp', 0)
+        timestamp = event.get('timestamp', 0)
         details.append(f"[bold]Timestamp:[/bold] {format_timestamp(timestamp)}")
 
         # Source
-        source = getattr(event, 'source', 'N/A')
+        source = event.get('source', 'N/A')
         details.append(f"[bold]Source:[/bold] {source}")
 
         # Tags
-        tags = getattr(event, 'tags', [])
+        tags = event.get('tags', [])
         if tags:
             tags_str = ", ".join(tags)
             details.append(f"[bold]Tags:[/bold] {tags_str}")
 
         # Module
-        module = getattr(event, 'module', 'N/A')
+        module = event.get('module', 'N/A')
         details.append(f"[bold]Module:[/bold] {module}")
 
         # Parent
-        parent = getattr(event, 'parent', 'N/A')
+        parent = event.get('parent', 'N/A')
         details.append(f"[bold]Parent:[/bold] {parent}")
 
         # Discovery info
-        discovery_context = getattr(event, 'discovery_context', 'N/A')
+        discovery_context = event.get('discovery_context', 'N/A')
         details.append(f"[bold]Discovery Context:[/bold] {discovery_context}")
 
-        discovery_path = getattr(event, 'discovery_path', [])
+        discovery_path = event.get('discovery_path', [])
         if discovery_path:
             path_str = " → ".join(discovery_path)
             details.append(f"[bold]Discovery Path:[/bold] {path_str}")

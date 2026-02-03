@@ -7,7 +7,6 @@ Reuses existing color constants from the CLI theme.
 from typing import Dict
 
 # Import existing theme colors
-from bbot_server.cli.themes import COLOR, DARK_COLOR
 
 # Import severity colors from findings models
 try:

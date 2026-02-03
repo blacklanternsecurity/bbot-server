@@ -4,15 +4,12 @@ Findings screen for BBOT Server TUI
 from textual.app import ComposeResult
 # Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Footer, Static, Button
-from textual.binding import Binding
-from textual.css.query import NoMatches
+from textual.widgets import Static, Button
 from textual.reactive import reactive
 
 from bbot_server.cli.tui.widgets.finding_table import FindingTable
 from bbot_server.cli.tui.widgets.finding_detail import FindingDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
-from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 
 
 class FindingsScreen(Container):
@@ -27,7 +24,6 @@ class FindingsScreen(Container):
         self.bbot_app = app
         self._refresh_timer = None
         self._has_loaded = False
-        self._cached_findings = []  # Cache all findings to avoid refetching on page changes
 
     def compose(self) -> ComposeResult:
         """Create child widgets"""
@@ -44,11 +40,7 @@ class FindingsScreen(Container):
             # Main content
             with Horizontal(id="findings-content"):
                 with Vertical(id="findings-table-container"):
-                    yield PaginatedTableContainer(
-                        FindingTable(id="finding-table"),
-                        items_per_page=self.bbot_app.items_per_page,
-                        id="finding-pagination"
-                    )
+                    yield FindingTable(id="finding-table")
 
                 with Vertical(id="finding-detail-container"):
                     yield Static("[bold]Finding Details[/bold]", id="detail-header")
@@ -78,7 +70,7 @@ class FindingsScreen(Container):
             self._refresh_timer.stop()
 
     async def refresh_findings(self, show_loading: bool = False) -> None:
-        """Fetch and cache all findings from server
+        """Fetch and display all findings from server
 
         Args:
             show_loading: If True, show "Loading..." status message (for manual refreshes)
@@ -93,75 +85,46 @@ class FindingsScreen(Container):
             if show_loading:
                 status.update("[cyan]Loading findings...[/cyan]")
 
-            # Fetch ALL findings and cache them (no skip/limit)
-            self._cached_findings = await self.bbot_app.data_service.list_findings()
+            # Fetch all findings
+            findings = await self.bbot_app.data_service.list_findings()
 
-            # Update table from cache
-            self._update_table_from_cache()
-
-        except Exception as e:
-            # Show error
-            try:
-                status = self.query_one("#findings-status", Static)
-                status.update(f"[red]Error loading findings: {e}[/red]")
-            except:
-                pass
-
-    def _update_table_from_cache(self) -> None:
-        """Update table display from cached data (for page changes without refetching)"""
-        try:
             # Apply client-side filters
             from bbot_server.cli.tui.utils.colors import get_severity_score
 
-            filtered_findings = self._cached_findings
-
             # Apply severity filter
             if self.min_severity > 1:
-                filtered_findings = [
-                    f for f in filtered_findings
+                findings = [
+                    f for f in findings
                     if get_severity_score(getattr(f, 'severity', 'INFO')) >= self.min_severity
                 ]
 
             # Apply text search filter
             if self.filter_text:
                 filter_lower = self.filter_text.lower()
-                filtered_findings = [
-                    f for f in filtered_findings
+                findings = [
+                    f for f in findings
                     if filter_lower in getattr(f, 'name', '').lower()
                     or filter_lower in getattr(f, 'host', '').lower()
                     or filter_lower in getattr(f, 'description', '').lower()
                 ]
 
-            # Get pagination container
-            pagination = self.query_one("#finding-pagination", PaginatedTableContainer)
-            skip, limit = pagination.get_skip_limit()
-
-            # Apply pagination to filtered results
-            paginated_findings = filtered_findings[skip:skip + limit]
-
-            # Update table with paginated subset
+            # Update table with all filtered findings
             table = self.query_one("#finding-table", FindingTable)
-            table.update_findings(paginated_findings)
-
-            # Update pagination total_items (using filtered count)
-            pagination.total_items = len(filtered_findings)
+            table.update_findings(findings)
 
             # Update status
-            status = self.query_one("#findings-status", Static)
-            if paginated_findings:
+            if findings:
                 if self.filter_text or self.min_severity > 1:
-                    status.update(f"[green]Showing {len(paginated_findings)} of {len(filtered_findings)} filtered findings[/green]")
+                    status.update(f"[green]Showing {len(findings)} filtered findings[/green]")
                 else:
-                    status.update(f"[green]Showing {len(paginated_findings)} findings[/green]")
+                    status.update(f"[green]Showing {len(findings)} findings[/green]")
             else:
                 status.update("[yellow]No findings found[/yellow]")
 
-        except Exception:
-            pass
-
-    def on_paginated_table_container_page_changed(self, message: PaginatedTableContainer.PageChanged) -> None:
-        """Handle page changes - update from cache without refetching"""
-        self._update_table_from_cache()
+        except Exception as e:
+            # Show error
+            status = self.query_one("#findings-status", Static)
+            status.update(f"[red]Error loading findings: {e}[/red]")
 
     def on_data_table_row_highlighted(self, event) -> None:
         """Handle row selection"""
@@ -179,12 +142,6 @@ class FindingsScreen(Container):
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
         self.filter_text = event.filter_text
-        # Reset to first page when filter changes
-        try:
-            pagination = self.query_one("#finding-pagination", PaginatedTableContainer)
-            pagination.reset_to_first_page()
-        except Exception:
-            pass
         # Trigger refresh (show loading since user-initiated)
         self.run_worker(self.refresh_findings(show_loading=True))
 

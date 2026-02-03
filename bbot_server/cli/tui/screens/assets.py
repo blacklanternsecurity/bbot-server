@@ -4,15 +4,12 @@ Assets screen for BBOT Server TUI
 from textual.app import ComposeResult
 # Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Footer, Static, Button
-from textual.binding import Binding
-from textual.css.query import NoMatches
+from textual.widgets import Static, Button
 from textual.reactive import reactive
 
 from bbot_server.cli.tui.widgets.asset_table import AssetTable
 from bbot_server.cli.tui.widgets.asset_detail import AssetDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
-from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 
 
 class AssetsScreen(Container):
@@ -26,7 +23,6 @@ class AssetsScreen(Container):
         self.bbot_app = app
         self._refresh_timer = None
         self._has_loaded = False
-        self._cached_assets = []  # Cache all assets to avoid refetching on page changes
 
     def compose(self) -> ComposeResult:
         """Create child widgets"""
@@ -42,11 +38,7 @@ class AssetsScreen(Container):
             # Main content
             with Horizontal(id="assets-content"):
                 with Vertical(id="assets-table-container"):
-                    yield PaginatedTableContainer(
-                        AssetTable(id="asset-table"),
-                        items_per_page=self.bbot_app.items_per_page,
-                        id="asset-pagination"
-                    )
+                    yield AssetTable(id="asset-table")
 
                 with Vertical(id="asset-detail-container"):
                     yield Static("[bold]Asset Details[/bold]", id="detail-header")
@@ -76,7 +68,7 @@ class AssetsScreen(Container):
             self._refresh_timer.stop()
 
     async def refresh_assets(self, show_loading: bool = False) -> None:
-        """Fetch and cache all assets from server
+        """Fetch and display assets from server with optional search
 
         Args:
             show_loading: If True, show "Loading..." status message (for manual refreshes)
@@ -91,65 +83,27 @@ class AssetsScreen(Container):
             if show_loading:
                 status.update("[cyan]Loading assets...[/cyan]")
 
-            # Fetch ALL assets and cache them (no skip/limit)
-            self._cached_assets = await self.bbot_app.data_service.list_assets()
+            # Fetch assets with server-side search
+            search_term = self.filter_text if self.filter_text else None
+            assets = await self.bbot_app.data_service.query_assets(search=search_term)
 
-            # Update table from cache
-            self._update_table_from_cache()
-
-        except Exception as e:
-            # Show error
-            try:
-                status = self.query_one("#assets-status", Static)
-                status.update(f"[red]Error loading assets: {e}[/red]")
-            except:
-                pass
-
-    def _update_table_from_cache(self) -> None:
-        """Update table display from cached data (for page changes without refetching)"""
-        try:
-            # Apply client-side filters
-            filtered_assets = self._cached_assets
-
-            # Apply domain filter if present
-            if self.filter_text:
-                filter_lower = self.filter_text.lower()
-                filtered_assets = [
-                    a for a in self._cached_assets
-                    if filter_lower in getattr(a, 'host', '').lower()
-                    or filter_lower in getattr(a, 'domain', '').lower()
-                ]
-
-            # Get pagination container
-            pagination = self.query_one("#asset-pagination", PaginatedTableContainer)
-            skip, limit = pagination.get_skip_limit()
-
-            # Apply pagination to filtered results
-            paginated_assets = filtered_assets[skip:skip + limit]
-
-            # Update table with paginated subset
+            # Update table with filtered assets
             table = self.query_one("#asset-table", AssetTable)
-            table.update_assets(paginated_assets)
-
-            # Update pagination total_items (using filtered count)
-            pagination.total_items = len(filtered_assets)
+            table.update_assets(assets)
 
             # Update status
-            status = self.query_one("#assets-status", Static)
-            if paginated_assets:
+            if assets:
                 if self.filter_text:
-                    status.update(f"[green]Showing {len(paginated_assets)} of {len(filtered_assets)} filtered assets[/green]")
+                    status.update(f"[green]Showing {len(assets)} filtered assets[/green]")
                 else:
-                    status.update(f"[green]Showing {len(paginated_assets)} assets[/green]")
+                    status.update(f"[green]Showing {len(assets)} assets[/green]")
             else:
                 status.update("[yellow]No assets found[/yellow]")
 
-        except Exception:
-            pass
-
-    def on_paginated_table_container_page_changed(self, message: PaginatedTableContainer.PageChanged) -> None:
-        """Handle page changes - update from cache without refetching"""
-        self._update_table_from_cache()
+        except Exception as e:
+            # Show error
+            status = self.query_one("#assets-status", Static)
+            status.update(f"[red]Error loading assets: {e}[/red]")
 
     def on_data_table_row_highlighted(self, event) -> None:
         """Handle row selection"""
@@ -167,12 +121,6 @@ class AssetsScreen(Container):
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
         self.filter_text = event.filter_text
-        # Reset to first page when filter changes
-        try:
-            pagination = self.query_one("#asset-pagination", PaginatedTableContainer)
-            pagination.reset_to_first_page()
-        except Exception:
-            pass
         # Trigger refresh with new filter (show loading since user-initiated)
         self.run_worker(self.refresh_assets(show_loading=True))
 

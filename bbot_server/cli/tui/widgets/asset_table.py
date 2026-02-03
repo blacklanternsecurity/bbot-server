@@ -39,7 +39,7 @@ class AssetTable(DataTable):
         Update the table with a new list of assets
 
         Args:
-            assets: List of Asset models
+            assets: List of asset dictionaries
         """
         # Remember the currently selected host before clearing
         selected_host = self.get_selected_host()
@@ -49,39 +49,44 @@ class AssetTable(DataTable):
         self.clear()
 
         # Sort by modification time (newest first)
-        sorted_assets = sorted(assets, key=lambda a: getattr(a, 'modified', 0), reverse=True)
+        sorted_assets = sorted(assets, key=lambda a: a.get('modified', 0), reverse=True)
 
         for asset in sorted_assets:
             # Format the data
-            host = getattr(asset, 'host', 'unknown')
+            host = asset.get('host', 'unknown')
 
             # Open ports
-            if hasattr(asset, 'open_ports') and asset.open_ports:
-                ports = format_list(sorted([str(p) for p in asset.open_ports]), max_items=5)
+            open_ports = asset.get('open_ports')
+            if open_ports:
+                ports = format_list(sorted([str(p) for p in open_ports]), max_items=5)
             else:
                 ports = "-"
 
             # Technologies
-            if hasattr(asset, 'technologies') and asset.technologies:
-                techs = format_list(sorted(asset.technologies), max_items=3)
+            technologies = asset.get('technologies')
+            if technologies:
+                techs = format_list(sorted(technologies), max_items=3)
             else:
                 techs = "-"
 
             # Cloud providers
-            if hasattr(asset, 'cloud') and asset.cloud:
-                cloud = format_list(sorted(asset.cloud), max_items=2)
+            cloud_data = asset.get('cloud')
+            if cloud_data:
+                cloud = format_list(sorted(cloud_data), max_items=2)
             else:
                 cloud = "-"
 
             # Findings count
-            if hasattr(asset, 'findings') and asset.findings:
-                findings = str(len(asset.findings))
+            findings_data = asset.get('findings')
+            if findings_data:
+                findings = str(len(findings_data))
             else:
                 findings = "0"
 
             # Last modified
-            if hasattr(asset, 'modified') and asset.modified:
-                modified = format_timestamp_short(asset.modified)
+            modified_data = asset.get('modified')
+            if modified_data:
+                modified = format_timestamp_short(modified_data)
             else:
                 modified = "-"
 
@@ -120,25 +125,25 @@ class AssetTable(DataTable):
 
     def get_asset_by_host(self, host: str):
         """
-        Get an asset model by host
+        Get an asset dict by host
 
         Args:
             host: Host string
 
         Returns:
-            Asset model or None if not found
+            Asset dict or None if not found
         """
         for asset in self._assets:
-            if getattr(asset, 'host', None) == host:
+            if asset.get('host') == host:
                 return asset
         return None
 
     def get_selected_asset(self):
         """
-        Get the currently selected asset model
+        Get the currently selected asset dict
 
         Returns:
-            Asset model or None if no selection
+            Asset dict or None if no selection
         """
         host = self.get_selected_host()
         if host:

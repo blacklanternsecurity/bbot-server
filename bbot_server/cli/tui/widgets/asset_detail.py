@@ -25,7 +25,7 @@ class AssetDetail(Container):
         Update the detail panel with asset information
 
         Args:
-            asset: Asset model or None to clear
+            asset: Asset dict or None to clear
         """
         self._current_asset = asset
 
@@ -37,43 +37,53 @@ class AssetDetail(Container):
 
         # Build detail text
         lines = []
-        lines.append(f"[bold]{asset.host}[/bold]")
+        host = asset.get('host', 'unknown')
+        lines.append(f"[bold]{host}[/bold]")
         lines.append("")
 
         # Open Ports
-        if hasattr(asset, 'open_ports') and asset.open_ports:
+        open_ports = asset.get('open_ports')
+        if open_ports:
             lines.append("[bold]Open Ports:[/bold]")
-            ports_str = format_list(sorted([str(p) for p in asset.open_ports]), max_items=10)
+            ports_str = format_list(sorted([str(p) for p in open_ports]), max_items=10)
             lines.append(f"  {ports_str}")
             lines.append("")
 
         # Technologies
-        if hasattr(asset, 'technologies') and asset.technologies:
+        technologies = asset.get('technologies')
+        if technologies:
             lines.append("[bold]Technologies:[/bold]")
-            techs_str = format_list(sorted(asset.technologies), max_items=10)
+            techs_str = format_list(sorted(technologies), max_items=10)
             lines.append(f"  {techs_str}")
             lines.append("")
 
         # Cloud Providers
-        if hasattr(asset, 'cloud') and asset.cloud:
+        cloud = asset.get('cloud')
+        if cloud:
             lines.append("[bold]Cloud Providers:[/bold]")
-            cloud_str = format_list(sorted(asset.cloud), max_items=5)
+            cloud_str = format_list(sorted(cloud), max_items=5)
             lines.append(f"  {cloud_str}")
             lines.append("")
 
         # Findings
-        if hasattr(asset, 'findings') and asset.findings:
-            lines.append(f"[bold]Findings:[/bold] {len(asset.findings)}")
+        findings = asset.get('findings')
+        if findings:
+            lines.append(f"[bold]Findings:[/bold] {len(findings)}")
             lines.append("")
 
         # Scope
-        if hasattr(asset, 'scope') and asset.scope:
-            lines.append(f"[bold]In Scope:[/bold] {len(asset.scope)} target(s)")
+        scope = asset.get('scope')
+        if scope:
+            lines.append(f"[bold]In Scope:[/bold] {len(scope)} target(s)")
             lines.append("")
 
         # Timestamps
-        lines.append(f"Created: {format_timestamp(asset.created)}")
-        lines.append(f"Modified: {format_timestamp(asset.modified)}")
+        created = asset.get('created')
+        modified = asset.get('modified')
+        if created:
+            lines.append(f"Created: {format_timestamp(created)}")
+        if modified:
+            lines.append(f"Modified: {format_timestamp(modified)}")
 
         # Update the content
         content_widget.update("\n".join(lines))

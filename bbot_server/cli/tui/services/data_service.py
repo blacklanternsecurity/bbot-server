@@ -488,6 +488,57 @@ class DataService:
             log.error(f"Error fetching events: {e}")
             return []
 
+    async def query_events(self, host: Optional[str] = None, domain: Optional[str] = None,
+                          target_id: Optional[str] = None, search: Optional[str] = None,
+                          active: bool = True, archived: bool = False,
+                          min_timestamp: Optional[float] = None, max_timestamp: Optional[float] = None,
+                          limit: int = 1000, skip: int = 0) -> List[Any]:
+        """
+        Query events with advanced filters and pagination
+
+        Args:
+            host: Filter by exact hostname or IP
+            domain: Filter by domain (includes subdomains)
+            target_id: Filter by target ID
+            search: Search term
+            active: Include active (non-archived) events
+            archived: Include archived events
+            min_timestamp: Filter by minimum timestamp
+            max_timestamp: Filter by maximum timestamp
+            limit: Maximum number of events to return
+            skip: Number of events to skip (for pagination)
+
+        Returns:
+            List of event dictionaries
+        """
+        try:
+            kwargs = {}
+            if host:
+                kwargs['host'] = host
+            if domain:
+                kwargs['domain'] = domain
+            if target_id:
+                kwargs['target_id'] = target_id
+            if search:
+                kwargs['search'] = search
+            if min_timestamp is not None:
+                kwargs['min_timestamp'] = min_timestamp
+            if max_timestamp is not None:
+                kwargs['max_timestamp'] = max_timestamp
+            kwargs['active'] = active
+            kwargs['archived'] = archived
+            if limit:
+                kwargs['limit'] = limit
+            if skip:
+                kwargs['skip'] = skip
+
+            events = [event async for event in self._async_client.query_events(**kwargs)]
+            log.debug(f"Fetched {len(events)} events (skip={skip}, limit={limit})")
+            return events
+        except BBOTServerError as e:
+            log.error(f"Error querying events: {e}")
+            return []
+
     async def list_technologies(self, domain: Optional[str] = None, host: Optional[str] = None,
                                technology: Optional[str] = None, search: Optional[str] = None,
                                target_id: Optional[str] = None, limit: int = 1000, skip: int = 0) -> List[Any]:
@@ -548,8 +599,6 @@ class DataService:
         """
         try:
             # Import CreateTarget model and FastAPI encoder
-            from bbot_server.modules.targets.targets_models import CreateTarget
-            from fastapi.encoders import jsonable_encoder
 
             # Debug: Log input parameters
             log.info(f"create_target called with: name={name!r}, description={description!r}")

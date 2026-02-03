@@ -7,7 +7,6 @@ from textual.containers import Container
 from bbot_server.cli.tui.utils.formatters import (
     format_timestamp,
     format_duration,
-    format_number,
 )
 from bbot_server.cli.tui.utils.colors import colorize_status
 

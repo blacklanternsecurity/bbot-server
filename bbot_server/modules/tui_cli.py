@@ -12,14 +12,14 @@ class TUICTL(BaseBBCTL):
     and managing BBOT scans, assets, findings, and agents.
     """
 
-    command = "tui"
+    command = "ui"
     help = "Interactive terminal interface"
     short_help = "Interactive terminal interface"
     attach_to = "bbctl"
     _invoke_without_command = True
+    _no_args_is_help = False
 
-    @subcommand(help="Launch the BBOT Server Terminal UI")
-    def launch(self):
+    def main(self):
         """Launch the TUI application"""
         from bbot_server.cli.tui.app import BBOTServerTUI
 

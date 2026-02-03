@@ -3,10 +3,8 @@ Agents screen for BBOT Server TUI
 """
 from textual.app import ComposeResult
 # Removed Screen import
-from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Footer, Static, Button, DataTable
-from textual.binding import Binding
-from textual.css.query import NoMatches
+from textual.containers import Container, Horizontal
+from textual.widgets import Static, Button, DataTable
 
 from bbot_server.cli.tui.utils.formatters import format_timestamp_short
 

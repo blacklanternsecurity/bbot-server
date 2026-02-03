@@ -4,9 +4,7 @@ Activity screen for BBOT Server TUI
 from textual.app import ComposeResult
 # Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Footer, Static, Button
-from textual.binding import Binding
-from textual.css.query import NoMatches
+from textual.widgets import Static, Button
 from textual.reactive import reactive
 from textual import work
 
