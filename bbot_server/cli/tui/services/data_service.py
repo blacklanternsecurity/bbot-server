@@ -734,10 +734,6 @@ class DataService:
             log.info(f"create_target called with: name={name!r}, description={description!r}")
             log.info(f"create_target: target={target}, seeds={seeds}")
 
-            # If seeds not provided, use target as seeds (BBOT core requires seeds)
-            if seeds is None and target:
-                seeds = target
-
             # Prepare the data as a dict (exclude None values)
             target_data = {
                 "name": name,
@@ -754,10 +750,72 @@ class DataService:
             # Debug: Log the data dict
             log.info(f"Target data dict: {target_data}")
 
-            # Create via HTTP client - pass as keyword argument matching API signature
-            created_target = await self._async_client.create_target(target=target_data)
+            # Create via HTTP client - pass kwargs directly so convert_human_args can build the model
+            created_target = await self._async_client.create_target(**target_data)
             log.info(f"Created target: {name}, returned: {created_target.name if created_target else 'None'}")
             return created_target
         except BBOTServerError as e:
             log.error(f"Error creating target: {e}")
+            raise
+
+    async def update_target(self, target_id: str, name: str, description: str = "",
+                           target: Optional[List[str]] = None, seeds: Optional[List[str]] = None,
+                           blacklist: Optional[List[str]] = None, strict_dns_scope: bool = False) -> Optional[Any]:
+        """
+        Update an existing target
+
+        Args:
+            target_id: UUID of the target to update
+            name: Target name
+            description: Target description
+            target: List of targets (domains, IPs, CIDRs, URLs)
+            seeds: List of seeds (defaults to target if not provided)
+            blacklist: List of blacklisted items
+            strict_dns_scope: Whether to use strict DNS scope
+
+        Returns:
+            Updated Target model or None on error
+        """
+        try:
+            from bbot_server.modules.targets.targets_models import Target as TargetModel
+
+            # Build the target data
+            target_data = {
+                "name": name,
+                "description": description,
+                "target": target if target else [],
+                "blacklist": blacklist if blacklist else [],
+                "strict_dns_scope": strict_dns_scope,
+            }
+
+            # Only add seeds if provided
+            if seeds is not None:
+                target_data["seeds"] = seeds
+
+            log.info(f"Updating target {target_id}: {target_data}")
+
+            # Create Target model for the update
+            target_model = TargetModel(**target_data)
+
+            # Call the API - id is a path param, target is the body
+            updated_target = await self._async_client.update_target(id=target_id, target=target_model)
+            log.info(f"Updated target: {name}")
+            return updated_target
+        except BBOTServerError as e:
+            log.error(f"Error updating target: {e}")
+            raise
+
+    async def delete_target(self, target_id: str) -> None:
+        """
+        Delete a target
+
+        Args:
+            target_id: UUID of the target to delete
+        """
+        try:
+            log.info(f"Deleting target {target_id}")
+            await self._async_client.delete_target(id=target_id)
+            log.info(f"Deleted target: {target_id}")
+        except BBOTServerError as e:
+            log.error(f"Error deleting target: {e}")
             raise

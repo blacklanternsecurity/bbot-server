@@ -11,7 +11,8 @@ from bbot_server.cli.tui.widgets.target_table import TargetTable
 from bbot_server.cli.tui.widgets.target_detail import TargetDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
-from bbot_server.cli.tui.screens.create_target_modal import CreateTargetModal
+from bbot_server.cli.tui.screens.create_target_modal import TargetModal
+from bbot_server.cli.tui.screens.confirm_modal import ConfirmModal
 
 
 class TargetsScreen(Container):
@@ -32,6 +33,8 @@ class TargetsScreen(Container):
             with Horizontal(id="target-controls"):
                 yield FilterBar(placeholder="Filter by target name or description...", id="target-filter")
                 yield Button("New Target", id="new-target-btn", variant="success")
+                yield Button("Edit", id="edit-target-btn", variant="warning")
+                yield Button("Delete", id="delete-target-btn", variant="error")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
             # Status bar
@@ -160,6 +163,10 @@ class TargetsScreen(Container):
             await self.action_refresh()
         elif event.button.id == "new-target-btn":
             self.action_new_target()
+        elif event.button.id == "edit-target-btn":
+            self.action_edit_target()
+        elif event.button.id == "delete-target-btn":
+            self.action_delete_target()
 
     async def action_refresh(self) -> None:
         """Refresh targets"""
@@ -170,12 +177,87 @@ class TargetsScreen(Container):
         """Show the create target modal"""
         self._show_create_target_modal()
 
+    def action_edit_target(self) -> None:
+        """Show the edit target modal for the selected target"""
+        table = self.query_one("#target-table", TargetTable)
+        selected_target = table.get_selected_target()
+
+        if selected_target is None:
+            self.notify("No target selected", severity="warning", timeout=2)
+            return
+
+        self._show_edit_target_modal(selected_target)
+
+    def action_delete_target(self) -> None:
+        """Delete the selected target after confirmation"""
+        table = self.query_one("#target-table", TargetTable)
+        selected_target = table.get_selected_target()
+
+        if selected_target is None:
+            self.notify("No target selected", severity="warning", timeout=2)
+            return
+
+        self._confirm_delete_target(selected_target)
+
+    @work(exclusive=True)
+    async def _confirm_delete_target(self, target) -> None:
+        """Worker to confirm and delete a target"""
+        target_name = getattr(target, 'name', 'Unknown')
+        target_id = str(getattr(target, 'id', ''))
+
+        confirmed = await self.app.push_screen_wait(
+            ConfirmModal(
+                title="Delete Target",
+                message=f"Are you sure you want to delete target '[bold]{target_name}[/bold]'?\n\nThis action cannot be undone.",
+                confirm_label="Delete",
+                danger=True
+            )
+        )
+
+        if confirmed:
+            try:
+                await self.bbot_app.data_service.delete_target(target_id)
+                self.notify(f"Target '{target_name}' deleted", timeout=3)
+                await self.refresh_targets()
+            except Exception as e:
+                self.notify(f"Failed to delete target: {e}", severity="error", timeout=5)
+
+    @work(exclusive=True)
+    async def _show_edit_target_modal(self, target) -> None:
+        """Worker to show the edit target modal and handle result"""
+        import asyncio
+
+        result = await self.app.push_screen_wait(TargetModal(target=target))
+
+        if result is not None:
+            try:
+                await self.bbot_app.data_service.update_target(
+                    target_id=result["id"],
+                    name=result["name"],
+                    description=result["description"],
+                    target=result["target"],
+                    seeds=result["seeds"],
+                    blacklist=result["blacklist"],
+                    strict_dns_scope=result["strict_dns_scope"],
+                )
+
+                self.notify("Target updated successfully!", timeout=3)
+
+                # Wait for API to process
+                await asyncio.sleep(0.5)
+
+                # Refresh the targets list
+                await self.refresh_targets()
+
+            except Exception as e:
+                self.notify(f"Failed to update target: {e}", severity="error", timeout=5)
+
     @work(exclusive=True)
     async def _show_create_target_modal(self) -> None:
         """Worker to show the create target modal and handle result"""
         import asyncio
 
-        result = await self.app.push_screen_wait(CreateTargetModal())
+        result = await self.app.push_screen_wait(TargetModal())
 
         if result is not None:
             # User submitted the form
