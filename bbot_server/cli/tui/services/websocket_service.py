@@ -4,6 +4,7 @@ WebSocket service for BBOT Server TUI
 Manages WebSocket connections for real-time activity streaming with
 auto-reconnection and callback support.
 """
+
 import asyncio
 import logging
 from typing import Callable, List, Optional, AsyncGenerator
@@ -37,12 +38,13 @@ class WebSocketService:
         # Get the underlying async client from the sync wrapper
         # The sync wrapper (_SyncWrapper) wraps an async client instance
         # We can access it via ._instance to get the real async methods
-        if hasattr(bbot_server, '_instance'):
+        if hasattr(bbot_server, "_instance"):
             self._async_client = bbot_server._instance
         else:
             # Fallback: create new async client
             from bbot_server.interfaces.http import http
             from bbot_server.config import BBOT_SERVER_CONFIG
+
             self._async_client = http(url=BBOT_SERVER_CONFIG.url)
 
     def subscribe_activities(self, callback: Callable) -> None:
@@ -98,7 +100,7 @@ class WebSocketService:
         self._is_streaming = False
 
         # Close the async HTTP client
-        if hasattr(self._async_client, '_client') and self._async_client._client:
+        if hasattr(self._async_client, "_client") and self._async_client._client:
             try:
                 await self._async_client._client.aclose()
             except Exception as e:
@@ -175,8 +177,9 @@ class WebSocketService:
             log.error(f"Unexpected error in tail_activities: {e}")
             raise
 
-    async def list_recent_activities(self, n: int = 50, host: Optional[str] = None,
-                                    activity_type: Optional[str] = None) -> List:
+    async def list_recent_activities(
+        self, n: int = 50, host: Optional[str] = None, activity_type: Optional[str] = None
+    ) -> List:
         """
         Fetch recent activities without streaming
 
@@ -191,9 +194,9 @@ class WebSocketService:
         try:
             kwargs = {}
             if host:
-                kwargs['host'] = host
+                kwargs["host"] = host
             if activity_type:
-                kwargs['type'] = activity_type
+                kwargs["type"] = activity_type
 
             activities = list(self.bbot_server.list_activities(**kwargs))
             log.debug(f"Fetched {len(activities)} activities")

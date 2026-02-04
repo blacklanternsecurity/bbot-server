@@ -1,20 +1,19 @@
 """
 Dashboard screen for BBOT Server TUI
 """
+
 from textual.app import ComposeResult
+
 # Removed Screen import
 from textual.containers import Container, Horizontal, Vertical, Grid
 from textual.widgets import Static, Button, DataTable
 
 from bbot_server.cli.tui.utils.formatters import format_number, format_timestamp_short
-from bbot_server.cli.tui.utils.colors import (
-    colorize_severity, colorize_status, success_text, error_text
-)
+from bbot_server.cli.tui.utils.colors import colorize_severity, colorize_status, success_text, error_text
 
 
 class DashboardScreen(Container):
     """Dashboard overview screen with stats and recent activity"""
-
 
     def __init__(self, app):
         super().__init__()
@@ -36,25 +35,25 @@ class DashboardScreen(Container):
                     Static("0", id="stat-scans-value", classes="stat-value"),
                     Static("Total Scans", classes="stat-label"),
                     id="stat-scans",
-                    classes="stat-card"
+                    classes="stat-card",
                 )
                 yield Container(
                     Static("0", id="stat-active-value", classes="stat-value"),
                     Static("Active Scans", classes="stat-label"),
                     id="stat-active",
-                    classes="stat-card"
+                    classes="stat-card",
                 )
                 yield Container(
                     Static("0", id="stat-assets-value", classes="stat-value"),
                     Static("Assets", classes="stat-label"),
                     id="stat-assets",
-                    classes="stat-card"
+                    classes="stat-card",
                 )
                 yield Container(
                     Static("0", id="stat-findings-value", classes="stat-value"),
                     Static("Findings", classes="stat-label"),
                     id="stat-findings",
-                    classes="stat-card"
+                    classes="stat-card",
                 )
 
             # Status message
@@ -75,7 +74,6 @@ class DashboardScreen(Container):
                     scans_table = DataTable(id="recent-scans-table", show_cursor=False)
                     scans_table.add_columns("Name", "Status", "Target", "Started")
                     yield scans_table
-
 
     async def on_mount(self) -> None:
         """Called when screen is mounted"""
@@ -109,25 +107,17 @@ class DashboardScreen(Container):
             # Fetch scans to count them
             scans = await self.bbot_app.data_service.get_scans()
             scan_count = len(scans)
-            active_scan_count = sum(1 for scan in scans if hasattr(scan, 'status') and scan.status == 'RUNNING')
+            active_scan_count = sum(1 for scan in scans if hasattr(scan, "status") and scan.status == "RUNNING")
 
             # Get counts via paginated endpoints
             _, asset_count = await self.bbot_app.data_service.get_assets_paginated(limit=1)
             _, finding_count = await self.bbot_app.data_service.get_findings_paginated(limit=1)
 
             # Update stat cards
-            self.query_one("#stat-scans-value", Static).update(
-                format_number(scan_count)
-            )
-            self.query_one("#stat-active-value", Static).update(
-                format_number(active_scan_count)
-            )
-            self.query_one("#stat-assets-value", Static).update(
-                format_number(asset_count)
-            )
-            self.query_one("#stat-findings-value", Static).update(
-                format_number(finding_count)
-            )
+            self.query_one("#stat-scans-value", Static).update(format_number(scan_count))
+            self.query_one("#stat-active-value", Static).update(format_number(active_scan_count))
+            self.query_one("#stat-assets-value", Static).update(format_number(asset_count))
+            self.query_one("#stat-findings-value", Static).update(format_number(finding_count))
 
             # Update recent findings
             await self.update_recent_findings()
@@ -152,10 +142,9 @@ class DashboardScreen(Container):
 
             # Sort by severity (highest first), then by modified time (most recent first)
             from bbot_server.cli.tui.utils.colors import get_severity_score
+
             findings_sorted = sorted(
-                findings,
-                key=lambda f: (-get_severity_score(f.get('severity', 'INFO')),
-                              -(f.get('modified', 0) or 0))
+                findings, key=lambda f: (-get_severity_score(f.get("severity", "INFO")), -(f.get("modified", 0) or 0))
             )
 
             # Take top 10 after sorting
@@ -166,17 +155,17 @@ class DashboardScreen(Container):
             table.clear()
 
             for finding in findings_sorted:
-                severity_name = finding.get('severity', 'UNKNOWN')
+                severity_name = finding.get("severity", "UNKNOWN")
                 severity_text = colorize_severity(severity_name, severity_name[:4].upper())
 
-                name = finding.get('name', 'Unknown') or 'Unknown'
+                name = finding.get("name", "Unknown") or "Unknown"
                 name = name[:30]
 
-                host = finding.get('host', '-') or '-'
+                host = finding.get("host", "-") or "-"
                 host = host[:25]
 
-                last_seen = finding.get('modified')
-                when = format_timestamp_short(last_seen) if last_seen else '-'
+                last_seen = finding.get("modified")
+                when = format_timestamp_short(last_seen) if last_seen else "-"
 
                 table.add_row(severity_text, name, host, when)
 
@@ -185,6 +174,7 @@ class DashboardScreen(Container):
 
         except Exception as e:
             import logging
+
             logging.error(f"Error updating recent findings: {e}")
             pass
 
@@ -196,9 +186,7 @@ class DashboardScreen(Container):
 
             # Sort by created timestamp (most recent first)
             scans_sorted = sorted(
-                scans,
-                key=lambda s: s.created if hasattr(s, 'created') and s.created else '',
-                reverse=True
+                scans, key=lambda s: s.created if hasattr(s, "created") and s.created else "", reverse=True
             )[:10]
 
             # Update table
@@ -207,20 +195,20 @@ class DashboardScreen(Container):
 
             for scan in scans_sorted:
                 # Get scan name or ID
-                name = scan.name if hasattr(scan, 'name') and scan.name else str(scan.id)[:8]
+                name = scan.name if hasattr(scan, "name") and scan.name else str(scan.id)[:8]
                 name = name[:20]  # Truncate long names
 
                 # Get status with color
-                status = scan.status if hasattr(scan, 'status') else 'UNKNOWN'
+                status = scan.status if hasattr(scan, "status") else "UNKNOWN"
                 status_text = colorize_status(status, status)
 
                 # Get target
-                target = scan.target.name if hasattr(scan, 'target') and hasattr(scan.target, 'name') else '-'
+                target = scan.target.name if hasattr(scan, "target") and hasattr(scan.target, "name") else "-"
                 target = target[:25]  # Truncate long targets
 
                 # Format timestamp
-                started = scan.created if hasattr(scan, 'created') else None
-                when = format_timestamp_short(started) if started else '-'
+                started = scan.created if hasattr(scan, "created") else None
+                when = format_timestamp_short(started) if started else "-"
 
                 table.add_row(name, status_text, target, when)
 

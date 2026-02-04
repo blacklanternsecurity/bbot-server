@@ -1,6 +1,7 @@
 """
 Event table widget for BBOT Server TUI
 """
+
 from textual.widgets import DataTable
 from bbot_server.cli.tui.utils.formatters import format_timestamp
 
@@ -35,17 +36,17 @@ class EventTable(DataTable):
 
         # Add new rows
         for event in events:
-            event_type = event.get('type', 'UNKNOWN')
-            data = str(event.get('data', ''))
+            event_type = event.get("type", "UNKNOWN")
+            data = str(event.get("data", ""))
             # Truncate long data
             if len(data) > 50:
                 data = data[:47] + "..."
-            host = event.get('host', '')
-            scan_id = event.get('scan', '')
+            host = event.get("host", "")
+            scan_id = event.get("scan", "")
             # Truncate scan ID
             if len(scan_id) > 8:
                 scan_id = scan_id[:8]
-            timestamp = format_timestamp(event.get('timestamp', 0))
+            timestamp = format_timestamp(event.get("timestamp", 0))
 
             self.add_row(event_type, data, host, scan_id, timestamp)
 

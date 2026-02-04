@@ -1,6 +1,7 @@
 """
 Asset detail panel widget for BBOT Server TUI
 """
+
 from textual.widgets import Static
 from textual.containers import Container
 
@@ -37,12 +38,12 @@ class AssetDetail(Container):
 
         # Build detail text
         lines = []
-        host = asset.get('host', 'unknown')
+        host = asset.get("host", "unknown")
         lines.append(f"[bold]{host}[/bold]")
         lines.append("")
 
         # Open Ports
-        open_ports = asset.get('open_ports')
+        open_ports = asset.get("open_ports")
         if open_ports:
             lines.append("[bold]Open Ports:[/bold]")
             ports_str = format_list(sorted([str(p) for p in open_ports]), max_items=10)
@@ -50,7 +51,7 @@ class AssetDetail(Container):
             lines.append("")
 
         # Technologies
-        technologies = asset.get('technologies')
+        technologies = asset.get("technologies")
         if technologies:
             lines.append("[bold]Technologies:[/bold]")
             techs_str = format_list(sorted(technologies), max_items=10)
@@ -58,7 +59,7 @@ class AssetDetail(Container):
             lines.append("")
 
         # Cloud Providers
-        cloud = asset.get('cloud')
+        cloud = asset.get("cloud")
         if cloud:
             lines.append("[bold]Cloud Providers:[/bold]")
             cloud_str = format_list(sorted(cloud), max_items=5)
@@ -66,20 +67,20 @@ class AssetDetail(Container):
             lines.append("")
 
         # Findings
-        findings = asset.get('findings')
+        findings = asset.get("findings")
         if findings:
             lines.append(f"[bold]Findings:[/bold] {len(findings)}")
             lines.append("")
 
         # Scope
-        scope = asset.get('scope')
+        scope = asset.get("scope")
         if scope:
             lines.append(f"[bold]In Scope:[/bold] {len(scope)} target(s)")
             lines.append("")
 
         # Timestamps
-        created = asset.get('created')
-        modified = asset.get('modified')
+        created = asset.get("created")
+        modified = asset.get("modified")
         if created:
             lines.append(f"Created: {format_timestamp(created)}")
         if modified:

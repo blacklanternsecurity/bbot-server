@@ -1,7 +1,9 @@
 """
 Assets screen for BBOT Server TUI
 """
+
 from textual.app import ComposeResult
+
 # Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Static, Button
@@ -11,14 +13,11 @@ from bbot_server.cli.tui.widgets.asset_table import AssetTable
 from bbot_server.cli.tui.widgets.asset_detail import AssetDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
-from bbot_server.cli.tui.utils.colors import (
-    loading_text, success_text, warning_text, error_text
-)
+from bbot_server.cli.tui.utils.colors import loading_text, success_text, warning_text, error_text
 
 
 class AssetsScreen(Container):
     """Asset browser screen with filtering and details"""
-
 
     filter_text = reactive("")
 
@@ -43,15 +42,12 @@ class AssetsScreen(Container):
             with Horizontal(id="assets-content", classes="content-area"):
                 with Vertical(id="assets-table-container", classes="table-container"):
                     yield PaginatedTableContainer(
-                        AssetTable(id="asset-table"),
-                        auto_page_size=True,
-                        id="asset-pagination"
+                        AssetTable(id="asset-table"), auto_page_size=True, id="asset-pagination"
                     )
 
                 with Vertical(id="asset-detail-container", classes="detail-container"):
                     yield Static("[bold]Asset Details[/bold]", id="detail-header")
                     yield AssetDetail(id="asset-detail", classes="detail-panel")
-
 
     async def on_mount(self) -> None:
         """Called when screen is mounted"""
@@ -144,15 +140,11 @@ class AssetsScreen(Container):
         # Trigger refresh with new filter (show loading since user-initiated)
         self.run_worker(self.refresh_assets(show_loading=True))
 
-    def on_paginated_table_container_page_changed(
-        self, event: PaginatedTableContainer.PageChanged
-    ) -> None:
+    def on_paginated_table_container_page_changed(self, event: PaginatedTableContainer.PageChanged) -> None:
         """Handle page navigation"""
         self.run_worker(self.refresh_assets())
 
-    def on_paginated_table_container_page_size_changed(
-        self, event: PaginatedTableContainer.PageSizeChanged
-    ) -> None:
+    def on_paginated_table_container_page_size_changed(self, event: PaginatedTableContainer.PageSizeChanged) -> None:
         """Handle page size changes from auto-sizing"""
         # Refetch data with new page size
         self.run_worker(self.refresh_assets())

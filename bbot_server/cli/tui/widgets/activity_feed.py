@@ -1,6 +1,7 @@
 """
 Activity feed widget for BBOT Server TUI
 """
+
 from collections import deque
 from textual.widgets import RichLog
 from textual.reactive import reactive
@@ -21,12 +22,7 @@ class ActivityFeed(RichLog):
     activity_count = reactive(0)
 
     def __init__(self, max_activities: int = 1000, **kwargs):
-        super().__init__(
-            highlight=True,
-            markup=True,
-            auto_scroll=True,
-            **kwargs
-        )
+        super().__init__(highlight=True, markup=True, auto_scroll=True, **kwargs)
         self.max_activities = max_activities
         self._activities = deque(maxlen=max_activities)
         self._auto_scroll_enabled = True
@@ -46,7 +42,9 @@ class ActivityFeed(RichLog):
 
         # Format the activity
         timestamp = format_timestamp_short(activity.timestamp)
-        description = activity.description_colored if hasattr(activity, 'description_colored') else str(activity.description)
+        description = (
+            activity.description_colored if hasattr(activity, "description_colored") else str(activity.description)
+        )
 
         # Add to display
         self.write(f"[{MUTED}][{timestamp}][/{MUTED}] {description}")
@@ -120,15 +118,17 @@ class ActivityFeed(RichLog):
         filtered = self._activities
 
         if activity_type:
-            filtered = [a for a in filtered if hasattr(a, 'type') and a.type == activity_type]
+            filtered = [a for a in filtered if hasattr(a, "type") and a.type == activity_type]
 
         if host:
-            filtered = [a for a in filtered if hasattr(a, 'host') and a.host == host]
+            filtered = [a for a in filtered if hasattr(a, "host") and a.host == host]
 
         # Redisplay filtered activities
         for activity in filtered:
             timestamp = format_timestamp_short(activity.timestamp)
-            description = activity.description_colored if hasattr(activity, 'description_colored') else str(activity.description)
+            description = (
+                activity.description_colored if hasattr(activity, "description_colored") else str(activity.description)
+            )
             self.write(f"[{MUTED}][{timestamp}][/{MUTED}] {description}")
 
     @property

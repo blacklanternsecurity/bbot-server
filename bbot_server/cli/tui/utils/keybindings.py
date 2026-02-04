@@ -4,6 +4,7 @@ Keyboard binding definitions for BBOT Server TUI
 Centralizes all keyboard shortcuts and their descriptions for
 consistency across the application.
 """
+
 from dataclasses import dataclass
 from typing import List
 
@@ -11,6 +12,7 @@ from typing import List
 @dataclass
 class KeyBinding:
     """Represents a keyboard binding"""
+
     key: str
     action: str
     description: str

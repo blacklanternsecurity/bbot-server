@@ -1,6 +1,7 @@
 """
 Main Textual application for BBOT Server TUI
 """
+
 from typing import Iterable
 
 from textual.app import App, ComposeResult, SystemCommand
@@ -14,32 +15,32 @@ from textual.widgets import Header as TextualHeader, Footer, TabbedContent, TabP
 # Custom colors (severity, status) are defined in styles.tcss as CSS variables
 BBOT_DARK_THEME = Theme(
     name="bbot-dark",
-    primary="#FF8400",      # BBOT signature orange
-    secondary="#808080",    # Grey
-    accent="#ffa62b",       # Lighter orange for accents
-    foreground="#e0e0e0",   # Light text
-    background="#000000",   # True black background
-    surface="#121212",      # Widget backgrounds (very dark)
-    panel="#1a1a1a",        # Panel backgrounds (slightly lighter)
-    warning="#ffa62b",      # Orange-yellow warnings
-    error="#f44336",        # Red errors
-    success="#4caf50",      # Bright green (readable on dark)
+    primary="#FF8400",  # BBOT signature orange
+    secondary="#808080",  # Grey
+    accent="#ffa62b",  # Lighter orange for accents
+    foreground="#e0e0e0",  # Light text
+    background="#000000",  # True black background
+    surface="#121212",  # Widget backgrounds (very dark)
+    panel="#1a1a1a",  # Panel backgrounds (slightly lighter)
+    warning="#ffa62b",  # Orange-yellow warnings
+    error="#f44336",  # Red errors
+    success="#4caf50",  # Bright green (readable on dark)
     dark=True,
 )
 
 # BBOT Light Theme - light mode variant
 BBOT_LIGHT_THEME = Theme(
     name="bbot-light",
-    primary="#FF8400",      # BBOT signature orange
-    secondary="#606060",    # Darker grey for light mode
-    accent="#e67600",       # Darker orange for accents on light
-    foreground="#1a1a1a",   # Dark text
-    background="#ffffff",   # White background
-    surface="#f5f5f5",      # Widget backgrounds (light grey)
-    panel="#eeeeee",        # Panel backgrounds
-    warning="#e67600",      # Darker orange warnings
-    error="#d32f2f",        # Darker red errors
-    success="#388e3c",      # Darker green (readable on light)
+    primary="#FF8400",  # BBOT signature orange
+    secondary="#606060",  # Darker grey for light mode
+    accent="#e67600",  # Darker orange for accents on light
+    foreground="#1a1a1a",  # Dark text
+    background="#ffffff",  # White background
+    surface="#f5f5f5",  # Widget backgrounds (light grey)
+    panel="#eeeeee",  # Panel backgrounds
+    warning="#e67600",  # Darker orange warnings
+    error="#d32f2f",  # Darker red errors
+    success="#388e3c",  # Darker green (readable on light)
     dark=False,
 )
 
@@ -175,11 +176,9 @@ class BBOTServerTUI(App):
         log_dir.mkdir(parents=True, exist_ok=True)
         log_file = log_dir / "tui.log"
         # 10MB max size, keep 1 backup (2 files total)
-        file_handler = RotatingFileHandler(
-            log_file, maxBytes=10 * 1024 * 1024, backupCount=1
-        )
+        file_handler = RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, backupCount=1)
         file_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         file_handler.setFormatter(formatter)
 
         # Add handler to root logger and TUI-specific loggers
@@ -199,7 +198,7 @@ class BBOTServerTUI(App):
             handler.addFilter(slow_filter)
 
         # Apply to specific HTTP client logger
-        http_logger = logging.getLogger('bbot_server.interfaces.http')
+        http_logger = logging.getLogger("bbot_server.interfaces.http")
         http_logger.addFilter(slow_filter)
         for handler in http_logger.handlers:
             handler.addFilter(slow_filter)
@@ -241,7 +240,7 @@ class BBOTServerTUI(App):
 
         # Get the screen for this tab and trigger lazy load
         screen = tab_to_screen.get(active_pane_id)
-        if screen and hasattr(screen, 'load_initial_data'):
+        if screen and hasattr(screen, "load_initial_data"):
             self.run_worker(screen.load_initial_data(), exclusive=True)
 
     async def action_quit(self) -> None:
@@ -258,12 +257,12 @@ class BBOTServerTUI(App):
         ]
 
         for screen in screens_with_timers:
-            if screen and hasattr(screen, '_refresh_timer') and screen._refresh_timer:
+            if screen and hasattr(screen, "_refresh_timer") and screen._refresh_timer:
                 screen._refresh_timer.stop()
 
         # Stop activity streaming and its timer
         if self.activity_screen:
-            if hasattr(self.activity_screen, '_start_timer') and self.activity_screen._start_timer:
+            if hasattr(self.activity_screen, "_start_timer") and self.activity_screen._start_timer:
                 self.activity_screen._start_timer.stop()
             await self.activity_screen.stop_streaming()
 
@@ -273,7 +272,6 @@ class BBOTServerTUI(App):
 
         # Now quit normally - clean exit!
         self.exit()
-
 
     def action_show_dashboard(self) -> None:
         """Show the dashboard tab"""
@@ -317,7 +315,9 @@ class BBOTServerTUI(App):
 
     def action_show_help(self) -> None:
         """Show help modal with keyboard shortcuts"""
-        self.notify("Help: d=Dashboard s=Scans a=Assets f=Findings e=Events t=Technologies r=Targets v=Activity q=Quit")
+        self.notify(
+            "Help: d=Dashboard s=Scans a=Assets f=Findings e=Events t=Technologies r=Targets v=Activity q=Quit"
+        )
 
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
         """Add BBOT theme shortcuts to the system menu"""

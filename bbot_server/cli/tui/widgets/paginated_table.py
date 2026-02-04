@@ -3,6 +3,7 @@ Paginated table container widget for BBOT Server TUI
 
 Provides pagination controls for any DataTable widget.
 """
+
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.widgets import Static, Button

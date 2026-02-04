@@ -1,6 +1,7 @@
 """
 Technology table widget for BBOT Server TUI
 """
+
 from textual.widgets import DataTable
 from bbot_server.cli.tui.utils.formatters import format_timestamp
 
@@ -35,14 +36,14 @@ class TechnologyTable(DataTable):
 
         # Add new rows
         for tech in technologies:
-            technology = tech.get('technology', 'UNKNOWN')
+            technology = tech.get("technology", "UNKNOWN")
             # Truncate long technology names
             if len(technology) > 50:
                 technology = technology[:47] + "..."
 
-            host = tech.get('host', '')
-            port = str(tech.get('port', ''))
-            last_seen = format_timestamp(tech.get('last_seen', 0))
+            host = tech.get("host", "")
+            port = str(tech.get("port", ""))
+            last_seen = format_timestamp(tech.get("last_seen", 0))
 
             self.add_row(technology, host, port, last_seen)
 

@@ -1,6 +1,7 @@
 """
 Finding table widget for BBOT Server TUI
 """
+
 from typing import List, Optional
 from textual.widgets import DataTable
 from textual.coordinate import Coordinate
@@ -21,13 +22,7 @@ class FindingTable(DataTable):
 
     def on_mount(self) -> None:
         """Setup table columns"""
-        self.add_columns(
-            "Severity",
-            "Name",
-            "Host",
-            "Description",
-            "Last Seen"
-        )
+        self.add_columns("Severity", "Name", "Host", "Description", "Last Seen")
 
     def update_findings(self, findings: List) -> None:
         """Update table with findings"""
@@ -40,31 +35,26 @@ class FindingTable(DataTable):
 
         # Sort by severity (highest first), then by timestamp
         def sort_key(f):
-            sev = f.get('severity', 'INFO')
-            mod = f.get('modified', 0) or 0
+            sev = f.get("severity", "INFO")
+            mod = f.get("modified", 0) or 0
             return (-get_severity_score(sev), -mod)
+
         sorted_findings = sorted(findings, key=sort_key)
 
         for finding in sorted_findings:
-            severity_value = finding.get('severity', 'INFO')
+            severity_value = finding.get("severity", "INFO")
             severity = colorize_severity(severity_value, severity_value)
-            name = finding.get('name', '-') or '-'
-            host = finding.get('host', '-') or '-'
-            description_text = finding.get('description', '-') or '-'
-            description = truncate_string(description_text, 60) if description_text != '-' else '-'
+            name = finding.get("name", "-") or "-"
+            host = finding.get("host", "-") or "-"
+            description_text = finding.get("description", "-") or "-"
+            description = truncate_string(description_text, 60) if description_text != "-" else "-"
 
-            modified = finding.get('modified')
+            modified = finding.get("modified")
             last_seen = format_timestamp_short(modified) if modified else "-"
 
-            row_key = self.add_row(
-                severity,
-                name,
-                host,
-                description,
-                last_seen
-            )
+            row_key = self.add_row(severity, name, host, description, last_seen)
 
-            finding_id = finding.get('id')
+            finding_id = finding.get("id")
             if finding_id:
                 self._finding_id_map[row_key] = finding_id
 
@@ -86,7 +76,7 @@ class FindingTable(DataTable):
     def get_finding_by_id(self, finding_id: str):
         """Get finding by ID"""
         for finding in self._findings:
-            if finding.get('id') == finding_id:
+            if finding.get("id") == finding_id:
                 return finding
         return None
 

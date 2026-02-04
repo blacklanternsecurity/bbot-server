@@ -1,6 +1,7 @@
 """
 Asset table widget for BBOT Server TUI
 """
+
 from typing import List, Optional
 from textual.widgets import DataTable
 from textual.coordinate import Coordinate
@@ -25,14 +26,7 @@ class AssetTable(DataTable):
 
     def on_mount(self) -> None:
         """Setup table columns when mounted"""
-        self.add_columns(
-            "Host",
-            "Open Ports",
-            "Technologies",
-            "Cloud",
-            "Findings",
-            "Modified"
-        )
+        self.add_columns("Host", "Open Ports", "Technologies", "Cloud", "Findings", "Modified")
 
     def update_assets(self, assets: List) -> None:
         """
@@ -49,56 +43,49 @@ class AssetTable(DataTable):
         self.clear()
 
         # Sort by modification time (newest first)
-        sorted_assets = sorted(assets, key=lambda a: a.get('modified', 0), reverse=True)
+        sorted_assets = sorted(assets, key=lambda a: a.get("modified", 0), reverse=True)
 
         for asset in sorted_assets:
             # Format the data
-            host = asset.get('host', 'unknown')
+            host = asset.get("host", "unknown")
 
             # Open ports
-            open_ports = asset.get('open_ports')
+            open_ports = asset.get("open_ports")
             if open_ports:
                 ports = format_list(sorted([str(p) for p in open_ports]), max_items=5)
             else:
                 ports = "-"
 
             # Technologies
-            technologies = asset.get('technologies')
+            technologies = asset.get("technologies")
             if technologies:
                 techs = format_list(sorted(technologies), max_items=3)
             else:
                 techs = "-"
 
             # Cloud providers
-            cloud_data = asset.get('cloud')
+            cloud_data = asset.get("cloud")
             if cloud_data:
                 cloud = format_list(sorted(cloud_data), max_items=2)
             else:
                 cloud = "-"
 
             # Findings count
-            findings_data = asset.get('findings')
+            findings_data = asset.get("findings")
             if findings_data:
                 findings = str(len(findings_data))
             else:
                 findings = "0"
 
             # Last modified
-            modified_data = asset.get('modified')
+            modified_data = asset.get("modified")
             if modified_data:
                 modified = format_timestamp_short(modified_data)
             else:
                 modified = "-"
 
             # Add row
-            row_key = self.add_row(
-                host,
-                ports,
-                techs,
-                cloud,
-                findings,
-                modified
-            )
+            row_key = self.add_row(host, ports, techs, cloud, findings, modified)
 
             # Map row key to host for later lookup
             self._asset_id_map[row_key] = host
@@ -134,7 +121,7 @@ class AssetTable(DataTable):
             Asset dict or None if not found
         """
         for asset in self._assets:
-            if asset.get('host') == host:
+            if asset.get("host") == host:
                 return asset
         return None
 

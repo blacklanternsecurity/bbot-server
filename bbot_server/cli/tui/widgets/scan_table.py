@@ -1,6 +1,7 @@
 """
 Scan table widget for BBOT Server TUI
 """
+
 from typing import List, Optional
 from textual.widgets import DataTable
 from textual.coordinate import Coordinate
@@ -29,16 +30,7 @@ class ScanTable(DataTable):
 
     def on_mount(self) -> None:
         """Setup table columns when mounted"""
-        self.add_columns(
-            "Name",
-            "Status",
-            "Target",
-            "Preset",
-            "Started",
-            "Finished",
-            "Duration",
-            "ID"
-        )
+        self.add_columns("Name", "Status", "Target", "Preset", "Started", "Finished", "Duration", "ID")
 
     def update_scans(self, scans: List) -> None:
         """
@@ -55,20 +47,20 @@ class ScanTable(DataTable):
         self.clear()
 
         # Sort by creation time (newest first)
-        sorted_scans = sorted(scans, key=lambda s: s['created'] or '', reverse=True)
+        sorted_scans = sorted(scans, key=lambda s: s["created"] or "", reverse=True)
 
         for scan in sorted_scans:
-            name = scan['name'] or scan['id']
-            status_val = scan['status']
+            name = scan["name"] or scan["id"]
+            status_val = scan["status"]
             status = colorize_status(status_val, status_val)
-            target = scan.get('target')
-            target_name = target['name'] if target else '-'
-            preset = scan.get('preset')
-            preset_name = preset['name'] if preset else '-'
-            started = format_timestamp_short(scan['started_at']) if scan['started_at'] else "-"
-            finished = format_timestamp_short(scan['finished_at']) if scan['finished_at'] else "-"
-            duration = format_duration_short(scan['duration_seconds']) if scan['duration_seconds'] else "-"
-            scan_id = scan['id']
+            target = scan.get("target")
+            target_name = target["name"] if target else "-"
+            preset = scan.get("preset")
+            preset_name = preset["name"] if preset else "-"
+            started = format_timestamp_short(scan["started_at"]) if scan["started_at"] else "-"
+            finished = format_timestamp_short(scan["finished_at"]) if scan["finished_at"] else "-"
+            duration = format_duration_short(scan["duration_seconds"]) if scan["duration_seconds"] else "-"
+            scan_id = scan["id"]
 
             # Add row
             row_key = self.add_row(
@@ -106,7 +98,7 @@ class ScanTable(DataTable):
 
     def get_scan_by_id(self, scan_id: str):
         for scan in self._scans:
-            if scan['id'] == scan_id:
+            if scan["id"] == scan_id:
                 return scan
         return None
 
@@ -165,4 +157,3 @@ class ScanTable(DataTable):
                 self.move_cursor(row=0, column=0)
                 event.prevent_default()
                 event.stop()
-

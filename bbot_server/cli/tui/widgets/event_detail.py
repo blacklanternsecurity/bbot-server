@@ -1,6 +1,7 @@
 """
 Event detail widget for BBOT Server TUI
 """
+
 from textual.app import ComposeResult
 from textual.widgets import Static
 from textual.containers import VerticalScroll
@@ -40,36 +41,36 @@ class EventDetail(VerticalScroll):
         details.append(f"[bold]Host:[/bold] {event.get('host', 'N/A')}")
 
         # Scan info
-        scan_id = event.get('scan', 'N/A')
+        scan_id = event.get("scan", "N/A")
         details.append(f"[bold]Scan ID:[/bold] {scan_id}")
 
         # Timestamps
-        timestamp = event.get('timestamp', 0)
+        timestamp = event.get("timestamp", 0)
         details.append(f"[bold]Timestamp:[/bold] {format_timestamp(timestamp)}")
 
         # Source
-        source = event.get('source', 'N/A')
+        source = event.get("source", "N/A")
         details.append(f"[bold]Source:[/bold] {source}")
 
         # Tags
-        tags = event.get('tags', [])
+        tags = event.get("tags", [])
         if tags:
             tags_str = ", ".join(tags)
             details.append(f"[bold]Tags:[/bold] {tags_str}")
 
         # Module
-        module = event.get('module', 'N/A')
+        module = event.get("module", "N/A")
         details.append(f"[bold]Module:[/bold] {module}")
 
         # Parent
-        parent = event.get('parent', 'N/A')
+        parent = event.get("parent", "N/A")
         details.append(f"[bold]Parent:[/bold] {parent}")
 
         # Discovery info
-        discovery_context = event.get('discovery_context', 'N/A')
+        discovery_context = event.get("discovery_context", "N/A")
         details.append(f"[bold]Discovery Context:[/bold] {discovery_context}")
 
-        discovery_path = event.get('discovery_path', [])
+        discovery_path = event.get("discovery_path", [])
         if discovery_path:
             path_str = " → ".join(discovery_path)
             details.append(f"[bold]Discovery Path:[/bold] {path_str}")

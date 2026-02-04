@@ -1,6 +1,7 @@
 """
 Targets screen for BBOT Server TUI
 """
+
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Static, Button
@@ -13,9 +14,7 @@ from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
 from bbot_server.cli.tui.screens.create_target_modal import TargetModal
 from bbot_server.cli.tui.screens.confirm_modal import ConfirmModal
-from bbot_server.cli.tui.utils.colors import (
-    loading_text, success_text, warning_text, error_text
-)
+from bbot_server.cli.tui.utils.colors import loading_text, success_text, warning_text, error_text
 
 
 class TargetsScreen(Container):
@@ -47,9 +46,7 @@ class TargetsScreen(Container):
             with Horizontal(id="targets-content", classes="content-area"):
                 with Vertical(id="targets-table-container", classes="table-container"):
                     yield PaginatedTableContainer(
-                        TargetTable(id="target-table"),
-                        auto_page_size=True,
-                        id="target-pagination"
+                        TargetTable(id="target-table"), auto_page_size=True, id="target-pagination"
                     )
 
                 with Vertical(id="target-detail-container", classes="detail-container"):
@@ -146,15 +143,11 @@ class TargetsScreen(Container):
         # Trigger refresh (show loading since user-initiated)
         self.run_worker(self.refresh_targets(show_loading=True))
 
-    def on_paginated_table_container_page_changed(
-        self, event: PaginatedTableContainer.PageChanged
-    ) -> None:
+    def on_paginated_table_container_page_changed(self, event: PaginatedTableContainer.PageChanged) -> None:
         """Handle page navigation"""
         self.run_worker(self.refresh_targets())
 
-    def on_paginated_table_container_page_size_changed(
-        self, event: PaginatedTableContainer.PageSizeChanged
-    ) -> None:
+    def on_paginated_table_container_page_size_changed(self, event: PaginatedTableContainer.PageSizeChanged) -> None:
         """Handle page size changes from auto-sizing"""
         # Refetch data with new page size
         self.run_worker(self.refresh_targets())
@@ -204,15 +197,15 @@ class TargetsScreen(Container):
     @work(exclusive=True)
     async def _confirm_delete_target(self, target) -> None:
         """Worker to confirm and delete a target"""
-        target_name = getattr(target, 'name', 'Unknown')
-        target_id = str(getattr(target, 'id', ''))
+        target_name = getattr(target, "name", "Unknown")
+        target_id = str(getattr(target, "id", ""))
 
         confirmed = await self.app.push_screen_wait(
             ConfirmModal(
                 title="Delete Target",
                 message=f"Are you sure you want to delete target '[bold]{target_name}[/bold]'?\n\nThis action cannot be undone.",
                 confirm_label="Delete",
-                danger=True
+                danger=True,
             )
         )
 

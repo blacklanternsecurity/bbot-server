@@ -1,7 +1,9 @@
 """
 Scans screen for BBOT Server TUI
 """
+
 from textual.app import ComposeResult
+
 # Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Static, Button
@@ -11,9 +13,7 @@ from bbot_server.cli.tui.widgets.scan_table import ScanTable
 from bbot_server.cli.tui.widgets.scan_detail import ScanDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
-from bbot_server.cli.tui.utils.colors import (
-    loading_text, success_text, warning_text, error_text
-)
+from bbot_server.cli.tui.utils.colors import loading_text, success_text, warning_text, error_text
 
 
 class ScansScreen(Container):
@@ -23,7 +23,6 @@ class ScansScreen(Container):
     Displays a table of all scans with filtering, details panel,
     and actions for creating, cancelling, and refreshing scans.
     """
-
 
     filter_text = reactive("")
     selected_scan_id = reactive(None)
@@ -49,15 +48,12 @@ class ScansScreen(Container):
             with Horizontal(id="scans-content", classes="content-area"):
                 with Vertical(id="scans-table-container", classes="table-container"):
                     yield PaginatedTableContainer(
-                        ScanTable(id="scan-table"),
-                        auto_page_size=True,
-                        id="scan-pagination"
+                        ScanTable(id="scan-table"), auto_page_size=True, id="scan-pagination"
                     )
 
                 with Vertical(id="scan-detail-container", classes="detail-container"):
                     yield Static("[bold]Scan Details[/bold]", id="detail-header")
                     yield ScanDetail(id="scan-detail", classes="detail-panel")
-
 
     async def on_mount(self) -> None:
         """Called when screen is mounted"""
@@ -143,7 +139,7 @@ class ScansScreen(Container):
 
         # Update selected scan ID
         if scan:
-            self.selected_scan_id = scan['id']
+            self.selected_scan_id = scan["id"]
 
     def on_filter_bar_filter_changed(self, event: FilterBar.FilterChanged) -> None:
         """Handle filter text changes"""
@@ -154,15 +150,11 @@ class ScansScreen(Container):
         # Trigger refresh with new filter (show loading since user-initiated)
         self.run_worker(self.refresh_scans(show_loading=True))
 
-    def on_paginated_table_container_page_changed(
-        self, event: PaginatedTableContainer.PageChanged
-    ) -> None:
+    def on_paginated_table_container_page_changed(self, event: PaginatedTableContainer.PageChanged) -> None:
         """Handle page navigation"""
         self.run_worker(self.refresh_scans())
 
-    def on_paginated_table_container_page_size_changed(
-        self, event: PaginatedTableContainer.PageSizeChanged
-    ) -> None:
+    def on_paginated_table_container_page_size_changed(self, event: PaginatedTableContainer.PageSizeChanged) -> None:
         """Handle page size changes from auto-sizing"""
         # Refetch data with new page size
         self.run_worker(self.refresh_scans())

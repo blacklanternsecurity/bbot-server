@@ -1,6 +1,7 @@
 """
 Confirmation modal for BBOT Server TUI
 """
+
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.containers import Container, Horizontal

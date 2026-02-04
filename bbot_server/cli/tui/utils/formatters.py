@@ -4,6 +4,7 @@ Formatting utilities for BBOT Server TUI
 Reuses existing formatting functions from bbot_server.utils.misc
 and provides additional TUI-specific formatters.
 """
+
 from datetime import datetime, timedelta
 from typing import Optional, List
 
@@ -185,7 +186,7 @@ def truncate_string(text: str, max_length: int = 50, suffix: str = "...") -> str
     if not text or len(text) <= max_length:
         return text
 
-    return text[:max_length - len(suffix)] + suffix
+    return text[: max_length - len(suffix)] + suffix
 
 
 def format_host(host: str, max_length: int = 40) -> str:

@@ -1,6 +1,7 @@
 """
 Finding detail panel widget for BBOT Server TUI
 """
+
 from textual.widgets import Static
 from textual.containers import Container
 
@@ -30,51 +31,51 @@ class FindingDetail(Container):
             return
 
         lines = []
-        name = finding.get('name', 'Unknown')
+        name = finding.get("name", "Unknown")
         lines.append(f"[bold]{name}[/bold]")
         lines.append("")
 
-        severity = finding.get('severity', 'INFO')
+        severity = finding.get("severity", "INFO")
         severity_colored = colorize_severity(severity, severity)
         lines.append(f"Severity: {severity_colored}")
 
-        confidence = finding.get('confidence')
+        confidence = finding.get("confidence")
         if confidence:
             lines.append(f"Confidence: {confidence}")
 
         lines.append("")
 
-        host = finding.get('host')
+        host = finding.get("host")
         if host:
             lines.append(f"[bold]Host:[/bold] {host}")
 
-        netloc = finding.get('netloc')
+        netloc = finding.get("netloc")
         if netloc:
             lines.append(f"[bold]Location:[/bold] {netloc}")
 
-        url = finding.get('url')
+        url = finding.get("url")
         if url:
             lines.append(f"[bold]URL:[/bold] {url}")
 
         lines.append("")
 
-        description = finding.get('description')
+        description = finding.get("description")
         if description:
             lines.append("[bold]Description:[/bold]")
             lines.append(description)
             lines.append("")
 
-        cves = finding.get('cves')
+        cves = finding.get("cves")
         if cves:
             lines.append("[bold]CVEs:[/bold]")
             for cve in cves:
                 lines.append(f"  • {cve}")
             lines.append("")
 
-        modified = finding.get('modified')
+        modified = finding.get("modified")
         if modified:
             lines.append(f"Last Seen: {format_timestamp(modified)}")
-        created = finding.get('created')
+        created = finding.get("created")
         if created:
             lines.append(f"First Seen: {format_timestamp(created)}")
 

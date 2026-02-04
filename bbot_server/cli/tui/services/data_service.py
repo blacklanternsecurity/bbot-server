@@ -1,4 +1,5 @@
 """Data service for BBOT Server TUI"""
+
 import logging
 from typing import Optional, List, Any
 
@@ -9,10 +10,9 @@ log = logging.getLogger(__name__)
 
 
 class DataService:
-
     def __init__(self, bbot_server):
         self.bbot_server = bbot_server
-        if hasattr(bbot_server, '_instance'):
+        if hasattr(bbot_server, "_instance"):
             self._async_client = bbot_server._instance
             log.debug("Using native async client via ._instance")
         else:
@@ -20,12 +20,7 @@ class DataService:
             log.warning("._instance not found, using sync wrapper as fallback")
 
     async def _fetch_paginated(
-        self,
-        query_method: str,
-        count_method: str,
-        skip: int = 0,
-        limit: int = 25,
-        **filters
+        self, query_method: str, count_method: str, skip: int = 0, limit: int = 25, **filters
     ) -> tuple[List[Any], int]:
         kwargs = {k: v for k, v in filters.items() if v is not None}
         try:
@@ -56,26 +51,32 @@ class DataService:
             return []
 
     async def get_assets_paginated(self, skip: int = 0, limit: int = 25, **filters) -> tuple[List[Any], int]:
-        return await self._fetch_paginated('query_assets', 'count_assets', skip, limit, **filters)
+        return await self._fetch_paginated("query_assets", "count_assets", skip, limit, **filters)
 
     async def get_findings_paginated(self, skip: int = 0, limit: int = 25, **filters) -> tuple[List[Any], int]:
-        return await self._fetch_paginated('query_findings', 'count_findings', skip, limit, **filters)
+        return await self._fetch_paginated("query_findings", "count_findings", skip, limit, **filters)
 
     async def get_events_paginated(self, skip: int = 0, limit: int = 25, **filters) -> tuple[List[Any], int]:
-        return await self._fetch_paginated('query_events', 'count_events', skip, limit, **filters)
+        return await self._fetch_paginated("query_events", "count_events", skip, limit, **filters)
 
     async def get_scans_paginated(self, skip: int = 0, limit: int = 25, **filters) -> tuple[List[Any], int]:
-        return await self._fetch_paginated('query_scans', 'count_scans', skip, limit, **filters)
+        return await self._fetch_paginated("query_scans", "count_scans", skip, limit, **filters)
 
     async def get_technologies_paginated(self, skip: int = 0, limit: int = 25, **filters) -> tuple[List[Any], int]:
-        return await self._fetch_paginated('query_technologies', 'count_technologies', skip, limit, **filters)
+        return await self._fetch_paginated("query_technologies", "count_technologies", skip, limit, **filters)
 
     async def get_targets_paginated(self, skip: int = 0, limit: int = 25, **filters) -> tuple[List[Any], int]:
-        return await self._fetch_paginated('query_targets', 'count_targets', skip, limit, **filters)
+        return await self._fetch_paginated("query_targets", "count_targets", skip, limit, **filters)
 
-    async def create_target(self, name: str, description: str = "", target: Optional[List[str]] = None,
-                           seeds: Optional[List[str]] = None, blacklist: Optional[List[str]] = None,
-                           strict_dns_scope: bool = False) -> Optional[Any]:
+    async def create_target(
+        self,
+        name: str,
+        description: str = "",
+        target: Optional[List[str]] = None,
+        seeds: Optional[List[str]] = None,
+        blacklist: Optional[List[str]] = None,
+        strict_dns_scope: bool = False,
+    ) -> Optional[Any]:
         try:
             target_data = {
                 "name": name,
@@ -94,11 +95,19 @@ class DataService:
             log.exception("Error creating target")
             raise
 
-    async def update_target(self, target_id: str, name: str, description: str = "",
-                           target: Optional[List[str]] = None, seeds: Optional[List[str]] = None,
-                           blacklist: Optional[List[str]] = None, strict_dns_scope: bool = False) -> Optional[Any]:
+    async def update_target(
+        self,
+        target_id: str,
+        name: str,
+        description: str = "",
+        target: Optional[List[str]] = None,
+        seeds: Optional[List[str]] = None,
+        blacklist: Optional[List[str]] = None,
+        strict_dns_scope: bool = False,
+    ) -> Optional[Any]:
         try:
             from bbot_server.modules.targets.targets_models import Target as TargetModel
+
             target_data = {
                 "name": name,
                 "description": description,

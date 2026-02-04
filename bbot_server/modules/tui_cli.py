@@ -1,6 +1,7 @@
 """
 CLI integration for BBOT Server TUI
 """
+
 from bbot_server.cli.base import BaseBBCTL
 
 
@@ -23,10 +24,7 @@ class TUICTL(BaseBBCTL):
         """Launch the TUI application"""
         from bbot_server.cli.tui.app import BBOTServerTUI
 
-        app = BBOTServerTUI(
-            bbot_server=self.bbot_server,
-            config=self.config
-        )
+        app = BBOTServerTUI(bbot_server=self.bbot_server, config=self.config)
 
         try:
             app.run()

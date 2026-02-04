@@ -1,7 +1,9 @@
 """
 Activity screen for BBOT Server TUI
 """
+
 from textual.app import ComposeResult
+
 # Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Static, Button
@@ -10,9 +12,7 @@ from textual import work
 
 from bbot_server.cli.tui.widgets.activity_feed import ActivityFeed
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
-from bbot_server.cli.tui.utils.colors import (
-    SUCCESS, WARNING, ERROR, error_text
-)
+from bbot_server.cli.tui.utils.colors import SUCCESS, WARNING, ERROR, error_text
 
 
 class ActivityScreen(Container):
@@ -22,7 +22,6 @@ class ActivityScreen(Container):
     Displays real-time activity updates via WebSocket with
     filtering, pause/resume, and auto-scroll functionality.
     """
-
 
     is_streaming = reactive(False)
     is_paused = reactive(False)
@@ -52,7 +51,6 @@ class ActivityScreen(Container):
             # Activity feed
             with Vertical(id="activity-feed-container"):
                 yield ActivityFeed(max_activities=1000, id="activity-feed")
-
 
     async def on_mount(self) -> None:
         """Called when screen is mounted - don't start streaming yet"""

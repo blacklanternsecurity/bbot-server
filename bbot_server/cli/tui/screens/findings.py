@@ -1,7 +1,9 @@
 """
 Findings screen for BBOT Server TUI
 """
+
 from textual.app import ComposeResult
+
 # Removed Screen import
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Static, Button, Select
@@ -21,14 +23,11 @@ from bbot_server.cli.tui.widgets.finding_table import FindingTable
 from bbot_server.cli.tui.widgets.finding_detail import FindingDetail
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 from bbot_server.cli.tui.widgets.paginated_table import PaginatedTableContainer
-from bbot_server.cli.tui.utils.colors import (
-    loading_text, success_text, warning_text, error_text
-)
+from bbot_server.cli.tui.utils.colors import loading_text, success_text, warning_text, error_text
 
 
 class FindingsScreen(Container):
     """Findings viewer screen with severity filtering"""
-
 
     filter_text = reactive("")
     min_severity = reactive(0)  # 0=ALL, 1=INFO, 5=CRITICAL
@@ -55,15 +54,12 @@ class FindingsScreen(Container):
             with Horizontal(id="findings-content", classes="content-area"):
                 with Vertical(id="findings-table-container", classes="table-container"):
                     yield PaginatedTableContainer(
-                        FindingTable(id="finding-table"),
-                        auto_page_size=True,
-                        id="finding-pagination"
+                        FindingTable(id="finding-table"), auto_page_size=True, id="finding-pagination"
                     )
 
                 with Vertical(id="finding-detail-container", classes="detail-container"):
                     yield Static("[bold]Finding Details[/bold]", id="detail-header")
                     yield FindingDetail(id="finding-detail", classes="detail-panel")
-
 
     async def on_mount(self) -> None:
         """Called when screen is mounted"""
@@ -110,9 +106,9 @@ class FindingsScreen(Container):
             # Build filter kwargs for server-side filtering
             filters = {}
             if self.filter_text:
-                filters['search'] = self.filter_text
+                filters["search"] = self.filter_text
             if self.min_severity > 1:
-                filters['min_severity'] = self.min_severity
+                filters["min_severity"] = self.min_severity
 
             # Fetch findings with server-side pagination and filters
             findings, total = await self.bbot_app.data_service.get_findings_paginated(
@@ -171,15 +167,11 @@ class FindingsScreen(Container):
             pagination.reset_to_first_page()
             self.run_worker(self.refresh_findings(show_loading=True))
 
-    def on_paginated_table_container_page_changed(
-        self, event: PaginatedTableContainer.PageChanged
-    ) -> None:
+    def on_paginated_table_container_page_changed(self, event: PaginatedTableContainer.PageChanged) -> None:
         """Handle page navigation"""
         self.run_worker(self.refresh_findings())
 
-    def on_paginated_table_container_page_size_changed(
-        self, event: PaginatedTableContainer.PageSizeChanged
-    ) -> None:
+    def on_paginated_table_container_page_size_changed(self, event: PaginatedTableContainer.PageSizeChanged) -> None:
         """Handle page size changes from auto-sizing"""
         # Refetch data with new page size
         self.run_worker(self.refresh_findings())

@@ -1,6 +1,7 @@
 """
 Filter bar widget for BBOT Server TUI
 """
+
 from textual.widgets import Input
 from textual.message import Message
 
@@ -21,10 +22,7 @@ class FilterBar(Input):
             self.filter_text = filter_text
 
     def __init__(self, placeholder: str = "Filter...", **kwargs):
-        super().__init__(
-            placeholder=placeholder,
-            **kwargs
-        )
+        super().__init__(placeholder=placeholder, **kwargs)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle input changes and post filter change message"""
