@@ -8,7 +8,10 @@ Theme colors are defined in: bbot_server/cli/tui/app.py (BBOT_THEME)
 TCSS variables are in: bbot_server/cli/tui/styles.tcss
 """
 
+import logging
 from typing import Dict
+
+log = logging.getLogger("bbot_server.tui.colors")
 
 # =============================================================================
 # SEMANTIC COLOR CONSTANTS FOR RICH MARKUP
@@ -16,32 +19,13 @@ from typing import Dict
 # These match the BBOT_THEME defined in app.py
 # Use these in f-strings: f"[{SUCCESS}]text[/{SUCCESS}]"
 
-# Primary theme colors
-PRIMARY = "dark_orange"  # #FF8400 - BBOT signature orange
-SECONDARY = "grey50"  # #808080 - Grey
-
-# Semantic status colors (for status messages)
-SUCCESS = "bright_green"  # #4caf50 - Bright green, readable on dark
-ERROR = "red"  # #f44336 - Red for errors
-WARNING = "dark_orange"  # #ffa62b - Orange-yellow warnings
-INFO = "cyan"  # Cyan for informational
-LOADING = "cyan"  # Cyan for loading states
-MUTED = "grey50"  # Grey for muted/secondary text
-
-# Scan status colors (for Rich markup)
-STATUS_RUNNING = "dark_orange"
-STATUS_DONE = "bright_green"
-STATUS_FAILED = "red"
-STATUS_QUEUED = "grey50"
-STATUS_CANCELLED = "yellow"
-STATUS_STARTING = "cyan"
-
-# Severity colors (for Rich markup in tables/text)
-SEVERITY_CRITICAL = "magenta"
-SEVERITY_HIGH = "red"
-SEVERITY_MEDIUM = "dark_orange"
-SEVERITY_LOW = "yellow"
-SEVERITY_INFO = "bright_blue"
+# Semantic status colors (for status messages) - using hex codes for reliability
+SUCCESS = "#4caf50"  # Bright green, readable on dark
+ERROR = "#f44336"  # Red for errors
+WARNING = "#ffa62b"  # Orange-yellow warnings
+INFO = "#00bcd4"  # Cyan for informational
+LOADING = "#00bcd4"  # Cyan for loading states
+MUTED = "#808080"  # Grey for muted/secondary text
 
 # Severity level name to score mapping
 SEVERITY_LEVELS: Dict[str, int] = {
@@ -52,16 +36,8 @@ SEVERITY_LEVELS: Dict[str, int] = {
     "CRITICAL": 5,
 }
 
-# Textual-compatible severity color mapping
-SEVERITY_COLORS_TEXTUAL: Dict[int, str] = {
-    1: "bright_blue",  # INFO
-    2: "yellow",  # LOW
-    3: "dark_orange",  # MEDIUM
-    4: "red",  # HIGH
-    5: "magenta",  # CRITICAL
-}
-
-SEVERITY_COLORS_CSS: Dict[int, str] = {
+# Single source of truth for severity colors (matches TCSS $severity-* variables)
+SEVERITY_COLORS: Dict[int, str] = {
     1: "#03a9f4",  # INFO - light blue
     2: "#ffeb3b",  # LOW - yellow
     3: "#ff9800",  # MEDIUM - orange
@@ -70,14 +46,14 @@ SEVERITY_COLORS_CSS: Dict[int, str] = {
 }
 
 
-# Status colors for scans (Rich markup names)
+# Status colors for scans (using hex codes to match working severity colors)
 STATUS_COLORS: Dict[str, str] = {
-    "RUNNING": "dark_orange",
-    "QUEUED": "grey50",
-    "DONE": "bright_green",
-    "FAILED": "red",
-    "CANCELLED": "yellow",
-    "STARTING": "cyan",
+    "RUNNING": "#ff9800",  # Orange
+    "QUEUED": "#9e9e9e",  # Grey
+    "DONE": "#4caf50",  # Green
+    "FAILED": "#f44336",  # Red
+    "CANCELLED": "#ffeb3b",  # Yellow
+    "STARTING": "#00bcd4",  # Cyan
 }
 
 STATUS_COLORS_CSS: Dict[str, str] = {
@@ -92,28 +68,18 @@ STATUS_COLORS_CSS: Dict[str, str] = {
 
 def get_severity_color(severity_score: int) -> str:
     """
-    Get Textual color for a severity score
+    Get color for a severity score
 
     Args:
         severity_score: Severity level (1-5)
 
     Returns:
-        Textual color name
+        Hex color code
     """
-    return SEVERITY_COLORS_TEXTUAL.get(severity_score, "white")
-
-
-def get_severity_css_color(severity_score: int) -> str:
-    """
-    Get CSS color for a severity score
-
-    Args:
-        severity_score: Severity level (1-5)
-
-    Returns:
-        CSS color name
-    """
-    return SEVERITY_COLORS_CSS.get(severity_score, "white")
+    color = SEVERITY_COLORS.get(severity_score, "white")
+    log.debug(f"get_severity_color: score={severity_score} (type={type(severity_score).__name__}), color='{color}'")
+    log.debug(f"  SEVERITY_COLORS dict: {SEVERITY_COLORS}")
+    return color
 
 
 def get_severity_score(severity_name: str) -> int:
@@ -126,7 +92,11 @@ def get_severity_score(severity_name: str) -> int:
     Returns:
         Severity score (1-5)
     """
-    return SEVERITY_LEVELS.get(severity_name.upper(), 1)
+    upper_name = severity_name.upper()
+    score = SEVERITY_LEVELS.get(upper_name, 1)
+    log.debug(f"get_severity_score: input='{severity_name}' (type={type(severity_name).__name__}), upper='{upper_name}', score={score}")
+    log.debug(f"  SEVERITY_LEVELS dict: {SEVERITY_LEVELS}")
+    return score
 
 
 def get_status_color(status: str) -> str:
@@ -166,9 +136,12 @@ def colorize_severity(severity_name: str, text: str) -> str:
     Returns:
         Rich markup string
     """
+    log.debug(f"colorize_severity START: severity_name='{severity_name}', text='{text}'")
     score = get_severity_score(severity_name)
     color = get_severity_color(score)
-    return f"[{color}]{text}[/{color}]"
+    result = f"[{color}]{text}[/{color}]"
+    log.debug(f"colorize_severity END: result='{result}'")
+    return result
 
 
 def colorize_status(status: str, text: str) -> str:
@@ -214,28 +187,6 @@ def get_status_class(status: str) -> str:
     return f"status-{status.lower()}"
 
 
-# Rich console markup colors (for direct terminal output)
-RICH_COLORS = {
-    "primary": f"bold {PRIMARY}",
-    "secondary": SECONDARY,
-    "success": SUCCESS,
-    "warning": WARNING,
-    "error": ERROR,
-    "info": INFO,
-}
-
-
-def get_rich_color(name: str) -> str:
-    """
-    Get Rich console color by name
-
-    Args:
-        name: Color name (primary, secondary, success, warning, error, info)
-
-    Returns:
-        Rich color string
-    """
-    return RICH_COLORS.get(name, "white")
 
 
 # =============================================================================

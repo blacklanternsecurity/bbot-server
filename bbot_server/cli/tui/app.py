@@ -177,14 +177,15 @@ class BBOTServerTUI(App):
         log_file = log_dir / "tui.log"
         # 10MB max size, keep 1 backup (2 files total)
         file_handler = RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, backupCount=1)
-        file_handler.setLevel(logging.INFO)
+        file_handler.setLevel(logging.DEBUG)
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         file_handler.setFormatter(formatter)
 
-        # Add handler to root logger and TUI-specific loggers
+        # Remove all existing handlers (console/stderr) and only use file
         root_logger = logging.getLogger()
+        root_logger.handlers.clear()
         root_logger.addHandler(file_handler)
-        root_logger.setLevel(logging.INFO)
+        root_logger.setLevel(logging.DEBUG)
 
         # Create filter instance
         slow_filter = SlowRequestFilter()

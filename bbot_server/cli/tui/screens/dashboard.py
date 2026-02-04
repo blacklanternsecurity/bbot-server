@@ -144,7 +144,8 @@ class DashboardScreen(Container):
             from bbot_server.cli.tui.utils.colors import get_severity_score
 
             findings_sorted = sorted(
-                findings, key=lambda f: (-get_severity_score(f.get("severity", "INFO")), -(f.get("modified", 0) or 0))
+                findings,
+                key=lambda f: (-get_severity_score(f.get("severity", "INFO")), -(f.get("modified", 0) or 0)),
             )
 
             # Take top 10 after sorting

@@ -2,12 +2,15 @@
 Finding table widget for BBOT Server TUI
 """
 
+import logging
 from typing import List, Optional
 from textual.widgets import DataTable
 from textual.coordinate import Coordinate
 
 from bbot_server.cli.tui.utils.formatters import format_timestamp_short, truncate_string
 from bbot_server.cli.tui.utils.colors import colorize_severity, get_severity_score
+
+log = logging.getLogger("bbot_server.tui.finding_table")
 
 
 class FindingTable(DataTable):
@@ -41,7 +44,7 @@ class FindingTable(DataTable):
 
         sorted_findings = sorted(findings, key=sort_key)
 
-        for finding in sorted_findings:
+        for idx, finding in enumerate(sorted_findings):
             severity_value = finding.get("severity", "INFO")
             severity = colorize_severity(severity_value, severity_value)
             name = finding.get("name", "-") or "-"
