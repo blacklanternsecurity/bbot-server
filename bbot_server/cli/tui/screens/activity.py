@@ -11,7 +11,7 @@ from textual import work
 from bbot_server.cli.tui.widgets.activity_feed import ActivityFeed
 from bbot_server.cli.tui.widgets.filter_bar import FilterBar
 from bbot_server.cli.tui.utils.colors import (
-    SUCCESS, WARNING, ERROR, success_text, warning_text, error_text
+    SUCCESS, WARNING, ERROR, error_text
 )
 
 

@@ -24,7 +24,7 @@ class TargetDetail(VerticalScroll):
         """
         try:
             detail_text = self.query_one("#target-detail-text", Static)
-        except:
+        except Exception:
             return
 
         if not target:

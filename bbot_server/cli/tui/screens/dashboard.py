@@ -8,7 +8,7 @@ from textual.widgets import Static, Button, DataTable
 
 from bbot_server.cli.tui.utils.formatters import format_number, format_timestamp_short
 from bbot_server.cli.tui.utils.colors import (
-    colorize_severity, colorize_status, success_text, error_text, muted_text
+    colorize_severity, colorize_status, success_text, error_text
 )
 
 

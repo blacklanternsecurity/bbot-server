@@ -24,7 +24,7 @@ class TechnologyDetail(VerticalScroll):
         """
         try:
             detail_text = self.query_one("#technology-detail-text", Static)
-        except:
+        except Exception:
             return
 
         if not technology:
