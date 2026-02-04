@@ -30,25 +30,25 @@ class TechnologiesScreen(Container):
         """Create child widgets"""
         with Container(id="technologies-container"):
             # Filter controls
-            with Horizontal(id="technology-controls"):
+            with Horizontal(id="technology-controls", classes="controls-bar"):
                 yield FilterBar(placeholder="Search by technology name, host, or domain...", id="technology-filter")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
             # Status bar
-            yield Static("Loading technologies...", id="technologies-status")
+            yield Static("Loading technologies...", id="technologies-status", classes="status-bar")
 
             # Main content
-            with Horizontal(id="technologies-content"):
-                with Vertical(id="technologies-table-container"):
+            with Horizontal(id="technologies-content", classes="content-area"):
+                with Vertical(id="technologies-table-container", classes="table-container"):
                     yield PaginatedTableContainer(
                         TechnologyTable(id="technology-table"),
                         auto_page_size=True,
                         id="technology-pagination"
                     )
 
-                with Vertical(id="technology-detail-container"):
+                with Vertical(id="technology-detail-container", classes="detail-container"):
                     yield Static("[bold]Technology Details[/bold]", id="detail-header")
-                    yield TechnologyDetail(id="technology-detail")
+                    yield TechnologyDetail(id="technology-detail", classes="detail-panel")
 
     async def on_mount(self) -> None:
         """Called when screen is mounted"""

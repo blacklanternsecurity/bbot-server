@@ -32,25 +32,25 @@ class AssetsScreen(Container):
         """Create child widgets"""
         with Container(id="assets-container"):
             # Filter controls
-            with Horizontal(id="asset-controls"):
+            with Horizontal(id="asset-controls", classes="controls-bar"):
                 yield FilterBar(placeholder="Filter by domain or host...", id="asset-filter")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
             # Status bar
-            yield Static("Loading assets...", id="assets-status")
+            yield Static("Loading assets...", id="assets-status", classes="status-bar")
 
             # Main content
-            with Horizontal(id="assets-content"):
-                with Vertical(id="assets-table-container"):
+            with Horizontal(id="assets-content", classes="content-area"):
+                with Vertical(id="assets-table-container", classes="table-container"):
                     yield PaginatedTableContainer(
                         AssetTable(id="asset-table"),
                         auto_page_size=True,
                         id="asset-pagination"
                     )
 
-                with Vertical(id="asset-detail-container"):
+                with Vertical(id="asset-detail-container", classes="detail-container"):
                     yield Static("[bold]Asset Details[/bold]", id="detail-header")
-                    yield AssetDetail(id="asset-detail")
+                    yield AssetDetail(id="asset-detail", classes="detail-panel")
 
 
     async def on_mount(self) -> None:

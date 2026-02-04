@@ -43,26 +43,26 @@ class FindingsScreen(Container):
         """Create child widgets"""
         with Container(id="findings-container"):
             # Filter controls
-            with Horizontal(id="finding-controls"):
+            with Horizontal(id="finding-controls", classes="controls-bar"):
                 yield FilterBar(placeholder="Search by name, host, or description...", id="finding-filter")
                 yield Select(SEVERITY_OPTIONS, value=0, id="severity-filter", allow_blank=False)
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
             # Status bar
-            yield Static("Loading findings...", id="findings-status")
+            yield Static("Loading findings...", id="findings-status", classes="status-bar")
 
             # Main content
-            with Horizontal(id="findings-content"):
-                with Vertical(id="findings-table-container"):
+            with Horizontal(id="findings-content", classes="content-area"):
+                with Vertical(id="findings-table-container", classes="table-container"):
                     yield PaginatedTableContainer(
                         FindingTable(id="finding-table"),
                         auto_page_size=True,
                         id="finding-pagination"
                     )
 
-                with Vertical(id="finding-detail-container"):
+                with Vertical(id="finding-detail-container", classes="detail-container"):
                     yield Static("[bold]Finding Details[/bold]", id="detail-header")
-                    yield FindingDetail(id="finding-detail")
+                    yield FindingDetail(id="finding-detail", classes="detail-panel")
 
 
     async def on_mount(self) -> None:

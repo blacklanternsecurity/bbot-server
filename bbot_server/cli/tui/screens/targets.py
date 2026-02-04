@@ -33,7 +33,7 @@ class TargetsScreen(Container):
         """Create child widgets"""
         with Container(id="targets-container"):
             # Controls
-            with Horizontal(id="target-controls"):
+            with Horizontal(id="target-controls", classes="controls-bar"):
                 yield FilterBar(placeholder="Filter by target name or description...", id="target-filter")
                 yield Button("New Target", id="new-target-btn", variant="success")
                 yield Button("Edit", id="edit-target-btn", variant="warning")
@@ -41,20 +41,20 @@ class TargetsScreen(Container):
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
             # Status bar
-            yield Static("Loading targets...", id="targets-status")
+            yield Static("Loading targets...", id="targets-status", classes="status-bar")
 
             # Main content
-            with Horizontal(id="targets-content"):
-                with Vertical(id="targets-table-container"):
+            with Horizontal(id="targets-content", classes="content-area"):
+                with Vertical(id="targets-table-container", classes="table-container"):
                     yield PaginatedTableContainer(
                         TargetTable(id="target-table"),
                         auto_page_size=True,
                         id="target-pagination"
                     )
 
-                with Vertical(id="target-detail-container"):
+                with Vertical(id="target-detail-container", classes="detail-container"):
                     yield Static("[bold]Target Details[/bold]", id="detail-header")
-                    yield TargetDetail(id="target-detail")
+                    yield TargetDetail(id="target-detail", classes="detail-panel")
 
     async def on_mount(self) -> None:
         """Called when screen is mounted"""

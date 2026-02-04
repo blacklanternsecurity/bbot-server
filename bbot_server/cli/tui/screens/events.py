@@ -30,25 +30,25 @@ class EventsScreen(Container):
         """Create child widgets"""
         with Container(id="events-container"):
             # Filter controls
-            with Horizontal(id="event-controls"):
+            with Horizontal(id="event-controls", classes="controls-bar"):
                 yield FilterBar(placeholder="Filter by type, host, or domain...", id="event-filter")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
             # Status bar
-            yield Static("Loading events...", id="events-status")
+            yield Static("Loading events...", id="events-status", classes="status-bar")
 
             # Main content
-            with Horizontal(id="events-content"):
-                with Vertical(id="events-table-container"):
+            with Horizontal(id="events-content", classes="content-area"):
+                with Vertical(id="events-table-container", classes="table-container"):
                     yield PaginatedTableContainer(
                         EventTable(id="event-table"),
                         auto_page_size=True,
                         id="event-pagination"
                     )
 
-                with Vertical(id="event-detail-container"):
+                with Vertical(id="event-detail-container", classes="detail-container"):
                     yield Static("[bold]Event Details[/bold]", id="detail-header")
-                    yield EventDetail(id="event-detail")
+                    yield EventDetail(id="event-detail", classes="detail-panel")
 
     async def on_mount(self) -> None:
         """Called when screen is mounted"""

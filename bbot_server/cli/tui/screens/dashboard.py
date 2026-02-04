@@ -26,7 +26,7 @@ class DashboardScreen(Container):
         """Create child widgets"""
         with Container(id="dashboard-container"):
             # Title and refresh
-            with Horizontal(id="dashboard-header"):
+            with Horizontal(id="dashboard-header", classes="controls-bar"):
                 yield Static("[bold]BBOT Server Dashboard[/bold]", id="dashboard-title")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 

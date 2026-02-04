@@ -38,25 +38,25 @@ class ScansScreen(Container):
         """Create child widgets"""
         with Container(id="scans-container"):
             # Filter bar at top
-            with Horizontal(id="filter-container"):
+            with Horizontal(id="filter-container", classes="controls-bar"):
                 yield FilterBar(placeholder="Filter by scan name or target...", id="scan-filter")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
             # Status bar
-            yield Static("Loading scans...", id="scans-status")
+            yield Static("Loading scans...", id="scans-status", classes="status-bar")
 
             # Main content: table on left, detail on right
-            with Horizontal(id="scans-content"):
-                with Vertical(id="scans-table-container"):
+            with Horizontal(id="scans-content", classes="content-area"):
+                with Vertical(id="scans-table-container", classes="table-container"):
                     yield PaginatedTableContainer(
                         ScanTable(id="scan-table"),
                         auto_page_size=True,
                         id="scan-pagination"
                     )
 
-                with Vertical(id="scan-detail-container"):
+                with Vertical(id="scan-detail-container", classes="detail-container"):
                     yield Static("[bold]Scan Details[/bold]", id="detail-header")
-                    yield ScanDetail(id="scan-detail")
+                    yield ScanDetail(id="scan-detail", classes="detail-panel")
 
 
     async def on_mount(self) -> None:

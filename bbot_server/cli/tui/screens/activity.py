@@ -40,14 +40,14 @@ class ActivityScreen(Container):
         """Create child widgets"""
         with Container(id="activity-container"):
             # Controls at top
-            with Horizontal(id="activity-controls"):
+            with Horizontal(id="activity-controls", classes="controls-bar"):
                 yield FilterBar(placeholder="Filter by activity type or description...", id="activity-filter")
                 yield Button("Pause", id="pause-btn", variant="warning")
                 yield Button("Clear", id="clear-btn", variant="error")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
             # Status bar
-            yield Static(f"[{SUCCESS}]● LIVE[/{SUCCESS}] Auto-scroll: ON", id="activity-status")
+            yield Static(f"[{SUCCESS}]● LIVE[/{SUCCESS}] Auto-scroll: ON", id="activity-status", classes="status-bar")
 
             # Activity feed
             with Vertical(id="activity-feed-container"):

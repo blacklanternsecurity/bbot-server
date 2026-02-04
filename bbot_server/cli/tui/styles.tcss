@@ -186,28 +186,39 @@ Vertical {
     width: 100%;
 }
 
-/* Filter controls */
-#filter-container,
-#activity-controls,
-#asset-controls,
-#finding-controls,
-#event-controls,
-#technology-controls,
-#target-controls,
-#dashboard-header {
+/* Reusable component classes */
+.controls-bar {
     height: 3;
     padding: 0 1;
 }
 
-#agent-controls {
-    height: 3;
+.status-bar {
+    height: 1;
     padding: 0 1;
 }
 
-#agents-title {
+.content-area {
+    height: 1fr;
+}
+
+.table-container {
+    width: 2fr;
+    border: solid $secondary;
+}
+
+.detail-container {
     width: 1fr;
+    border: solid $secondary;
+    margin-left: 1;
 }
 
+.detail-panel {
+    height: 1fr;
+    padding: 1;
+    overflow-y: auto;
+}
+
+/* Filter controls */
 FilterBar, Input {
     width: 1fr;
 }
@@ -219,6 +230,23 @@ FilterBar, Input {
 Button {
     width: auto;
     margin: 0 1;
+    background: $primary;
+    color: $background;
+    border-top: tall $primary;
+    border-bottom: tall $primary;
+}
+
+Button:hover {
+    background: $primary 80%;
+    border-top: tall $primary 80%;
+    border-bottom: tall $primary 80%;
+}
+
+Button:focus {
+    background: $primary-darken-1;
+    color: white;
+    border-top: tall $primary-darken-1;
+    border-bottom: tall $primary-darken-1;
 }
 
 Checkbox {
@@ -238,53 +266,7 @@ Select {
     margin: 0 1;
 }
 
-/* Status bars */
-#scans-status,
-#assets-status,
-#findings-status,
-#events-status,
-#technologies-status,
-#targets-status,
-#agents-status,
-#activity-status,
-#dashboard-status {
-    height: 1;
-    padding: 0 1;
-}
-
-/* Main content areas */
-#scans-content,
-#assets-content,
-#findings-content,
-#events-content,
-#technologies-content,
-#targets-content {
-    height: 1fr;
-}
-
-/* Table containers */
-#scans-table-container,
-#assets-table-container,
-#findings-table-container,
-#events-table-container,
-#technologies-table-container,
-#targets-table-container {
-    width: 2fr;
-    border: solid $secondary;
-}
-
-/* Detail panel containers */
-#scan-detail-container,
-#asset-detail-container,
-#finding-detail-container,
-#event-detail-container,
-#technology-detail-container,
-#target-detail-container {
-    width: 1fr;
-    border: solid $secondary;
-    margin-left: 1;
-}
-
+/* Detail header (used across multiple screens) */
 #detail-header {
     height: 1;
     background: $primary;
@@ -293,14 +275,9 @@ Select {
     padding: 0 1;
 }
 
-#scan-detail,
-#asset-detail,
-#finding-detail,
-#technology-detail,
-#target-detail {
-    height: 1fr;
-    padding: 1;
-    overflow-y: auto;
+/* Screen-specific overrides */
+#agents-title {
+    width: 1fr;
 }
 
 /* DataTable styling */
@@ -314,8 +291,20 @@ DataTable > .datatable--header {
     text-style: bold;
 }
 
+DataTable > .datatable--header-hover {
+    background: $primary-darken-1;
+}
+
 DataTable > .datatable--cursor {
     background: $primary 50%;
+}
+
+DataTable Scrollbar > .scrollbar--bar {
+    color: $panel-lighten-2;
+}
+
+DataTable Scrollbar > .scrollbar--bar:hover {
+    color: $primary;
 }
 
 /* Activity feed */
@@ -335,55 +324,6 @@ ActivityFeed, RichLog {
     height: 1fr;
     border: solid $secondary;
     margin: 1;
-}
-
-/* Buttons */
-Button {
-    background: $primary;
-    color: $background;
-    border-top: tall $primary;
-    border-bottom: tall $primary;
-}
-
-Button:focus {
-    background: $primary-darken-1;
-    color: white;
-    border-top: tall $primary-darken-1;
-    border-bottom: tall $primary-darken-1;
-}
-
-Button.primary {
-    background: $primary;
-    color: $background;
-    border-top: tall $primary;
-    border-bottom: tall $primary;
-}
-
-Button.success {
-    background: $success;
-    color: $background;
-    border-top: tall $success;
-    border-bottom: tall $success;
-}
-
-Button.warning {
-    background: $warning;
-    color: $background;
-    border-top: tall $warning;
-    border-bottom: tall $warning;
-}
-
-Button.error, Button.danger {
-    background: $error;
-    color: white;
-    border-top: tall $error;
-    border-bottom: tall $error;
-}
-
-Button:hover {
-    background: $primary 80%;
-    border-top: tall $primary 80%;
-    border-bottom: tall $primary 80%;
 }
 
 /* Header and Footer styling */
@@ -429,19 +369,6 @@ Scrollbar > .scrollbar--bar-active {
     color: $primary-darken-1;
 }
 
-/* DataTable scrollbars */
-DataTable Scrollbar > .scrollbar--bar {
-    color: $panel-lighten-2;
-}
-
-DataTable Scrollbar > .scrollbar--bar:hover {
-    color: $primary;
-}
-
-DataTable > .datatable--header-hover {
-    background: $primary-darken-1;
-}
-
 /* Global scrollbar color override */
 * {
     scrollbar-color: $panel-lighten-2;
@@ -454,11 +381,7 @@ Input:focus {
     border: solid $primary;
 }
 
-#scans-table-container:focus-within,
-#assets-table-container:focus-within,
-#findings-table-container:focus-within,
-#technologies-table-container:focus-within,
-#targets-table-container:focus-within {
+.table-container:focus-within {
     border: solid $secondary;
 }
 
