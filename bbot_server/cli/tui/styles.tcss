@@ -403,7 +403,6 @@ Container:focus-within {
 .pagination-controls {
     height: 3;
     align: center middle;
-    padding: 0 1;
 }
 
 .pagination-controls Button {
