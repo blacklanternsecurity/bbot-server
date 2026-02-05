@@ -41,6 +41,7 @@ class BaseBBCTL:
 
     # allow the command to be invoked without a subcommand
     _invoke_without_command = False
+    _no_args_is_help = True
 
     # imports for convenience
     import sys
@@ -60,7 +61,7 @@ class BaseBBCTL:
             short_help=self.short_help,
             epilog=self.epilog,
             invoke_without_command=self._invoke_without_command,
-            no_args_is_help=True,
+            no_args_is_help=self._no_args_is_help,
         )
 
         # register main method
