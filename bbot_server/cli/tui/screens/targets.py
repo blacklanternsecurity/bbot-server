@@ -31,12 +31,9 @@ class TargetsScreen(Container):
     def compose(self) -> ComposeResult:
         """Create child widgets"""
         with Container(id="targets-container"):
-            # Controls
+            # Top controls (filter + refresh)
             with Horizontal(id="target-controls", classes="controls-bar"):
                 yield FilterBar(placeholder="Filter by target name or description...", id="target-filter")
-                yield Button("New Target", id="new-target-btn", variant="success")
-                yield Button("Edit", id="edit-target-btn", variant="warning")
-                yield Button("Delete", id="delete-target-btn", variant="error")
                 yield Button("Refresh", id="refresh-btn", variant="primary")
 
             # Status bar
@@ -48,6 +45,11 @@ class TargetsScreen(Container):
                     yield PaginatedTableContainer(
                         TargetTable(id="target-table"), auto_page_size=True, id="target-pagination"
                     )
+                    # Action buttons below table
+                    with Horizontal(id="target-actions", classes="action-buttons"):
+                        yield Button("New Target", id="new-target-btn", variant="success")
+                        yield Button("Edit", id="edit-target-btn", variant="warning")
+                        yield Button("Delete", id="delete-target-btn", variant="error")
 
                 with Vertical(id="target-detail-container", classes="detail-container"):
                     yield Static("[bold]Target Details[/bold]", id="detail-header")

@@ -390,11 +390,47 @@ Container:focus-within {
     border: none;
 }
 
+/* Action buttons below tables */
+.action-buttons {
+    height: 3;
+    align: center middle;
+    padding: 0 1;
+    margin-top: 1;
+    dock: bottom;
+}
+
 /* Pagination controls */
 .pagination-controls {
     height: 3;
     align: center middle;
     padding: 0 1;
+}
+
+.pagination-controls Button {
+    background: $panel-lighten-1;
+    color: $text;
+    border-top: tall $panel-lighten-2;
+    border-bottom: tall $panel-lighten-2;
+}
+
+.pagination-controls Button:hover {
+    background: $panel-lighten-2;
+    border-top: tall $panel-lighten-3;
+    border-bottom: tall $panel-lighten-3;
+}
+
+.pagination-controls Button:focus {
+    background: $panel-lighten-2;
+    color: $text;
+    border-top: tall $panel-lighten-2;
+    border-bottom: tall $panel-lighten-2;
+}
+
+.pagination-controls Button.-disabled {
+    background: $surface;
+    color: $text-muted;
+    border-top: tall $surface;
+    border-bottom: tall $surface;
 }
 
 .pagination-status {
