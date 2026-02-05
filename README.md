@@ -13,12 +13,8 @@ BBOT Server is a database and multiplayer hub for all your [BBOT](https://github
 - [x] **Asset Tracking and Alerting**
     - [x] Get detailed history for each individual asset
     - [ ] Instantly alert on new vulnerabilities, open ports, etc.
-- [x] **Scan Management**
-    - [x] Kick off concurrent scans on remote servers
-    - [x] Monitor scan progress, statistics
 - [x] **Collaboration**
     - [x] Multi-user CLI
-    - [x] Multiple concurrent scans
 - [x] **Advanced Querying**
     - [x] REST API
     - [x] Python SDK
@@ -251,6 +247,34 @@ bbctl scan list
 # Stop the scan
 bbctl scan cancel "demonic_jimmy"
 ```
+
+
+## Terminal User Interface (TUI)
+
+BBOT Server includes an interactive Terminal User Interface built with [Textual](https://textual.textualize.io/). The TUI provides a real-time dashboard for querying assets, findings, events, etc. It runs in the terminal but behaves similarly to a web app, with clickable buttons, scrollable tables, and even a light and dark theme.
+
+![bbctl ui dark](https://github.com/user-attachments/assets/8c3147d1-e5e6-4f6f-8df7-c174998a45bc)
+
+![bbctl ui light](https://github.com/user-attachments/assets/3abfe9ba-dbb3-45e5-a77a-10d0e04ef0af)
+
+Thanks to [@k11h-de](https://github.com/k11h-de) for implementing this feature!
+
+### Launch the TUI
+
+```bash
+bbctl ui
+```
+
+### Screens Overview
+
+| Screen | Shortcut | Description |
+|--------|----------|-------------|
+| **Dashboard** | `d` | Live stats, recent findings (by severity), and recent scans |
+| **Scans** | `s` | Manage scan runs—start, cancel, filter, and view details |
+| **Activity** | `v` | Real-time WebSocket feed of scan events with pause/resume |
+| **Assets** | `a` | Browse and filter discovered assets by domain, target, or in-scope status |
+| **Findings** | `f` | View and filter security findings by severity (CRITICAL → INFO) |
+| **Agents** | `g` | List, create, and manage BBOT agents |
 
 ## Targets
 
