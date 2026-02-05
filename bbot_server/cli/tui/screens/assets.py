@@ -89,7 +89,13 @@ class AssetsScreen(Container):
 
             # Get pagination parameters
             pagination = self.query_one("#asset-pagination", PaginatedTableContainer)
-            skip, limit = pagination.get_skip_limit()
+            skip_limit = pagination.get_skip_limit()
+
+            # Don't query if pagination isn't ready yet (page size not calculated)
+            if skip_limit is None:
+                return
+
+            skip, limit = skip_limit
 
             # Fetch assets with server-side pagination and search
             search_term = self.filter_text if self.filter_text else None
@@ -145,9 +151,13 @@ class AssetsScreen(Container):
         self.run_worker(self.refresh_assets())
 
     def on_paginated_table_container_page_size_changed(self, event: PaginatedTableContainer.PageSizeChanged) -> None:
-        """Handle page size changes from auto-sizing"""
-        # Refetch data with new page size
-        self.run_worker(self.refresh_assets())
+        """Handle page size changes (including initial calculation)"""
+        # On first change (0 -> X), trigger initial load
+        if event.old_size == 0 and not self._has_loaded:
+            self.run_worker(self.load_initial_data())
+        # On subsequent changes, refetch with new page size
+        else:
+            self.run_worker(self.refresh_assets())
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""

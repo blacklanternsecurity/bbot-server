@@ -25,7 +25,7 @@ class PaginatedTableContainer(Container):
 
     current_page = reactive(1)
     total_pages = reactive(1)
-    items_per_page = reactive(25)
+    items_per_page = reactive(0)  # 0 = not yet calculated
     total_items = reactive(0)
 
     # Height constants for auto-sizing
@@ -65,7 +65,7 @@ class PaginatedTableContainer(Container):
 
     def _format_status(self) -> str:
         """Format the pagination status text"""
-        if self.total_items == 0:
+        if self.total_items == 0 or self.items_per_page == 0:
             return "No items"
 
         start_item = (self.current_page - 1) * self.items_per_page + 1
@@ -99,6 +99,10 @@ class PaginatedTableContainer(Container):
 
     def watch_total_items(self, old_value: int, new_value: int) -> None:
         """React to total items changes"""
+        # Don't recalculate if page size not yet set
+        if self.items_per_page == 0:
+            return
+
         # Recalculate total pages
         self.total_pages = max(1, (new_value + self.items_per_page - 1) // self.items_per_page)
 
@@ -132,13 +136,16 @@ class PaginatedTableContainer(Container):
         """Reset pagination to first page"""
         self.current_page = 1
 
-    def get_skip_limit(self) -> tuple[int, int]:
+    def get_skip_limit(self) -> tuple[int, int] | None:
         """
         Get skip and limit values for API calls
 
         Returns:
-            Tuple of (skip, limit) for the current page
+            Tuple of (skip, limit) for the current page, or None if page size not yet calculated
         """
+        if self.items_per_page == 0:
+            return None
+
         skip = (self.current_page - 1) * self.items_per_page
         limit = self.items_per_page
         return skip, limit
@@ -151,7 +158,7 @@ class PaginatedTableContainer(Container):
             self.page = page
 
     class PageSizeChanged(Message):
-        """Message sent when auto-calculated page size changes"""
+        """Message sent when page size changes (including initial calculation)"""
 
         def __init__(self, new_size: int, old_size: int):
             super().__init__()
@@ -183,6 +190,7 @@ class PaginatedTableContainer(Container):
         # Only update if changed significantly (avoid constant updates)
         if new_page_size != self._last_calculated_page_size:
             old_size = self.items_per_page
+
             self._last_calculated_page_size = new_page_size
             self.items_per_page = new_page_size
 
@@ -193,6 +201,6 @@ class PaginatedTableContainer(Container):
                 if self.current_page > self.total_pages:
                     self.current_page = self.total_pages
 
-            # Notify parent that page size changed (so it can refetch data)
+            # Emit PageSizeChanged whenever page size changes (including first calculation: 0 -> X)
             if old_size != new_page_size:
                 self.post_message(self.PageSizeChanged(new_page_size, old_size))
