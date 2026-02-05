@@ -77,8 +77,6 @@ def get_severity_color(severity_score: int) -> str:
         Hex color code
     """
     color = SEVERITY_COLORS.get(severity_score, "white")
-    log.debug(f"get_severity_color: score={severity_score} (type={type(severity_score).__name__}), color='{color}'")
-    log.debug(f"  SEVERITY_COLORS dict: {SEVERITY_COLORS}")
     return color
 
 
@@ -94,8 +92,6 @@ def get_severity_score(severity_name: str) -> int:
     """
     upper_name = severity_name.upper()
     score = SEVERITY_LEVELS.get(upper_name, 1)
-    log.debug(f"get_severity_score: input='{severity_name}' (type={type(severity_name).__name__}), upper='{upper_name}', score={score}")
-    log.debug(f"  SEVERITY_LEVELS dict: {SEVERITY_LEVELS}")
     return score
 
 
@@ -136,11 +132,9 @@ def colorize_severity(severity_name: str, text: str) -> str:
     Returns:
         Rich markup string
     """
-    log.debug(f"colorize_severity START: severity_name='{severity_name}', text='{text}'")
     score = get_severity_score(severity_name)
     color = get_severity_color(score)
     result = f"[{color}]{text}[/{color}]"
-    log.debug(f"colorize_severity END: result='{result}'")
     return result
 
 
@@ -185,8 +179,6 @@ def get_status_class(status: str) -> str:
         CSS class name
     """
     return f"status-{status.lower()}"
-
-
 
 
 # =============================================================================
