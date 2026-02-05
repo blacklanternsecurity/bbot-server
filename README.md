@@ -13,12 +13,8 @@ BBOT Server is a database and multiplayer hub for all your [BBOT](https://github
 - [x] **Asset Tracking and Alerting**
     - [x] Get detailed history for each individual asset
     - [ ] Instantly alert on new vulnerabilities, open ports, etc.
-- [x] **Scan Management**
-    - [x] Kick off concurrent scans on remote servers
-    - [x] Monitor scan progress, statistics
 - [x] **Collaboration**
     - [x] Multi-user CLI
-    - [x] Multiple concurrent scans
 - [x] **Advanced Querying**
     - [x] REST API
     - [x] Python SDK
@@ -251,6 +247,100 @@ bbctl scan list
 # Stop the scan
 bbctl scan cancel "demonic_jimmy"
 ```
+
+
+## Terminal User Interface (TUI)
+
+BBOT Server includes an interactive Terminal User Interface built with [Textual](https://textual.textualize.io/). The TUI provides a real-time dashboard for querying assets, findings, events, etc. It runs in the terminal but behaves similarly to a web app, with clickable buttons, scrollable tables, and even a light and dark theme.
+
+![bbctl ui dark](https://github.com/user-attachments/assets/8c3147d1-e5e6-4f6f-8df7-c174998a45bc)
+
+![bbctl ui light](https://github.com/user-attachments/assets/3abfe9ba-dbb3-45e5-a77a-10d0e04ef0af)
+
+Thanks to [@k11h-de](https://github.com/k11h-de) for implementing this feature!
+
+### Launch the TUI
+
+```bash
+bbctl ui
+```
+
+### Features
+
+- **🎛️ Real-Time Dashboard**: Live statistics showing total scans, active scans, assets, findings, and agents with auto-refresh
+- **📊 Six Interactive Screens**: Navigate between Dashboard, Scans, Activity, Assets, Findings, and Agents
+- **🔍 Advanced Filtering**: Search and filter across all data tables with real-time updates
+- **📄 Smart Pagination**: Automatically handles large datasets with intelligent page sizing
+- **⚡ Live Activity Stream**: WebSocket-powered real-time event feed with pause/resume controls
+- **⌨️ Keyboard Navigation**: Comprehensive keyboard shortcuts for power users
+
+### Screens Overview
+
+| Screen | Shortcut | Description |
+|--------|----------|-------------|
+| **Dashboard** | `d` | Live stats, recent findings (by severity), and recent scans |
+| **Scans** | `s` | Manage scan runs—start, cancel, filter, and view details |
+| **Activity** | `v` | Real-time WebSocket feed of scan events with pause/resume |
+| **Assets** | `a` | Browse and filter discovered assets by domain, target, or in-scope status |
+| **Findings** | `f` | View and filter security findings by severity (CRITICAL → INFO) |
+| **Agents** | `g` | List, create, and manage BBOT agents |
+
+### Keyboard Shortcuts
+
+**Global Navigation:**
+- `d` - Dashboard
+- `s` - Scans
+- `a` - Assets
+- `f` - Findings
+- `v` - Activity
+- `g` - Agents
+- `r` - Refresh current screen
+- `q` - Quit
+
+**Screen-Specific:**
+- **Scans**: `c` - Cancel selected scan
+- **Activity**: `Space` - Pause/Resume feed, `c` - Clear buffer
+- **Findings**: `1-5` - Filter by severity (1=CRITICAL, 5=INFO)
+- **Assets**: `i` - Toggle in-scope only filter
+- **Agents**: `n` - Create new agent
+
+**Table Navigation:**
+- `↑/↓` or `j/k` - Navigate rows
+- `Enter` - View details
+- `PgUp/PgDn` - Page through results
+- `/` - Focus search/filter bar
+
+### Auto-Refresh Intervals
+
+- Dashboard/Scans/Agents: 5 seconds
+- Assets/Findings/Events/Technologies: 10 seconds
+- Targets: 30 seconds
+
+### Requirements
+
+- Terminal with 256-color support
+- Minimum size: 80x24 (full-screen recommended)
+- Running BBOT Server instance
+
+### Troubleshooting
+
+**TUI won't launch:**
+```bash
+# Ensure server is running
+bbctl server status
+
+# Verify connectivity
+echo $BBOT_SERVER_URL
+```
+
+**Activity feed shows OFFLINE:**
+- Press `r` to restart WebSocket stream
+- Check server logs: `bbctl server logs`
+
+**Display issues:**
+- Ensure terminal supports 256 colors
+- Try maximizing terminal window
+- For remote sessions, ensure proper TERM variable (`export TERM=xterm-256color`)
 
 ## Targets
 
