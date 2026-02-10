@@ -1,5 +1,11 @@
 import os
+from importlib.metadata import version, PackageNotFoundError
 from pathlib import Path
+
+try:
+    __version__ = version("bbot-server")
+except PackageNotFoundError:
+    __version__ = "unknown"
 
 BBOT_SERVER_PROJECT_ROOT = Path(__file__).parent.parent
 
@@ -17,4 +23,4 @@ from .config import BBOT_SERVER_DIR, BBOT_SERVER_CONFIG
 from .interfaces import BBOTServer
 
 
-__all__ = ["BBOTServer", "BBOT_SERVER_DIR", "BBOT_SERVER_CONFIG", "BBOT_SERVER_PROJECT_ROOT"]
+__all__ = ["BBOTServer", "BBOT_SERVER_DIR", "BBOT_SERVER_CONFIG", "BBOT_SERVER_PROJECT_ROOT", "__version__"]
