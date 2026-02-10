@@ -1,9 +1,7 @@
-FROM python:3.11
-RUN apt-get -y update
-RUN apt-get -y install curl jq
+FROM ghcr.io/astral-sh/uv:python3.11-trixie
+RUN apt-get -y update && apt-get -y install curl jq
 COPY . /app
 WORKDIR /app
-# install bbot_server in editable mode
-RUN pip install -e .
+RUN uv sync --frozen
 EXPOSE 8807
-CMD ["bbctl", "server", "start", "--api-only"]
+CMD ["uv", "run", "bbctl", "server", "start", "--api-only"]
