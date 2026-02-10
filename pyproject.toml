@@ -24,7 +24,7 @@ dependencies = [
     "uvicorn>=0.35.0",
     "pymongo>=4.15.3",
     "cloudcheck>=9.2.0",
-    "textual>=0.85.0",
+    "textual>=7.5.0",
 ]
 
 [project.scripts]
