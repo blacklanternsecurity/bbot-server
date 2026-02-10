@@ -27,9 +27,9 @@ jobs:
         ports:
           - 127.0.0.1:6379:6379
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
       - name: Set up Python
         run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
@@ -42,7 +42,7 @@ jobs:
         run: |
           NO_COLOR=true uv run pytest --reruns 2 --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
       - name: Upload Code Coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./cov.xml
