@@ -110,7 +110,7 @@ def test_docker_compose_userexperience():
         custom_config_file.unlink(missing_ok=True)
         custom_config_file.write_text("testasdf: testasdf")
 
-        BBCTL_COMMAND = ["poetry", "run", "bbctl", "--config", str(custom_config_file)]
+        BBCTL_COMMAND = ["uv", "run", "bbctl", "--config", str(custom_config_file)]
 
         # current config should have no api key or valid api keys
         result = subprocess.run(
@@ -219,7 +219,7 @@ def test_docker_compose_custom_config():
     custom_config_file.write_text("test1234: test4321")
 
     # can we read it outside of docker compose?
-    BBCTL_COMMAND = ["poetry", "run", "bbctl", "--config", str(custom_config_file)]
+    BBCTL_COMMAND = ["uv", "run", "bbctl", "--config", str(custom_config_file)]
     result = subprocess.run(
         BBCTL_COMMAND + ["--current-config"],
         cwd=project_root,
@@ -232,7 +232,7 @@ def test_docker_compose_custom_config():
 
     # if we don't pass --config, the docker container should use the default config
     result = subprocess.run(
-        ["poetry", "run", "bbctl", "server", "compose", "run", "server", "bbctl", "--current-config"],
+        ["uv", "run", "bbctl", "server", "compose", "run", "server", "bbctl", "--current-config"],
         cwd=project_root,
         capture_output=True,
         text=True,
@@ -261,7 +261,7 @@ def test_docker_compose_listening_interface():
         with open(custom_config_file, "a") as f:
             f.write("\nurl: http://127.0.0.1:8807/v1/\n")
 
-        BBCTL_COMMAND = ["poetry", "run", "bbctl", "--config", str(custom_config_file)]
+        BBCTL_COMMAND = ["uv", "run", "bbctl", "--config", str(custom_config_file)]
 
         # start docker compose
         result = subprocess.run(
@@ -351,7 +351,7 @@ def test_docker_compose_authentication():
     custom_config_file.unlink(missing_ok=True)
     custom_config_file.write_text("")
 
-    BBCTL_COMMAND = ["poetry", "run", "bbctl", "--config", str(custom_config_file)]
+    BBCTL_COMMAND = ["uv", "run", "bbctl", "--config", str(custom_config_file)]
 
     with docker_test_env(reset_config=True, docker_down_first=True):
         # start docker compose
@@ -375,7 +375,7 @@ def test_docker_compose_authentication():
         # without the API key, auth should fail
         for _ in range(120):
             result = subprocess.run(
-                ["poetry", "run", "bbctl", "asset", "stats"],
+                ["uv", "run", "bbctl", "asset", "stats"],
                 cwd=project_root,
                 capture_output=True,
                 text=True,
@@ -405,7 +405,7 @@ def test_docker_compose_no_authentication():
     """
     custom_config_file.unlink(missing_ok=True)
 
-    BBCTL_COMMAND = ["poetry", "run", "bbctl", "--config", str(custom_config_file)]
+    BBCTL_COMMAND = ["uv", "run", "bbctl", "--config", str(custom_config_file)]
 
     with docker_test_env(reset_config=True, docker_down_first=True):
         result = subprocess.run(

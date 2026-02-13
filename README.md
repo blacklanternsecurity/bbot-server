@@ -27,11 +27,15 @@ BBOT Server is a database and multiplayer hub for all your [BBOT](https://github
 # clone the repo and cd into it
 git clone git@github.com:blacklanternsecurity/bbot-server.git && cd bbot-server
 
-# Install in editable mode
-pipx install -e .
+# Install dependencies and create virtual environment
+uv sync
 ```
 
-Note: to update to the latest version, run `git pull` in the `bbot-server` directory.
+Note: to update to the latest version, run `git pull && uv sync` in the `bbot-server` directory.
+
+To install `uv`, see the [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/).
+
+Commands shown below as `bbctl` can be run with `uv run bbctl` from the project directory, or you can activate the virtual environment first with `source .venv/bin/activate`.
 
 ## Start the server
 
@@ -459,10 +463,10 @@ Then execute `pytest`:
 
 ```bash
 # run all tests
-poetry run pytest -v
+uv run pytest -v
 
 # run specific tests
-poetry run pytest -v -k test_applet_scans
+uv run pytest -v -k test_applet_scans
 ```
 
 ## Screenshots
