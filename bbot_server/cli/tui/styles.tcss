@@ -1,0 +1,443 @@
+/* BBOT Server TUI Styles */
+/* Uses Textual theme variables - colors defined in app.py BBOT_THEME */
+
+/* Custom color variables (not provided by theme system) */
+$severity-critical: #9c27b0;
+$severity-high: #f44336;
+$severity-medium: #ff9800;
+$severity-low: #ffeb3b;
+$severity-info: #03a9f4;
+$status-running: #ff9800;
+$status-done: #4caf50;
+$status-failed: #f44336;
+$status-queued: #9e9e9e;
+
+/* Global app styling */
+Screen {
+    background: $surface;
+}
+
+/* TabbedContent styling */
+TabbedContent {
+    height: 1fr;
+}
+
+Tabs {
+    background: $surface;
+    height: 5;
+}
+
+Tab {
+    background: $surface;
+    color: $text-muted;
+    padding: 0 3;
+    min-height: 3;
+    content-align: center middle;
+}
+
+Tab.-active {
+    background: $primary;
+    color: $background;
+    text-style: bold;
+    padding: 0 3;
+    min-height: 3;
+    content-align: center middle;
+}
+
+Tab:hover {
+    background: $primary 50%;
+}
+
+Tabs Underline > .underline--bar {
+    color: $primary;
+    background: $foreground 10%;
+}
+
+Tabs:focus Underline > .underline--bar {
+    color: $primary;
+    background: $foreground 30%;
+}
+
+TabPane {
+    height: 1fr;
+    padding: 0;
+}
+
+/* Placeholder text */
+.placeholder {
+    content-align: center middle;
+    text-style: bold;
+    color: $primary;
+}
+
+/* Severity color classes */
+.severity-critical {
+    background: $severity-critical;
+    color: white;
+    text-style: bold;
+}
+
+.severity-high {
+    background: $severity-high;
+    color: white;
+    text-style: bold;
+}
+
+.severity-medium {
+    background: $severity-medium;
+    color: white;
+    text-style: bold;
+}
+
+.severity-low {
+    background: $severity-low;
+    color: $background;
+    text-style: bold;
+}
+
+.severity-info {
+    background: $severity-info;
+    color: white;
+    text-style: bold;
+}
+
+/* Status color classes */
+.status-running {
+    color: $status-running;
+    text-style: bold;
+}
+
+.status-done {
+    color: $status-done;
+    text-style: bold;
+}
+
+.status-failed {
+    color: $status-failed;
+    text-style: bold;
+}
+
+.status-queued {
+    color: $status-queued;
+}
+
+/* Dashboard stats cards */
+#stats-grid {
+    grid-size: 5 1;
+    grid-gutter: 1;
+    height: auto;
+    padding: 1;
+}
+
+.stat-card {
+    height: 7;
+    border: solid $primary;
+    padding: 1;
+    content-align: center middle;
+}
+
+.stat-value {
+    text-align: center;
+    text-style: bold;
+    color: $primary;
+}
+
+.stat-label {
+    text-align: center;
+    color: $text-muted;
+}
+
+/* Dashboard lists section */
+#dashboard-lists {
+    height: 1fr;
+    padding: 1;
+}
+
+#findings-section, #scans-section {
+    width: 1fr;
+    height: 100%;
+}
+
+#findings-section {
+    margin-right: 1;
+}
+
+.section-title {
+    height: 1;
+    padding: 0 1;
+    color: $primary;
+}
+
+#recent-findings-table, #recent-scans-table {
+    height: 1fr;
+    border: solid $secondary;
+}
+
+/* Common layout containers */
+Container {
+    height: 100%;
+}
+
+Horizontal {
+    height: auto;
+}
+
+Vertical {
+    width: 100%;
+}
+
+/* Reusable component classes */
+.controls-bar {
+    height: 3;
+    padding: 0 1;
+}
+
+.status-bar {
+    height: 1;
+    padding: 0 1;
+}
+
+.content-area {
+    height: 1fr;
+}
+
+.table-container {
+    width: 2fr;
+    border: solid $secondary;
+}
+
+.detail-container {
+    width: 1fr;
+    border: solid $secondary;
+    margin-left: 1;
+}
+
+.detail-panel {
+    height: 1fr;
+    padding: 1;
+    overflow-y: auto;
+}
+
+/* Filter controls */
+FilterBar, Input {
+    width: 1fr;
+}
+
+#finding-filter {
+    width: 1fr;
+}
+
+Button {
+    width: auto;
+    margin: 0 1;
+    background: $primary;
+    color: $background;
+    border-top: tall $primary;
+    border-bottom: tall $primary;
+}
+
+Button:hover {
+    background: $primary 80%;
+    border-top: tall $primary 80%;
+    border-bottom: tall $primary 80%;
+}
+
+Button:focus {
+    background: $primary-darken-1;
+    color: white;
+    border-top: tall $primary-darken-1;
+    border-bottom: tall $primary-darken-1;
+}
+
+Checkbox {
+    width: auto;
+    margin: 0 1;
+}
+
+Select {
+    width: auto;
+    max-width: 24;
+}
+
+#severity-filter {
+    width: 24;
+    min-width: 24;
+    max-width: 24;
+    margin: 0 1;
+}
+
+/* Detail header (used across multiple screens) */
+#detail-header {
+    height: 1;
+    background: $primary;
+    color: $background;
+    text-style: bold;
+    padding: 0 1;
+}
+
+/* Screen-specific overrides */
+#agents-title {
+    width: 1fr;
+}
+
+/* DataTable styling */
+DataTable {
+    height: 1fr;
+}
+
+DataTable > .datatable--header {
+    background: $primary;
+    color: $background;
+    text-style: bold;
+}
+
+DataTable > .datatable--header-hover {
+    background: $primary-darken-1;
+}
+
+DataTable > .datatable--cursor {
+    background: $primary 50%;
+}
+
+DataTable Scrollbar > .scrollbar--bar {
+    color: $panel-lighten-2;
+}
+
+DataTable Scrollbar > .scrollbar--bar:hover {
+    color: $primary;
+}
+
+/* Activity feed */
+#activity-feed-container {
+    height: 1fr;
+    border: solid $secondary;
+    margin: 1;
+}
+
+ActivityFeed, RichLog {
+    height: 1fr;
+    border: none;
+}
+
+/* Agent list */
+#agent-table {
+    height: 1fr;
+    border: solid $secondary;
+    margin: 1;
+}
+
+/* Header and Footer styling */
+Header {
+    background: $panel;
+    color: $primary;
+}
+
+Footer {
+    background: $panel;
+}
+
+Footer > .footer--highlight {
+    background: $panel;
+    color: $primary;
+}
+
+Footer > .footer--highlight-key {
+    background: $primary;
+    color: $background;
+}
+
+Footer > .footer--key {
+    background: $panel-lighten-1;
+    color: $text-muted;
+}
+
+/* Scrollbar styling */
+Scrollbar {
+    background: $surface;
+    scrollbar-color: $primary;
+}
+
+Scrollbar > .scrollbar--bar {
+    color: $panel-lighten-2;
+}
+
+Scrollbar > .scrollbar--bar:hover {
+    color: $primary;
+}
+
+Scrollbar > .scrollbar--bar-active {
+    color: $primary-darken-1;
+}
+
+/* Global scrollbar color override */
+* {
+    scrollbar-color: $panel-lighten-2;
+    scrollbar-color-hover: $primary;
+    scrollbar-color-active: $primary-darken-1;
+}
+
+/* Focus styling */
+Input:focus {
+    border: solid $primary;
+}
+
+.table-container:focus-within {
+    border: solid $secondary;
+}
+
+Vertical:focus-within,
+Container:focus-within {
+    border: none;
+}
+
+/* Action buttons below tables */
+.action-buttons {
+    height: 3;
+    align: center middle;
+    padding: 0 1;
+    margin-top: 1;
+    dock: bottom;
+}
+
+/* Pagination controls */
+.pagination-controls {
+    height: 3;
+    align: center middle;
+}
+
+.pagination-controls Button {
+    background: $panel-lighten-1;
+    color: $text;
+    border-top: tall $panel-lighten-2;
+    border-bottom: tall $panel-lighten-2;
+}
+
+.pagination-controls Button:hover {
+    background: $panel-lighten-2;
+    border-top: tall $panel-lighten-3;
+    border-bottom: tall $panel-lighten-3;
+}
+
+.pagination-controls Button:focus {
+    background: $panel-lighten-2;
+    color: $text;
+    border-top: tall $panel-lighten-2;
+    border-bottom: tall $panel-lighten-2;
+}
+
+.pagination-controls Button.-disabled {
+    background: $surface;
+    color: $text-muted;
+    border-top: tall $surface;
+    border-bottom: tall $surface;
+}
+
+.pagination-status {
+    width: 1fr;
+    content-align: center middle;
+    text-align: center;
+}
+
+PaginatedTableContainer {
+    height: 1fr;
+}

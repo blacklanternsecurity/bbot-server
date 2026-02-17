@@ -37,6 +37,14 @@ class TargetCTL(BaseBBCTL):
                 help="Strict DNS scope (only the exact hosts themselves should be considered in-scope, not their subdomains)",
             ),
         ] = False,
+        allow_duplicates: Annotated[
+            bool,
+            Option(
+                "--allow-duplicates",
+                "-ad",
+                help="Allow a target to be created even if there's already an identical one",
+            ),
+        ] = False,
     ):
         seeds = None if not seeds else self._read_file(seeds, "seeds")
         target = [] if not target else self._read_file(target, "target")
@@ -48,6 +56,7 @@ class TargetCTL(BaseBBCTL):
             seeds=seeds,
             blacklist=blacklist,
             strict_dns_scope=strict_dns_scope,
+            allow_duplicate_hash=allow_duplicates,
         )
         target = self.bbot_server.create_target(target)
         self.log.info(f"Target created successfully:")

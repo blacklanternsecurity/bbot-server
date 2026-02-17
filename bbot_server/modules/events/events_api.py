@@ -1,18 +1,19 @@
 import asyncio
-from fastapi import Query, Body
 from contextlib import suppress
-from typing import AsyncGenerator, Annotated
-from bbot_server.models.event_models import Event
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, AsyncGenerator
+
+from fastapi import Query
 
 from bbot_server.applets.base import BaseApplet, api_endpoint
+from bbot_server.modules.events.events_models import EventsQuery, Event, EventModel
 
 
 class EventsApplet(BaseApplet):
     name = "Events"
     watched_events = ["*"]
     description = "query raw BBOT scan events"
-    model = Event
+    model = EventModel
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -36,7 +37,7 @@ class EventsApplet(BaseApplet):
         event = await self.collection.find_one({"uuid": uuid})
         if event is None:
             raise self.BBOTServerNotFoundError(f"Event {uuid} not found")
-        return self.model(**event)
+        return Event(**event)
 
     @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Event, summary="Stream all events")
     async def list_events(
@@ -50,88 +51,33 @@ class EventsApplet(BaseApplet):
         active: bool = True,
         archived: bool = False,
     ):
-        async for event in self.mongo_iter(
+        query = EventsQuery(
             type=type,
             host=host,
             domain=domain,
             scan=scan,
             min_timestamp=min_timestamp,
             max_timestamp=max_timestamp,
-            archived=archived,
             active=active,
-        ):
-            yield self.model(**event)
+            archived=archived,
+        )
+        async for event in query.mongo_iter(self):
+            yield Event(**event)
 
-    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
-    async def query_events(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
-        host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
-        domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
-        target_id: Annotated[str, Body(description="Filter by target name or id")] = None,
-        archived: Annotated[bool, Body(description="Whether to include archived findings")] = False,
-        active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True,
-        min_timestamp: Annotated[float, Body(description="Filter by minimum timestamp")] = None,
-        max_timestamp: Annotated[float, Body(description="Filter by maximum timestamp")] = None,
-        fields: Annotated[list[str], Body(description="List of fields to return")] = None,
-        limit: Annotated[int, Body(description="Limit the number of events returned")] = None,
-        skip: Annotated[int, Body(description="Skip the first N events")] = None,
-        sort: Annotated[list[str | tuple[str, int]], Body(description="Fields and direction to sort by")] = None,
-        aggregate: Annotated[list[dict], Body(description="Optional custom MongoDB aggregation pipeline")] = None,
-    ):
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query events")
+    async def query_events(self, query: EventsQuery | None = None):
         """
         Advanced querying of events. Choose your own filters and fields.
         """
-        async for event in self.mongo_iter(
-            query=query,
-            search=search,
-            host=host,
-            domain=domain,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            min_timestamp=min_timestamp,
-            max_timestamp=max_timestamp,
-            fields=fields,
-            limit=limit,
-            skip=skip,
-            sort=sort,
-            aggregate=aggregate,
-        ):
+        async for event in query.mongo_iter(self):
             yield event
 
-    @api_endpoint("/count", methods=["POST"], summary="Count findings")
-    async def count_events(
-        self,
-        query: Annotated[dict, Body(description="Raw mongo query")] = None,
-        search: Annotated[
-            str, Body(description="A human-friendly text search (will be ANDed with other filters)")
-        ] = None,
-        host: Annotated[str, Body(description="Filter by exact hostname or IP address")] = None,
-        domain: Annotated[str, Body(description="Filter by domain or subdomain")] = None,
-        target_id: Annotated[str, Body(description="Filter by target name or id")] = None,
-        archived: Annotated[bool, Body(description="Whether to include archived findings")] = False,
-        active: Annotated[bool, Body(description="Whether to include active (non-archived) findings")] = True,
-        min_timestamp: Annotated[float, Body(description="Filter by minimum timestamp")] = None,
-        max_timestamp: Annotated[float, Body(description="Filter by maximum timestamp")] = None,
-    ) -> int:
+    @api_endpoint("/count", methods=["POST"], summary="Count events")
+    async def count_events(self, query: EventsQuery | None = None) -> int:
         """
         Same as query_events, except only returns the count
         """
-        return await self.mongo_count(
-            query=query,
-            search=search,
-            host=host,
-            domain=domain,
-            target_id=target_id,
-            archived=archived,
-            active=active,
-            min_timestamp=min_timestamp,
-            max_timestamp=max_timestamp,
-        )
+        return await query.mongo_count(self)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)
     async def tail_events(self, n: int = 0):
@@ -175,11 +121,3 @@ class EventsApplet(BaseApplet):
         self.log.info(f"Archived {result.modified_count} events")
         # refresh asset database
         await self.root.assets.refresh_assets()
-
-    async def make_bbot_query(self, query: dict = None, scan: str = None, id: str = None, **kwargs):
-        query = dict(query or {})
-        if scan is not None and "scan" not in query:
-            query["scan"] = scan
-        if id is not None and "id" not in query:
-            query["id"] = id
-        return await super().make_bbot_query(query=query, **kwargs)

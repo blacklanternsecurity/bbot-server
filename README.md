@@ -13,12 +13,8 @@ BBOT Server is a database and multiplayer hub for all your [BBOT](https://github
 - [x] **Asset Tracking and Alerting**
     - [x] Get detailed history for each individual asset
     - [ ] Instantly alert on new vulnerabilities, open ports, etc.
-- [x] **Scan Management**
-    - [x] Kick off concurrent scans on remote servers
-    - [x] Monitor scan progress, statistics
 - [x] **Collaboration**
     - [x] Multi-user CLI
-    - [x] Multiple concurrent scans
 - [x] **Advanced Querying**
     - [x] REST API
     - [x] Python SDK
@@ -31,11 +27,15 @@ BBOT Server is a database and multiplayer hub for all your [BBOT](https://github
 # clone the repo and cd into it
 git clone git@github.com:blacklanternsecurity/bbot-server.git && cd bbot-server
 
-# Install in editable mode
-pipx install -e .
+# Install dependencies and create virtual environment
+uv sync
 ```
 
-Note: to update to the latest version, run `git pull` in the `bbot-server` directory.
+Note: to update to the latest version, run `git pull && uv sync` in the `bbot-server` directory.
+
+To install `uv`, see the [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/).
+
+Commands shown below as `bbctl` can be run with `uv run bbctl` from the project directory, or you can activate the virtual environment first with `source .venv/bin/activate`.
 
 ## Start the server
 
@@ -167,6 +167,8 @@ If you forgot to output a scan to BBOT server, you can easily ingest it after th
 cat ~/.bbot/scans/demonic_jimmy/output.json | bbctl event ingest
 ```
 
+Note that this requires BBOT 3.0 or later (install with `pipx install git+https://github.com/blacklanternsecurity/bbot@3.0`)
+
 ## Start a scan (through BBOT server)
 
 To start a scan in BBOT server, you need to first create a **Preset** and **Target**.
@@ -249,6 +251,34 @@ bbctl scan list
 # Stop the scan
 bbctl scan cancel "demonic_jimmy"
 ```
+
+
+## Terminal User Interface (TUI)
+
+BBOT Server includes an interactive Terminal User Interface built with [Textual](https://textual.textualize.io/). The TUI provides a real-time dashboard for querying assets, findings, events, etc. It runs in the terminal but behaves similarly to a web app, with clickable buttons, scrollable tables, and even a light and dark theme.
+
+![bbctl ui dark](https://github.com/user-attachments/assets/8c3147d1-e5e6-4f6f-8df7-c174998a45bc)
+
+![bbctl ui light](https://github.com/user-attachments/assets/3abfe9ba-dbb3-45e5-a77a-10d0e04ef0af)
+
+Thanks to [@k11h-de](https://github.com/k11h-de) for implementing this feature!
+
+### Launch the TUI
+
+```bash
+bbctl ui
+```
+
+### Screens Overview
+
+| Screen | Shortcut | Description |
+|--------|----------|-------------|
+| **Dashboard** | `d` | Live stats, recent findings (by severity), and recent scans |
+| **Scans** | `s` | Manage scan runs—start, cancel, filter, and view details |
+| **Activity** | `v` | Real-time WebSocket feed of scan events with pause/resume |
+| **Assets** | `a` | Browse and filter discovered assets by domain, target, or in-scope status |
+| **Findings** | `f` | View and filter security findings by severity (CRITICAL → INFO) |
+| **Agents** | `g` | List, create, and manage BBOT agents |
 
 ## Targets
 
@@ -425,7 +455,7 @@ if __name__ == "__main__":
 When running tests, first start MongoDB and Redis via Docker:
 
 ```bash
-docker run --ulimit nofile=64000:64000 --rm -p 27017:27017 mongo
+docker run --ulimit nofile=64000:64000 --rm -p 127.0.0.1:27017:27017 mongo
 docker run --rm -p 6379:6379 redis
 ```
 
@@ -433,10 +463,10 @@ Then execute `pytest`:
 
 ```bash
 # run all tests
-poetry run pytest -v
+uv run pytest -v
 
 # run specific tests
-poetry run pytest -v -k test_applet_scans
+uv run pytest -v -k test_applet_scans
 ```
 
 ## Screenshots

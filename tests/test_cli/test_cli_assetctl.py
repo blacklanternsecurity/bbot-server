@@ -98,7 +98,7 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
         BBCTL_COMMAND + ["asset", "list", "--target", "test-target", "--json"], capture_output=True, text=True
     )
     assert process.returncode == 1
-    assert process.stderr.endswith("[ERROR] Target not found.\n")
+    assert process.stderr.endswith("[ERROR] Target not found with query: {'name': 'test-target'}\n")
 
     # create a target
     process = subprocess.run(

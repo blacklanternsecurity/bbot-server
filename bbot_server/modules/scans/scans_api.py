@@ -2,6 +2,7 @@ import random
 import asyncio
 import traceback
 from uuid import UUID
+
 from pymongo import ASCENDING
 from contextlib import suppress
 from pymongo.errors import DuplicateKeyError
@@ -16,7 +17,7 @@ from bbot.constants import (
     SCAN_STATUS_FINISHED,
 )
 
-from bbot_server.modules.scans.scans_models import Scan
+from bbot_server.modules.scans.scans_models import Scan, ScanQuery
 from bbot_server.modules.presets.presets_models import Preset
 from bbot_server.modules.targets.targets_models import Target
 from bbot_server.applets.base import BaseApplet, api_endpoint
@@ -88,6 +89,21 @@ class ScansApplet(BaseApplet):
     async def get_scans(self):
         async for scan in self.collection.find():
             yield Scan(**scan)
+
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query scans")
+    async def query_scans(self, query: ScanQuery | None = None):
+        """
+        Advanced querying of scans. Choose your own filters and fields.
+        """
+        async for scan in query.mongo_iter(self):
+            yield scan
+
+    @api_endpoint("/count", methods=["POST"], summary="Count scans")
+    async def count_scans(self, query: ScanQuery | None = None) -> int:
+        """
+        Same as query_scans, except only returns the count.
+        """
+        return await query.mongo_count(self)
 
     @api_endpoint(
         "/list_brief", methods=["GET"], summary="Get all scans in a brief format (without target info)", mcp=True

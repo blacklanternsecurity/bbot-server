@@ -18,6 +18,28 @@ log = logging.getLogger("bbot_server.applets.routing")
 ROUTE_TYPES = {}
 
 
+def _unwrap_method(method):
+    """
+    Unwrap a method to get the original function, preserving binding if it's a bound method.
+
+    This handles the case where a method is wrapped by decorators like @human_friendly_kwargs,
+    and we need to access the original function while keeping it bound to the same instance.
+    """
+    # Check for wrapped function (standard Python convention via functools.wraps)
+    wrapped = getattr(method, "__wrapped__", None)
+
+    if wrapped is None:
+        # Not wrapped, return as-is
+        return method
+
+    # If the method is bound, bind the wrapped function to the same instance
+    if hasattr(method, "__self__"):
+        return wrapped.__get__(method.__self__, type(method.__self__))
+
+    # Unbound function, return the wrapped function as-is
+    return wrapped
+
+
 def _patch_websocket_signature(original_function, wrapper_function):
     """
     Creates a signature for a websocket wrapper function that includes the websocket parameter
@@ -51,6 +73,8 @@ def make_bbotserver_route(function, tags=[]):
         function: The BBOTServer applet method to add to the FastAPI app.
         **fastapi_kwargs: Additional keyword arguments to pass to the FastAPI app. These will override any arguments specified in the @api_endpoint decorator.
     """
+    function = _unwrap_method(function)
+
     # see if the value has an "_endpoint" attribute
     path = getattr(function, "_endpoint", None)
     # if it's a callable function and it has _endpoint, it's an @api_endpoint
@@ -109,7 +133,8 @@ class BaseServerRoute(metaclass=ServerRouteMeta):
 
     def wrapped_function(self):
         """
-        Optionally wrap the function for optimal compatability with fastapi's routing system
+        Wrap the function for optimal compatibility with FastAPI's routing system.
+        Returns a regular function (not a bound method) so __signature__ can be set.
         """
         return self.orig_function
 

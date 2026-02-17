@@ -1,3 +1,4 @@
+from bbot_server.models.base import AssetQuery
 from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint, Annotated
 
@@ -49,12 +50,13 @@ class OpenPortsApplet(BaseApplet):
     @api_endpoint("/list", methods=["GET"], summary="Get all the open ports for all hosts")
     async def get_open_ports(self, domain: str = None, target_id: str = None) -> dict[str, list[int]]:
         open_ports = {}
-        async for asset in self.mongo_iter(
+        query = AssetQuery(
             query={"open_ports": {"$exists": True, "$ne": []}},
             domain=domain,
             target_id=target_id,
             fields=["host", "open_ports"],
-        ):
+        )
+        async for asset in query.mongo_iter(self):
             open_ports[asset["host"]] = asset["open_ports"]
         return open_ports
 
@@ -67,14 +69,12 @@ class OpenPortsApplet(BaseApplet):
 
     @api_endpoint("/search/{port}", methods=["POST"], summary="Search for assets with a given open port", mcp=True)
     async def search_by_open_port(self, port: int, target_id: str = None) -> list[str]:
-        assets = [
-            a
-            async for a in self.mongo_iter(
-                query={"open_ports": port},
-                target_id=target_id,
-                fields=["host"],
-            )
-        ]
+        query = AssetQuery(
+            query={"open_ports": port},
+            target_id=target_id,
+            fields=["host"],
+        )
+        assets = [a async for a in query.mongo_iter(self)]
         return [a.get("host") for a in assets]
 
     async def refresh(self, asset, events_by_type):
