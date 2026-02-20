@@ -1,0 +1,43 @@
+name: helm tests
+on:
+  push:
+    branches:
+      - stable
+      - dev
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  helm-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.x'
+
+    - name: Install Python dependencies
+      run: pip install requests
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v4
+
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+
+    - name: Install minikube
+      uses: medyagh/setup-minikube@latest
+
+    - name: Run helm deployment tests
+      run: python test_helm_deployment.py
+
+    - name: Cleanup minikube
+      if: always()
+      run: minikube delete

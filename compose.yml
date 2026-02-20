@@ -32,14 +32,6 @@ services:
       server:
         condition: service_healthy
 
-  agent:
-    <<: *bbot-server-base
-    command: ["bbctl", "agent", "start"]
-    entrypoint: ["bash", "/app/bbot_server/default_agent.sh"]
-    depends_on:
-      server:
-        condition: service_healthy
-
   mongodb:
     image: mongo:latest
     restart: unless-stopped
