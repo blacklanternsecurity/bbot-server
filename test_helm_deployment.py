@@ -110,8 +110,12 @@ class TestHelmDeployment(unittest.TestCase):
         print("-" * 40)
         try:
             result = cls.kubectl(
-                "get", "pods", "-o", "jsonpath='{.items[*].metadata.name}'",
-                capture_output=True, check=False,
+                "get",
+                "pods",
+                "-o",
+                "jsonpath='{.items[*].metadata.name}'",
+                capture_output=True,
+                check=False,
             )
             if result.returncode == 0 and result.stdout.strip():
                 pod_names = result.stdout.strip().strip("'").split()
@@ -120,8 +124,12 @@ class TestHelmDeployment(unittest.TestCase):
                     print("-" * 30)
                     try:
                         log_result = cls.kubectl(
-                            "logs", pod_name, "--all-containers", "--tail=200",
-                            capture_output=True, check=False,
+                            "logs",
+                            pod_name,
+                            "--all-containers",
+                            "--tail=200",
+                            capture_output=True,
+                            check=False,
                         )
                         if log_result.returncode == 0:
                             print(log_result.stdout)
@@ -146,8 +154,11 @@ class TestHelmDeployment(unittest.TestCase):
         print("-" * 40)
         try:
             result = cls.kubectl(
-                "get", "events", "--sort-by=.metadata.creationTimestamp",
-                capture_output=True, check=False,
+                "get",
+                "events",
+                "--sort-by=.metadata.creationTimestamp",
+                capture_output=True,
+                check=False,
             )
             print(result.stdout)
         except Exception as e:
@@ -162,7 +173,9 @@ class TestHelmDeployment(unittest.TestCase):
         print("Checking if minikube is running...")
         result = subprocess.run(
             ["minikube", "status"],
-            capture_output=True, text=True, check=False,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         if result.returncode != 0 or "Running" not in result.stdout:
             print("Starting minikube...")
@@ -179,15 +192,26 @@ class TestHelmDeployment(unittest.TestCase):
 
         # Build image locally and load into minikube
         print("Building Docker image...")
-        cls.run_command([
-            "docker", "build", "-t",
-            "blacklanternsecurity/bbot-server:test", ".",
-        ], timeout=300)
+        cls.run_command(
+            [
+                "docker",
+                "build",
+                "-t",
+                "blacklanternsecurity/bbot-server:test",
+                ".",
+            ],
+            timeout=300,
+        )
         print("Loading image into minikube...")
-        cls.run_command([
-            "minikube", "image", "load",
-            "blacklanternsecurity/bbot-server:test",
-        ], timeout=120)
+        cls.run_command(
+            [
+                "minikube",
+                "image",
+                "load",
+                "blacklanternsecurity/bbot-server:test",
+            ],
+            timeout=120,
+        )
         print("Image loaded successfully")
 
         # Update Helm dependencies
@@ -197,19 +221,27 @@ class TestHelmDeployment(unittest.TestCase):
         # Deploy the helm chart
         print("Deploying helm chart...")
         cls.helm(
-            "install", cls.release_name, "helm/",
-            "--set", "image.tag=test",
-            "--set", "image.pullPolicy=Never",
+            "install",
+            cls.release_name,
+            "helm/",
+            "--set",
+            "image.tag=test",
+            "--set",
+            "image.pullPolicy=Never",
             timeout=60,
         )
 
         # Wait for server pod to be ready
         print("Waiting for server pod to be ready...")
         result = cls.kubectl(
-            "wait", "--for=condition=ready",
-            "pod", "-l", "app=bbot-server",
+            "wait",
+            "--for=condition=ready",
+            "pod",
+            "-l",
+            "app=bbot-server",
             "--timeout=90s",
-            check=False, capture_output=True,
+            check=False,
+            capture_output=True,
             timeout=100,
         )
         if result.returncode == 0:
