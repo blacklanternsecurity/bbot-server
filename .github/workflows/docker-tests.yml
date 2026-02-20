@@ -28,7 +28,7 @@ jobs:
   docker-publish:
     runs-on: ubuntu-latest
     needs: docker-test
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/stable' }}
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/dev') }}
 
     steps:
     - name: Checkout code
@@ -61,12 +61,11 @@ jobs:
         images: blacklanternsecurity/bbot-server
         tags: |
           type=ref,event=branch
-          type=ref,event=pr
           type=sha,prefix=sha-
-          type=raw,value=latest,enable={{is_default_branch}}
-          type=raw,value=v${{ steps.version.outputs.major }}
-          type=raw,value=v${{ steps.version.outputs.minor }}
-          type=raw,value=v${{ steps.version.outputs.version }}
+          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/stable' }}
+          type=raw,value=v${{ steps.version.outputs.major }},enable=${{ github.ref == 'refs/heads/stable' }}
+          type=raw,value=v${{ steps.version.outputs.minor }},enable=${{ github.ref == 'refs/heads/stable' }}
+          type=raw,value=v${{ steps.version.outputs.version }},enable=${{ github.ref == 'refs/heads/stable' }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v6
