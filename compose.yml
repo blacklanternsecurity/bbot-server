@@ -3,7 +3,7 @@ x-bbot-server-base: &bbot-server-base
     context: .
   restart: unless-stopped
   volumes:
-    - "${BBOT_SERVER_CONFIG:-~/.config/bbot_server/config.yml}:/root/.config/bbot_server/config.yml"
+    - "${BBOT_SERVER_CONFIG:-~/.config/bbot_server/config.yml}:/home/bbot/.config/bbot_server/config.yml"
     - ./bbot_server:/app/bbot_server
     - ./bbot_server/defaults_docker.yml:/app/bbot_server/defaults.yml
 
