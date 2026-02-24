@@ -22,7 +22,7 @@ class EventsApplet(BaseApplet):
         super().__init__(*args, **kwargs)
         self._archive_events_task = None
 
-    async def handle_event(self, event, asset):
+    async def handle_event(self, event, host):
         # construct our Event from bbot's Event dict
         d = event.model_dump()
         # compute reverse_host

@@ -320,7 +320,7 @@ class ScansApplet(BaseApplet):
             self.log.error(f"Error in scans loop: {e}")
             self.log.error(traceback.format_exc())
 
-    async def handle_event(self, event, asset) -> list[Activity]:
+    async def handle_event(self, event, host) -> list[Activity]:
         """
         Whenever we get a SCAN event, we create or update the scan in the database.
         """

@@ -3,7 +3,7 @@ import subprocess
 from time import sleep
 
 from tests.conftest import BBCTL_COMMAND, BBOT_SERVER_TEST_DIR, INGEST_PROCESSING_DELAY
-from bbot_server.assets import Asset
+from bbot_server.db.tables import Host
 
 
 scan1_expected_hosts = {
@@ -61,7 +61,7 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
 
     # make sure the assets were created
     process = subprocess.run(BBCTL_COMMAND + ["asset", "list", "--json"], capture_output=True, text=True)
-    assets = [Asset(**orjson.loads(line)) for line in process.stdout.splitlines()]
+    assets = [Host(**orjson.loads(line)) for line in process.stdout.splitlines()]
     assert assets
     assert {a.host for a in assets} == scan1_expected_hosts
 
@@ -72,7 +72,7 @@ def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_event
 
     # make sure the assets were created
     process = subprocess.run(BBCTL_COMMAND + ["asset", "list", "--json"], capture_output=True, text=True)
-    assets = [Asset(**orjson.loads(line)) for line in process.stdout.splitlines()]
+    assets = [Host(**orjson.loads(line)) for line in process.stdout.splitlines()]
     assert assets
     assert {a.host for a in assets} == scan2_expected_hosts
 

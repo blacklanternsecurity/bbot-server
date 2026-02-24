@@ -263,7 +263,7 @@ async def db_cleanup():
 
     engine = create_async_engine(bbcfg.database.uri)
 
-    async def truncate_all_tables():
+    async def drop_all_tables():
         async with engine.begin() as conn:
             # Get all table names
             result = await conn.execute(
@@ -272,16 +272,16 @@ async def db_cleanup():
             tables = [row[0] for row in result.fetchall()]
             if tables:
                 table_list = ", ".join(f'"{t}"' for t in tables)
-                await conn.execute(text(f"TRUNCATE {table_list} CASCADE"))
+                await conn.execute(text(f"DROP TABLE {table_list} CASCADE"))
 
     try:
-        # Clear before test
-        await truncate_all_tables()
+        # Drop all tables before test so they get recreated with correct schema
+        await drop_all_tables()
         yield
     finally:
-        # Clear again after test
+        # Drop again after test
         with suppress(Exception):
-            await truncate_all_tables()
+            await drop_all_tables()
         with suppress(Exception):
             await engine.dispose()
 

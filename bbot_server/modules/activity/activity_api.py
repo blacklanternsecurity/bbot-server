@@ -10,7 +10,7 @@ class ActivityApplet(BaseApplet):
     description = "Query BBOT server activities"
     model = Activity
 
-    async def handle_activity(self, activity, asset=None):
+    async def handle_activity(self, activity, host=None):
         # write the activity to the database
         d = activity.model_dump()
         d.pop("pk", None)

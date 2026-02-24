@@ -3,8 +3,8 @@ import logging
 from uuid import UUID
 from hashlib import sha1
 from typing import Union, Optional, Annotated
-from pydantic import Field, BaseModel, computed_field
-from sqlmodel import SQLModel, Field as SQLField
+from pydantic import Field as PydanticField, BaseModel, computed_field
+from sqlmodel import SQLModel, Field
 from sqlalchemy import Column, select, func, asc, desc, or_, and_
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -33,7 +33,10 @@ def derive(field_name):
 class BaseBBOTServerModel(SQLModel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # auto-compute derived stored fields
+        self._run_derives()
+
+    def _run_derives(self):
+        """Auto-compute derived stored fields. Only sets fields that are currently None."""
         for name in dir(type(self)):
             method = getattr(type(self), name, None)
             field = getattr(method, '_derives', None)
@@ -62,7 +65,7 @@ class BaseHostModel(BaseBBOTServerModel):
     netloc: str | None = Field(default=None)
     url: str | None = Field(default=None)
     reverse_host: str | None = Field(default=None, index=True)
-    host_parts: list | None = Field(default=None, sa_column=Column(JSONB, nullable=True))
+    host_parts: list | None = Field(default=None, sa_type=JSONB)
     created: float = Field(default_factory=utc_now, index=True)
     modified: float = Field(default_factory=utc_now, index=True)
     ignored: bool = False
@@ -73,6 +76,8 @@ class BaseHostModel(BaseBBOTServerModel):
         super().__init__(**kwargs)
         if event is not None:
             self._set_event(event)
+            # Re-run derives since _set_event may have set port/netloc/etc.
+            self._run_derives()
 
     def _set_event(self, event):
         """Copy host/port/url from a BBOT event."""

@@ -1,12 +1,11 @@
 from uuid import UUID
 from contextlib import asynccontextmanager
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete as sa_delete
 from sqlalchemy.exc import IntegrityError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
-from bbot_server.assets import Asset
-from bbot_server.db.tables import TargetTable
+from bbot_server.db.tables import TargetTable, HostTarget
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.modules.targets.targets_models import Target, CreateTarget, TargetQuery
@@ -44,63 +43,90 @@ class TargetsApplet(BaseApplet):
         self._target_ids_modified = None
         return True, ""
 
-    async def handle_event(self, event, asset):
+    async def handle_event(self, event, host):
         activities = []
-        if asset is None or event.host is None:
+        if host is None or event.host is None:
             return
         dns_children = getattr(event, "dns_children", {})
+        current_target_ids = await self._get_host_target_ids(host)
         for target_id in await self.get_target_ids():
             bbot_target = await self._get_bbot_target(target_id)
-            scope_result = await self._check_scope(event.host, dns_children, bbot_target, target_id, asset.scope)
+            scope_result = await self._check_scope(event.host, dns_children, bbot_target, target_id, current_target_ids)
             if scope_result is not None:
                 scope_result.set_event(event)
                 if scope_result.type == "NEW_IN_SCOPE_ASSET":
-                    asset.scope = sorted(set(asset.scope) | set([target_id]))
+                    await self._add_host_target(host, str(target_id))
+                    current_target_ids = sorted(set(current_target_ids) | {target_id})
                 else:
-                    asset.scope = sorted(set(asset.scope) - set([target_id]))
+                    await self._remove_host_target(host, str(target_id))
+                    current_target_ids = sorted(set(current_target_ids) - {target_id})
                 activities.append(scope_result)
         return activities
 
-    async def handle_activity(self, activity, asset: Asset = None):
+    async def handle_activity(self, activity, host=None):
         self.log.debug(f"Target created or updated. Refreshing asset scope")
         target_ids = await self.get_target_ids(debounce=0.0)
         for target_id in target_ids:
             target = await self._get_bbot_target(target_id, debounce=0.0)
-            for host in await self.root.get_hosts():
-                await self.refresh_asset_scope(host, target, target_id, emit_activity=True)
+            for _host in await self.root.get_hosts():
+                await self.refresh_asset_scope(_host, target, target_id, emit_activity=True)
         return []
 
     async def refresh_asset_scope(self, host: str, target: BBOTTarget, target_id: UUID, emit_activity: bool = False):
         self.log.debug(f"Refreshing asset scope for host {host}")
-        asset = await self.root._get_asset(host=host)
-        if asset is None:
-            raise self.BBOTServerNotFoundError(f"Asset not found for host {host}")
-        asset_scope = [UUID(_target_id) for _target_id in (asset.scope or [])]
-        asset_dns_links = asset.dns_links or {}
-        scope_result = await self._check_scope(host, asset_dns_links, target, target_id, asset_scope)
+        current_target_ids = await self._get_host_target_ids(host)
+        dns_children = await self._get_dns_children(host)
+        scope_result = await self._check_scope(host, dns_children, target, target_id, current_target_ids)
         scope_result_type = getattr(scope_result, "type", None)
         if scope_result_type == "NEW_IN_SCOPE_ASSET":
-            asset_scope = sorted(set(asset_scope) | set([target_id]))
-        else:
-            asset_scope = sorted(set(asset_scope) - set([target_id]))
-        # Update all assets with this host
-        await self.root.assets._update(
-            {"host": host},
-            {"scope": [str(_target_id) for _target_id in asset_scope]},
-        )
+            await self._add_host_target(host, str(target_id))
+        elif scope_result is not None:
+            await self._remove_host_target(host, str(target_id))
         if emit_activity and scope_result:
             await self.emit_activity(scope_result)
 
-    async def get_asset_scope(self, host: str):
-        asset = await self.root._get_asset(host=host)
-        asset_dns_links = (asset.dns_links or {}) if asset else {}
-        asset_scope = []
-        for target_id in await self.get_target_ids():
-            target = await self._get_bbot_target(target_id)
-            in_scope = await self._check_scope(host, asset_dns_links, target, target_id)
-            if in_scope:
-                asset_scope.append(target_id)
-        return sorted(asset_scope)
+    async def _add_host_target(self, host: str, target_id: str):
+        """Add a host -> target mapping."""
+        ht = HostTarget(host=host, target_id=target_id)
+        try:
+            async with self.session() as session:
+                session.add(ht)
+                await session.commit()
+        except IntegrityError:
+            pass  # already exists
+
+    async def _remove_host_target(self, host: str, target_id: str):
+        """Remove a host -> target mapping."""
+        async with self.session() as session:
+            stmt = sa_delete(HostTarget).where(
+                HostTarget.host == host, HostTarget.target_id == target_id
+            )
+            await session.execute(stmt)
+            await session.commit()
+
+    async def _get_dns_children(self, host: str) -> dict:
+        """Get merged dns_children for a host from all its events."""
+        from bbot_server.modules.events.events_models import Event
+        merged = {}
+        async with self.session() as session:
+            stmt = select(Event.dns_children).where(
+                Event.host == host,
+                Event.dns_children.isnot(None),
+            )
+            result = await session.execute(stmt)
+            for (dc,) in result.all():
+                if dc:
+                    for rdtype, hosts in dc.items():
+                        merged.setdefault(rdtype, []).extend(hosts)
+        # deduplicate
+        return {k: list(set(v)) for k, v in merged.items()}
+
+    async def _get_host_target_ids(self, host: str) -> list:
+        """Get all target IDs for a given host from host_targets table."""
+        async with self.session() as session:
+            stmt = select(HostTarget.target_id).where(HostTarget.host == host)
+            result = await session.execute(stmt)
+            return sorted([UUID(row[0]) for row in result.all()])
 
     @api_endpoint(
         "/",
@@ -229,22 +255,10 @@ class TargetsApplet(BaseApplet):
             self._scope_cache.pop(target_id, None)
         self._target_ids.discard(target_id)
 
-        # Remove target from all assets' scope arrays
-        # For JSONB arrays, we need to use a raw SQL approach
+        # Remove target from host_targets table
         async with self.session() as session:
-            from sqlalchemy import text
-            from bbot_server.db.tables import AssetTable
-            # Update scope arrays to remove this target_id
-            stmt = text("""
-                UPDATE assets
-                SET scope = (
-                    SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
-                    FROM jsonb_array_elements(scope) AS elem
-                    WHERE elem #>> '{}' != :target_id
-                )
-                WHERE scope @> CAST(:target_id_json AS jsonb)
-            """)
-            await session.execute(stmt, {"target_id": target_id, "target_id_json": f'["{target_id}"]'})
+            stmt = sa_delete(HostTarget).where(HostTarget.target_id == target_id)
+            await session.execute(stmt)
             await session.commit()
 
     @api_endpoint("/in_scope", methods=["GET"], summary="Check if a host or URL is in scope")

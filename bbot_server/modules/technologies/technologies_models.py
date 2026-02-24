@@ -2,23 +2,16 @@ from pydantic import Field, computed_field
 from typing import Annotated
 
 from bbot_server.utils.misc import utc_now
-from bbot_server.models.base import AssetQuery, BaseAssetFacet
+from bbot_server.models.base import AssetQuery, BaseHostModel
 
 
 class TechnologyQuery(AssetQuery):
     """Base request body for technology query/count endpoints."""
 
     technology: str | None = Field(None, description="Filter by technology name")
-    _force_asset_type = "Technology"
-
-    async def build(self, applet=None):
-        query = await super().build(applet)
-        if self.technology and "technology" not in query:
-            query["technology"] = self.technology
-        return query
 
 
-class Technology(BaseAssetFacet):
+class Technology(BaseHostModel):
     technology: Annotated[str, "indexed", "indexed-text"]
     last_seen: Annotated[float, "indexed"] = Field(default_factory=utc_now)
 

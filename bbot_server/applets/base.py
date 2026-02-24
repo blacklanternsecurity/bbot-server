@@ -11,7 +11,6 @@ from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
 from sqlalchemy import select, func, delete as sa_delete, update
 
-from bbot_server.assets import Asset
 from bbot.models.pydantic import Event
 from bbot_server.modules import API_MODULES
 from bbot.core.helpers import misc as bbot_misc
@@ -252,10 +251,10 @@ class BaseApplet:
     async def cleanup(self):
         pass
 
-    async def handle_activity(self, activity: Activity, asset: Asset = None):
+    async def handle_activity(self, activity: Activity, host=None):
         pass
 
-    async def handle_event(self, event: Event, asset=None):
+    async def handle_event(self, event: Event, host=None):
         return []
 
     def make_activity(self, *args, **kwargs):
