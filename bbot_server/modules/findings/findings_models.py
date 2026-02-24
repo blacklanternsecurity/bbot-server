@@ -121,3 +121,8 @@ class Finding(BaseHostModel, table=True):
     @property
     def confidence(self) -> str:
         return ConfidenceScore.to_str(self.confidence_score)
+
+    @computed_field
+    @property
+    def type(self) -> str:
+        return "Finding"

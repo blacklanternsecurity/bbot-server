@@ -110,6 +110,39 @@ class BaseHostModel(BaseBBOTServerModel):
             return make_netloc(self.host, self.port)
 
 
+def _is_jsonb_col(col):
+    """Check if a SQLAlchemy column is a JSONB type."""
+    from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+    try:
+        return isinstance(col.type, PG_JSONB)
+    except Exception:
+        return False
+
+
+def _jsonb_contains(col, val):
+    """Check if a JSONB array column contains a value, using the @> operator."""
+    import json
+    return col.op("@>")(func.cast(json.dumps(val), text("jsonb")))
+
+
+def _jsonb_or_col_regex(col, val):
+    """Apply regex match, handling JSONB array columns specially.
+
+    For JSONB array columns (e.g. host_parts), check if ANY element matches.
+    For regular columns, use Postgres regex operator directly.
+    """
+    if _is_jsonb_col(col):
+        # JSONB array: EXISTS (SELECT 1 FROM jsonb_array_elements_text(col) AS elem WHERE elem ~ val)
+        from sqlalchemy import exists, literal_column
+        elem_alias = func.jsonb_array_elements_text(col).alias("_arr_elem")
+        return exists(
+            select(literal_column("1"))
+            .select_from(elem_alias)
+            .where(literal_column("_arr_elem").op("~")(val))
+        )
+    return col.op("~")(val)
+
+
 def _apply_json_filters(stmt, model, query_dict):
     """
     Translate a MongoDB-style JSON filter dict to SQLAlchemy WHERE clauses.
@@ -207,7 +240,7 @@ def _apply_json_filters(stmt, model, query_dict):
                 elif op == "$nin":
                     conditions.append(~col.in_(val))
                 elif op == "$regex":
-                    conditions.append(col.op("~")(val))
+                    conditions.append(_jsonb_or_col_regex(col, val))
                 elif op == "$exists":
                     if val:
                         conditions.append(col.isnot(None))
@@ -249,10 +282,11 @@ class BaseQuery(BaseModel):
     sort: list[str | tuple[str, int]] | None = Field(
         None, description="Sort specification: field names or (field, direction) tuples"
     )
+    aggregate: list | None = Field(
+        None, description="MongoDB-style aggregation pipeline"
+    )
 
     def __init__(self, *args, **kwargs):
-        # Remove deprecated 'aggregate' kwarg if passed
-        kwargs.pop("aggregate", None)
         super().__init__(*args, **kwargs)
         # process sort spec: "+field"/"-field" strings or (field, direction) tuples
         if self.sort:

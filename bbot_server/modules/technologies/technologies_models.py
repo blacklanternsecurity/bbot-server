@@ -1,8 +1,8 @@
-from pydantic import Field, computed_field
-from typing import Annotated
+from sqlmodel import Field
+from pydantic import computed_field
 
+from bbot_server.models.base import BaseHostModel, AssetQuery, derive
 from bbot_server.utils.misc import utc_now
-from bbot_server.models.base import AssetQuery, BaseHostModel
 
 
 class TechnologyQuery(AssetQuery):
@@ -10,13 +10,30 @@ class TechnologyQuery(AssetQuery):
 
     technology: str | None = Field(None, description="Filter by technology name")
 
+    async def build(self, applet=None):
+        stmt = await super().build(applet)
+        model = self._applet.model
 
-class Technology(BaseHostModel):
-    technology: Annotated[str, "indexed", "indexed-text"]
-    last_seen: Annotated[float, "indexed"] = Field(default_factory=utc_now)
+        if self.technology:
+            stmt = stmt.where(model.technology == self.technology)
+
+        return stmt
+
+
+class Technology(BaseHostModel, table=True):
+    __tablename__ = "technologies"
+
+    pk: int | None = Field(default=None, primary_key=True)
+    id: str | None = Field(default=None, index=True, sa_column_kwargs={"unique": True})
+    technology: str = Field(index=True)
+    last_seen: float = Field(default_factory=utc_now)
+
+    @derive("id")
+    def _derive_id(self):
+        if self.technology and self.netloc:
+            return self.sha1(f"{self.technology}:{self.netloc}")
 
     @computed_field
     @property
-    def id(self) -> Annotated[str, "indexed", "unique"]:
-        """We dedupe technologies by technology+netloc"""
-        return self.sha1(f"{self.technology}:{self.netloc}")
+    def type(self) -> str:
+        return "Technology"

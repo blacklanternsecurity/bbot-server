@@ -43,6 +43,12 @@ class AssetsApplet(BaseApplet):
         """
         Advanced querying of assets. Choose your own filters and fields.
         """
+        # Aggregation pipeline
+        if query.aggregate:
+            async for row in query.aggregate_iter(self):
+                yield row
+            return
+
         async for row in query.query_iter(self):
             d = row.model_dump()
             if query.fields:
