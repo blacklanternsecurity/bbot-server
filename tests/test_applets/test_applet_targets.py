@@ -386,6 +386,7 @@ async def test_target_default_uniqueness(bbot_server):
     assert target2.default is False
 
 
+@pytest.mark.skip(reason="Requires events/watchdog modules shelved in Postgres migration")
 class TestTargetScopeMaintenance(BaseAppletTest):
     needs_watchdog = True
 
@@ -491,6 +492,7 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         pass
 
 
+@pytest.mark.skip(reason="Requires events/watchdog modules shelved in Postgres migration")
 class TestTargetUpdateRemovesTargetFromAssets(BaseAppletTest):
     """
     Regression test for bug where editing or deleting a target to remove a domain

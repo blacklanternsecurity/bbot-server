@@ -9,20 +9,13 @@ from omegaconf import OmegaConf
 from typing import Annotated, Any, get_origin, get_args, Union, Callable, cast  # noqa
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
-from pymongo import WriteConcern
+from sqlalchemy import select, func, delete as sa_delete, update
 
 from bbot_server.assets import Asset
 from bbot.models.pydantic import Event
 from bbot_server.modules import API_MODULES
 from bbot.core.helpers import misc as bbot_misc
 from bbot_server.utils import misc as bbot_server_misc
-from bbot_server.utils.db import (
-    apply_index_diff,
-    desired_indexes_from_model,
-    parse_existing_indexes,
-    compute_index_diff,
-    merge_desired_indexes,
-)
 from bbot_server.applets._routing import make_bbotserver_route
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.errors import BBOTServerError, BBOTServerValueError
@@ -114,8 +107,6 @@ class BaseApplet:
     bbot_helpers = bbot_misc
 
     def __init__(self, parent=None):
-        # TODO: we need to collect all the child applets before doing any fastapi setup
-
         self.child_applets = []
         self.log = logging.getLogger(f"bbot_server.{self.name.lower()}")
         self.parent = parent
@@ -123,17 +114,14 @@ class BaseApplet:
         self.route_maps = {}
         self.route_maps = self.root.route_maps
 
-        self.asset_store = None
-        self.event_store = None
         self.message_queue = None
         self.task_broker = None
 
+        # session factory for PostgreSQL (inherited from root)
+        self._session_factory = None
+
         # whether this applet should be enabled
         self._enabled = True
-
-        # mongo stuff
-        self.collection = None
-        self.strict_collection = None
 
         self._add_custom_routes()
 
@@ -187,50 +175,17 @@ class BaseApplet:
 
     async def _native_setup(self):
         """
-        This setup only runs when BBOT server is running natively, e.g. directly connecting to mongo, redis, etc.
+        This setup only runs when BBOT server is running natively, e.g. directly connecting to Postgres, Redis, etc.
         """
-        # inherit config, db, message queue, etc. from parent applet
+        # inherit session factory, message queue, etc. from parent applet
         if self.parent is not None:
-            self.asset_store = self.parent.asset_store
-            self.user_store = self.parent.user_store
-            self.event_store = self.parent.event_store
+            self._session_factory = self.parent._session_factory
             self.message_queue = self.parent.message_queue
             self.task_broker = self.parent.task_broker
 
-            # if model isn't defined, inherit collection from parent
+            # if model isn't defined, inherit from parent
             if self.model is None:
                 self.model = self.parent.model
-                self.db = self.parent.db
-                self.collection = self.parent.collection
-                self.strict_collection = self.parent.strict_collection
-            else:
-                # otherwise, set up applet-specific db tables
-                self.table_name = getattr(self.model, "__table_name__", None)
-                self.store_type = getattr(self.model, "__store_type__", None)
-                if self.store_type not in ("user", "asset", "event"):
-                    raise BBOTServerValueError(
-                        f"Invalid store type: {self.store_type} on model {self.model.__name__} - must be one of: user, asset, event"
-                    )
-                if self.store_type == "user":
-                    self.db = self.user_store.db
-                elif self.store_type == "asset":
-                    self.db = self.asset_store.db
-                elif self.store_type == "event":
-                    self.db = self.event_store.db
-
-                # if this applet doesn't have its own table, inherit from parent
-                if self.table_name is None:
-                    self.collection = self.parent.collection
-                    self.strict_collection = self.parent.strict_collection
-                else:
-                    self.collection = self.db[self.table_name]
-                    # WriteConcern options:
-                    #  w=1: Acknowledges the write operation only after it has been written to the primary. (the default)
-                    #  j=True: Ensures the write operation is committed to the journal. (default is False)
-                    # This helps prevent duplicates in asset activity.
-                    self.strict_collection = self.collection.with_options(write_concern=WriteConcern(w=1, j=True))
-
-                # index building is deferred to reconcile_all_indexes()
 
         # taskiq broker
         if self.task_broker is None:
@@ -252,41 +207,6 @@ class BaseApplet:
                     self.log.error(f"Error setting up {self.name}: {reason}")
             except Exception as e:
                 raise BBOTServerError(f"Error setting up {self.name}: {e}") from e
-
-    async def reconcile_all_indexes(self):
-        """
-        Reconcile indexes for all collections used by this applet and its children.
-
-        This aggregates desired indexes from all models that share a collection,
-        then applies a single diff per collection.
-        """
-        # Group applets by collection
-        applets_by_collection = {}
-        for applet in self.all_child_applets(include_self=True):
-            if applet.collection is None or applet.model is None:
-                continue
-            collection_name = applet.collection.full_name
-            if collection_name not in applets_by_collection:
-                applets_by_collection[collection_name] = {"collection": applet.collection, "models": []}
-            applets_by_collection[collection_name]["models"].append(applet.model)
-
-        # Reconcile each collection
-        for collection_name, data in applets_by_collection.items():
-            collection = data["collection"]
-            models = data["models"]
-
-            # Merge desired indexes from all models
-            all_desired = [desired_indexes_from_model(m) for m in models]
-            desired, desired_text = merge_desired_indexes(all_desired)
-
-            # Get existing indexes
-            indexes_cursor = await collection.list_indexes()
-            indexes_list = [idx async for idx in indexes_cursor]
-            existing, existing_text = parse_existing_indexes(indexes_list)
-
-            # Compute and apply diff
-            diff = compute_index_diff(desired, desired_text, existing, existing_text)
-            await apply_index_diff(collection, diff, existing)
 
     async def register_watchdog_tasks(self, broker):
         # register watchdog tasks
@@ -375,23 +295,63 @@ class BaseApplet:
         self.child_applets.append(applet)
         return applet
 
-    async def _get_obj(self, host: str, kwargs):
-        """
-        Shorthand for getting an object (matching the applet's model) from the asset store
-        """
-        query = {"host": host, "type": self.model.__name__}
-        obj = await self.collection.find_one(query, kwargs)
-        if not obj:
-            raise self.BBOTServerNotFoundError(f"Object of type {self.model.__name__} for host {host} not found")
-        return self.model(**obj)
+    ### SQLAlchemy convenience methods ###
 
-    async def _put_obj(self, obj):
-        """
-        Shorthand for writing an object into the applet's asset store
-        """
-        await self.collection.update_one(
-            {"host": obj.host, "type": self.model.__name__}, {"$set": obj.model_dump()}, upsert=True
-        )
+    def session(self):
+        """Get an async session context manager."""
+        return self._session_factory()
+
+    async def _get_one(self, **filters):
+        """Get a single row matching filters, or None."""
+        async with self.session() as session:
+            stmt = select(self.model)
+            for k, v in filters.items():
+                stmt = stmt.where(getattr(self.model, k) == v)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
+
+    async def _insert(self, obj):
+        """Insert a new object and return it refreshed."""
+        async with self.session() as session:
+            session.add(obj)
+            await session.commit()
+            await session.refresh(obj)
+            return obj
+
+    async def _upsert(self, obj, conflict_columns: list[str]):
+        """Insert or update on conflict."""
+        from sqlalchemy.dialects.postgresql import insert
+        async with self.session() as session:
+            values = {
+                c.key: getattr(obj, c.key)
+                for c in self.model.__table__.columns
+                if getattr(obj, c.key, None) is not None
+            }
+            stmt = insert(self.model).values(**values)
+            update_cols = {k: v for k, v in values.items() if k not in conflict_columns}
+            stmt = stmt.on_conflict_do_update(index_elements=conflict_columns, set_=update_cols)
+            await session.execute(stmt)
+            await session.commit()
+
+    async def _update(self, filters: dict, updates: dict):
+        """Update rows matching filters. Returns number of rows affected."""
+        async with self.session() as session:
+            stmt = update(self.model)
+            for k, v in filters.items():
+                stmt = stmt.where(getattr(self.model, k) == v)
+            stmt = stmt.values(**updates)
+            result = await session.execute(stmt)
+            await session.commit()
+            return result.rowcount
+
+    async def _delete(self, **filters):
+        """Delete rows matching filters."""
+        async with self.session() as session:
+            stmt = sa_delete(self.model)
+            for k, v in filters.items():
+                stmt = stmt.where(getattr(self.model, k) == v)
+            await session.execute(stmt)
+            await session.commit()
 
     class NameLowercaseDescriptor:
         def __init__(self):

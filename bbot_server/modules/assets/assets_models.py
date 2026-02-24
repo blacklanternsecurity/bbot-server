@@ -13,10 +13,10 @@ class AdvancedAssetQuery(AssetQuery):
     type: str = Field(default="Asset", description="Asset type (Asset, Finding, Technology, etc.)")
 
     async def build(self, applet=None):
-        query = await super().build(applet)
-        print(f"QUERERY BEFOREE: {query}")
-        print(f"SELF>TTTYPE: {self.type}")
-        if ("type" not in query) and self.type:
-            query["type"] = self.type
-        print(f"UQYWERQWEYRYRY: {query}")
-        return query
+        stmt = await super().build(applet)
+        model = self._applet.model
+
+        if self.type:
+            stmt = stmt.where(model.type == self.type)
+
+        return stmt

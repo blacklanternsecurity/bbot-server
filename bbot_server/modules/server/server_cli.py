@@ -125,52 +125,22 @@ class ServerCTL(BaseBBCTL):
                 command += ["--tail", str(tail)]
         self._run_docker_compose(command)
 
-    @subcommand(help="Clear the database (drop Mongodb collections).")
-    def cleardb(
-        self,
-        event_store: Annotated[bool, Option("--event-store", "-e", help="Clear the event store database")] = False,
-        asset_store: Annotated[bool, Option("--asset-store", "-a", help="Clear the asset store database")] = False,
-        user_store: Annotated[bool, Option("--user-store", "-u", help="Clear the user store database")] = False,
-    ):
-        if not event_store and not asset_store and not user_store:
-            raise self.BBOTServerError(f"Must specify at least one database to clear")
+    @subcommand(help="Clear the database (truncate all PostgreSQL tables).")
+    def cleardb(self):
+        db_uri = self.config.database.uri
+        # Extract database name from URI
+        db_name = db_uri.rsplit("/", 1)[-1] if "/" in db_uri else "bbot_server"
+        response = input(
+            f"Are you sure you want to clear the database: {db_name}? This will permanently delete all data! (y/N) "
+        )
+        if response.lower() != "y":
+            raise self.BBOTServerError("Aborting")
 
-        if event_store:
-            event_store_db = self.config.event_store.uri.split("/")[-1]
-            if not event_store_db:
-                raise self.BBOTServerError("Event store database not found in config")
-            response = input(
-                f"Are you sure you want to clear the event store database: {event_store_db}? This will permanently delete all BBOT scan events! (y/N) "
-            )
-            if response.lower() != "y":
-                raise self.BBOTServerError("Aborting")
-
-            self._run_docker_compose(["exec", "mongodb", "mongosh", "--eval", "db.dropDatabase()", event_store_db])
-            self.log.info(f"Successfully cleared event store database: {event_store_db}")
-
-        if asset_store:
-            asset_store_db = self.config.asset_store.uri.split("/")[-1]
-            if not asset_store_db:
-                raise self.BBOTServerError("Asset store database not found in config")
-            response = input(
-                f"Are you sure you want to clear the asset store database: {asset_store_db}? This will permanently delete all BBOT asset data! (y/N) "
-            )
-            if response.lower() != "y":
-                raise self.BBOTServerError("Aborting")
-            self._run_docker_compose(["exec", "mongodb", "mongosh", "--eval", "db.dropDatabase()", asset_store_db])
-            self.log.info(f"Successfully cleared asset store database: {asset_store_db}")
-
-        if user_store:
-            user_store_db = self.config.user_store.uri.split("/")[-1]
-            if not user_store_db:
-                raise self.BBOTServerError("User store database not found in config")
-            response = input(
-                f"Are you sure you want to clear the user store database: {user_store_db}? This will permanently delete all BBOT user data, including presets and targets! (y/N) "
-            )
-            if response.lower() != "y":
-                raise self.BBOTServerError("Aborting")
-            self._run_docker_compose(["exec", "mongodb", "mongosh", "--eval", "db.dropDatabase()", user_store_db])
-            self.log.info(f"Successfully cleared user store database: {user_store_db}")
+        self._run_docker_compose([
+            "exec", "postgres", "psql", "-U", "bbot", "-d", db_name,
+            "-c", "DO $$ DECLARE r RECORD; BEGIN FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE'; END LOOP; END $$;"
+        ])
+        self.log.info(f"Successfully cleared database: {db_name}")
 
     def _run_docker_compose(self, args, **kwargs):
         kwargs["cwd"] = self.docker_compose_dir

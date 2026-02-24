@@ -1,9 +1,13 @@
-from bbot_server.models.base import BaseBBOTServerModel
+from bbot_server.models.base import BaseAssetFacet
 
 
-class CustomAssetFields(BaseBBOTServerModel):
+class Asset(BaseAssetFacet):
     """
-    Defines custom fields to be added to the main asset model.
-    """
+    The core Asset model.
 
-    pass
+    Previously, CustomAssetFields subclasses from various modules were merged into this model
+    at import time via AST parsing and combine_pydantic_models(). That system has been removed.
+    Each module now has its own standalone table.
+    """
+    __table_name__ = "assets"
+    __store_type__ = "asset"

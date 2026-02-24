@@ -18,32 +18,23 @@ class TargetQuery(BaseQuery):
     max_modified_timestamp: float | None = Field(None, description="Filter by maximum modified timestamp")
 
     async def build(self, applet=None):
-        query = await super().build(applet)
+        stmt = await super().build(applet)
+        model = self._applet.model
 
-        if self.name is not None and "name" not in query:
-            query["name"] = self.name
+        if self.name is not None:
+            stmt = stmt.where(model.name == self.name)
 
-        # Handle created timestamps
-        if "created" not in query and (
-            self.min_created_timestamp is not None or self.max_created_timestamp is not None
-        ):
-            query["created"] = {}
-            if self.min_created_timestamp is not None:
-                query["created"]["$gte"] = self.min_created_timestamp
-            if self.max_created_timestamp is not None:
-                query["created"]["$lte"] = self.max_created_timestamp
+        if self.min_created_timestamp is not None:
+            stmt = stmt.where(model.created >= self.min_created_timestamp)
+        if self.max_created_timestamp is not None:
+            stmt = stmt.where(model.created <= self.max_created_timestamp)
 
-        # Handle modified timestamps
-        if "modified" not in query and (
-            self.min_modified_timestamp is not None or self.max_modified_timestamp is not None
-        ):
-            query["modified"] = {}
-            if self.min_modified_timestamp is not None:
-                query["modified"]["$gte"] = self.min_modified_timestamp
-            if self.max_modified_timestamp is not None:
-                query["modified"]["$lte"] = self.max_modified_timestamp
+        if self.min_modified_timestamp is not None:
+            stmt = stmt.where(model.modified >= self.min_modified_timestamp)
+        if self.max_modified_timestamp is not None:
+            stmt = stmt.where(model.modified <= self.max_modified_timestamp)
 
-        return query
+        return stmt
 
 
 class BaseTarget(BaseBBOTServerModel):

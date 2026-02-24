@@ -1,4 +1,7 @@
 """Tests for index reconciliation idempotency."""
+import pytest
+
+pytestmark = pytest.mark.skip(reason="MongoDB tests removed in Postgres migration")
 
 from bbot_server import BBOTServer
 from bbot_server.utils.db import (

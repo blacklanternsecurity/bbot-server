@@ -4,22 +4,46 @@ from uuid import UUID
 from hashlib import sha1
 from typing import Union, Optional, Annotated
 from pydantic import Field, BaseModel, computed_field
+from sqlmodel import SQLModel, Field as SQLField
+from sqlalchemy import Column, select, func, asc, desc, or_, and_
+from sqlalchemy.dialects.postgresql import JSONB
 
 from bbot.core.helpers.misc import make_netloc
-from bbot.models.pydantic import BBOTBaseModel
 
 from bbot_server.utils.misc import utc_now
 from bbot_server.errors import BBOTServerError, BBOTServerValueError
-from bbot_server.utils.misc import _sanitize_mongo_query, _sanitize_mongo_aggregation
 
 log = logging.getLogger("bbot_server.models")
 
 host_split_regex = re.compile(r"[^a-z0-9]")
 
 
-class BaseBBOTServerModel(BBOTBaseModel):
+def derive(field_name):
+    """Mark a method as deriving a stored column value.
+
+    The base __init__ calls all @derive methods after construction.
+    Only sets the field if it's currently None (so DB-loaded rows aren't recomputed).
+    """
+    def decorator(fn):
+        fn._derives = field_name
+        return fn
+    return decorator
+
+
+class BaseBBOTServerModel(SQLModel):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # auto-compute derived stored fields
+        for name in dir(type(self)):
+            method = getattr(type(self), name, None)
+            field = getattr(method, '_derives', None)
+            if field and getattr(self, field, None) is None:
+                result = method(self)
+                if result is not None:
+                    setattr(self, field, result)
+
     def model_dump(self, *args, mode="json", exclude_none=True, **kwargs):
-        return _sanitize_mongo_query(super().model_dump(*args, mode=mode, exclude_none=exclude_none, **kwargs))
+        return super().model_dump(*args, mode=mode, exclude_none=exclude_none, **kwargs)
 
     def sha1(self, data: str) -> str:
         return sha1(data.encode()).hexdigest()
@@ -27,118 +51,202 @@ class BaseBBOTServerModel(BBOTBaseModel):
 
 class BaseHostModel(BaseBBOTServerModel):
     """
-    A base model for all BBOT Server models that have a host, port, netloc, and url
+    A base model for all BBOT Server models that have a host.
 
-    Inherited by Asset and Activity models.
-
-    Corresponds to BaseQuery
+    Provides host, reverse_host, host_parts columns with automatic derivation.
+    Subclasses with table=True get these as stored columns.
     """
 
-    # TODO: why is id commented out?
-    # id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: str(uuid.uuid4()))
-    type: Annotated[Optional[str], "indexed"] = None
-    host: Annotated[str, "indexed"]
-    port: Annotated[Optional[int], "indexed"] = None
-    netloc: Annotated[Optional[str], "indexed"] = None
-    url: Annotated[Optional[str], "indexed"] = None
-    created: Annotated[float, "indexed"] = Field(default_factory=utc_now)
-    modified: Annotated[float, "indexed"] = Field(default_factory=utc_now)
+    host: str = Field(index=True)
+    port: int | None = Field(default=None)
+    netloc: str | None = Field(default=None)
+    url: str | None = Field(default=None)
+    reverse_host: str | None = Field(default=None, index=True)
+    host_parts: list | None = Field(default=None, sa_column=Column(JSONB, nullable=True))
+    created: float = Field(default_factory=utc_now, index=True)
+    modified: float = Field(default_factory=utc_now, index=True)
     ignored: bool = False
-    archived: bool = False
+    archived: bool = Field(default=False, index=True)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         event = kwargs.pop("event", None)
-        super().__init__(*args, **kwargs)
-        if self.host and self.port:
-            self.netloc = make_netloc(self.host, self.port)
+        super().__init__(**kwargs)
         if event is not None:
-            self.set_event(event)
+            self._set_event(event)
 
-    def set_event(self, event):
-        """
-        Copy data from a BBOT event into the asset
-        """
+    def _set_event(self, event):
+        """Copy host/port/url from a BBOT event."""
         if event.host and not self.host:
             self.host = event.host
         if event.port and not self.port:
             self.port = event.port
         if event.netloc and not self.netloc:
             self.netloc = event.netloc
-        # handle url
         event_data_json = getattr(event, "data_json", None)
         if event_data_json is not None:
             url = event_data_json.get("url", None)
             if url is not None:
                 self.url = url
 
-    @computed_field
-    @property
-    def reverse_host(self) -> Annotated[str, "indexed"]:
-        if not self.host:
-            return ""
-        return self.host[::-1]
+    @derive("reverse_host")
+    def _derive_reverse_host(self):
+        if self.host:
+            return self.host[::-1]
 
-    @computed_field
-    @property
-    def host_parts(self) -> Annotated[list[str], "indexed"]:
-        if not self.host:
-            return []
-        return host_split_regex.split(self.host)
+    @derive("host_parts")
+    def _derive_host_parts(self):
+        if self.host:
+            return host_split_regex.split(self.host)
+
+    @derive("netloc")
+    def _derive_netloc(self):
+        if self.host and self.port:
+            return make_netloc(self.host, self.port)
 
 
-class BaseAssetFacet(BaseHostModel):
+def _apply_json_filters(stmt, model, query_dict):
     """
-    An "asset facet" is a database object that contains data about an asset.
+    Translate a MongoDB-style JSON filter dict to SQLAlchemy WHERE clauses.
 
-    Unlike the main asset model which contains a summary of all the data,
-    a facet contains a certain detail which is too big to be stored in the main asset model.
-
-    For example, the main asset might contain a summary of all the technologies found on the asset,
-    but a facet might contain the specific technologies and details about their discovery.
-
-    A facet typically corresponds to an applet.
+    Supports a subset of MongoDB operators:
+        {"field": value}            -> field = value
+        {"field": {"$gt": v}}       -> field > v
+        {"field": {"$gte": v}}      -> field >= v
+        {"field": {"$lt": v}}       -> field < v
+        {"field": {"$lte": v}}      -> field <= v
+        {"field": {"$ne": v}}       -> field != v
+        {"field": {"$in": [...]}}   -> field IN (...)
+        {"field": {"$nin": [...]}}  -> field NOT IN (...)
+        {"field": {"$regex": "..."}} -> field ~ '...' (Postgres regex)
+        {"field": {"$exists": true}} -> field IS NOT NULL
+        {"$and": [...]}             -> AND(...)
+        {"$or": [...]}              -> OR(...)
+        {"$text": {"$search": "..."}} -> search_vector @@ plainto_tsquery(...)
     """
+    conditions = []
 
-    # scope is an array of target IDs, which are dynamically maintained as new scan data arrives, or as targets are created/updated.
-    scope: Annotated[list[UUID], "indexed"] = []
+    for key, value in query_dict.items():
+        if key == "$and":
+            sub_conditions = []
+            for sub_filter in value:
+                sub_stmt = _apply_json_filters(select(model), model, sub_filter)
+                sub_conditions.extend(sub_stmt.whereclause.clauses if hasattr(sub_stmt.whereclause, 'clauses') else [sub_stmt.whereclause])
+            conditions.append(and_(*sub_conditions))
+        elif key == "$or":
+            sub_conditions = []
+            for sub_filter in value:
+                sub_stmt = _apply_json_filters(select(model), model, sub_filter)
+                wc = sub_stmt.whereclause
+                if wc is not None:
+                    sub_conditions.append(wc)
+            if sub_conditions:
+                conditions.append(or_(*sub_conditions))
+        elif key == "$text":
+            search_term = value.get("$search", "")
+            if search_term and hasattr(model, "search_vector"):
+                ts_query = func.plainto_tsquery("simple", search_term.strip())
+                conditions.append(model.search_vector.op("@@")(ts_query))
+        elif "." in key:
+            # JSONB dot-notation: e.g. "data_json.technology" -> data_json['technology']
+            parts = key.split(".", 1)
+            col = getattr(model, parts[0], None)
+            if col is None:
+                raise BBOTServerValueError(f"Unknown field: {parts[0]}")
+            json_col = col[parts[1]].astext
+            if isinstance(value, dict):
+                for op, val in value.items():
+                    if op == "$gt":
+                        conditions.append(json_col > str(val))
+                    elif op == "$gte":
+                        conditions.append(json_col >= str(val))
+                    elif op == "$lt":
+                        conditions.append(json_col < str(val))
+                    elif op == "$lte":
+                        conditions.append(json_col <= str(val))
+                    elif op == "$ne":
+                        conditions.append(json_col != str(val))
+                    elif op == "$eq":
+                        conditions.append(json_col == str(val))
+                    elif op == "$regex":
+                        conditions.append(json_col.op("~")(val))
+                    elif op == "$exists":
+                        if val:
+                            conditions.append(col[parts[1]].isnot(None))
+                        else:
+                            conditions.append(col[parts[1]].is_(None))
+                    else:
+                        raise BBOTServerValueError(f"Unsupported query operator for JSONB field: {op}")
+            else:
+                conditions.append(json_col == str(value))
+        elif isinstance(value, dict):
+            # operator-based filter on a field
+            col = getattr(model, key, None)
+            if col is None:
+                raise BBOTServerValueError(f"Unknown field: {key}")
+            for op, val in value.items():
+                if op == "$gt":
+                    conditions.append(col > val)
+                elif op == "$gte":
+                    conditions.append(col >= val)
+                elif op == "$lt":
+                    conditions.append(col < val)
+                elif op == "$lte":
+                    conditions.append(col <= val)
+                elif op == "$ne":
+                    conditions.append(col != val)
+                elif op == "$eq":
+                    conditions.append(col == val)
+                elif op == "$in":
+                    conditions.append(col.in_(val))
+                elif op == "$nin":
+                    conditions.append(~col.in_(val))
+                elif op == "$regex":
+                    conditions.append(col.op("~")(val))
+                elif op == "$exists":
+                    if val:
+                        conditions.append(col.isnot(None))
+                    else:
+                        conditions.append(col.is_(None))
+                else:
+                    raise BBOTServerValueError(f"Unsupported query operator: {op}")
+        else:
+            # simple equality
+            col = getattr(model, key, None)
+            if col is None:
+                raise BBOTServerValueError(f"Unknown field: {key}")
+            conditions.append(col == value)
 
-    # unless overridden, all asset facets are stored in the asset store
-    __store_type__ = "asset"
-    __table_name__ = "assets"
-
-    def __init__(self, *args, **kwargs):
-        kwargs["type"] = self.__class__.__name__
-        super().__init__(*args, **kwargs)
+    if conditions:
+        stmt = stmt.where(and_(*conditions))
+    return stmt
 
 
 class BaseQuery(BaseModel):
     """
-    Base class for representing an HTTP request to a BBOT Server API endpoint
+    Base class for representing an HTTP request to a BBOT Server API endpoint.
 
-    Easily extendable by adding more query parameters, etc.
+    Builds SQLAlchemy Select statements instead of MongoDB queries.
     """
 
     query: dict | None = Field(
-        None, description="The Mongo filter, a Mongo compatible query in the form of a Python dict"
+        None, description="JSON filter (translated to SQL WHERE clauses)"
     )
     search: str | None = Field(
         None,
         description="A human-friendly text search",
     )
     fields: list[str] | None = Field(
-        None, description="The Mongo projection, specifies which fields to return in data"
+        None, description="Specifies which fields to return in data"
     )
-    skip: int | None = Field(None, description="Offset/skip this many documents")
-    limit: int | None = Field(None, description="Limit how much results to return")
+    skip: int | None = Field(None, description="Offset/skip this many rows")
+    limit: int | None = Field(None, description="Limit how many results to return")
     sort: list[str | tuple[str, int]] | None = Field(
-        None, description="The Mongo sort, specifies which fields to sort by or a tuple specifying desc or asc"
-    )
-    aggregate: list[dict] | None = Field(
-        None,
-        description="The Mongo aggregate, a list of Mongo compatible aggregation operations (each a Python dict)",
+        None, description="Sort specification: field names or (field, direction) tuples"
     )
 
     def __init__(self, *args, **kwargs):
+        # Remove deprecated 'aggregate' kwarg if passed
+        kwargs.pop("aggregate", None)
         super().__init__(*args, **kwargs)
         # process sort spec: "+field"/"-field" strings or (field, direction) tuples
         if self.sort:
@@ -146,96 +254,75 @@ class BaseQuery(BaseModel):
                 (f.lstrip("+-"), -1 if f.startswith("-") else 1) if isinstance(f, str) else tuple(f) for f in self.sort
             ]
         self._applet = None
-        self._mongo_cursor = None
 
     async def build(self, applet=None):
         """
-        Given the current attribute values on the model, build the MongoDB query
-
-        The applet is passed in here, in case during the build a secondary query is needed
+        Build a SQLAlchemy Select statement from the query parameters.
         """
         if applet is not None:
             self._applet = applet
         if not self._applet:
             raise BBOTServerError(f"API query {self.__class__.__name__} is missing its parent applet :(")
 
-        # base query
-        query = dict(self.query or {})
+        model = self._applet.model
+        stmt = select(model)
 
-        # search
+        # apply JSON filters
+        if self.query:
+            stmt = _apply_json_filters(stmt, model, self.query)
+
+        # apply search
         if self.search:
-            search_query = await self.build_search_query()
-            if search_query:
-                query = {"$and": [query, search_query]}
+            stmt = await self._apply_search(stmt, model)
 
-        return query
+        # apply sort
+        if self.sort:
+            for field, direction in self.sort:
+                col = getattr(model, field, None)
+                if col is not None:
+                    stmt = stmt.order_by(desc(col) if direction == -1 else asc(col))
 
-    async def build_search_query(self):
-        """
-        Given a search term, construct a human-friendly search against multiple fields.
-        """
+        # apply skip/limit
+        if self.skip:
+            stmt = stmt.offset(self.skip)
+        if self.limit:
+            stmt = stmt.limit(self.limit)
+
+        return stmt
+
+    async def _apply_search(self, stmt, model):
+        """Apply full-text search to the statement."""
         search_str = self.search.strip().lower()
         if not search_str:
-            return None
-        return {"$text": {"$search": search_str}}
+            return stmt
+        if hasattr(model, "search_vector"):
+            ts_query = func.plainto_tsquery("simple", search_str)
+            stmt = stmt.where(model.search_vector.op("@@")(ts_query))
+        else:
+            # fallback: ILIKE on host
+            stmt = stmt.where(model.host.ilike(f"%{search_str}%"))
+        return stmt
 
-    async def mongo_iter(self, applet, collection=None):
-        """
-        Lazy iterator over a Mongo collection with BBOT-specific filters and aggregation
-        """
-        self._applet = applet
-        cursor = await self._make_mongo_cursor(collection=collection)
-        async for asset in cursor:
-            yield asset
+    async def query_iter(self, applet):
+        """Async iterate over query results, yielding model instances."""
+        stmt = await self.build(applet)
+        async with applet.session() as session:
+            result = await session.execute(stmt)
+            for row in result.scalars():
+                yield row
 
-    async def mongo_count(self, applet, collection=None):
-        query = await self.build(applet)
-        if collection is None:
-            collection = self._applet.collection
-        sanitized_query = _sanitize_mongo_query(query)
-        return await collection.count_documents(sanitized_query)
-
-    async def _make_mongo_cursor(self, collection=None):
-        """Build a MongoDB cursor for querying, with optional aggregation pipeline."""
-        if self._mongo_cursor is not None:
-            return self._mongo_cursor
-        query = await self.build()
-        sanitized_query = _sanitize_mongo_query(query)
-
-        # collection defaults to self.collection
-        if collection is None:
-            collection = self._applet.collection
-
-        # if we don't have a default collection and none was passed in, raise an error
-        if collection is None:
-            raise BBOTServerError(f"Collection is not set for {self._applet.name}")
-
-        # Convert fields list to MongoDB projection dict
-        fields_projection = {f: 1 for f in self.fields} if self.fields else None
-
-        log.info(f"Querying {collection.name}: query={sanitized_query}, fields={fields_projection}")
-
-        if self.aggregate:
-            aggregate = _sanitize_mongo_aggregation(self.aggregate)
-            pipeline = [{"$match": query}] + aggregate
-            if self.limit is not None:
-                pipeline.append({"$limit": self.limit})
-            return await collection.aggregate(pipeline)
-
-        cursor = collection.find(query, fields_projection)
-        if self.sort:
-            cursor = cursor.sort(self.sort)
-        if self.skip is not None:
-            cursor = cursor.skip(self.skip)
-        if self.limit is not None:
-            cursor = cursor.limit(self.limit)
-        self._mongo_cursor = cursor
-        return cursor
+    async def query_count(self, applet):
+        """Count results matching the query."""
+        stmt = await self.build(applet)
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        async with applet.session() as session:
+            result = await session.execute(count_stmt)
+            return result.scalar()
 
 
 class HostQuery(BaseQuery):
     """
-    Common asset query used for anything that has a host
+    Common query used for anything that has a host.
 
     Corresponds to BaseHostModel
     """
@@ -250,35 +337,44 @@ class HostQuery(BaseQuery):
         self.domain = self.domain or None
 
     async def build(self, applet=None):
-        query = await super().build(applet)
+        stmt = await super().build(applet)
+        model = self._applet.model
 
         # host filter
-        if ("host" not in query) and (self.host is not None):
-            query["host"] = self.host
-        # domain filter
-        if ("reverse_host" not in query) and (self.domain is not None):
-            reversed_host = re.escape(self.domain[::-1])
-            # Match exact domain or subdomains (with dot separator)
-            query["reverse_host"] = {"$regex": f"^{reversed_host}(\\.|$)"}
+        if self.host is not None:
+            stmt = stmt.where(model.host == self.host)
 
-        return query
+        # domain filter using reverse_host for efficient subdomain matching
+        if self.domain is not None:
+            reversed_domain = self.domain[::-1]
+            stmt = stmt.where(
+                or_(
+                    model.reverse_host.like(f"{reversed_domain}.%"),
+                    model.reverse_host == reversed_domain,
+                )
+            )
 
-    async def build_search_query(self):
-        """
-        Given a search term, construct a human-friendly search against multiple fields.
-        """
+        return stmt
+
+    async def _apply_search(self, stmt, model):
+        """Search across host and search_vector."""
         search_str = self.search.strip().lower()
         if not search_str:
-            return None
-        search_str_escaped = re.escape(search_str)
-        return {
-            "$or": [
-                {"$text": {"$search": search_str}},
-                {"host_parts": {"$regex": f"^{search_str_escaped}"}},
-                {"host": {"$regex": f"^{search_str_escaped}"}},
-                {"reverse_host": {"$regex": f"^{re.escape(search_str[::-1])}"}},
-            ]
-        }
+            return stmt
+
+        conditions = [model.host.ilike(f"%{search_str}%")]
+
+        # reverse_host search for subdomain matching
+        reversed_search = search_str[::-1]
+        conditions.append(model.reverse_host.like(f"{reversed_search}%"))
+
+        # full-text search if available
+        if hasattr(model, "search_vector") and model.search_vector is not None:
+            ts_query = func.plainto_tsquery("simple", search_str)
+            conditions.append(model.search_vector.op("@@")(ts_query))
+
+        stmt = stmt.where(or_(*conditions))
+        return stmt
 
 
 class ActiveArchivedQuery(HostQuery):
@@ -286,24 +382,22 @@ class ActiveArchivedQuery(HostQuery):
     active: bool = Field(True, description="Include active records")
 
     async def build(self, applet=None):
-        query = await super().build(applet)
+        stmt = await super().build(applet)
+        model = self._applet.model
+
         # archived / active filtering
-        # if both active and archived are true, we don't need to filter anything, because we are returning all results
-        if not (self.active and self.archived) and ("archived" not in query):
-            # if both are false, we need to raise an error
+        if not (self.active and self.archived):
             if not (self.active or self.archived):
                 raise BBOTServerValueError("Must query at least one of active or archived")
-            # only one should be true
-            query["archived"] = {"$eq": self.archived}
-        return query
+            stmt = stmt.where(model.archived == self.archived)
+
+        return stmt
 
 
 class AssetQuery(ActiveArchivedQuery):
-    """Common asset query used across Assets, Findings, Events, Technologies, etc."""
+    """Common asset query used across Assets, Findings, etc."""
 
     target_id: str | UUID | None = Field(None, description="Filter by target name or ID")
-    # force a certain type of asset
-    _force_asset_type = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -312,18 +406,23 @@ class AssetQuery(ActiveArchivedQuery):
             self.target_id = str(self.target_id)
 
     async def build(self, applet=None):
-        query = await super().build(applet)
-        # target_id filtering
-        if ("scope" not in query) and (self.target_id is not None):
+        stmt = await super().build(applet)
+        model = self._applet.model
+
+        # target_id filtering via host_targets table
+        if self.target_id is not None:
+            from bbot_server.db.tables import HostTarget
             target_query_kwargs = {}
             if self.target_id != "DEFAULT":
                 target_query_kwargs["id"] = self.target_id
             target = await self._applet.root.targets._get_target(**target_query_kwargs, fields=["id"])
             if target is not None:
-                query["scope"] = target["id"]
-        if self._force_asset_type:
-            query["type"] = self._force_asset_type
-        return query
+                target_id = target["id"] if isinstance(target, dict) else target.id
+                stmt = stmt.where(model.host.in_(
+                    select(HostTarget.host).where(HostTarget.target_id == str(target_id))
+                ))
+
+        return stmt
 
 
 class BaseScore:

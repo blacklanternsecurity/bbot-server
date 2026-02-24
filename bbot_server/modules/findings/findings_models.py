@@ -51,21 +51,20 @@ class FindingsQuery(AssetQuery):
             raise BBOTServerValueError("min_severity must be less than or equal to max_severity")
 
     async def build(self, applet=None):
-        query = await super().build(applet)
+        stmt = await super().build(applet)
+        model = self._applet.model
 
         # severity filtering
-        if "severity_score" not in query and (self.min_severity != 1 or self.max_severity != 5):
-            query["severity_score"] = {}
-            if self.min_severity != 1:
-                query["severity_score"]["$gte"] = self.min_severity
-            if self.max_severity != 5:
-                query["severity_score"]["$lte"] = self.max_severity
+        if self.min_severity != 1:
+            stmt = stmt.where(model.severity_score >= self.min_severity)
+        if self.max_severity != 5:
+            stmt = stmt.where(model.severity_score <= self.max_severity)
 
         # ignored filtering
-        if self.ignored is not None and "ignored" not in query:
-            query["ignored"] = self.ignored
+        if self.ignored is not None:
+            stmt = stmt.where(model.ignored == self.ignored)
 
-        return query
+        return stmt
 
 
 class Finding(BaseAssetFacet):

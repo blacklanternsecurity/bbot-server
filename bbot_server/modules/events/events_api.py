@@ -4,27 +4,46 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, AsyncGenerator
 
 from fastapi import Query
+from sqlalchemy import update
+from sqlalchemy.exc import IntegrityError
 
+from bbot.models.pydantic import Event as BBOTEvent
 from bbot_server.applets.base import BaseApplet, api_endpoint
-from bbot_server.modules.events.events_models import EventsQuery, Event, EventModel
+from bbot_server.modules.events.events_models import EventsQuery, Event
 
 
 class EventsApplet(BaseApplet):
     name = "Events"
     watched_events = ["*"]
     description = "query raw BBOT scan events"
-    model = EventModel
+    model = Event
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._archive_events_task = None
 
-    async def handle_event(self, event: Event, asset):
-        # write the event to the database
-        await self.collection.insert_one(event.model_dump())
+    async def handle_event(self, event, asset):
+        # construct our Event from bbot's Event dict
+        d = event.model_dump()
+        # compute reverse_host
+        host = d.get("host")
+        if host:
+            d["reverse_host"] = str(host)[::-1]
+        # ensure data is string
+        if "data" in d and d["data"] is not None:
+            d["data"] = str(d["data"])
+        # only keep fields that exist in our model
+        valid_fields = set(Event.model_fields.keys())
+        d = {k: v for k, v in d.items() if k in valid_fields}
+        d.pop("pk", None)
+        db_event = Event(**d)
+        try:
+            await self._insert(db_event)
+        except IntegrityError:
+            pass  # duplicate uuid, skip
 
     @api_endpoint("/", methods=["POST"], summary="Insert a BBOT event into the asset database")
-    async def insert_event(self, event: Event):
+    async def insert_event(self, event: BBOTEvent):
         """
         Insert a BBOT event into the asset database
         """
@@ -34,10 +53,10 @@ class EventsApplet(BaseApplet):
 
     @api_endpoint("/get/{uuid}", methods=["GET"], summary="Get an event by its UUID")
     async def get_event(self, uuid: str) -> Event:
-        event = await self.collection.find_one({"uuid": uuid})
+        event = await self._get_one(uuid=uuid)
         if event is None:
             raise self.BBOTServerNotFoundError(f"Event {uuid} not found")
-        return Event(**event)
+        return event
 
     @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Event, summary="Stream all events")
     async def list_events(
@@ -60,24 +79,29 @@ class EventsApplet(BaseApplet):
             max_timestamp=max_timestamp,
             active=active,
             archived=archived,
+            sort=[("pk", 1)],
         )
-        async for event in query.mongo_iter(self):
-            yield Event(**event)
+        async for row in query.query_iter(self):
+            yield row
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query events")
     async def query_events(self, query: EventsQuery | None = None):
         """
         Advanced querying of events. Choose your own filters and fields.
         """
-        async for event in query.mongo_iter(self):
-            yield event
+        async for row in query.query_iter(self):
+            d = row.model_dump()
+            if query.fields:
+                d = {k: v for k, v in d.items() if k in query.fields}
+                d["_id"] = None  # backward compat
+            yield d
 
     @api_endpoint("/count", methods=["POST"], summary="Count events")
     async def count_events(self, query: EventsQuery | None = None) -> int:
         """
         Same as query_events, except only returns the count
         """
-        return await query.mongo_count(self)
+        return await query.query_count(self)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)
     async def tail_events(self, n: int = 0):
@@ -99,9 +123,9 @@ class EventsApplet(BaseApplet):
         self._archive_events_task = asyncio.create_task(self._archive_events(older_than=older_than))
 
     @api_endpoint(
-        "/ingest", type="websocket_stream_incoming", response_model=Event, summary="Ingest events via websocket"
+        "/ingest", type="websocket_stream_incoming", response_model=BBOTEvent, summary="Ingest events via websocket"
     )
-    async def consume_event_stream(self, event_generator: AsyncGenerator[Event, None]):
+    async def consume_event_stream(self, event_generator: AsyncGenerator[BBOTEvent, None]):
         """
         Allows consuming of events via a websocket stream.
 
@@ -112,12 +136,14 @@ class EventsApplet(BaseApplet):
 
     async def _archive_events(self, older_than: int):
         archive_after = (datetime.now(timezone.utc) - timedelta(days=older_than)).timestamp()
-        # archive old events
-        # we use strict_collection to make sure all the writes complete before we return
-        result = await self.strict_collection.update_many(
-            {"timestamp": {"$lt": archive_after}, "archived": {"$ne": True}},
-            {"$set": {"archived": True}},
-        )
-        self.log.info(f"Archived {result.modified_count} events")
+        async with self.session() as session:
+            stmt = (
+                update(Event)
+                .where(Event.timestamp < archive_after, Event.archived != True)
+                .values(archived=True)
+            )
+            result = await session.execute(stmt)
+            await session.commit()
+            self.log.info(f"Archived {result.rowcount} events")
         # refresh asset database
         await self.root.assets.refresh_assets()

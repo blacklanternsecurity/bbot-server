@@ -1,18 +1,9 @@
 # url of BBOT server
 url: http://server:8807/v1/
 
-# event store is just a big bucket of BBOT scan events
-event_store:
-  uri: mongodb://mongodb:27017/bbot_eventstore
-
-# assets are derived in real time from the event store, and can be recreated at any time
-asset_store:
-  uri: mongodb://mongodb:27017/bbot_assetstore
-
-# user_store holds any user-specific data, overrides, etc. which are not derived from events
-# examples include targets, scans, etc.
-user_store:
-  uri: mongodb://mongodb:27017/bbot_userstore
+# PostgreSQL database
+database:
+  uri: postgresql+asyncpg://bbot:bbot@postgres:5432/bbot_server
 
 message_queue:
   uri: redis://redis:6379/0

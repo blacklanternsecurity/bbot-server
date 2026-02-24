@@ -1,3 +1,4 @@
+import pytest
 from ..conftest import *
 
 from tests.test_applets.base import BaseAppletTest

@@ -3,9 +3,9 @@ import asyncio
 import traceback
 from uuid import UUID
 
-from pymongo import ASCENDING
 from contextlib import suppress
-from pymongo.errors import DuplicateKeyError
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from bbot.core.helpers.names_generator import random_name
 from bbot.constants import (
@@ -17,6 +17,7 @@ from bbot.constants import (
     SCAN_STATUS_FINISHED,
 )
 
+from bbot_server.db.tables import ScanTable
 from bbot_server.modules.scans.scans_models import Scan, ScanQuery
 from bbot_server.modules.presets.presets_models import Preset
 from bbot_server.modules.targets.targets_models import Target
@@ -29,7 +30,27 @@ class ScansApplet(BaseApplet):
     description = "scans"
     watched_events = ["SCAN"]
     watched_activities = ["SCAN_STATUS"]
-    model = Scan
+    model = ScanTable
+
+    def _to_pydantic(self, row):
+        """Convert a ScanTable row to a Pydantic Scan."""
+        if row is None:
+            return None
+        d = row.model_dump()
+        # Reconstruct nested Target and Preset from JSONB dicts
+        target_dict = d.get("target", {}) or {}
+        preset_dict = d.get("preset", {}) or {}
+        d["target"] = Target(**target_dict) if target_dict else target_dict
+        d["preset"] = Preset(**preset_dict) if preset_dict else preset_dict
+        return Scan(**d)
+
+    def _to_table(self, scan):
+        """Convert a Pydantic Scan to a ScanTable row for DB storage."""
+        d = scan.model_dump()
+        # agent_id needs to be a string for storage
+        if "agent_id" in d and d["agent_id"] is not None:
+            d["agent_id"] = str(d["agent_id"])
+        return ScanTable(**{k: v for k, v in d.items() if k != "pk"})
 
     async def setup(self):
         if self.is_main_server:
@@ -39,10 +60,16 @@ class ScansApplet(BaseApplet):
 
     @api_endpoint("/get/{id}", methods=["GET"], summary="Get a single scan by its name or ID")
     async def get_scan(self, id: str) -> Scan:
-        scan = await self.collection.find_one({"$or": [{"id": str(id)}, {"name": str(id)}]})
-        if scan is None:
+        from sqlalchemy import or_
+        async with self.session() as session:
+            stmt = select(ScanTable).where(
+                or_(ScanTable.id == str(id), ScanTable.name == str(id))
+            )
+            result = await session.execute(stmt)
+            row = result.scalar_one_or_none()
+        if row is None:
             raise self.BBOTServerNotFoundError("Scan not found")
-        return Scan(**scan)
+        return self._to_pydantic(row)
 
     @api_endpoint("/start", methods=["POST"], summary="Create a new scan")
     async def start_scan(
@@ -71,8 +98,9 @@ class ScansApplet(BaseApplet):
             seed_with_current_assets=seed_with_current_assets,
         )
         try:
-            await self.collection.insert_one(scan.model_dump())
-        except DuplicateKeyError:
+            table_row = self._to_table(scan)
+            await self._insert(table_row)
+        except IntegrityError:
             raise self.BBOTServerValueError(f"Scan with name '{name}' already exists")
         description = f"Scan [[COLOR]{scan.name}[/COLOR]] queued"
         if agent_id is not None:
@@ -87,48 +115,68 @@ class ScansApplet(BaseApplet):
 
     @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Scan, summary="Get all scans")
     async def get_scans(self):
-        async for scan in self.collection.find():
-            yield Scan(**scan)
+        async with self.session() as session:
+            result = await session.execute(select(ScanTable))
+            for row in result.scalars():
+                yield self._to_pydantic(row)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query scans")
     async def query_scans(self, query: ScanQuery | None = None):
         """
         Advanced querying of scans. Choose your own filters and fields.
         """
-        async for scan in query.mongo_iter(self):
-            yield scan
+        async for row in query.query_iter(self):
+            d = row.model_dump()
+            if query.fields:
+                d = {k: v for k, v in d.items() if k in query.fields}
+                d["_id"] = None  # backward compat
+            yield d
 
     @api_endpoint("/count", methods=["POST"], summary="Count scans")
     async def count_scans(self, query: ScanQuery | None = None) -> int:
         """
         Same as query_scans, except only returns the count.
         """
-        return await query.mongo_count(self)
+        return await query.query_count(self)
 
     @api_endpoint(
         "/list_brief", methods=["GET"], summary="Get all scans in a brief format (without target info)", mcp=True
     )
     async def get_scans_brief(self):
-        return await self.collection.find(
-            {}, {"name": 1, "id": 1, "target.name": 1, "preset.name": 1, "_id": 0}
-        ).to_list(length=None)
+        async with self.session() as session:
+            result = await session.execute(select(ScanTable))
+            rows = result.scalars().all()
+        briefs = []
+        for row in rows:
+            target_dict = row.target or {}
+            preset_dict = row.preset or {}
+            briefs.append({
+                "name": row.name,
+                "id": row.id,
+                "target": {"name": target_dict.get("name", "")},
+                "preset": {"name": preset_dict.get("name", "")},
+            })
+        return briefs
 
     async def get_available_scan_name(self) -> str:
         """
         Returns a scan name that's guaranteed to not be in use, e.g. "demonic_jimmy"
         """
-        valid_name = False
-        while not valid_name:
+        while True:
             name = random_name()
-            if not await self.collection.find_one({"name": name}):
-                valid_name = True
-        return name
+            existing = await self._get_one(name=name)
+            if not existing:
+                return name
 
     @api_endpoint("/queued", methods=["GET"], summary="List queued scans")
     async def get_queued_scans(self) -> list[Scan]:
         # we sort by `created` ascending to get the oldest queued scans first
-        cursor = self.collection.find({"status": "QUEUED"}, sort=[("created", ASCENDING)])
-        return [Scan(**run) for run in await cursor.to_list(length=None)]
+        from sqlalchemy import asc
+        async with self.session() as session:
+            stmt = select(ScanTable).where(ScanTable.status == "QUEUED").order_by(asc(ScanTable.created))
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+        return [self._to_pydantic(row) for row in rows]
 
     @api_endpoint("/cancel/{id}", methods=["POST"], summary="Cancel a scan by its name or ID")
     async def cancel_scan(self, id: str, force: bool = False):
@@ -152,7 +200,7 @@ class ScansApplet(BaseApplet):
                 agent = await self.get_agent(id=scan.agent_id)
             except self.BBOTServerNotFoundError:
                 self.log.warning(f"Scan's agent no longer exists. Clearing agent from scan")
-                await self.collection.update_one({"id": str(scan.id)}, {"$set": {"agent_id": None}})
+                await self._update({"id": str(scan.id)}, {"agent_id": None})
                 return await self.cancel_scan(str(scan.id), force=force)
 
             # otherwise, we check if the agent is actually running our scan
@@ -172,8 +220,9 @@ class ScansApplet(BaseApplet):
                 self.log.info(f"Scan {scan.name} is already aborted, skipping")
                 return
             self.log.info(f"Marking {scan.name} as aborted")
-            await self.collection.update_one(
-                {"id": str(scan.id)}, {"$set": {"status": "ABORTED", "status_code": SCAN_STATUS_ABORTED}}
+            await self._update(
+                {"id": str(scan.id)},
+                {"status": "ABORTED", "status_code": SCAN_STATUS_ABORTED},
             )
 
         await self.emit_activity(
@@ -218,15 +267,13 @@ class ScansApplet(BaseApplet):
                                 selected_agent = await self.root.get_agent(str(scan.agent_id))
                             except self.BBOTServerNotFoundError:
                                 self.log.warning(f"Scan's agent no longer exists. Clearing agent from scan")
-                                await self.collection.update_one({"id": str(scan.id)}, {"$set": {"agent_id": None}})
+                                await self._update({"id": str(scan.id)}, {"agent_id": None})
                                 continue
 
                     self.log.info(f"Selected agent: {selected_agent.name}")
 
                     # assign the agent to the scan
-                    await self.collection.update_one(
-                        {"id": str(scan.id)}, {"$set": {"agent_id": str(selected_agent.id)}}
-                    )
+                    await self._update({"id": str(scan.id)}, {"agent_id": str(selected_agent.id)})
 
                     # merge target and preset
                     scan_preset = dict(scan.preset.preset)
@@ -266,8 +313,8 @@ class ScansApplet(BaseApplet):
                         description=f"Scan [[COLOR]{scan.name}[/COLOR]] sent to agent [[bold]{selected_agent.name}[/bold]]",
                         detail={"scan_id": scan.id, "agent_id": str(selected_agent.id)},
                     )
-                    # make the scan as sent
-                    await self.collection.update_one({"id": str(scan.id)}, {"$set": {"status": "SENT_TO_AGENT"}})
+                    # mark the scan as sent
+                    await self._update({"id": str(scan.id)}, {"status": "SENT_TO_AGENT"})
 
         except Exception as e:
             self.log.error(f"Error in scans loop: {e}")
@@ -310,15 +357,13 @@ class ScansApplet(BaseApplet):
             if agent_id is not None:
                 detail["agent_id"] = agent_id
             if scan.duration_seconds:
-                await self.collection.update_one(
+                await self._update(
                     {"id": scan_id},
                     {
-                        "$set": {
-                            "started_at": scan.started_at,
-                            "finished_at": scan.finished_at,
-                            "duration": scan.duration,
-                            "duration_seconds": scan.duration_seconds,
-                        }
+                        "started_at": scan.started_at,
+                        "finished_at": scan.finished_at,
+                        "duration": scan.duration,
+                        "duration_seconds": scan.duration_seconds,
                     },
                 )
                 status_changed = await self.update_scan_status(scan_id=scan_id, status_code=scan.status_code)
@@ -328,7 +373,8 @@ class ScansApplet(BaseApplet):
         # otherwise, assume the scan is starting and create a new run
         else:
             description = f"Scan [[COLOR]{scan.name}[/COLOR]] started"
-            await self.collection.insert_one(scan.model_dump())
+            table_row = self._to_table(scan)
+            await self._insert(table_row)
             status_changed = True
 
         if status_changed:
@@ -346,10 +392,11 @@ class ScansApplet(BaseApplet):
     async def update_scan_status(self, scan_id: str, status_code: int):
         status_code = get_scan_status_code(status_code)
         status = get_scan_status_name(status_code)
-        result = await self.strict_collection.update_one(
-            {"id": scan_id}, {"$set": {"status": status, "status_code": status_code}}
+        rows_affected = await self._update(
+            {"id": scan_id},
+            {"status": status, "status_code": status_code},
         )
-        return result.modified_count > 0
+        return rows_affected > 0
 
     async def cleanup(self):
         if self.is_main_server:
