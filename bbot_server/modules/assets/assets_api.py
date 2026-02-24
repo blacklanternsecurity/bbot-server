@@ -47,7 +47,6 @@ class AssetsApplet(BaseApplet):
             d = row.model_dump()
             if query.fields:
                 d = {k: v for k, v in d.items() if k in query.fields}
-                d["_id"] = None  # backward compat
             yield d
 
     @api_endpoint("/count", methods=["POST"], summary="Count assets")

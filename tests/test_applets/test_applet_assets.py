@@ -1,9 +1,7 @@
 import asyncio
 import pytest
 
-pytestmark = pytest.mark.skip(reason="Requires events/watchdog modules shelved in Postgres migration")
-
-from bbot_server.assets import Asset
+from bbot_server.db.tables import Host
 from bbot_server.errors import BBOTServerValueError
 from bbot_server.modules.targets.targets_models import CreateTarget
 
@@ -61,7 +59,7 @@ class TestAppletAssets(BaseAppletTest):
 
         assets = [a async for a in self.bbot_server.list_assets()]
         assert len(assets) == len(expected_hosts)
-        assert all(isinstance(a, Asset) for a in assets)
+        assert all(isinstance(a, Host) for a in assets)
         assets = [a async for a in self.bbot_server.query_assets()]
         assert len(assets) == len(expected_hosts)
         assert all(isinstance(a, dict) for a in assets)
@@ -90,7 +88,7 @@ class TestAppletAssets(BaseAppletTest):
 
         assets = [a async for a in self.bbot_server.list_assets()]
         assert len(assets) == len(expected_hosts)
-        assert all(isinstance(a, Asset) for a in assets)
+        assert all(isinstance(a, Host) for a in assets)
         assets = [a async for a in self.bbot_server.query_assets()]
         assert len(assets) == len(expected_hosts)
         assert all(isinstance(a, dict) for a in assets)

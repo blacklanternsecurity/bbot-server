@@ -5,7 +5,8 @@ from hashlib import sha1
 from typing import Union, Optional, Annotated
 from pydantic import Field as PydanticField, BaseModel, computed_field
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, select, func, asc, desc, or_, and_
+from sqlalchemy import Column, Index, select, func, text, asc, desc, or_, and_
+from sqlalchemy.orm import declared_attr
 from sqlalchemy.dialects.postgresql import JSONB
 
 from bbot.core.helpers.misc import make_netloc
@@ -56,15 +57,20 @@ class BaseHostModel(BaseBBOTServerModel):
     """
     A base model for all BBOT Server models that have a host.
 
-    Provides host, reverse_host, host_parts columns with automatic derivation.
+    Provides host, host_parts columns with automatic derivation.
     Subclasses with table=True get these as stored columns.
     """
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            Index(f"ix_{cls.__tablename__}_host_reverse", text("reverse(host) text_pattern_ops")),
+        )
 
     host: str = Field(index=True)
     port: int | None = Field(default=None)
     netloc: str | None = Field(default=None)
     url: str | None = Field(default=None)
-    reverse_host: str | None = Field(default=None, index=True)
     host_parts: list | None = Field(default=None, sa_type=JSONB)
     created: float = Field(default_factory=utc_now, index=True)
     modified: float = Field(default_factory=utc_now, index=True)
@@ -92,11 +98,6 @@ class BaseHostModel(BaseBBOTServerModel):
             url = event_data_json.get("url", None)
             if url is not None:
                 self.url = url
-
-    @derive("reverse_host")
-    def _derive_reverse_host(self):
-        if self.host:
-            return self.host[::-1]
 
     @derive("host_parts")
     def _derive_host_parts(self):
@@ -349,36 +350,31 @@ class HostQuery(BaseQuery):
         if self.host is not None:
             stmt = stmt.where(model.host == self.host)
 
-        # domain filter using reverse_host for efficient subdomain matching
+        # domain filter using reverse(host) for efficient subdomain matching
         if self.domain is not None:
             reversed_domain = self.domain[::-1]
             stmt = stmt.where(
                 or_(
-                    model.reverse_host.like(f"{reversed_domain}.%"),
-                    model.reverse_host == reversed_domain,
+                    func.reverse(model.host).like(f"{reversed_domain}.%"),
+                    model.host == self.domain,
                 )
             )
 
         return stmt
 
     async def _apply_search(self, stmt, model):
-        """Search across host and search_vector."""
+        """Search host_parts prefixes using reverse(host) for efficient matching."""
         search_str = self.search.strip().lower()
         if not search_str:
             return stmt
 
-        conditions = [model.host.ilike(f"%{search_str}%")]
-
-        # reverse_host search for subdomain matching
         reversed_search = search_str[::-1]
-        conditions.append(model.reverse_host.like(f"{reversed_search}%"))
-
-        # full-text search if available
-        if hasattr(model, "search_vector") and model.search_vector is not None:
-            ts_query = func.plainto_tsquery("simple", search_str)
-            conditions.append(model.search_vector.op("@@")(ts_query))
-
-        stmt = stmt.where(or_(*conditions))
+        stmt = stmt.where(
+            or_(
+                func.reverse(model.host).like(f"{reversed_search}%"),
+                model.host == search_str,
+            )
+        )
         return stmt
 
 
