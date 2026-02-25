@@ -1,11 +1,13 @@
 import uuid
-from functools import cached_property
 from typing import Optional, Annotated
-from pydantic import Field, computed_field
+from pydantic import Field
+from sqlmodel import Field as SQLField
+from sqlalchemy import Column
+from sqlalchemy.dialects.postgresql import JSONB
 
 from bbot.scanner.target import BBOTTarget
 from bbot_server.utils.misc import utc_now
-from bbot_server.models.base import BaseBBOTServerModel, BaseQuery
+from bbot_server.models.base import BaseBBOTServerModel, BaseQuery, derive
 
 
 class TargetQuery(BaseQuery):
@@ -40,13 +42,12 @@ class TargetQuery(BaseQuery):
 class BaseTarget(BaseBBOTServerModel):
     """Base class for all target models."""
 
-    name: Annotated[str, "indexed", "indexed-text", "unique", Field(description="Target name", default="")]
-    default: Annotated[
-        bool,
-        "indexed",
-        Field(description="If True, this is the default target. There can only be one default target."),
-    ] = False
-    description: Annotated[str, "indexed-text"] = Field("", description="Target description")
+    name: str = Field(default="", description="Target name")
+    default: bool = Field(
+        False,
+        description="If True, this is the default target. There can only be one default target.",
+    )
+    description: str = Field("", description="Target description")
     target: Optional[list[str]] = Field(
         default_factory=list,
         description="List of BBOT targets, e.g. domains, IPs, CIDRs, URLs, etc. These determine the scope of the scan. They are also used as seeds if no seeds are provided.",
@@ -68,76 +69,85 @@ class BaseTarget(BaseBBOTServerModel):
 class CreateTarget(BaseTarget):
     """Used for creating a new target."""
 
-    allow_duplicate_hash: Annotated[
-        bool,
-        Field(description="If False, return an error if an identical target already exists"),
-    ] = True
-
-
-class Target(BaseTarget):
-    """Used for storing a target in the database."""
-
-    __table_name__ = "targets"
-    __store_type__ = "user"
-    id: Annotated[uuid.UUID, "indexed", "unique"] = Field(
-        default_factory=uuid.uuid4, description="Universally Unique Target ID"
-    )
-    created: Annotated[float, "indexed"] = Field(
-        default_factory=utc_now, description="Timestamp of when the target was created"
-    )
-    modified: Annotated[float, "indexed"] = Field(
-        default_factory=utc_now, description="Timestamp of when the target was last modified"
+    allow_duplicate_hash: bool = Field(
+        True,
+        description="If False, return an error if an identical target already exists",
     )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._bbot_target = BBOTTarget(
-            target=self.target, seeds=self.seeds, blacklist=self.blacklist, strict_dns_scope=self.strict_dns_scope
-        )
-        # self.target = sorted(self.target.inputs)
+
+class Target(BaseTarget, table=True):
+    """Target model — both Pydantic model and SQLAlchemy table."""
+
+    __tablename__ = "targets"
+
+    pk: int | None = SQLField(default=None, primary_key=True)
+    id: uuid.UUID = SQLField(
+        default_factory=uuid.uuid4,
+        index=True,
+        sa_column_kwargs={"unique": True},
+    )
+    # Override list fields with JSONB columns
+    name: str = SQLField(default="", index=True, sa_column_kwargs={"unique": True})
+    default: bool = SQLField(default=False, index=True)
+    target: list | None = SQLField(default_factory=list, sa_column=Column(JSONB, server_default="[]"))
+    seeds: list | None = SQLField(default=None, sa_column=Column(JSONB, nullable=True))
+    blacklist: list | None = SQLField(default_factory=list, sa_column=Column(JSONB, server_default="[]"))
+    # Timestamps
+    created: float = SQLField(default_factory=utc_now, index=True)
+    modified: float = SQLField(default_factory=utc_now, index=True)
+    # Derived hash fields (computed on insert, loaded from DB)
+    hash: str | None = SQLField(default=None, index=True)
+    target_hash: str | None = None
+    blacklist_hash: str | None = None
+    seed_hash: str | None = None
+    scope_hash: str | None = None
+    target_size: int | None = None
+    blacklist_size: int | None = None
+    seed_size: int | None = None
+
+    def __init__(self, **kwargs):
+        # Coerce string id to UUID (SQLModel table=True skips Pydantic validators)
+        if "id" in kwargs and isinstance(kwargs["id"], str):
+            kwargs["id"] = uuid.UUID(kwargs["id"])
+        super().__init__(**kwargs)
 
     @property
     def bbot_target(self):
+        if not hasattr(self, "_bbot_target") or self._bbot_target is None:
+            self._bbot_target = BBOTTarget(
+                target=self.target, seeds=self.seeds,
+                blacklist=self.blacklist, strict_dns_scope=self.strict_dns_scope,
+            )
         return self._bbot_target
 
-    @computed_field(
-        description="Hash of the target. This is combined from the target, seeds, and blacklist hashes. Strict scope is also taken into account."
-    )
-    @cached_property
-    def hash(self) -> Annotated[str, "indexed"]:
+    @derive("hash")
+    def _derive_hash(self):
         return self.bbot_target.hash.hex()
 
-    @computed_field(description="Hash of the target list.")
-    @cached_property
-    def target_hash(self) -> Annotated[str, "indexed"]:
+    @derive("target_hash")
+    def _derive_target_hash(self):
         return self.bbot_target.target.hash.hex()
 
-    @computed_field(description="Hash of the blacklist.")
-    @cached_property
-    def blacklist_hash(self) -> Annotated[str, "indexed"]:
+    @derive("blacklist_hash")
+    def _derive_blacklist_hash(self):
         return self.bbot_target.blacklist.hash.hex()
 
-    @computed_field(description="Hash of the seeds.")
-    @cached_property
-    def seed_hash(self) -> Annotated[str, "indexed"]:
+    @derive("seed_hash")
+    def _derive_seed_hash(self):
         return self.bbot_target.seeds.hash.hex()
 
-    @computed_field(description="Hash of the scope (target + blacklist + strict scope setting).")
-    @cached_property
-    def scope_hash(self) -> Annotated[str, "indexed"]:
+    @derive("scope_hash")
+    def _derive_scope_hash(self):
         return self.bbot_target.scope_hash.hex()
 
-    @computed_field(description="Number of entries in the target list.")
-    @cached_property
-    def target_size(self) -> int:
+    @derive("target_size")
+    def _derive_target_size(self):
         return len(self.bbot_target.target)
 
-    @computed_field(description="Number of entries in the blacklist.")
-    @cached_property
-    def blacklist_size(self) -> int:
+    @derive("blacklist_size")
+    def _derive_blacklist_size(self):
         return len(self.bbot_target.blacklist)
 
-    @computed_field(description="Number of entries in the seeds list.")
-    @cached_property
-    def seed_size(self) -> int:
+    @derive("seed_size")
+    def _derive_seed_size(self):
         return 0 if not self.bbot_target._orig_seeds else len(self.bbot_target.seeds)

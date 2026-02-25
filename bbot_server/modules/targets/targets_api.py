@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from bbot.scanner.target import BBOTTarget
 
 from bbot_server.utils.misc import utc_now
-from bbot_server.db.tables import TargetTable, HostTarget
+from bbot_server.db.tables import HostTarget
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.activity.activity_models import Activity
 from bbot_server.modules.targets.targets_models import Target, CreateTarget, TargetQuery
@@ -21,21 +21,7 @@ class TargetsApplet(BaseApplet):
     watched_events = ["*"]
     watched_activities = ["TARGET_CREATED", "TARGET_UPDATED"]
     attach_to = "scans"
-    model = TargetTable
-
-    def _to_pydantic(self, row):
-        """Convert a TargetTable row to a Pydantic Target."""
-        if row is None:
-            return None
-        return Target(**row.model_dump())
-
-    def _to_table(self, target):
-        """Convert a Pydantic Target to a TargetTable row for DB storage."""
-        d = target.model_dump()
-        # Convert UUID fields to strings for storage
-        if "id" in d and d["id"] is not None:
-            d["id"] = str(d["id"])
-        return TargetTable(**d)
+    model = Target
 
     async def setup(self):
         self._scope_cache = {}
@@ -134,8 +120,7 @@ class TargetsApplet(BaseApplet):
         summary="Get a single scan target by its name, id, or hash. If no ID or hash is provided, the default target is returned.",
     )
     async def get_target(self, id: str = None, hash: str = None) -> Target:
-        target_row = await self._get_target_row(id=id, hash=hash)
-        return self._to_pydantic(target_row)
+        return await self._get_target_row(id=id, hash=hash)
 
     @api_endpoint("/count", methods=["POST"], summary="Get the number of scan targets")
     async def count_targets(self, query: TargetQuery | None = None) -> int:
@@ -143,13 +128,12 @@ class TargetsApplet(BaseApplet):
 
     @api_endpoint("/set_default/{id}", methods=["POST"], summary="Set a target as the default target")
     async def set_default_target(self, id: str):
-        target_row = await self._get_target_row(id=id)
-        target_id = target_row.id
-        await self._update({"id": target_id}, {"default": True})
+        target = await self._get_target_row(id=id)
+        await self._update({"id": target.id}, {"default": True})
         # set default=false on all other targets
         async with self.session() as session:
             from sqlalchemy import update
-            stmt = update(TargetTable).where(TargetTable.id != target_id).values(default=False)
+            stmt = update(Target).where(Target.id != target.id).values(default=False)
             await session.execute(stmt)
             await session.commit()
 
@@ -163,13 +147,12 @@ class TargetsApplet(BaseApplet):
         if await self.count_targets() == 0:
             db_target.default = True
         async with self._handle_duplicate_target(db_target, allow_duplicate_hash=target.allow_duplicate_hash):
-            table_row = self._to_table(db_target)
-            await self._insert(table_row)
+            await self._insert(db_target)
         # if target is the default target, set all others to not be default
         if db_target.default:
             async with self.session() as session:
                 from sqlalchemy import update
-                stmt = update(TargetTable).where(TargetTable.id != str(db_target.id)).values(default=False)
+                stmt = update(Target).where(Target.id != db_target.id).values(default=False)
                 await session.execute(stmt)
                 await session.commit()
         await self.emit_activity(
@@ -187,16 +170,13 @@ class TargetsApplet(BaseApplet):
         target.id = id
         target.modified = utc_now()
         async with self._handle_duplicate_target(target, allow_duplicate_hash):
-            d = target.model_dump(exclude={"allow_duplicate_hash"})
-            if "id" in d and d["id"] is not None:
-                d["id"] = str(d["id"])
-            # Remove None values and the pk field
+            d = target.model_dump()
             d = {k: v for k, v in d.items() if k != "pk"}
-            await self._update({"id": str(id)}, d)
+            await self._update({"id": id}, d)
         if target.default:
             async with self.session() as session:
                 from sqlalchemy import update
-                stmt = update(TargetTable).where(TargetTable.id != str(target.id)).values(default=False)
+                stmt = update(Target).where(Target.id != target.id).values(default=False)
                 await session.execute(stmt)
                 await session.commit()
         await self.emit_activity(
@@ -209,8 +189,7 @@ class TargetsApplet(BaseApplet):
 
     @api_endpoint("/copy", methods=["POST"], summary="Create a duplicate of a target")
     async def copy_target(self, id: str, name: str = None) -> Target:
-        target_row = await self._get_target_row(id=id)
-        target = self._to_pydantic(target_row)
+        target = await self._get_target_row(id=id)
         if not name:
             name = target.name + " Copy"
         target_copy = await self.create_target(
@@ -227,16 +206,15 @@ class TargetsApplet(BaseApplet):
 
     @api_endpoint("/", methods=["DELETE"], summary="Delete a scan target by its id")
     async def delete_target(self, id: str, new_default_target_id: str = None) -> None:
-        target_row = await self._get_target_row(id=id)
-        target_id = target_row.id
-        target_is_default = target_row.default
+        target = await self._get_target_row(id=id)
+        target_id = target.id
 
-        if target_is_default:
+        if target.default:
             if new_default_target_id is None:
                 num_targets = await self.count_targets()
                 if num_targets == 2:
                     async with self.session() as session:
-                        stmt = select(TargetTable).where(TargetTable.default == False)
+                        stmt = select(Target).where(Target.default == False)
                         result = await session.execute(stmt)
                         other_target = result.scalar_one_or_none()
                         if other_target:
@@ -252,12 +230,12 @@ class TargetsApplet(BaseApplet):
             await self.set_default_target(new_default_target_id)
 
         if self._scope_cache is not None:
-            self._scope_cache.pop(target_id, None)
-        self._target_ids.discard(target_id)
+            self._scope_cache.pop(str(target_id), None)
+        self._target_ids.discard(str(target_id))
 
         # Remove target from host_targets table
         async with self.session() as session:
-            stmt = sa_delete(HostTarget).where(HostTarget.target_id == target_id)
+            stmt = sa_delete(HostTarget).where(HostTarget.target_id == str(target_id))
             await session.execute(stmt)
             await session.commit()
 
@@ -279,9 +257,8 @@ class TargetsApplet(BaseApplet):
     @api_endpoint("/list", methods=["GET"], summary="List targets")
     async def get_targets(self) -> list[Target]:
         async with self.session() as session:
-            result = await session.execute(select(TargetTable))
-            rows = result.scalars().all()
-            return [self._to_pydantic(row) for row in rows]
+            result = await session.execute(select(Target))
+            return list(result.scalars().all())
 
     @api_endpoint(
         "/query",
@@ -302,14 +279,14 @@ class TargetsApplet(BaseApplet):
     async def get_target_ids(self, debounce: float = 5.0) -> list[UUID]:
         if self._target_ids_modified is None or utc_now() - self._target_ids_modified > debounce:
             async with self.session() as session:
-                result = await session.execute(select(TargetTable.id))
+                result = await session.execute(select(Target.id))
                 self._target_ids = set(row[0] for row in result.all())
             self._target_ids_modified = utc_now()
-        return [UUID(target_id) for target_id in self._target_ids]
+        return [UUID(str(target_id)) for target_id in self._target_ids]
 
     async def get_available_target_name(self) -> str:
         async with self.session() as session:
-            result = await session.execute(select(TargetTable.name))
+            result = await session.execute(select(Target.name))
             existing_names = {row[0] for row in result.all()}
         counter = 1
         while f"Target {counter}" in existing_names:
@@ -381,11 +358,10 @@ class TargetsApplet(BaseApplet):
         cache_age = now - cached_modified_date
         if cached_target is not None and cache_age < debounce:
             return cached_target
-        target_row = await self._get_target_row(id=target_id)
-        db_modified_date = target_row.modified
+        target = await self._get_target_row(id=target_id)
+        db_modified_date = target.modified
         if cached_modified_date == db_modified_date:
             return cached_target
-        target = self._to_pydantic(target_row)
         self._cache_put(target)
         return self._cache_get(target.id)
 
@@ -403,7 +379,7 @@ class TargetsApplet(BaseApplet):
     async def _handle_duplicate_target(self, target, allow_duplicate_hash=True):
         if not allow_duplicate_hash:
             async with self.session() as session:
-                stmt = select(TargetTable).where(TargetTable.hash == target.hash).limit(1)
+                stmt = select(Target).where(Target.hash == target.hash).limit(1)
                 result = await session.execute(stmt)
                 existing = result.scalar_one_or_none()
             if existing:
@@ -418,21 +394,21 @@ class TargetsApplet(BaseApplet):
                 )
             raise self.BBOTServerValueError(f"Error creating target: {e}")
 
-    async def _get_target_row(self, id: str = None, hash: str = None) -> TargetTable:
-        """Get a target row from the database."""
+    async def _get_target_row(self, id: str = None, hash: str = None) -> Target:
+        """Get a target from the database."""
         async with self.session() as session:
-            stmt = select(TargetTable)
+            stmt = select(Target)
             if id is None and hash is None:
-                stmt = stmt.where(TargetTable.default == True)
+                stmt = stmt.where(Target.default == True)
             elif hash is not None:
-                stmt = stmt.where(TargetTable.hash == hash)
+                stmt = stmt.where(Target.hash == hash)
             elif id is not None:
                 id = str(id)
                 try:
                     uuid_str = str(UUID(id))
-                    stmt = stmt.where(TargetTable.id == uuid_str)
+                    stmt = stmt.where(Target.id == uuid_str)
                 except (ValueError, AttributeError):
-                    stmt = stmt.where(TargetTable.name == id)
+                    stmt = stmt.where(Target.name == id)
             result = await session.execute(stmt)
             row = result.scalar_one_or_none()
         if row is None:
