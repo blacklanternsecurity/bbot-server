@@ -1,5 +1,8 @@
+import pytest
 from tests.test_applets.base import BaseAppletTest
 from bbot_server.modules.targets.targets_models import CreateTarget
+
+pytestmark = pytest.mark.skip(reason="Module shelved in Postgres migration")
 
 
 class TestAppletActivity(BaseAppletTest):

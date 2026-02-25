@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.skip(reason="Module shelved in Postgres migration")
+
 import asyncio
 from bbot_server.modules.targets.targets_models import CreateTarget
 

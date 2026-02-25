@@ -1,9 +1,2 @@
-from bbot_server.models.base import BaseBBOTServerModel
-
-
-class CustomAssetFields(BaseBBOTServerModel):
-    """
-    Defines custom fields to be added to the main asset model.
-    """
-
-    pass
+# Asset model has been removed as part of the MongoDB -> PostgreSQL migration.
+# Each module now has its own table. The "asset" concept is replaced by hosts + module tables.

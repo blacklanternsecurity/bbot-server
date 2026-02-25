@@ -415,7 +415,7 @@ import asyncio
 from bbot_server import BBOTServer
 
 async def main():
-    # talk directly to local MongoDB + Redis
+    # talk directly to local PostgreSQL + Redis
     bbot_server = BBOTServer(interface="python")
 
     # or to a remote BBOT Server instance (config must contain a valid API key)
@@ -437,7 +437,7 @@ if __name__ == "__main__":
 from bbot_server import BBOTServer
 
 if __name__ == "__main__":
-    # talk directly to local MongoDB + Redis
+    # talk directly to local PostgreSQL + Redis
     bbot_server = BBOTServer(interface="python", synchronous=True)
 
     # or to a remote BBOT Server instance (config must contain a valid API key)
@@ -452,10 +452,10 @@ if __name__ == "__main__":
 
 ## Running Tests
 
-When running tests, first start MongoDB and Redis via Docker:
+When running tests, first start PostgreSQL and Redis via Docker:
 
 ```bash
-docker run --ulimit nofile=64000:64000 --rm -p 127.0.0.1:27017:27017 mongo
+docker run --rm -p 5432:5432 -e POSTGRES_DB=test_bbot_server -e POSTGRES_USER=bbot -e POSTGRES_PASSWORD=bbot postgres:16
 docker run --rm -p 6379:6379 redis
 ```
 

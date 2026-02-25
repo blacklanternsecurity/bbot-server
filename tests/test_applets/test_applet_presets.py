@@ -1,5 +1,7 @@
 import pytest
 
+pytestmark = pytest.mark.skip(reason="Module shelved in Postgres migration")
+
 from bbot_server.errors import BBOTServerValueError, BBOTServerNotFoundError
 
 

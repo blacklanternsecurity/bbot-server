@@ -41,7 +41,7 @@ shutil.copyfile(str(TEST_CONFIG_PATH_SOURCE), str(TEST_CONFIG_PATH))
 
 bbcfg.refresh(config_path=str(TEST_CONFIG_PATH))
 
-assert bbcfg.asset_store.uri == "mongodb://localhost:27017/test_bbot_server_assets"
+assert bbcfg.database.uri == "postgresql+asyncpg://bbot:bbot@localhost:5432/test_bbot_server"
 
 if not bbcfg.get_api_keys():
     # create a new api key if we don't have one yet
@@ -50,7 +50,7 @@ if not bbcfg.get_api_keys():
 
 @pytest_asyncio.fixture(params=[{"interface": "python"}, {"interface": "http"}])
 # @pytest_asyncio.fixture(params=[{"interface": "http"}])
-async def bbot_server(request, mongo_cleanup, redis_cleanup):
+async def bbot_server(request, db_cleanup, redis_cleanup):
     from bbot_server import BBOTServer
     from bbot_server.message_queue import MessageQueue
 
@@ -101,7 +101,7 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup):
 
 
 @pytest.fixture
-def bbot_watchdog(mongo_cleanup, redis_cleanup):
+def bbot_watchdog(db_cleanup, redis_cleanup):
     command = [*BBCTL_COMMAND, "server", "start", "--watchdog-only"]
     watchdog_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
     try:
@@ -144,7 +144,7 @@ def bbot_watchdog(mongo_cleanup, redis_cleanup):
 
 
 @pytest.fixture
-def bbot_server_http(mongo_cleanup, redis_cleanup):
+def bbot_server_http(db_cleanup, redis_cleanup):
     # start server
     command = [*BBCTL_COMMAND, "server", "start", "--api-only"]
 
@@ -254,29 +254,36 @@ def bbot_agent(bbot_server_http):
 
 
 @pytest_asyncio.fixture
-async def mongo_cleanup():
+async def db_cleanup():
     """
-    Clear the mongo database before and after each test
+    Truncate all PostgreSQL tables before and after each test.
     """
-    from pymongo import AsyncMongoClient
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy import text
 
-    client = AsyncMongoClient(bbcfg.event_store.uri)
+    engine = create_async_engine(bbcfg.database.uri)
 
-    async def clear_everything():
-        await client.drop_database("test_bbot_server_events")
-        await client.drop_database("test_bbot_server_assets")
-        await client.drop_database("test_bbot_server_userdata")
+    async def drop_all_tables():
+        async with engine.begin() as conn:
+            # Get all table names
+            result = await conn.execute(
+                text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+            )
+            tables = [row[0] for row in result.fetchall()]
+            if tables:
+                table_list = ", ".join(f'"{t}"' for t in tables)
+                await conn.execute(text(f"DROP TABLE {table_list} CASCADE"))
 
     try:
-        # Clear before test
-        await clear_everything()
+        # Drop all tables before test so they get recreated with correct schema
+        await drop_all_tables()
         yield
     finally:
-        # Optionally clear again after test, then cleanly close the async client
+        # Drop again after test
         with suppress(Exception):
-            await clear_everything()
+            await drop_all_tables()
         with suppress(Exception):
-            await client.close()
+            await engine.dispose()
 
 
 @pytest_asyncio.fixture

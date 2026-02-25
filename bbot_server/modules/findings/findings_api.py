@@ -1,17 +1,8 @@
 from fastapi import Query
-from typing import Annotated, Optional
+from typing import Annotated
 
-from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.findings.findings_models import Finding, SEVERITY_COLORS, SeverityScore, FindingsQuery
-
-
-# add 'findings' field to the main asset model
-class FindingFields(CustomAssetFields):
-    findings: Annotated[list[str], "indexed", "indexed-text"] = []
-    finding_severities: Annotated[dict[str, int], "indexed"] = {}
-    finding_max_severity: Optional[Annotated[str, "indexed"]] = None
-    finding_max_severity_score: Annotated[int, "indexed"] = 0
 
 
 class FindingsApplet(BaseApplet):
@@ -28,10 +19,10 @@ class FindingsApplet(BaseApplet):
         mcp=True,
     )
     async def get_finding(self, id: str) -> Finding:
-        finding = await self.root._get_asset(type="Finding", query={"id": id})
-        if not finding:
+        row = await self._get_one(id=id)
+        if not row:
             raise self.BBOTServerNotFoundError("Finding not found")
-        return Finding(**finding)
+        return row
 
     @api_endpoint(
         "/list",
@@ -63,23 +54,27 @@ class FindingsApplet(BaseApplet):
             max_severity=max_severity,
             sort=[("severity_score", -1)],
         )
-        async for finding in query.mongo_iter(self):
-            yield Finding(**finding)
+        async for row in query.query_iter(self):
+            yield row
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
     async def query_findings(self, query: FindingsQuery | None = None):
         """
         Advanced querying of findings. Choose your own filters and fields.
         """
-        async for finding in query.mongo_iter(self):
-            yield finding
+        async for row in query.query_iter(self):
+            d = row.model_dump()
+            if query.fields:
+                d = {k: v for k, v in d.items() if k in query.fields}
+                d["_id"] = None  # backward compat
+            yield d
 
     @api_endpoint("/count", methods=["POST"], summary="Count findings")
     async def count_findings(self, query: FindingsQuery | None = None) -> int:
         """
         Same as query_findings, except only returns the count
         """
-        return await query.mongo_count(self)
+        return await query.query_count(self)
 
     @api_endpoint(
         "/stats_by_name",
@@ -94,15 +89,12 @@ class FindingsApplet(BaseApplet):
         min_severity: Annotated[int, Query(description="minimum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 1,
         max_severity: Annotated[int, Query(description="maximum severity (1=INFO, 5=CRITICAL)", ge=1, le=5)] = 5,
     ) -> dict[str, int]:
-        """
-        Return a high-level count of findings by name
-        """
         findings = {}
         query = FindingsQuery(
             domain=domain, target_id=target_id, min_severity=min_severity, max_severity=max_severity, fields=["name"]
         )
-        async for finding in query.mongo_iter(self):
-            finding_name = finding["name"]
+        async for row in query.query_iter(self):
+            finding_name = row.name
             findings[finding_name] = findings.get(finding_name, 0) + 1
         findings = dict(sorted(findings.items(), key=lambda x: x[1], reverse=True))
         return findings
@@ -126,15 +118,15 @@ class FindingsApplet(BaseApplet):
             target_id=target_id,
             min_severity=min_severity,
             max_severity=max_severity,
-            fields=["severity"],
+            fields=["severity_score"],
         )
-        async for finding in query.mongo_iter(self):
-            severity = finding["severity"]
+        async for row in query.query_iter(self):
+            severity = SeverityScore.to_str(row.severity_score)
             findings[severity] = findings.get(severity, 0) + 1
         findings = dict(sorted(findings.items(), key=lambda x: x[1], reverse=True))
         return findings
 
-    async def handle_event(self, event, asset):
+    async def handle_event(self, event, host):
         name = event.data_json["name"]
         description = event.data_json["description"]
         confidence = event.data_json.get("confidence", 1)
@@ -142,112 +134,35 @@ class FindingsApplet(BaseApplet):
         cves = event.data_json.get("cves", [])
         finding = Finding(
             name=name,
-            host=asset.host,
+            host=host,
             description=description,
             confidence=confidence,
             severity=severity,
             cves=cves,
             event=event,
         )
-        # inherit scope from the parent asset so as to make sure that target_id filtering works
-        if asset and hasattr(asset, "scope"):
-            finding.scope = asset.scope
-        # update finding names
-        findings = set(getattr(asset, "findings", []))
-        findings.add(finding.name)
-        asset.findings = sorted(findings)
-        return await self._insert_or_update_finding(finding, asset, event)
+        return await self._insert_or_update_finding(finding, event)
 
-    async def compute_stats(self, asset, stats):
-        """
-        Compute stats based on:
-            - finding names
-            - finding severities
-            - finding hosts
-            - finding max severity
-            - finding max severity score
-        """
-        finding_names = getattr(asset, "findings", [])
-        finding_severities = getattr(asset, "finding_severities", {})
-        finding_stats = stats.get("findings", {})
-        name_stats = finding_stats.get("names", {})
-        counts_by_host = finding_stats.get("counts_by_host", {})
-        severities_by_host = finding_stats.get("severities_by_host", {})
-        severity_stats = finding_stats.get("severities", {})
-
-        for finding_name in finding_names:
-            name_stats[finding_name] = name_stats.get(finding_name, 0) + 1
-            counts_by_host[asset.host] = counts_by_host.get(asset.host, 0) + 1
-        for finding_severity, count in finding_severities.items():
-            severity_stats[finding_severity] = severity_stats.get(finding_severity, 0) + count
-
-        max_severity_score = max([asset.finding_max_severity_score, finding_stats.get("max_severity_score", 0)])
-        finding_stats["max_severity_score"] = max_severity_score
-        if max_severity_score > 0:
-            max_severity = SeverityScore.to_str(max_severity_score)
-        else:
-            max_severity = None
-        finding_stats["max_severity"] = max_severity
-
-        if asset.finding_max_severity_score > 0:
-            severities_by_host[asset.host] = {
-                "max_severity": asset.finding_max_severity,
-                "max_severity_score": asset.finding_max_severity_score,
-            }
-
-        finding_stats["names"] = dict(sorted(name_stats.items(), key=lambda x: x[1], reverse=True))
-        finding_stats["counts_by_host"] = dict(sorted(counts_by_host.items(), key=lambda x: x[1], reverse=True))
-        finding_stats["severities_by_host"] = dict(
-            sorted(severities_by_host.items(), key=lambda x: x[1]["max_severity_score"], reverse=True)
-        )
-        finding_stats["severities"] = dict(sorted(severity_stats.items(), key=lambda x: x[1], reverse=True))
-        stats["findings"] = finding_stats
-
-        return stats
-
-    async def _insert_or_update_finding(self, finding: Finding, asset, event=None):
+    async def _insert_or_update_finding(self, finding: Finding, event=None):
         """
         Insert a new finding into the database, or update an existing one.
 
         Returns a list of activities. If the finding was new, a NEW_FINDING activity will be returned.
         """
-        query = {
-            "id": finding.id,
-        }
-        existing_finding = await self.root._get_asset(
-            query=query,
-            fields=[],
-        )
-        if existing_finding:
-            # update the modified field
-            await self.collection.update_one(
-                query,
+        existing_row = await self._get_one(id=finding.id)
+        if existing_row:
+            await self._update(
+                {"id": finding.id},
                 {
-                    "$set": {
-                        "modified": self.helpers.utc_now(),
-                        "severity": finding.severity,
-                        "severity_score": finding.severity_score,
-                        "confidence": finding.confidence,
-                        "confidence_score": finding.confidence_score,
-                    }
+                    "modified": self.helpers.utc_now(),
+                    "severity_score": finding.severity_score,
+                    "confidence_score": finding.confidence_score,
                 },
             )
             return []
 
-        # update the asset
-        finding_severities = getattr(asset, "finding_severities", {})
-        finding_severities[finding.severity] = finding_severities.get(finding.severity, 0) + 1
-        asset.finding_severities = dict(sorted(finding_severities.items(), key=lambda x: x[1], reverse=True))
-        severity_scores = {SeverityScore.to_score(severity) for severity in finding_severities}
-        if severity_scores:
-            asset.finding_max_severity_score = max(severity_scores)
-            asset.finding_max_severity = SeverityScore.to_str(asset.finding_max_severity_score)
-        else:
-            asset.finding_max_severity_score = 0
-            asset.finding_max_severity = None
-
-        # insert the new vulnerability
-        await self.root._insert_asset(finding.model_dump())
+        # insert the new finding directly
+        await self._insert(finding)
 
         severity_color = SEVERITY_COLORS[finding.severity_score]
 

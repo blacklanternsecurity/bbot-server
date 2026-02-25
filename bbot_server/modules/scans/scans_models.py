@@ -4,6 +4,8 @@ from pydantic import Field, computed_field
 
 from bbot.constants import get_scan_status_name, SCAN_STATUS_CODES
 
+from sqlalchemy import or_
+
 from bbot_server.models.base import BaseBBOTServerModel, BaseQuery
 from bbot_server.modules.presets.presets_models import Preset
 from bbot_server.modules.targets.targets_models import Target
@@ -21,32 +23,33 @@ class ScanQuery(BaseQuery):
     max_created_timestamp: float | None = Field(None, description="Filter by maximum created timestamp")
 
     async def build(self, applet=None):
-        query = await super().build(applet)
+        stmt = await super().build(applet)
+        model = self._applet.model
 
-        if self.name is not None and "name" not in query:
-            query["name"] = self.name
+        if self.name is not None:
+            stmt = stmt.where(model.name == self.name)
 
-        if self.status is not None and "status" not in query:
-            query["status"] = self.status
+        if self.status is not None:
+            stmt = stmt.where(model.status == self.status)
 
-        if self.agent_id is not None and "agent_id" not in query:
-            query["agent_id"] = self.agent_id
+        if self.agent_id is not None:
+            stmt = stmt.where(model.agent_id == self.agent_id)
 
-        # Handle target_id filtering - scans have target embedded as an object
-        if self.target_id is not None and "target.id" not in query and "target.name" not in query:
-            query["$or"] = [{"target.id": self.target_id}, {"target.name": self.target_id}]
+        # target_id filtering - scans store target as JSONB with id/name keys
+        if self.target_id is not None:
+            stmt = stmt.where(
+                or_(
+                    model.target["id"].astext == self.target_id,
+                    model.target["name"].astext == self.target_id,
+                )
+            )
 
-        # Handle created timestamps
-        if "created" not in query and (
-            self.min_created_timestamp is not None or self.max_created_timestamp is not None
-        ):
-            query["created"] = {}
-            if self.min_created_timestamp is not None:
-                query["created"]["$gte"] = self.min_created_timestamp
-            if self.max_created_timestamp is not None:
-                query["created"]["$lte"] = self.max_created_timestamp
+        if self.min_created_timestamp is not None:
+            stmt = stmt.where(model.created >= self.min_created_timestamp)
+        if self.max_created_timestamp is not None:
+            stmt = stmt.where(model.created <= self.max_created_timestamp)
 
-        return query
+        return stmt
 
 
 class Scan(BaseBBOTServerModel):

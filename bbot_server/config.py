@@ -37,6 +37,10 @@ if not BBOT_SERVER_CONFIG_PATH.exists():
         log.error(f"Error creating config file at {BBOT_SERVER_CONFIG_PATH}: {e}")
 
 
+class DatabaseConfig(BaseModel):
+    uri: str
+
+
 class StoreConfig(BaseModel):
     uri: str
 
@@ -74,10 +78,13 @@ class BBOTServerSettings(BaseSettings):
     api_key: Optional[str] = None
     api_keys: List[str] = Field(default_factory=list)
 
-    # storage + mq
-    event_store: StoreConfig
-    asset_store: StoreConfig
-    user_store: StoreConfig
+    # database
+    database: DatabaseConfig
+
+    # storage + mq (legacy MongoDB - kept temporarily for reference)
+    event_store: Optional[StoreConfig] = None
+    asset_store: Optional[StoreConfig] = None
+    user_store: Optional[StoreConfig] = None
     message_queue: MessageQueueConfig
 
     # misc nested config we know about

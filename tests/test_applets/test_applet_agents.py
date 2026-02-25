@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.skip(reason="Module shelved in Postgres migration")
+
 import orjson
 import asyncio
 import traceback

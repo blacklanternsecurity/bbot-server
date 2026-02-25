@@ -1,62 +1,33 @@
 import logging
 
-from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
-from bbot_server.errors import BBOTServerValueError
+from sqlmodel import SQLModel, Field
+from sqlalchemy import Column, String, Float, Boolean, Text, Integer, func, text
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
+from sqlalchemy import Computed
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+
+from bbot_server.utils.misc import utc_now
+
+log = logging.getLogger("bbot_server.db.base")
 
 
-class BaseDB:
-    # config_key is used for looking up the config for this specific db store
-    # e.g. "event_store" or "asset_store" or "user_store"
-    config_key = None
+class BBOTServerModel(SQLModel):
+    """Abstract base for all bbot-server SQLModel models."""
+    class Config:
+        arbitrary_types_allowed = True
 
-    def __init__(self):
-        self.log = logging.getLogger(__name__)
-        self.config = bbcfg
 
-        if not self.db_config:
-            raise BBOTServerValueError(
-                f"Database configuration (`{self.config_key}`) is missing from config: {self.config}"
-            )
-        if not self.uri:
-            raise BBOTServerValueError(f"Database URI is missing from config: {self.db_config}")
-
-        self.log.debug(f"Setting up {self.__class__.__name__} at {self.uri}")
-
-        self._setup_finished = False
-
-    @property
-    def db_config(self):
-        return getattr(self.config, self.config_key, None)
-
-    @property
-    def uri(self):
-        uri = getattr(self.db_config, "uri", "")
-        if not uri:
-            raise BBOTServerValueError(f"Database URI is missing from config: {self.db_config}")
-        return uri
-
-    @property
-    def db_name(self):
-        if self.uri.count("/") == 3:
-            db_name = self.uri.split("/")[-1]
-            if not db_name:
-                raise BBOTServerValueError("Database name must be included in the URI.")
-            return db_name
-        raise BBOTServerValueError(f"Invalid URI: {self.uri} - Database name must be included.")
-
-    async def setup(self):
-        if not self._setup_finished:
-            await self._setup()
-            self._setup_finished = True
-
-    async def _setup(self):
-        """
-        Setup method to be overridden by subclasses
-        """
-        raise NotImplementedError()
-
-    async def cleanup(self):
-        """
-        Cleanup method to be overridden by subclasses
-        """
-        pass
+class BaseHostModel(BBOTServerModel):
+    """Base for models with host/port/netloc."""
+    host: str = Field(index=True)
+    port: int | None = Field(default=None, index=True)
+    netloc: str | None = Field(default=None, index=True)
+    url: str | None = Field(default=None, index=True)
+    reverse_host: str | None = Field(
+        default=None,
+        sa_column=Column(String, Computed("reverse(host)"), nullable=True)
+    )
+    created: float = Field(default_factory=utc_now, index=True)
+    modified: float = Field(default_factory=utc_now, index=True)
+    ignored: bool = False
+    archived: bool = Field(default=False, index=True)

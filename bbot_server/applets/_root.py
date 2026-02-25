@@ -18,23 +18,17 @@ class RootApplet(BaseApplet):
         super().__init__(**kwargs)
         self._interface_type = "python"
         self._mcp = None
+        self.engine = None
 
     async def setup(self):
         # don't try to set up database/message queues if we're connected to a remote instance
         # e.g. through the HTTP interface
         if self.is_native:
-            # set up asset store, user store, and gridfs buckets
-            if self.asset_store is None:
-                from bbot_server.store import UserStore, AssetStore, EventStore
+            # set up PostgreSQL engine and session factory
+            if self._session_factory is None:
+                from bbot_server.db.postgres import create_db
 
-                self.asset_store = AssetStore()
-                await self.asset_store.setup()
-
-                self.user_store = UserStore()
-                await self.user_store.setup()
-
-                self.event_store = EventStore()
-                await self.event_store.setup()
+                self.engine, self._session_factory = await create_db()
 
             # set up message queue
             from bbot_server.message_queue import MessageQueue
@@ -43,10 +37,6 @@ class RootApplet(BaseApplet):
             await self.message_queue.setup()
 
         await self._setup()
-
-        # Reconcile indexes after all applets are set up
-        if self.is_native:
-            await self.reconcile_all_indexes()
 
         return True, ""
 
@@ -60,8 +50,8 @@ class RootApplet(BaseApplet):
 
     async def cleanup(self):
         if self.is_native:
-            await self.asset_store.cleanup()
-            await self.user_store.cleanup()
-            await self.event_store.cleanup()
-            await self.message_queue.cleanup()
+            if self.engine is not None:
+                await self.engine.dispose()
+            if self.message_queue is not None:
+                await self.message_queue.cleanup()
         await self._cleanup()

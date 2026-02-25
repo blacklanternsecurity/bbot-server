@@ -1,8 +1,4 @@
-event_store:
-  uri: mongodb://localhost:27017/test_bbot_server_events
-asset_store:
-  uri: mongodb://localhost:27017/test_bbot_server_assets
-user_store:
-  uri: mongodb://localhost:27017/test_bbot_server_userdata
+database:
+  uri: postgresql+asyncpg://bbot:bbot@localhost:5432/test_bbot_server
 message_queue:
   uri: redis://localhost:6379/15

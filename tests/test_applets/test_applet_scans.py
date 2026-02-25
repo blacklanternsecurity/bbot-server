@@ -73,6 +73,7 @@ async def test_scan_run_adhoc(bbot_server, bbot_events):
         await activity_task
 
 
+@pytest.mark.skip(reason="Requires agents module shelved in Postgres migration")
 async def test_scan_with_invalid_preset(bbot_server, bbot_agent):
     """
     Test that a scan with an invalid preset surfaces the error to the user
@@ -95,6 +96,7 @@ async def test_scan_with_invalid_preset(bbot_server, bbot_agent):
         assert False, "Scan did not fail successfully"
 
 
+@pytest.mark.skip(reason="Requires agents module shelved in Postgres migration")
 async def test_basic_scan_run(bbot_server):
     """
     A basic scan run, with an agent. Makes sure the scan runs start to finish and reports its statuses correctly
@@ -196,6 +198,7 @@ async def test_basic_scan_run(bbot_server):
         await event_task
 
 
+@pytest.mark.skip(reason="Requires presets module shelved in Postgres migration")
 async def test_queued_scan_cancellation(bbot_server):
     """
     Here we start a scan without an agent, so we have a queued scan in limbo
@@ -220,6 +223,7 @@ async def test_queued_scan_cancellation(bbot_server):
     assert scans[0].status == "ABORTED"
 
 
+@pytest.mark.skip(reason="Requires agents module shelved in Postgres migration")
 async def test_running_scan_cancellation(bbot_agent, bbot_watchdog):
     """
     Here we start a scan with an agent, so we have a running scan

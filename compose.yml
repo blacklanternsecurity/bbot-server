@@ -22,7 +22,7 @@ services:
     environment:
       - BBOT_SERVER_AUTH_ENABLED=${BBOT_SERVER_AUTH_ENABLED:-true}
     depends_on:
-      - mongodb
+      - postgres
       - redis
 
   watchdog:
@@ -40,11 +40,17 @@ services:
       server:
         condition: service_healthy
 
-  mongodb:
-    image: mongo:latest
+  postgres:
+    image: postgres:16
     restart: unless-stopped
+    environment:
+      POSTGRES_DB: bbot_server
+      POSTGRES_USER: bbot
+      POSTGRES_PASSWORD: bbot
+    ports:
+      - "5432:5432"
     volumes:
-      - ./mongodb:/data/db
+      - ./pgdata:/var/lib/postgresql/data
 
   redis:
     image: redis:latest

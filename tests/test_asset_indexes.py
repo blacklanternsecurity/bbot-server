@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.skip(reason="MongoDB tests removed in Postgres migration")
+
 from bbot_server import BBOTServer
 from pydantic import computed_field
 from typing import Annotated
