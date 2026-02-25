@@ -23,6 +23,7 @@ spec:
       imagePullSecrets:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       {{- end }}
+      {{- if .Values.server.enabled }}
       # Wait for the API server to become healthy before starting the watchdog
       initContainers:
       - name: wait-for-server
@@ -39,6 +40,7 @@ spec:
               sleep 5
             done
             echo "Server is healthy, starting watchdog."
+      {{- end }}
       containers:
       - name: watchdog
         securityContext:

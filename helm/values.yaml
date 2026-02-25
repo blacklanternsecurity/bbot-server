@@ -16,6 +16,8 @@ imagePullSecrets: []
 # Server (API)
 # =============================================================================
 server:
+  # -- Set to false to disable the API server (only deploy DBs + watchdog)
+  enabled: true
   replicas: 1
   resources: {}
   #   requests:

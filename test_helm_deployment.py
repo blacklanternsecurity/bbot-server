@@ -2,6 +2,8 @@
 import unittest
 import subprocess
 import time
+import json
+import base64
 import requests
 import atexit
 from contextlib import contextmanager
@@ -12,10 +14,10 @@ End-to-end integration tests for the BBOT Server Helm chart running on minikube.
 Run it like so:
 
 # all tests
-python test_helm_deployment.py
+uv run python test_helm_deployment.py
 
 # specific test
-python -m unittest test_helm_deployment.TestHelmDeployment.test_swagger_ui
+uv run python -m unittest test_helm_deployment.TestHelmDeployment.test_swagger_ui
 
 To bring up the test environment manually, run:
 
@@ -263,6 +265,91 @@ class TestHelmDeployment(unittest.TestCase):
 
             self.assertEqual(response.status_code, 200, "Swagger UI should return 200")
             self.assertIn("swagger-ui", response.text.lower(), "Response should contain swagger-ui")
+
+    def test_ingest_and_query_assets(self):
+        """Test ingesting events from evilcorp.json.gz and querying assets via bbctl"""
+        # Get the server pod name
+        result = self.kubectl(
+            "get",
+            "pods",
+            "-l",
+            "app=bbot-server",
+            "-o",
+            "jsonpath={.items[0].metadata.name}",
+            capture_output=True,
+        )
+        pod_name = result.stdout.strip()
+        self.assertTrue(pod_name, "Should find a server pod")
+        print(f"Server pod: {pod_name}")
+
+        # Get the API key from the kubernetes secret
+        result = self.kubectl(
+            "get",
+            "secret",
+            f"{self.release_name}-api-key",
+            "-o",
+            "jsonpath={.data.api-key}",
+            capture_output=True,
+        )
+        api_key = base64.b64decode(result.stdout).decode()
+        self.assertTrue(api_key, "Should retrieve API key from secret")
+
+        # Write a bbctl config file inside the pod
+        server_url = f"http://{self.release_name}-server:8807/v1/"
+        config_content = f'url: "{server_url}"\napi_keys:\n  - "{api_key}"'
+        self.kubectl(
+            "exec",
+            pod_name,
+            "--",
+            "sh",
+            "-c",
+            f"printf '%s\\n' '{config_content}' > /tmp/bbctl.yaml",
+        )
+        bbctl = "bbctl --no-color --config /tmp/bbctl.yaml"
+
+        # Copy test data into the pod
+        self.kubectl("cp", "tests/evilcorp.json.gz", f"{pod_name}:/tmp/evilcorp.json.gz")
+
+        # Ingest events using bbctl
+        print("Ingesting events...")
+        result = self.kubectl(
+            "exec",
+            pod_name,
+            "--",
+            "sh",
+            "-c",
+            f"gunzip -c /tmp/evilcorp.json.gz | {bbctl} event ingest",
+            capture_output=True,
+            timeout=120,
+        )
+        print(f"Ingest stdout: {result.stdout}")
+        print(f"Ingest stderr: {result.stderr}")
+        self.assertEqual(result.returncode, 0, f"Event ingest failed: {result.stderr}")
+
+        # Wait for the watchdog to process events into assets
+        print("Waiting for watchdog to process events into assets...")
+        assets = []
+        for i in range(30):
+            result = self.kubectl(
+                "exec",
+                pod_name,
+                "--",
+                "sh",
+                "-c",
+                f"{bbctl} asset list --json",
+                capture_output=True,
+                check=False,
+                timeout=30,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                assets = [json.loads(line) for line in result.stdout.strip().splitlines() if line.strip()]
+                if assets:
+                    break
+            print(f"  Attempt {i + 1}/30: {len(assets)} assets so far...")
+            time.sleep(2)
+
+        print(f"Found {len(assets)} assets")
+        self.assertGreater(len(assets), 0, "Should have ingested some assets from evilcorp.json.gz")
 
     def tearDown(self):
         """If a test fails, dump cluster debug info"""
