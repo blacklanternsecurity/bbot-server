@@ -141,7 +141,9 @@ class ServerCTL(BaseBBCTL):
         if asset_store:
             stores_to_clear.append(("asset store", self.config.asset_store, "all BBOT asset data"))
         if user_store:
-            stores_to_clear.append(("user store", self.config.user_store, "all BBOT user data, including presets and targets"))
+            stores_to_clear.append(
+                ("user store", self.config.user_store, "all BBOT user data, including presets and targets")
+            )
 
         for store_name, store_config, data_desc in stores_to_clear:
             db_name = store_config.uri.split("/")[-1]
