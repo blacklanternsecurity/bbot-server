@@ -12,8 +12,8 @@
 
 # async def test_scheduled_tasks(mongo_cleanup):
 #     from bbot_server import BBOTServer
-#     from bbot_server.watchdog import BBOTWatchdog
-#     from bbot_server.applets.base import BaseApplet, watchdog_task
+#     from bbot_server.worker import BBOTWorker
+#     from bbot_server.applets.base import BaseApplet, worker_task
 
 #     class ScheduledTaskApplet(BaseApplet):
 #         name = "Scheduled Tasks"
@@ -24,15 +24,15 @@
 #             self.cron_task_2_ran = False
 #             self.cron_task_3_ran = False
 
-#         @watchdog_task(cron="* * * * *")
+#         @worker_task(cron="* * * * *")
 #         async def cron_task(self):
 #             self.cron_task_ran = True
 
-#         @watchdog_task(cron="* * * * *", cron_config_key="test.cron_task_2")
+#         @worker_task(cron="* * * * *", cron_config_key="test.cron_task_2")
 #         async def cron_task_2(self):
 #             self.cron_task_2_ran = True
 
-#         @watchdog_task(cron="* * * * *", cron_config_key="test.cron_task_3")
+#         @worker_task(cron="* * * * *", cron_config_key="test.cron_task_3")
 #         async def cron_task_3(self):
 #             self.cron_task_3_ran = True
 
@@ -40,21 +40,21 @@
 
 #     bbot_server = BBOTServer(config=config)
 #     await bbot_server.setup()
-#     watchdog = BBOTWatchdog(bbot_server)
-#     await watchdog.start()
+#     worker = BBOTWorker(bbot_server)
+#     await worker.start()
 
 #     try:
 #         app = bbot_server.include_app(ScheduledTaskApplet)
 #         # register tasks on the bbot server side
 #         await app._setup()
-#         # register tasks on the watchdog side
-#         await app.register_watchdog_tasks(watchdog.broker)
+#         # register tasks on the worker side
+#         await app.register_worker_tasks(worker.broker)
 
 #         assert bbot_server.scheduled_tasks.cron_task_ran is False, "cron_task ran before setup"
 #         assert bbot_server.scheduled_tasks.cron_task_2_ran is False, "cron_task_2 ran before setup"
 #         assert bbot_server.scheduled_tasks.cron_task_3_ran is False, "cron_task_3 ran before setup"
 
-#         all_tasks = watchdog.broker.get_all_tasks()
+#         all_tasks = worker.broker.get_all_tasks()
 
 #         assert "tests.test_scheduled_tasks:cron_task" in all_tasks, "cron_task is not registered"
 #         assert "tests.test_scheduled_tasks:cron_task_2" in all_tasks, "cron_task_2 is not registered"
@@ -84,4 +84,4 @@
 #         with suppress(Exception):
 #             await bbot_server.stop()
 #         with suppress(Exception):
-#             await watchdog.stop()
+#             await worker.stop()

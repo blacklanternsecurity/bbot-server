@@ -328,8 +328,8 @@ class TestHelmDeployment(unittest.TestCase):
         print(f"Ingest stderr: {result.stderr}")
         self.assertEqual(result.returncode, 0, f"Event ingest failed: {result.stderr}")
 
-        # Wait for the watchdog to process events into assets
-        print("Waiting for watchdog to process events into assets...")
+        # Wait for the worker to process events into assets
+        print("Waiting for worker to process events into assets...")
         assets = []
         for i in range(30):
             result = self.kubectl(

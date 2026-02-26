@@ -166,7 +166,7 @@ async def test_queues_redis():
 
 
 class TestMessageQueuesRedis(BaseAppletTest):
-    needs_watchdog = True
+    needs_worker = True
 
     expected_message_queue_uri = "redis://localhost:6379/15"
 

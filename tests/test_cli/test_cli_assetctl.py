@@ -45,7 +45,7 @@ scan2_expected_hosts = {
 }
 
 
-def test_cli_assetctl(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events):
+def test_cli_assetctl(bbot_server_http, bbot_worker, bbot_out_file, bbot_events):
     scan1_out_file, scan2_out_file = bbot_out_file
     scan1_events, scan2_events = bbot_events
 

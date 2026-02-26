@@ -58,7 +58,7 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup):
     message_queue = None
 
     async def _make_bbot_server(
-        config_overrides=None, needs_agent=False, needs_api=False, needs_watchdog=True, **kwargs
+        config_overrides=None, needs_agent=False, needs_api=False, needs_worker=True, **kwargs
     ):
         nonlocal bbot_server
 
@@ -77,9 +77,9 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup):
         await message_queue.setup()
         await message_queue.clear()
 
-        # watchdog
-        if needs_watchdog:
-            request.getfixturevalue("bbot_watchdog")
+        # worker
+        if needs_worker:
+            request.getfixturevalue("bbot_worker")
 
         # http server
         if needs_api or kwargs["interface"] == "http":
@@ -101,16 +101,16 @@ async def bbot_server(request, mongo_cleanup, redis_cleanup):
 
 
 @pytest.fixture
-def bbot_watchdog(mongo_cleanup, redis_cleanup):
-    command = [*BBCTL_COMMAND, "server", "start", "--watchdog-only"]
-    watchdog_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+def bbot_worker(mongo_cleanup, redis_cleanup):
+    command = [*BBCTL_COMMAND, "server", "start", "--worker-only"]
+    worker_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
     try:
-        # Wait for watchdog to be ready by monitoring stderr
+        # Wait for worker to be ready by monitoring stderr
         ready = False
-        while watchdog_process.poll() is None:  # 10 second timeout (50 * 0.2)
-            line = watchdog_process.stderr.readline()
-            log.critical(f"Watchdog: {line.strip()}")
-            if "Watchdog started" in line:
+        while worker_process.poll() is None:  # 10 second timeout (50 * 0.2)
+            line = worker_process.stderr.readline()
+            log.critical(f"Worker: {line.strip()}")
+            if "Worker started" in line:
                 ready = True
                 break
             if "[INFO] Subscribed to bbot:stream:events" in line:
@@ -118,29 +118,29 @@ def bbot_watchdog(mongo_cleanup, redis_cleanup):
                 break
 
         if not ready:
-            raise Exception("Watchdog failed to start and subscribe to events")
+            raise Exception("Worker failed to start and subscribe to events")
 
-        # here, start a thread to tail the watchdog's stderr
+        # here, start a thread to tail the worker's stderr
         def tail_stderr():
-            while watchdog_process.poll() is None:
-                line = watchdog_process.stderr.readline()
+            while worker_process.poll() is None:
+                line = worker_process.stderr.readline()
                 if line:
-                    log.critical(f"Watchdog: {line.strip()}")
+                    log.critical(f"Worker: {line.strip()}")
 
         import threading
 
         stderr_thread = threading.Thread(target=tail_stderr, daemon=True)
         stderr_thread.start()
 
-        yield watchdog_process
+        yield worker_process
 
-        watchdog_process.send_signal(signal.SIGINT)
+        worker_process.send_signal(signal.SIGINT)
     finally:
         try:
-            watchdog_process.wait(timeout=5)
+            worker_process.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            log.error("Watchdog process timed out, killing forcefully")
-            watchdog_process.kill()
+            log.error("Worker process timed out, killing forcefully")
+            worker_process.kill()
 
 
 @pytest.fixture

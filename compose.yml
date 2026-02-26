@@ -25,9 +25,9 @@ services:
       - mongodb
       - redis
 
-  watchdog:
+  worker:
     <<: *bbot-server-base
-    command: ["bbctl", "server", "start", "--watchdog-only"]
+    command: ["bbctl", "server", "start", "--worker-only"]
     depends_on:
       server:
         condition: service_healthy

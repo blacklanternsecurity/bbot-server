@@ -1,4 +1,4 @@
-# from bbot_server.watchdogs.emails import EmailWatchdog
+# from bbot_server.workers.emails import EmailWorker
 from bbot_server.applets.base import BaseApplet, api_endpoint, BaseModel, Field
 
 
@@ -7,7 +7,7 @@ class EmailsApplet(BaseApplet):
     description = "emails discovered during scans"
     # watched_events = ["EMAIL_ADDRESS"]
     route_prefix = ""
-    # watchdogs = [EmailWatchdog]
+    # workers = [EmailWorker]
     attach_to = "assets"
 
     class AssetFields(BaseModel):

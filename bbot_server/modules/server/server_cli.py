@@ -28,8 +28,8 @@ class ServerCTL(BaseBBCTL):
         api_only: Annotated[
             bool, Option("--api-only", "-a", help="Only start the REST API, without Docker Compose")
         ] = False,
-        watchdog_only: Annotated[
-            bool, Option("--watchdog-only", "-w", help="Only start the watchdog, without Docker Compose")
+        worker_only: Annotated[
+            bool, Option("--worker-only", "-w", help="Only start the worker, without Docker Compose")
         ] = False,
         listen: Annotated[str, Option("--listen", "-l", help="Listen address", metavar="IP_ADDRESS")] = "127.0.0.1",
         port: Annotated[int, Option("--port", "-p", help="Port to run the server on", metavar="PORT")] = 8807,
@@ -60,20 +60,20 @@ class ServerCTL(BaseBBCTL):
                 workers=1,
             )
 
-        elif watchdog_only:
-            print("Starting watchdog")
+        elif worker_only:
+            print("Starting worker")
 
-            async def run_watchdog():
+            async def run_worker():
                 try:
                     from bbot_server import BBOTServer
-                    from bbot_server.watchdog import BBOTWatchdog
+                    from bbot_server.worker import BBOTWorker
 
                     bbot_server = BBOTServer()
                     await bbot_server.setup()
 
-                    watchdog = BBOTWatchdog(bbot_server)
-                    await watchdog.start()
-                    print("Watchdog successfully started")
+                    worker = BBOTWorker(bbot_server)
+                    await worker.start()
+                    print("Worker successfully started")
 
                     # sleep for infinity
                     event = asyncio.Event()
@@ -81,9 +81,9 @@ class ServerCTL(BaseBBCTL):
 
                 except KeyboardInterrupt:
                     with suppress(Exception):
-                        await watchdog.stop()
+                        await worker.stop()
 
-            asyncio.run(run_watchdog())
+            asyncio.run(run_worker())
 
         else:
             # initialize the config if not already

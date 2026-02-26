@@ -8,7 +8,7 @@ from bbot_server.modules.technologies.technologies_models import Technology
 from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY, BBOT_SERVER_TEST_DIR
 
 
-def test_cli_technologyctl(bbot_server_http, bbot_watchdog, bbot_out_file):
+def test_cli_technologyctl(bbot_server_http, bbot_worker, bbot_out_file):
     # we shouldn't have any technologies yet
     command = BBCTL_COMMAND + ["technology", "list", "--json"]
     process = subprocess.run(command, capture_output=True, text=True)

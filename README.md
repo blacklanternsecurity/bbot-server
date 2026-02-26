@@ -48,7 +48,7 @@ bbctl server start
 
 ## Deploy with Helm (Kubernetes)
 
-BBOT Server can be deployed to Kubernetes using its official Helm chart. The chart deploys the API server, watchdog, MongoDB, and Redis.
+BBOT Server can be deployed to Kubernetes using its official Helm chart. The chart deploys the API server, worker, MongoDB, and Redis.
 
 ### Quick Start
 

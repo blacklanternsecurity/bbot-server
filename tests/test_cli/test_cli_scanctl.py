@@ -8,7 +8,7 @@ from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY, BBOT_SERVER_T
 from bbot_server.modules.scans.scans_models import Scan
 
 
-def test_cli_scan_start(bbot_server_http, bbot_watchdog, bbot_agent):
+def test_cli_scan_start(bbot_server_http, bbot_worker, bbot_agent):
     # we shouldn't have any scans yet
     command = BBCTL_COMMAND + ["scan", "list", "--json"]
     process = subprocess.run(command, capture_output=True, text=True)
@@ -121,7 +121,7 @@ debug: true
     assert "Scan with name 'demonic_jimmy' already exists" in process.stderr
 
 
-def test_cli_scan_ingest(bbot_server_http, bbot_watchdog, bbot_out_file, bbot_events):
+def test_cli_scan_ingest(bbot_server_http, bbot_worker, bbot_out_file, bbot_events):
     scan1_out_file, scan2_out_file = bbot_out_file
     scan1_events, scan2_events = bbot_events
     scan1_name = scan1_events[0].data_json["name"]

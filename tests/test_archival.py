@@ -6,7 +6,7 @@ class TestArchival(BaseAppletTest):
     This is a basic sanity check to make sure the event archiving process works as intended
     """
 
-    needs_watchdog = True
+    needs_worker = True
 
     async def setup(self):
         events = [e async for e in self.bbot_server.list_events()]

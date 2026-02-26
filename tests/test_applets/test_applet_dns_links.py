@@ -2,7 +2,7 @@ from tests.test_applets.base import BaseAppletTest
 
 
 class TestAppletDNSLinks(BaseAppletTest):
-    needs_watchdog = True
+    needs_worker = True
 
     async def after_scan_1(self):
         activities = [a for a in self.asset_messages if a.type in ["NEW_DNS_LINK", "DELETED_DNS_LINK"]]

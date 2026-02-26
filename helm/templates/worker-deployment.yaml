@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-watchdog
+  name: {{ .Release.Name }}-worker
   labels:
-    app: bbot-watchdog
+    app: bbot-worker
     app.kubernetes.io/instance: {{ .Release.Name | quote }}
 spec:
-  replicas: {{ .Values.watchdog.replicas }}
+  replicas: {{ .Values.worker.replicas }}
   selector:
     matchLabels:
-      app: bbot-watchdog
+      app: bbot-worker
   template:
     metadata:
       labels:
-        app: bbot-watchdog
+        app: bbot-worker
     spec:
       securityContext:
         runAsNonRoot: true
@@ -24,7 +24,7 @@ spec:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       {{- end }}
       {{- if .Values.server.enabled }}
-      # Wait for the API server to become healthy before starting the watchdog
+      # Wait for the API server to become healthy before starting the worker
       initContainers:
       - name: wait-for-server
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -39,15 +39,15 @@ spec:
               echo "Server not ready yet, retrying in 5s..."
               sleep 5
             done
-            echo "Server is healthy, starting watchdog."
+            echo "Server is healthy, starting worker."
       {{- end }}
       containers:
-      - name: watchdog
+      - name: worker
         securityContext:
           allowPrivilegeEscalation: false
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        command: ["bbctl", "server", "start", "--watchdog-only"]
+        command: ["bbctl", "server", "start", "--worker-only"]
         env:
         # Internal password references (used for URI interpolation below)
         - name: MONGO_PASSWORD
@@ -86,7 +86,7 @@ spec:
         # Redis URI
         - name: BBOT_SERVER_MESSAGE_QUEUE__URI
           value: "redis://:$(REDIS_PASSWORD)@{{ .Release.Name }}-redis-master:6379/0"
-        {{- with .Values.watchdog.resources }}
+        {{- with .Values.worker.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
