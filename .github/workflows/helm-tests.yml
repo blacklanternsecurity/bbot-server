@@ -36,7 +36,7 @@ jobs:
       uses: medyagh/setup-minikube@latest
 
     - name: Run helm deployment tests
-      run: python test_helm_deployment.py
+      run: python helm_deployment_test.py
 
     - name: Cleanup minikube
       if: always()

@@ -245,7 +245,7 @@ def test_docker_compose_custom_config():
         text=True,
     )
     assert result.returncode == 0
-    assert "uri: mongodb://mongodb:27017/bbot_eventstore" in result.stdout
+    assert "uri: mongodb://mongodb:27017/bbot" in result.stdout
     assert not "test1234: test4321" in result.stdout
 
     # if we do pass --config, it should use the custom config

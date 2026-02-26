@@ -69,6 +69,7 @@ mongodb:
     # -- Existing secret name (created by this chart if empty)
     existingSecret: ""
   persistence:
+    size: 50Gi
     resourcePolicy: keep
 
 # =============================================================================
