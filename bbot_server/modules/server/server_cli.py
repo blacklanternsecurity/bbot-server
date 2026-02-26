@@ -3,7 +3,6 @@ import sys
 import typer
 import asyncio
 import subprocess
-from pathlib import Path
 from subprocess import run
 from contextlib import suppress
 

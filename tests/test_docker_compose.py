@@ -2,7 +2,6 @@
 
 import os
 import sys
-import json
 import yaml
 import time
 import httpx
@@ -124,7 +123,9 @@ def wait_for_server(bbctl_cmd, timeout_seconds=60):
         if result.returncode == 0:
             return result
         time.sleep(0.5)
-    assert False, f"Server did not become healthy within {timeout_seconds}s, stdout: {result.stdout}, stderr: {result.stderr}"
+    assert False, (
+        f"Server did not become healthy within {timeout_seconds}s, stdout: {result.stdout}, stderr: {result.stderr}"
+    )
 
 
 # we typically only want to run this on CI
