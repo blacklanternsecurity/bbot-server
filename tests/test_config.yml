@@ -1,8 +1,11 @@
 event_store:
-  uri: mongodb://localhost:27017/test_bbot_server_events
+  uri: mongodb://localhost:27017/test_bbot
+  collection_prefix: "eventstore__"
 asset_store:
-  uri: mongodb://localhost:27017/test_bbot_server_assets
+  uri: mongodb://localhost:27017/test_bbot
+  collection_prefix: "assetstore__"
 user_store:
-  uri: mongodb://localhost:27017/test_bbot_server_userdata
+  uri: mongodb://localhost:27017/test_bbot
+  collection_prefix: "userstore__"
 message_queue:
   uri: redis://localhost:6379/15

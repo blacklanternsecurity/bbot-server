@@ -72,11 +72,17 @@ spec:
               key: api-key
         # MongoDB URIs (credentials injected via $(VAR) interpolation)
         - name: BBOT_SERVER_EVENT_STORE__URI
-          value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot_eventstore?authSource=admin"
+          value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot?authSource=admin"
+        - name: BBOT_SERVER_EVENT_STORE__COLLECTION_PREFIX
+          value: "eventstore__"
         - name: BBOT_SERVER_ASSET_STORE__URI
-          value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot_assetstore?authSource=admin"
+          value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot?authSource=admin"
+        - name: BBOT_SERVER_ASSET_STORE__COLLECTION_PREFIX
+          value: "assetstore__"
         - name: BBOT_SERVER_USER_STORE__URI
-          value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot_userstore?authSource=admin"
+          value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot?authSource=admin"
+        - name: BBOT_SERVER_USER_STORE__COLLECTION_PREFIX
+          value: "userstore__"
         # Redis URI
         - name: BBOT_SERVER_MESSAGE_QUEUE__URI
           value: "redis://:$(REDIS_PASSWORD)@{{ .Release.Name }}-redis-master:6379/0"

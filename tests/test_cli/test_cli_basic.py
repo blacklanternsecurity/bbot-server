@@ -32,7 +32,7 @@ def test_cli_config():
     result = subprocess.run(BBCTL_COMMAND + ["--current-config"], capture_output=True, text=True)
     assert result.returncode == 0
     config = yaml.safe_load(result.stdout)
-    assert config["event_store"]["uri"] == "mongodb://localhost:27017/test_bbot_server_events"
+    assert config["event_store"]["uri"] == "mongodb://localhost:27017/test_bbot"
 
     yaml_config_str = """
 event_store:
