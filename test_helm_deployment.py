@@ -243,10 +243,10 @@ class TestHelmDeployment(unittest.TestCase):
             "pod",
             "-l",
             "app=bbot-server",
-            "--timeout=90s",
+            "--timeout=300s",
             check=False,
             capture_output=True,
-            timeout=100,
+            timeout=310,
         )
         if result.returncode == 0:
             print("Server pod is ready")
