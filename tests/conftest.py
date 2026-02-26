@@ -41,7 +41,7 @@ shutil.copyfile(str(TEST_CONFIG_PATH_SOURCE), str(TEST_CONFIG_PATH))
 
 bbcfg.refresh(config_path=str(TEST_CONFIG_PATH))
 
-assert bbcfg.asset_store.uri == "mongodb://localhost:27017/test_bbot_server_assets"
+assert bbcfg.asset_store.uri == "mongodb://localhost:27017/test_bbot"
 
 if not bbcfg.get_api_keys():
     # create a new api key if we don't have one yet
@@ -263,9 +263,7 @@ async def mongo_cleanup():
     client = AsyncMongoClient(bbcfg.event_store.uri)
 
     async def clear_everything():
-        await client.drop_database("test_bbot_server_events")
-        await client.drop_database("test_bbot_server_assets")
-        await client.drop_database("test_bbot_server_userdata")
+        await client.drop_database("test_bbot")
 
     try:
         # Clear before test

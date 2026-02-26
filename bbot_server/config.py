@@ -42,6 +42,7 @@ if not BBOT_SERVER_CONFIG_PATH.exists():
 
 class StoreConfig(BaseModel):
     uri: str
+    collection_prefix: str = ""
 
 
 class MessageQueueConfig(BaseModel):

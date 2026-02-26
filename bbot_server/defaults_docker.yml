@@ -3,16 +3,19 @@ url: http://server:8807/v1/
 
 # event store is just a big bucket of BBOT scan events
 event_store:
-  uri: mongodb://mongodb:27017/bbot_eventstore
+  uri: mongodb://mongodb:27017/bbot
+  collection_prefix: "eventstore__"
 
 # assets are derived in real time from the event store, and can be recreated at any time
 asset_store:
-  uri: mongodb://mongodb:27017/bbot_assetstore
+  uri: mongodb://mongodb:27017/bbot
+  collection_prefix: "assetstore__"
 
 # user_store holds any user-specific data, overrides, etc. which are not derived from events
 # examples include targets, scans, etc.
 user_store:
-  uri: mongodb://mongodb:27017/bbot_userstore
+  uri: mongodb://mongodb:27017/bbot
+  collection_prefix: "userstore__"
 
 message_queue:
   uri: redis://redis:6379/0

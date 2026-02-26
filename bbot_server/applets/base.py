@@ -223,7 +223,9 @@ class BaseApplet:
                     self.collection = self.parent.collection
                     self.strict_collection = self.parent.strict_collection
                 else:
-                    self.collection = self.db[self.table_name]
+                    store = getattr(self, f"{self.store_type}_store")
+                    prefix = getattr(store, "collection_prefix", "")
+                    self.collection = self.db[f"{prefix}{self.table_name}"]
                     # WriteConcern options:
                     #  w=1: Acknowledges the write operation only after it has been written to the primary. (the default)
                     #  j=True: Ensures the write operation is committed to the journal. (default is False)
