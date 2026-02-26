@@ -7,7 +7,7 @@ from pathlib import Path
 from subprocess import run
 from contextlib import suppress
 
-from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg
+from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg, BBOT_SERVER_DIR
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
 
@@ -17,10 +17,23 @@ class ServerCTL(BaseBBCTL):
     short_help = "Start/stop BBOT server and manage API keys"
     attach_to = "bbctl"
 
+    _invoke_without_command = True
+    _no_args_is_help = True
+
     def setup(self):
         self._docker_command = None
-        self.docker_compose_dir = Path(__file__).parent.parent
+        self.docker_compose_dir = BBOT_SERVER_DIR
         self.docker_compose_file = self.docker_compose_dir / "compose.yml"
+
+    def main(
+        self,
+        dev: Annotated[
+            bool, Option("--dev", "-d", help="Use dev compose file (builds from source, mounts code for live reload)")
+        ] = False,
+    ):
+        if dev:
+            self.docker_compose_dir = BBOT_SERVER_DIR.parent
+            self.docker_compose_file = self.docker_compose_dir / "compose.yml"
 
     @subcommand(help="Start BBOT server")
     def start(
