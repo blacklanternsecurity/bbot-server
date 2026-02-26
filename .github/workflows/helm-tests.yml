@@ -1,0 +1,94 @@
+name: helm tests
+on:
+  push:
+    branches:
+      - stable
+      - dev
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  helm-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.x'
+
+    - name: Install Python dependencies
+      run: pip install requests
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v4
+
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+
+    - name: Install minikube
+      uses: medyagh/setup-minikube@latest
+
+    - name: Run helm deployment tests
+      run: python test_helm_deployment.py
+
+    - name: Cleanup minikube
+      if: always()
+      run: minikube delete
+
+  helm-publish:
+    runs-on: ubuntu-latest
+    needs: helm-test
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/dev') }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+
+    - name: Get version from pyproject.toml
+      id: version
+      run: |
+        VERSION=$(uv version --short)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+
+    - name: Update Chart.yaml version and appVersion
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        CHART_VERSION="$VERSION"
+        IMAGE_TAG="stable"
+        if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+          CHART_VERSION="${VERSION}-dev"
+          IMAGE_TAG="dev"
+        fi
+        sed -i "s/^version:.*/version: ${CHART_VERSION}/" helm/Chart.yaml
+        sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" helm/Chart.yaml
+        # ensure the packaged chart defaults to the correct docker image tag
+        sed -i "s/^  tag:.*/  tag: \"${IMAGE_TAG}\"/" helm/values.yaml
+        echo "Chart version: $CHART_VERSION"
+        echo "App version: $VERSION"
+        echo "Image tag: $IMAGE_TAG"
+        cat helm/Chart.yaml
+
+    - name: Build Helm dependencies
+      run: helm dependency build helm/
+
+    - name: Package Helm chart
+      run: helm package helm/
+
+    - name: Login to Docker Hub OCI registry
+      run: echo "${{ secrets.DOCKER_TOKEN }}" | helm registry login registry-1.docker.io -u blacklanternsecurity --password-stdin
+
+    - name: Push Helm chart to Docker Hub
+      run: helm push bbot-server-*.tgz oci://registry-1.docker.io/blacklanternsecurity

@@ -1,0 +1,105 @@
+# =============================================================================
+# BBOT Server Helm Chart
+# =============================================================================
+
+# -- Docker image configuration
+image:
+  repository: blacklanternsecurity/bbot-server
+  tag: "stable"
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+  # - name: docker-registry-secret
+
+# =============================================================================
+# Server (API)
+# =============================================================================
+server:
+  # -- Set to false to disable the API server (only deploy DBs + watchdog)
+  enabled: true
+  replicas: 1
+  resources: {}
+  #   requests:
+  #     cpu: 250m
+  #     memory: 512Mi
+  #   limits:
+  #     cpu: "1"
+  #     memory: 1Gi
+  service:
+    type: ClusterIP
+    port: 8807
+    targetPort: 8807
+
+# =============================================================================
+# Watchdog (event processor)
+# =============================================================================
+watchdog:
+  replicas: 1
+  resources: {}
+
+# =============================================================================
+# BBOT Server Application Configuration
+# =============================================================================
+config:
+  # -- Public URL of the BBOT server API
+  # If empty, auto-derived as http://{release}-server:8807/v1/
+  url: ""
+  # -- Enable API key authentication
+  authEnabled: true
+
+# =============================================================================
+# Secrets
+# =============================================================================
+secrets:
+  # -- Pre-existing secret name for the API key
+  # If empty, the chart auto-generates one on first install
+  existingApiKeySecret: ""
+  # -- API key value to store in the secret
+  # If empty, a random 32-character key is generated on first install
+  apiKey: ""
+
+# =============================================================================
+# MongoDB (Bitnami subchart)
+# =============================================================================
+mongodb:
+  architecture: standalone
+  auth:
+    enabled: true
+    # -- Existing secret name (created by this chart if empty)
+    existingSecret: ""
+  persistence:
+    resourcePolicy: keep
+
+# =============================================================================
+# Redis (Bitnami subchart)
+# =============================================================================
+redis:
+  architecture: standalone
+  auth:
+    enabled: true
+    # -- Existing secret name (created by this chart if empty)
+    existingSecret: ""
+    existingSecretPasswordKey: redis-password
+  master:
+    persistence:
+      enabled: false
+
+# =============================================================================
+# Ingress (optional)
+# =============================================================================
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt
+  hosts: []
+    # - host: bbot.example.com
+    #   paths:
+    #     - path: /
+    #       pathType: Prefix
+  tls: []
+    # - secretName: bbot-tls
+    #   hosts:
+    #     - bbot.example.com

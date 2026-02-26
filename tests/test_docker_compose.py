@@ -214,6 +214,13 @@ def test_docker_compose_custom_config():
     # delete config env var for this test
     os.environ.pop("BBOT_SERVER_CONFIG", None)
 
+    # Ensure the default host config path exists so Docker bind-mounts a file
+    # (not a root-owned directory) when BBOT_SERVER_CONFIG is unset
+    default_config = Path.home() / ".config" / "bbot_server" / "config.yml"
+    default_config.parent.mkdir(parents=True, exist_ok=True)
+    if not default_config.exists():
+        default_config.touch()
+
     # create a blank config file just for this test
     custom_config_file.unlink(missing_ok=True)
     custom_config_file.write_text("test1234: test4321")
