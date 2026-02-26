@@ -46,6 +46,81 @@ Note: this requires Docker and Docker Compose to be installed.
 bbctl server start
 ```
 
+## Deploy with Helm (Kubernetes)
+
+BBOT Server can be deployed to Kubernetes using its official Helm chart. The chart deploys the API server, watchdog, MongoDB, and Redis.
+
+### Quick Start
+
+```bash
+# Add the Helm repo
+helm repo add blacklanternsecurity https://blacklanternsecurity.github.io/bbot-server
+
+# Install
+helm install bbot blacklanternsecurity/bbot-server
+```
+
+Or install directly from the OCI registry:
+
+```bash
+helm install bbot oci://registry-1.docker.io/blacklanternsecurity/bbot-server
+```
+
+### Configuration
+
+Key values can be overridden with `--set` or a custom values file:
+
+```bash
+helm install bbot blacklanternsecurity/bbot-server \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0].host=bbot.example.com \
+  --set ingress.hosts[0].paths[0].path=/ \
+  --set ingress.hosts[0].paths[0].pathType=Prefix
+```
+
+Or with a values file:
+
+```yaml
+# custom-values.yaml
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+  hosts:
+    - host: bbot.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: bbot-tls
+      hosts:
+        - bbot.example.com
+
+secrets:
+  # provide your own API key, or leave empty to auto-generate
+  apiKey: ""
+```
+
+```bash
+helm install bbot blacklanternsecurity/bbot-server -f custom-values.yaml
+```
+
+### Retrieving the API Key
+
+If you didn't provide an API key, one is auto-generated. Retrieve it with:
+
+```bash
+kubectl get secret bbot-api-key -o jsonpath='{.data.api-key}' | base64 -d
+```
+
+### Upgrading
+
+```bash
+helm repo update
+helm upgrade bbot blacklanternsecurity/bbot-server
+```
+
 ## Interacting with BBOT Server Remotely (Multiplayer)
 
 By default, BBOT Server listens on localhost. Use `--listen` to expose it to the network:
