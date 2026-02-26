@@ -11,7 +11,7 @@ class BaseAppletTest:
 
     needs_api = False
     needs_agent = False
-    needs_watchdog = False
+    needs_worker = False
 
     # if True, don't test the http interface
     native_only = False
@@ -55,7 +55,7 @@ class BaseAppletTest:
             config_overrides=self.config_overrides,
             needs_api=self.needs_api,
             needs_agent=self.needs_agent,
-            needs_watchdog=self.needs_watchdog,
+            needs_worker=self.needs_worker,
         )
 
         if self.native_only and not self.bbot_server.is_native:

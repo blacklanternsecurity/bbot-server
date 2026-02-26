@@ -16,7 +16,7 @@ imagePullSecrets: []
 # Server (API)
 # =============================================================================
 server:
-  # -- Set to false to disable the API server (only deploy DBs + watchdog)
+  # -- Set to false to disable the API server (only deploy DBs + worker)
   enabled: true
   replicas: 1
   resources: {}
@@ -32,9 +32,9 @@ server:
     targetPort: 8807
 
 # =============================================================================
-# Watchdog (event processor)
+# Worker (event processor)
 # =============================================================================
-watchdog:
+worker:
   replicas: 1
   resources: {}
 

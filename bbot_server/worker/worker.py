@@ -12,7 +12,7 @@ from bbot_server.errors import BBOTServerNotFoundError
 from bbot_server.modules.activity.activity_models import Activity
 
 
-class BBOTWatchdog:
+class BBOTWorker:
     """
     Contains:
         - taskiq worker
@@ -40,9 +40,9 @@ class BBOTWatchdog:
 
         await self.broker.startup()
 
-        # register watchdog tasks
+        # register worker tasks
         for app in self.bbot_server.all_child_applets(include_self=True):
-            await app.register_watchdog_tasks(self.broker)
+            await app.register_worker_tasks(self.broker)
 
         # taskiq worker tasks
         self.taskiq_worker_task = asyncio.create_task(run_receiver_task(self.broker))
@@ -157,7 +157,7 @@ class BBOTWatchdog:
         return asset, activities
 
     async def stop(self) -> None:
-        self.log.info("Stopping watchdog")
+        self.log.info("Stopping worker")
         await self.bbot_server.message_queue.unsubscribe(self.event_listener)
         self.taskiq_worker_task.cancel()
         self.taskiq_scheduler_task.cancel()

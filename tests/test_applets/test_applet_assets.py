@@ -10,7 +10,7 @@ from ..conftest import INGEST_PROCESSING_DELAY
 
 
 class TestAppletAssets(BaseAppletTest):
-    needs_watchdog = True
+    needs_worker = True
 
     async def setup(self):
         # # make sure all asset fields have annotations
@@ -27,7 +27,7 @@ class TestAppletAssets(BaseAppletTest):
         assert [a async for a in self.bbot_server.query_assets()] == []
 
     async def after_scan_1(self):
-        # since this is our first test, and runners are dog slow, it can take a while for the watchdog etc. to get ready
+        # since this is our first test, and runners are dog slow, it can take a while for the worker etc. to get ready
         # we loop for a while to give them time to start up
         expected_hosts = {
             "1.2.3.4",
@@ -260,7 +260,7 @@ class TestAppletAssets(BaseAppletTest):
 
 # test to make sure you can filter assets by target
 async def test_applet_target_filter(bbot_server, bbot_events):
-    bbot_server = await bbot_server(needs_watchdog=True)
+    bbot_server = await bbot_server(needs_worker=True)
 
     target1 = CreateTarget(
         target=["evilcorp.com", "127.0.0.0/30"],

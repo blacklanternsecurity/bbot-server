@@ -6,7 +6,7 @@ from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY, BBOT_SERVER_T
 from bbot_server.modules.findings.findings_models import Finding
 
 
-def test_cli_findingctl(bbot_server_http, bbot_watchdog, bbot_out_file):
+def test_cli_findingctl(bbot_server_http, bbot_worker, bbot_out_file):
     # we shouldn't have any findings yet
     command = BBCTL_COMMAND + ["finding", "list", "--json"]
     process = subprocess.run(command, capture_output=True, text=True)

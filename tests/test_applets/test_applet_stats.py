@@ -3,7 +3,7 @@ from bbot_server.modules.targets.targets_models import CreateTarget
 
 
 async def test_applet_stats(bbot_server, bbot_events):
-    bbot_server = await bbot_server(needs_watchdog=True)
+    bbot_server = await bbot_server(needs_worker=True)
 
     target1 = CreateTarget(
         target=["evilcorp.com"],

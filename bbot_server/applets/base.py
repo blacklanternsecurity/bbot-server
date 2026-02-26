@@ -49,14 +49,14 @@ def api_endpoint(endpoint: str, **kwargs):
     return decorator
 
 
-def watchdog_task(**kwargs):
+def worker_task(**kwargs):
     """
-    Decorate your applet method with this to make it a watchdog task
+    Decorate your applet method with this to make it a worker task
     """
 
     def decorator(fn):
         fn._kwargs = kwargs
-        fn._watchdog_task = True
+        fn._worker_task = True
         return fn
 
     return decorator
@@ -238,8 +238,8 @@ class BaseApplet:
             self.task_broker = await self.message_queue.make_taskiq_broker()
             await self.task_broker.startup()
 
-        # register watchdog tasks
-        await self.register_watchdog_tasks(self.task_broker)
+        # register worker tasks
+        await self.register_worker_tasks(self.task_broker)
 
         if self.name != "Root Applet":
             try:
@@ -288,15 +288,15 @@ class BaseApplet:
             diff = compute_index_diff(desired, desired_text, existing, existing_text)
             await apply_index_diff(collection, diff, existing)
 
-    async def register_watchdog_tasks(self, broker):
-        # register watchdog tasks
+    async def register_worker_tasks(self, broker):
+        # register worker tasks
         methods = {name: member for name, member in getmembers(self) if callable(member)}
         for method_name, method in methods.items():
             # handle case where tasks have already been registered
             method = getattr(method, "original_func", method)
 
-            _watchdog_task = getattr(method, "_watchdog_task", None)
-            if _watchdog_task is None:
+            _worker_task = getattr(method, "_worker_task", None)
+            if _worker_task is None:
                 continue
             kwargs = getattr(method, "_kwargs", {})
             # crontab handling

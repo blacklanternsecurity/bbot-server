@@ -48,7 +48,7 @@ async def test_events_http_ingest(bbot_server, bbot_events):
 
 
 class TestAppletEvents(BaseAppletTest):
-    needs_watchdog = True
+    needs_worker = True
 
     async def setup(self):
         route = self.bbot_server.route_maps["tail_events"]

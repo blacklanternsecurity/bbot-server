@@ -2,7 +2,7 @@ from tests.test_applets.base import BaseAppletTest
 
 
 class TestAppletCloud(BaseAppletTest):
-    needs_watchdog = True
+    needs_worker = True
 
     async def after_scan_1(self):
         cloudcheck_result = await self.bbot_server.cloudcheck("www.evilcorp.azure.com")
