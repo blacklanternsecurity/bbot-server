@@ -37,7 +37,7 @@ jobs:
       - name: Lint
         run: |
           uv run ruff check
-          uv run ruff format --check
+          uv run ruff format --diff
       - name: Run tests
         run: |
           NO_COLOR=true uv run pytest --reruns 2 --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .

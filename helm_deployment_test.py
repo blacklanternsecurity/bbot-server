@@ -216,7 +216,9 @@ class TestHelmDeployment(unittest.TestCase):
         )
         print("Image loaded successfully")
 
-        # Update Helm dependencies
+        # Add Helm repositories and update dependencies
+        print("Adding Helm repositories...")
+        cls.helm("repo", "add", "bitnami", "https://charts.bitnami.com/bitnami", timeout=30)
         print("Updating Helm dependencies...")
         cls.helm("dependency", "update", "helm/", timeout=60)
 
