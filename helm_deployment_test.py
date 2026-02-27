@@ -219,8 +219,8 @@ class TestHelmDeployment(unittest.TestCase):
         # Add Helm repositories and update dependencies
         print("Adding Helm repositories...")
         cls.helm("repo", "add", "bitnami", "https://charts.bitnami.com/bitnami", timeout=30)
-        print("Updating Helm dependencies...")
-        cls.helm("dependency", "update", "helm/", timeout=60)
+        print("Building Helm dependencies (will fail if Chart.lock is out of sync)...")
+        cls.helm("dependency", "build", "helm/", timeout=60)
 
         # Deploy the helm chart
         print("Deploying helm chart...")
