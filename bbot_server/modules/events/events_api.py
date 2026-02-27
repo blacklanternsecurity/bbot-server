@@ -29,7 +29,7 @@ class EventsApplet(BaseApplet):
         Insert a BBOT event into the asset database
         """
         # publish event to the message queue
-        # it will be picked up by the watchdog and ingested
+        # it will be picked up by the worker and ingested
         await self.root.message_queue.publish_event(event)
 
     @api_endpoint("/get/{uuid}", methods=["GET"], summary="Get an event by its UUID")

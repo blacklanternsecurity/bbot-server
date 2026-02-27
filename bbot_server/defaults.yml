@@ -10,16 +10,19 @@ api_key: null
 
 # event store is just a big bucket of BBOT scan events that act as a read-only time machine
 event_store:
-  uri: mongodb://localhost:27017/bbot_eventstore
+  uri: mongodb://localhost:27017/bbot
+  collection_prefix: "eventstore__"
 
 # assets are derived from the event store, and can be recreated at any time
 asset_store:
-  uri: mongodb://localhost:27017/bbot_assetstore
+  uri: mongodb://localhost:27017/bbot
+  collection_prefix: "assetstore__"
 
 # user_store holds any user-specific data, overrides, etc. which are not derived from events
 # examples include targets, scans, etc.
 user_store:
-  uri: mongodb://localhost:27017/bbot_userstore
+  uri: mongodb://localhost:27017/bbot
+  collection_prefix: "userstore__"
 
 message_queue:
   uri: redis://localhost:6379/0

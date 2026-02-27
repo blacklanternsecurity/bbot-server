@@ -37,7 +37,7 @@ jobs:
       - name: Lint
         run: |
           uv run ruff check
-          uv run ruff format --check
+          uv run ruff format --diff
       - name: Run tests
         run: |
           NO_COLOR=true uv run pytest --reruns 2 --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
@@ -47,3 +47,45 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./cov.xml
           verbose: true
+
+  publish_pypi:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/stable'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Get version
+        id: calc_version
+        run: |
+          VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+      - name: Build PyPI package
+        run: uv build
+      - name: Publish PyPI package
+        uses: pypa/gh-action-pypi-publish@release/v1.13
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+    outputs:
+      VERSION: ${{ steps.calc_version.outputs.VERSION }}
+
+  tag_commit:
+    needs: publish_pypi
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/stable'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Configure git
+        run: |
+          git config --local user.email "info@blacklanternsecurity.com"
+          git config --local user.name "GitHub Actions"
+      - name: Tag commit
+        run: |
+          VERSION="v${{ needs.publish_pypi.outputs.VERSION }}"
+          git tag -a "$VERSION" -m "Stable Release $VERSION"
+          git push origin "$VERSION"

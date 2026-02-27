@@ -13,7 +13,7 @@ from ..conftest import INGEST_PROCESSING_DELAY, log
 
 # make sure ad-hoc ingestion of a BBOT scan creates an associated scan run in the database
 async def test_scan_run_adhoc(bbot_server, bbot_events):
-    bbot_server = await bbot_server(needs_watchdog=True)
+    bbot_server = await bbot_server(needs_worker=True)
 
     activities = []
 
@@ -77,7 +77,7 @@ async def test_scan_with_invalid_preset(bbot_server, bbot_agent):
     """
     Test that a scan with an invalid preset surfaces the error to the user
     """
-    bbot_server = await bbot_server(needs_agent=True, needs_watchdog=True)
+    bbot_server = await bbot_server(needs_agent=True, needs_worker=True)
 
     preset = await bbot_server.create_preset(
         preset={"name": "preset1", "description": "preset1 description", "modules": ["invalid"]}
@@ -99,7 +99,7 @@ async def test_basic_scan_run(bbot_server):
     """
     A basic scan run, with an agent. Makes sure the scan runs start to finish and reports its statuses correctly
     """
-    bbot_server = await bbot_server(needs_agent=True, needs_watchdog=True)
+    bbot_server = await bbot_server(needs_agent=True, needs_worker=True)
 
     events = []
 
@@ -220,7 +220,7 @@ async def test_queued_scan_cancellation(bbot_server):
     assert scans[0].status == "ABORTED"
 
 
-async def test_running_scan_cancellation(bbot_agent, bbot_watchdog):
+async def test_running_scan_cancellation(bbot_agent, bbot_worker):
     """
     Here we start a scan with an agent, so we have a running scan
 

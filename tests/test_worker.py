@@ -6,21 +6,21 @@ from taskiq import Context, TaskiqDepends
 
 from bbot_server import BBOTServer
 from bbot.models.pydantic import Event
-from bbot_server.watchdog import BBOTWatchdog
+from bbot_server.worker import BBOTWorker
 
 from .conftest import INGEST_PROCESSING_DELAY
 
 
 @pytest.mark.asyncio
-async def test_watchdog(bbot_events):
+async def test_worker(bbot_events):
     bbot_server = BBOTServer()
     await bbot_server.setup()
-    watchdog = BBOTWatchdog(bbot_server)
-    await watchdog.start()
+    worker = BBOTWorker(bbot_server)
+    await worker.start()
 
     try:
 
-        @watchdog.broker.task
+        @worker.broker.task
         async def insert_event(
             event: Event,
             context: Annotated[Context, TaskiqDepends()],
@@ -42,5 +42,5 @@ async def test_watchdog(bbot_events):
         assert db_events
         assert len(db_events) == len(scan1_events)
     finally:
-        await watchdog.stop()
+        await worker.stop()
         await bbot_server.cleanup()

@@ -26,7 +26,10 @@ BBOT_SERVER_CONFIG_PATH = Path.home() / ".config" / "bbot_server" / "config.yml"
 if not BBOT_SERVER_CONFIG_PATH.exists():
     try:
         BBOT_SERVER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        BBOT_SERVER_CONFIG_PATH.touch(mode=0o600)
+        # 644 permissions are necessary because we cannot predict the UID of the user running `bbctl`.
+        # since the config is mapped into the Docker container, BBOT server must have permissions to read it
+        # the alternative is running the BBOT server container as root
+        BBOT_SERVER_CONFIG_PATH.touch(mode=0o644)
         # fill with commented defaults
         with open(BBOT_SERVER_CONFIG_PATH, "w") as f:
             with open(BBOT_SERVER_DEFAULTS_PATH, "r") as defaults_file:
@@ -39,6 +42,7 @@ if not BBOT_SERVER_CONFIG_PATH.exists():
 
 class StoreConfig(BaseModel):
     uri: str
+    collection_prefix: str = ""
 
 
 class MessageQueueConfig(BaseModel):

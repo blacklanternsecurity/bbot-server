@@ -1,18 +1,15 @@
 x-bbot-server-base: &bbot-server-base
-  build:
-    context: .
+  image: blacklanternsecurity/bbot-server:stable
   restart: unless-stopped
   volumes:
     - "${BBOT_SERVER_CONFIG:-~/.config/bbot_server/config.yml}:/home/bbot/.config/bbot_server/config.yml"
-    - ./bbot_server:/app/bbot_server
-    - ./bbot_server/defaults_docker.yml:/app/bbot_server/defaults.yml
 
 services:
   server:
     <<: *bbot-server-base
     ports:
       - "${BBOT_LISTEN_ADDRESS:-127.0.0.1}:${BBOT_PORT:-8807}:8807"
-    command: ["bbctl", "server", "start", "--api-only", "--listen", "0.0.0.0", "--reload"]
+    command: ["bbctl", "server", "start", "--api-only", "--listen", "0.0.0.0"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8807/v1/docs"]
       interval: 10s
@@ -36,8 +33,11 @@ services:
     image: mongo:latest
     restart: unless-stopped
     volumes:
-      - ./mongodb:/data/db
+      - bbot-mongodb:/data/db
 
   redis:
     image: redis:latest
     restart: unless-stopped
+
+volumes:
+  bbot-mongodb:

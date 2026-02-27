@@ -4,7 +4,7 @@ from bbot_server.modules.targets.targets_models import CreateTarget
 
 
 class TestAppletTechnologies(BaseAppletTest):
-    needs_watchdog = True
+    needs_worker = True
 
     async def setup(self):
         # at the beginning, everything should be empty

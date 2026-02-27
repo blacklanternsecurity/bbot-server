@@ -387,7 +387,7 @@ async def test_target_default_uniqueness(bbot_server):
 
 
 class TestTargetScopeMaintenance(BaseAppletTest):
-    needs_watchdog = True
+    needs_worker = True
 
     async def setup(self):
         assert await self.bbot_server.get_hosts() == []
@@ -501,7 +501,7 @@ class TestTargetUpdateRemovesTargetFromAssets(BaseAppletTest):
     Also tests that deleting a target doesn't break count_assets(target_id="DEFAULT") afterward
     """
 
-    needs_watchdog = True
+    needs_worker = True
 
     async def setup(self):
         assert await self.bbot_server.get_hosts() == []
@@ -543,7 +543,7 @@ class TestTargetUpdateRemovesTargetFromAssets(BaseAppletTest):
         self.target.target = ["somethingelse.net"]
         await self.bbot_server.update_target(self.target.id, self.target)
 
-        # Give watchdog time to process the TARGET_UPDATED activity
+        # Give worker time to process the TARGET_UPDATED activity
         await asyncio.sleep(1.0)
 
         # Check that assets no longer have this target in their scope

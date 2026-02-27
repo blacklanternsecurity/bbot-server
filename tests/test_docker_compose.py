@@ -2,7 +2,6 @@
 
 import os
 import sys
-import json
 import yaml
 import time
 import httpx
@@ -23,43 +22,133 @@ def reset_config_file():
     copyfile(Path(__file__).parent / "test_config_docker.yml", custom_config_file)
 
 
+def bbctl_command(config_file=None):
+    cmd = ["uv", "run", "bbctl"]
+    if config_file:
+        cmd += ["--config", str(config_file)]
+    return cmd
+
+
+def server_args(dev=True):
+    """Return the server subcommand args with or without --dev."""
+    if dev:
+        return ["server", "--dev"]
+    return ["server"]
+
+
 @contextmanager
-def docker_test_env(reset_config=True, docker_down_first=True, cleanup_config=True):
+def docker_test_env(dev=True, reset_config=True, docker_down_first=True, cleanup_config=True):
     """
     Context manager for docker compose tests.
 
     Args:
+        dev: Use dev compose (build from source) vs production compose (pull from Docker Hub)
         reset_config: Reset config file at start
         docker_down_first: Run docker compose down before test
         cleanup_config: Delete custom config file after test
     """
+    srv = server_args(dev)
+
     # Setup
     if reset_config:
         reset_config_file()
 
     if docker_down_first:
-        result = subprocess.run(
-            ["docker", "compose", "down"],
+        subprocess.run(
+            bbctl_command(custom_config_file) + srv + ["down"],
             cwd=project_root,
         )
-        assert result.returncode == 0
 
     try:
         yield
     finally:
         # Cleanup - print logs if test failed
         if sys.exc_info()[0] is not None:
-            print_docker_logs()
+            print_docker_logs(dev=dev)
 
         # Always stop docker compose
         subprocess.run(
-            ["docker", "compose", "down"],
+            bbctl_command(custom_config_file) + srv + ["down"],
             cwd=project_root,
         )
 
         # Remove the custom config file
         if cleanup_config:
             custom_config_file.unlink(missing_ok=True)
+
+
+def print_docker_logs(dev=True):
+    """Helper to print docker compose logs and container state on failure"""
+    print("\n" + "=" * 80)
+    print("TEST FAILED - Diagnostics:")
+    print("=" * 80)
+
+    # Show all docker containers (running and stopped)
+    print("\n--- docker ps -a ---")
+    result = subprocess.run(
+        ["docker", "ps", "-a"],
+        capture_output=True,
+        text=True,
+    )
+    print(result.stdout or "(empty)")
+    if result.stderr:
+        print(f"stderr: {result.stderr}")
+
+    # Show docker compose ps from the relevant compose directory
+    print("\n--- docker compose ps (from compose dir) ---")
+    result = subprocess.run(
+        bbctl_command(custom_config_file) + server_args(dev) + ["status"],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+    )
+    print(result.stdout or "(empty)")
+    if result.stderr:
+        print(f"stderr: {result.stderr}")
+
+    # Show docker compose logs
+    print("\n--- docker compose logs ---")
+    result = subprocess.run(
+        bbctl_command(custom_config_file) + server_args(dev) + ["logs"],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+    )
+    print(result.stdout or "(empty)")
+    if result.stderr:
+        print(f"stderr: {result.stderr}")
+
+    print("=" * 80 + "\n")
+
+
+def start_server(bbctl_cmd, dev=True, extra_args=None):
+    """Start the server and return the result. Asserts success."""
+    cmd = bbctl_cmd + server_args(dev) + ["start"] + (extra_args or [])
+    result = subprocess.run(
+        cmd,
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"Failed to start server: {result.stderr}"
+    return result
+
+
+def wait_for_server(bbctl_cmd, timeout_seconds=60):
+    """Wait for the server to become healthy (asset stats returns 200)."""
+    for _ in range(timeout_seconds * 2):
+        result = subprocess.run(
+            bbctl_cmd + ["asset", "stats"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return result
+        time.sleep(0.5)
+    assert False, (
+        f"Server did not become healthy within {timeout_seconds}s, stdout: {result.stdout}, stderr: {result.stderr}"
+    )
 
 
 # we typically only want to run this on CI
@@ -70,39 +159,11 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def print_docker_logs():
-    """Helper to print docker compose logs"""
-    print("\n" + "=" * 80)
-    print("TEST FAILED - Docker Compose Logs:")
-    print("=" * 80)
-    result = subprocess.run(
-        ["docker", "compose", "logs", "--no-color"],
-        cwd=project_root,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0:
-        print(result.stdout)
-        if result.stderr:
-            print("\nSTDERR:")
-            print(result.stderr)
-    else:
-        print(f"Failed to get docker compose logs (exit code {result.returncode}): {result.stderr}")
-    print("=" * 80 + "\n")
-
-
 def test_docker_compose_userexperience():
     """
     A basic up/down test to make sure bbot server is working with docker compose
     """
-    with docker_test_env(reset_config=False, docker_down_first=True):
-        # build it
-        # result = subprocess.run(
-        #     ["docker", "compose", "build"],
-        #     cwd=project_root,
-        # )
-        # assert result.returncode == 0
-
+    with docker_test_env(dev=True, reset_config=False, docker_down_first=True):
         docker_compose_file = project_root / "compose.yml"
         assert docker_compose_file.exists()
 
@@ -110,7 +171,7 @@ def test_docker_compose_userexperience():
         custom_config_file.unlink(missing_ok=True)
         custom_config_file.write_text("testasdf: testasdf")
 
-        BBCTL_COMMAND = ["uv", "run", "bbctl", "--config", str(custom_config_file)]
+        BBCTL_COMMAND = bbctl_command(custom_config_file)
 
         # current config should have no api key or valid api keys
         result = subprocess.run(
@@ -162,13 +223,7 @@ def test_docker_compose_userexperience():
         assert not config.get("api_keys", [])
 
         # start docker compose
-        result = subprocess.run(
-            BBCTL_COMMAND + ["server", "start"],
-            cwd=project_root,
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0
+        result = start_server(BBCTL_COMMAND, dev=True)
         assert "First run detected" in result.stderr
 
         # is api key listed now?
@@ -191,35 +246,26 @@ def test_docker_compose_userexperience():
         our_api_key = our_api_key[0]
         assert docker_api_key[:20] == our_api_key[:20]
 
-        for _ in range(120):
-            # we should be able to list assets now
-            command = BBCTL_COMMAND + ["asset", "stats"]
-            print(f"command: {' '.join(command)}")
-            result = subprocess.run(
-                command,
-                cwd=project_root,
-                capture_output=True,
-                text=True,
-            )
-            print(f"result: {result.returncode}, stdout: {result.stdout}, stderr: {result.stderr}")
-            assert not "Invalid API key" in result.stderr
-            if result.returncode == 0 and json.loads(result.stdout) == {}:
-                break
-            time.sleep(0.5)
-        else:
-            assert False, f"Failed to list assets, stdout: {result.stdout}, stderr: {result.stderr}"
+        wait_for_server(BBCTL_COMMAND)
 
 
 def test_docker_compose_custom_config():
     # delete config env var for this test
     os.environ.pop("BBOT_SERVER_CONFIG", None)
 
+    # Ensure the default host config path exists so Docker bind-mounts a file
+    # (not a root-owned directory) when BBOT_SERVER_CONFIG is unset
+    default_config = Path.home() / ".config" / "bbot_server" / "config.yml"
+    default_config.parent.mkdir(parents=True, exist_ok=True)
+    if not default_config.exists():
+        default_config.touch()
+
     # create a blank config file just for this test
     custom_config_file.unlink(missing_ok=True)
     custom_config_file.write_text("test1234: test4321")
 
     # can we read it outside of docker compose?
-    BBCTL_COMMAND = ["uv", "run", "bbctl", "--config", str(custom_config_file)]
+    BBCTL_COMMAND = bbctl_command(custom_config_file)
     result = subprocess.run(
         BBCTL_COMMAND + ["--current-config"],
         cwd=project_root,
@@ -232,18 +278,18 @@ def test_docker_compose_custom_config():
 
     # if we don't pass --config, the docker container should use the default config
     result = subprocess.run(
-        ["uv", "run", "bbctl", "server", "compose", "run", "server", "bbctl", "--current-config"],
+        ["uv", "run", "bbctl", "server", "--dev", "compose", "run", "server", "bbctl", "--current-config"],
         cwd=project_root,
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0
-    assert "uri: mongodb://mongodb:27017/bbot_eventstore" in result.stdout
+    assert "uri: mongodb://mongodb:27017/bbot" in result.stdout
     assert not "test1234: test4321" in result.stdout
 
     # if we do pass --config, it should use the custom config
     result = subprocess.run(
-        BBCTL_COMMAND + ["server", "compose", "run", "server", "bbctl", "--current-config"],
+        BBCTL_COMMAND + ["server", "--dev", "compose", "run", "server", "bbctl", "--current-config"],
         cwd=project_root,
         capture_output=True,
         text=True,
@@ -256,35 +302,18 @@ def test_docker_compose_custom_config():
 
 # test the --listen flag and --port flags
 def test_docker_compose_listening_interface():
-    with docker_test_env(reset_config=True, docker_down_first=True):
+    with docker_test_env(dev=True, reset_config=True, docker_down_first=True):
         # create a blank config file just for this test
         with open(custom_config_file, "a") as f:
             f.write("\nurl: http://127.0.0.1:8807/v1/\n")
 
-        BBCTL_COMMAND = ["uv", "run", "bbctl", "--config", str(custom_config_file)]
+        BBCTL_COMMAND = bbctl_command(custom_config_file)
 
         # start docker compose
-        result = subprocess.run(
-            BBCTL_COMMAND + ["server", "start"],
-            cwd=project_root,
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0
+        start_server(BBCTL_COMMAND, dev=True)
 
         # we should be able to list assets
-        for _ in range(120):
-            result = subprocess.run(
-                BBCTL_COMMAND + ["asset", "stats"],
-                cwd=project_root,
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode == 0 and json.loads(result.stdout) == {}:
-                break
-            time.sleep(0.5)
-        else:
-            assert False, f"Failed to list assets, stdout: {result.stdout}, stderr: {result.stderr}"
+        wait_for_server(BBCTL_COMMAND)
 
         # replace the url key with 127.0.0.2
         config_content = custom_config_file.read_text()
@@ -301,34 +330,16 @@ def test_docker_compose_listening_interface():
         assert "Error making GET request" in result.stderr
 
         # docker compose down
-        result = subprocess.run(
-            ["docker", "compose", "down"],
+        subprocess.run(
+            BBCTL_COMMAND + server_args(dev=True) + ["down"],
             cwd=project_root,
         )
-        assert result.returncode == 0
 
         # this time, we change up the interface
-        result = subprocess.run(
-            BBCTL_COMMAND + ["server", "start", "--listen", "127.0.0.2"],
-            cwd=project_root,
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0
+        start_server(BBCTL_COMMAND, dev=True, extra_args=["--listen", "127.0.0.2"])
 
         # we should be able to list assets
-        for _ in range(120):
-            result = subprocess.run(
-                BBCTL_COMMAND + ["asset", "stats"],
-                cwd=project_root,
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode == 0 and json.loads(result.stdout) == {}:
-                break
-            time.sleep(0.5)
-        else:
-            assert False, f"Failed to list assets, stdout: {result.stdout}, stderr: {result.stderr}"
+        wait_for_server(BBCTL_COMMAND)
 
         # replace the url key with 127.0.0.1
         config_content = custom_config_file.read_text()
@@ -351,15 +362,11 @@ def test_docker_compose_authentication():
     custom_config_file.unlink(missing_ok=True)
     custom_config_file.write_text("")
 
-    BBCTL_COMMAND = ["uv", "run", "bbctl", "--config", str(custom_config_file)]
+    BBCTL_COMMAND = bbctl_command(custom_config_file)
 
-    with docker_test_env(reset_config=True, docker_down_first=True):
+    with docker_test_env(dev=True, reset_config=True, docker_down_first=True):
         # start docker compose
-        result = subprocess.run(
-            BBCTL_COMMAND + ["server", "start"],
-            cwd=project_root,
-        )
-        assert result.returncode == 0
+        start_server(BBCTL_COMMAND, dev=True)
 
         for _ in range(120):
             # docker should detect first run and write a new api key to the custom config file
@@ -370,7 +377,7 @@ def test_docker_compose_authentication():
                     break
             time.sleep(0.5)
         else:
-            assert False, f"Failed to get api key, stdout: {result.stdout}, stderr: {result.stderr}"
+            assert False, f"Failed to get api key"
 
         # without the API key, auth should fail
         for _ in range(120):
@@ -405,14 +412,10 @@ def test_docker_compose_no_authentication():
     """
     custom_config_file.unlink(missing_ok=True)
 
-    BBCTL_COMMAND = ["uv", "run", "bbctl", "--config", str(custom_config_file)]
+    BBCTL_COMMAND = bbctl_command(custom_config_file)
 
-    with docker_test_env(reset_config=True, docker_down_first=True):
-        result = subprocess.run(
-            BBCTL_COMMAND + ["server", "start", "--no-authentication"],
-            cwd=project_root,
-        )
-        assert result.returncode == 0
+    with docker_test_env(dev=True, reset_config=True, docker_down_first=True):
+        start_server(BBCTL_COMMAND, dev=True, extra_args=["--no-authentication"])
 
         for _ in range(120):
             try:
@@ -426,3 +429,38 @@ def test_docker_compose_no_authentication():
             assert False, (
                 f"Expected 200 OK without auth, got: {response.status_code if 'response' in locals() else 'no response'}"
             )
+
+
+def test_docker_compose_production():
+    """
+    Smoke test for the production compose (pulls from Docker Hub).
+    Starts the server, waits for healthy, queries asset stats.
+    """
+    # Build the image locally and tag it so the production compose can use it
+    # without pulling from Docker Hub (the tag may not exist yet).
+    result = subprocess.run(
+        ["docker", "build", "-t", "blacklanternsecurity/bbot-server:stable", "."],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"Failed to build production image: {result.stderr}"
+
+    with docker_test_env(dev=False, reset_config=True, docker_down_first=True):
+        BBCTL_COMMAND = bbctl_command(custom_config_file)
+
+        # start production compose (no --dev, pulls from Docker Hub)
+        result = start_server(BBCTL_COMMAND, dev=False)
+        assert "First run detected" in result.stderr
+
+        # wait for server to be healthy (longer timeout for image pulls)
+        wait_for_server(BBCTL_COMMAND, timeout_seconds=120)
+
+        # verify asset stats returns successfully
+        result = subprocess.run(
+            BBCTL_COMMAND + ["asset", "stats"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0

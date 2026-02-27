@@ -8,12 +8,12 @@ def test_config():
     os.environ["BBOT_SERVER_URL"] = "http://asdf:8000"
     bbcfg.refresh()
     assert bbcfg.url == "http://asdf:8000"
-    assert bbcfg.event_store.uri == "mongodb://localhost:27017/test_bbot_server_events"
+    assert bbcfg.event_store.uri == "mongodb://localhost:27017/test_bbot"
 
     os.environ["BBOT_SERVER_URL"] = "http://fdsa:8000"
     bbcfg.refresh()
     assert bbcfg.url == "http://fdsa:8000"
-    assert bbcfg.event_store.uri == "mongodb://localhost:27017/test_bbot_server_events"
+    assert bbcfg.event_store.uri == "mongodb://localhost:27017/test_bbot"
 
     tmp_config_file = NamedTemporaryFile(suffix=".yml")
     with open(tmp_config_file.name, "w") as f:
@@ -29,16 +29,16 @@ asset_store:
     # asset store uri should be overridden
     assert bbcfg.asset_store.uri == "mongodb://localhost:27017/asdf"
     # others should be untouched
-    assert bbcfg.event_store.uri == "mongodb://localhost:27017/bbot_eventstore"
+    assert bbcfg.event_store.uri == "mongodb://localhost:27017/bbot"
 
     # everything should be the same after a refresh
     bbcfg.refresh()
     assert bbcfg.url == "http://fdsa:8000"
     assert bbcfg.asset_store.uri == "mongodb://localhost:27017/asdf"
-    assert bbcfg.event_store.uri == "mongodb://localhost:27017/bbot_eventstore"
+    assert bbcfg.event_store.uri == "mongodb://localhost:27017/bbot"
 
     # reset back to testing defaults
     os.environ.pop("BBOT_SERVER_URL", None)
     bbcfg.refresh(config_path=TEST_CONFIG_PATH)
     assert bbcfg.url == "http://localhost:8807/v1/"
-    assert bbcfg.event_store.uri == "mongodb://localhost:27017/test_bbot_server_events"
+    assert bbcfg.event_store.uri == "mongodb://localhost:27017/test_bbot"

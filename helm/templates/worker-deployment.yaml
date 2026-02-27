@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-worker
+  labels:
+    app: bbot-worker
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      app: bbot-worker
+  template:
+    metadata:
+      labels:
+        app: bbot-worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      {{- if .Values.server.enabled }}
+      # Wait for the API server to become healthy before starting the worker
+      initContainers:
+      - name: wait-for-server
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+        command: ["sh", "-c"]
+        args:
+          - |
+            echo "Waiting for BBOT server to become healthy..."
+            until curl -sf http://{{ .Release.Name }}-server:{{ .Values.server.service.port }}/v1/docs > /dev/null 2>&1; do
+              echo "Server not ready yet, retrying in 5s..."
+              sleep 5
+            done
+            echo "Server is healthy, starting worker."
+      {{- end }}
+      containers:
+      - name: worker
+        securityContext:
+          allowPrivilegeEscalation: false
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["bbctl", "server", "start", "--worker-only"]
+        env:
+        {{- if .Values.mongodb.enabled }}
+        # Internal password references (used for URI interpolation below)
+        - name: MONGO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.mongodb.auth.existingSecret | default (printf "%s-mongodb" .Release.Name) | quote }}
+              key: mongodb-root-password
+        {{- end }}
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.redis.auth.existingSecret | default (printf "%s-redis" .Release.Name) | quote }}
+              key: redis-password
+        # BBOT Server configuration
+        - name: BBOT_SERVER_URL
+          value: "http://{{ .Release.Name }}-server:{{ .Values.server.service.port }}/v1/"
+        - name: BBOT_SERVER_AUTH_ENABLED
+          value: {{ .Values.config.authEnabled | quote }}
+        - name: BBOT_SERVER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.existingApiKeySecret | default (printf "%s-api-key" .Release.Name) | quote }}
+              key: api-key
+        # MongoDB URIs
+        {{- if .Values.mongodb.enabled }}
+        - name: BBOT_SERVER_EVENT_STORE__URI
+          value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot?authSource=admin"
+        {{- else }}
+        - name: BBOT_SERVER_EVENT_STORE__URI
+          value: {{ .Values.externalMongodb.uri | quote }}
+        {{- end }}
+        - name: BBOT_SERVER_EVENT_STORE__COLLECTION_PREFIX
+          value: "eventstore__"
+        {{- if .Values.mongodb.enabled }}
+        - name: BBOT_SERVER_ASSET_STORE__URI
+          value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot?authSource=admin"
+        {{- else }}
+        - name: BBOT_SERVER_ASSET_STORE__URI
+          value: {{ .Values.externalMongodb.uri | quote }}
+        {{- end }}
+        - name: BBOT_SERVER_ASSET_STORE__COLLECTION_PREFIX
+          value: "assetstore__"
+        {{- if .Values.mongodb.enabled }}
+        - name: BBOT_SERVER_USER_STORE__URI
+          value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot?authSource=admin"
+        {{- else }}
+        - name: BBOT_SERVER_USER_STORE__URI
+          value: {{ .Values.externalMongodb.uri | quote }}
+        {{- end }}
+        - name: BBOT_SERVER_USER_STORE__COLLECTION_PREFIX
+          value: "userstore__"
+        # Redis URI
+        - name: BBOT_SERVER_MESSAGE_QUEUE__URI
+          value: "redis://:$(REDIS_PASSWORD)@{{ .Release.Name }}-redis-master:6379/0"
+        {{- with .Values.worker.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}

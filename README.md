@@ -24,26 +24,119 @@ BBOT Server is a database and multiplayer hub for all your [BBOT](https://github
 ## Installation
 
 ```bash
-# clone the repo and cd into it
-git clone git@github.com:blacklanternsecurity/bbot-server.git && cd bbot-server
+# install with uv (recommended)
+uv tool install bbot-server
 
-# Install dependencies and create virtual environment
+# or with pipx
+pipx install bbot-server
+```
+
+To install `uv`, see the [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/).
+
+### From source (for development)
+
+```bash
+git clone git@github.com:blacklanternsecurity/bbot-server.git && cd bbot-server
 uv sync
 ```
 
 Note: to update to the latest version, run `git pull && uv sync` in the `bbot-server` directory.
 
-To install `uv`, see the [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/).
-
-Commands shown below as `bbctl` can be run with `uv run bbctl` from the project directory, or you can activate the virtual environment first with `source .venv/bin/activate`.
+When installed from source, commands shown below as `bbctl` can be run with `uv run bbctl` from the project directory, or you can activate the virtual environment first with `source .venv/bin/activate`.
 
 ## Start the server
 
 Note: this requires Docker and Docker Compose to be installed.
 
 ```bash
-# Start BBOT server using Docker Compose
+# Start BBOT server using Docker Compose (pulls from Docker Hub)
 bbctl server start
+```
+
+### Development mode
+
+When working on the bbot-server source code, use `--dev` to build from source and mount your code for live reload:
+
+```bash
+# From the bbot-server repo root
+bbctl server --dev start
+```
+
+The `--dev` flag works with all server subcommands (`start`, `stop`, `down`, `logs`, `status`, `compose`).
+
+## Deploy with Helm (Kubernetes)
+
+BBOT Server can be deployed to Kubernetes using its official Helm chart. The chart deploys the API server, worker, MongoDB, and Redis.
+
+### Quick Start
+
+```bash
+# Add the Helm repo
+helm repo add blacklanternsecurity https://blacklanternsecurity.github.io/bbot-server
+
+# Install
+helm install bbot blacklanternsecurity/bbot-server
+```
+
+Or install directly from the OCI registry:
+
+```bash
+helm install bbot oci://registry-1.docker.io/blacklanternsecurity/bbot-server
+```
+
+### Configuration
+
+Key values can be overridden with `--set` or a custom values file:
+
+```bash
+helm install bbot blacklanternsecurity/bbot-server \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0].host=bbot.example.com \
+  --set ingress.hosts[0].paths[0].path=/ \
+  --set ingress.hosts[0].paths[0].pathType=Prefix
+```
+
+Or with a values file:
+
+```yaml
+# custom-values.yaml
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+  hosts:
+    - host: bbot.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: bbot-tls
+      hosts:
+        - bbot.example.com
+
+secrets:
+  # provide your own API key, or leave empty to auto-generate
+  apiKey: ""
+```
+
+```bash
+helm install bbot blacklanternsecurity/bbot-server -f custom-values.yaml
+```
+
+### Retrieving the API Key
+
+If you didn't provide an API key, one is auto-generated. Retrieve it with:
+
+```bash
+kubectl get secret bbot-api-key -o jsonpath='{.data.api-key}' | base64 -d
+```
+
+### Upgrading
+
+```bash
+helm repo update
+helm upgrade bbot blacklanternsecurity/bbot-server
 ```
 
 ## Interacting with BBOT Server Remotely (Multiplayer)

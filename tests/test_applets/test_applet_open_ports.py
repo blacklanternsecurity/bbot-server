@@ -2,7 +2,7 @@ from tests.test_applets.base import BaseAppletTest
 
 
 class TestAppletOpenPorts(BaseAppletTest):
-    needs_watchdog = True
+    needs_worker = True
 
     async def setup(self):
         # at the beginning, everything should be empty

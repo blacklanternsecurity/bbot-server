@@ -1,0 +1,14 @@
+apiVersion: v2
+name: bbot-server
+description: Helm chart for BBOT Server (API + Worker)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+- name: mongodb
+  version: "18.x.x"
+  repository: "https://charts.bitnami.com/bitnami"
+  condition: mongodb.enabled
+- name: redis
+  version: "23.x.x"
+  repository: "https://charts.bitnami.com/bitnami"
