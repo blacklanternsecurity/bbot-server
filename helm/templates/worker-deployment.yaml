@@ -49,12 +49,14 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command: ["bbctl", "server", "start", "--worker-only"]
         env:
+        {{- if .Values.mongodb.enabled }}
         # Internal password references (used for URI interpolation below)
         - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ .Values.mongodb.auth.existingSecret | default (printf "%s-mongodb" .Release.Name) | quote }}
               key: mongodb-root-password
+        {{- end }}
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -70,17 +72,32 @@ spec:
             secretKeyRef:
               name: {{ .Values.secrets.existingApiKeySecret | default (printf "%s-api-key" .Release.Name) | quote }}
               key: api-key
-        # MongoDB URIs (credentials injected via $(VAR) interpolation)
+        # MongoDB URIs
+        {{- if .Values.mongodb.enabled }}
         - name: BBOT_SERVER_EVENT_STORE__URI
           value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot?authSource=admin"
+        {{- else }}
+        - name: BBOT_SERVER_EVENT_STORE__URI
+          value: {{ .Values.externalMongodb.uri | quote }}
+        {{- end }}
         - name: BBOT_SERVER_EVENT_STORE__COLLECTION_PREFIX
           value: "eventstore__"
+        {{- if .Values.mongodb.enabled }}
         - name: BBOT_SERVER_ASSET_STORE__URI
           value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot?authSource=admin"
+        {{- else }}
+        - name: BBOT_SERVER_ASSET_STORE__URI
+          value: {{ .Values.externalMongodb.uri | quote }}
+        {{- end }}
         - name: BBOT_SERVER_ASSET_STORE__COLLECTION_PREFIX
           value: "assetstore__"
+        {{- if .Values.mongodb.enabled }}
         - name: BBOT_SERVER_USER_STORE__URI
           value: "mongodb://root:$(MONGO_PASSWORD)@{{ .Release.Name }}-mongodb:27017/bbot?authSource=admin"
+        {{- else }}
+        - name: BBOT_SERVER_USER_STORE__URI
+          value: {{ .Values.externalMongodb.uri | quote }}
+        {{- end }}
         - name: BBOT_SERVER_USER_STORE__COLLECTION_PREFIX
           value: "userstore__"
         # Redis URI

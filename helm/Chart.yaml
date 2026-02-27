@@ -8,6 +8,7 @@ dependencies:
 - name: mongodb
   version: "18.x.x"
   repository: "https://charts.bitnami.com/bitnami"
+  condition: mongodb.enabled
 - name: redis
   version: "23.x.x"
   repository: "https://charts.bitnami.com/bitnami"

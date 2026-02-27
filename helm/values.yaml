@@ -63,6 +63,8 @@ secrets:
 # MongoDB (Bitnami subchart)
 # =============================================================================
 mongodb:
+  # -- Set to false to disable the built-in MongoDB and use an external instance
+  enabled: true
   architecture: standalone
   auth:
     enabled: true
@@ -71,6 +73,13 @@ mongodb:
   persistence:
     size: 50Gi
     resourcePolicy: keep
+
+# =============================================================================
+# External MongoDB (used when mongodb.enabled is false)
+# =============================================================================
+externalMongodb:
+  # -- Full MongoDB connection URI (e.g. "mongodb://user:pass@host:27017/bbot?authSource=admin")
+  uri: ""
 
 # =============================================================================
 # Redis (Bitnami subchart)
