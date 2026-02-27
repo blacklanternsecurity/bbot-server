@@ -78,23 +78,46 @@ def docker_test_env(dev=True, reset_config=True, docker_down_first=True, cleanup
 
 
 def print_docker_logs(dev=True):
-    """Helper to print docker compose logs"""
+    """Helper to print docker compose logs and container state on failure"""
     print("\n" + "=" * 80)
-    print("TEST FAILED - Docker Compose Logs:")
+    print("TEST FAILED - Diagnostics:")
     print("=" * 80)
+
+    # Show all docker containers (running and stopped)
+    print("\n--- docker ps -a ---")
+    result = subprocess.run(
+        ["docker", "ps", "-a"],
+        capture_output=True,
+        text=True,
+    )
+    print(result.stdout or "(empty)")
+    if result.stderr:
+        print(f"stderr: {result.stderr}")
+
+    # Show docker compose ps from the relevant compose directory
+    print("\n--- docker compose ps (from compose dir) ---")
+    result = subprocess.run(
+        bbctl_command(custom_config_file) + server_args(dev) + ["status"],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+    )
+    print(result.stdout or "(empty)")
+    if result.stderr:
+        print(f"stderr: {result.stderr}")
+
+    # Show docker compose logs
+    print("\n--- docker compose logs ---")
     result = subprocess.run(
         bbctl_command(custom_config_file) + server_args(dev) + ["logs"],
         cwd=project_root,
         capture_output=True,
         text=True,
     )
-    if result.returncode == 0:
-        print(result.stdout)
-        if result.stderr:
-            print("\nSTDERR:")
-            print(result.stderr)
-    else:
-        print(f"Failed to get docker compose logs (exit code {result.returncode}): {result.stderr}")
+    print(result.stdout or "(empty)")
+    if result.stderr:
+        print(f"stderr: {result.stderr}")
+
     print("=" * 80 + "\n")
 
 
@@ -420,8 +443,8 @@ def test_docker_compose_production():
         result = start_server(BBCTL_COMMAND, dev=False)
         assert "First run detected" in result.stderr
 
-        # wait for server to be healthy
-        wait_for_server(BBCTL_COMMAND)
+        # wait for server to be healthy (longer timeout for image pulls)
+        wait_for_server(BBCTL_COMMAND, timeout_seconds=120)
 
         # verify asset stats returns successfully
         result = subprocess.run(
