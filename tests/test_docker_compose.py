@@ -436,6 +436,16 @@ def test_docker_compose_production():
     Smoke test for the production compose (pulls from Docker Hub).
     Starts the server, waits for healthy, queries asset stats.
     """
+    # Build the image locally and tag it so the production compose can use it
+    # without pulling from Docker Hub (the tag may not exist yet).
+    result = subprocess.run(
+        ["docker", "build", "-t", "blacklanternsecurity/bbot-server:stable", "."],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"Failed to build production image: {result.stderr}"
+
     with docker_test_env(dev=False, reset_config=True, docker_down_first=True):
         BBCTL_COMMAND = bbctl_command(custom_config_file)
 
