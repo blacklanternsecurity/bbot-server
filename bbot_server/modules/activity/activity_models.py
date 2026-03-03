@@ -43,7 +43,7 @@ class Activity(BaseHostModel):
         default_factory=utc_now, description="Time when this activity was created"
     )
     archived: Annotated[bool, "indexed"] = False
-    description: Annotated[str, "indexed"]
+    description: Annotated[str, "indexed", "indexed-text"]
     description_colored: str = Field(default="")
     detail: dict[str, Any] = {}
     module: Annotated[Optional[str], "indexed"] = None
