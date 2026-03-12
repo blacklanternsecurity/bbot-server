@@ -42,8 +42,6 @@ async def test_applet_stats(bbot_server, bbot_events):
                 "Microsoft365": 1,
             },
             "findings": {
-                "max_severity": "CRITICAL",
-                "max_severity_score": 5,
                 "names": {
                     "CVE-2024-12345": 2,
                     "CVE-2025-54321": 2,
@@ -53,22 +51,20 @@ async def test_applet_stats(bbot_server, bbot_events):
                     "HIGH": 2,
                 },
                 "counts_by_host": {
-                    "www.evilcorp.com": 1,
                     "www2.evilcorp.com": 2,
+                    "www.evilcorp.com": 1,
                     "api.evilcorp.com": 1,
                 },
                 "severities_by_host": {
-                    "www.evilcorp.com": {
-                        "max_severity": "HIGH",
-                        "max_severity_score": 4,
-                    },
                     "www2.evilcorp.com": {
-                        "max_severity": "CRITICAL",
-                        "max_severity_score": 5,
+                        "HIGH": 1,
+                        "CRITICAL": 1,
+                    },
+                    "www.evilcorp.com": {
+                        "HIGH": 1,
                     },
                     "api.evilcorp.com": {
-                        "max_severity": "CRITICAL",
-                        "max_severity_score": 5,
+                        "CRITICAL": 1,
                     },
                 },
             },
@@ -98,8 +94,6 @@ async def test_applet_stats(bbot_server, bbot_events):
                 "Microsoft": 1,
             },
             "findings": {
-                "max_severity": "CRITICAL",
-                "max_severity_score": 5,
                 "names": {
                     "CVE-2024-12345": 1,
                     "CVE-2025-54321": 2,
@@ -109,17 +103,16 @@ async def test_applet_stats(bbot_server, bbot_events):
                     "HIGH": 1,
                 },
                 "counts_by_host": {
-                    "api.evilcorp.com": 1,
                     "www2.evilcorp.com": 2,
+                    "api.evilcorp.com": 1,
                 },
                 "severities_by_host": {
-                    "api.evilcorp.com": {
-                        "max_severity": "CRITICAL",
-                        "max_severity_score": 5,
-                    },
                     "www2.evilcorp.com": {
-                        "max_severity": "CRITICAL",
-                        "max_severity_score": 5,
+                        "HIGH": 1,
+                        "CRITICAL": 1,
+                    },
+                    "api.evilcorp.com": {
+                        "CRITICAL": 1,
                     },
                 },
             },
@@ -138,8 +131,6 @@ async def test_applet_stats(bbot_server, bbot_events):
             "technologies": {},
             "cloud_providers": {},
             "findings": {
-                "max_severity": "CRITICAL",
-                "max_severity_score": 5,
                 "names": {
                     "CVE-2024-12345": 1,
                     "CVE-2025-54321": 1,
@@ -153,8 +144,8 @@ async def test_applet_stats(bbot_server, bbot_events):
                 },
                 "severities_by_host": {
                     "www2.evilcorp.com": {
-                        "max_severity": "CRITICAL",
-                        "max_severity_score": 5,
+                        "HIGH": 1,
+                        "CRITICAL": 1,
                     },
                 },
             },

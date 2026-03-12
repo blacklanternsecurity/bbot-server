@@ -164,8 +164,7 @@ class FindingsApplet(BaseApplet):
             - finding names
             - finding severities
             - finding hosts
-            - finding max severity
-            - finding max severity score
+            - severity counts by host
         """
         finding_names = getattr(asset, "findings", [])
         finding_severities = getattr(asset, "finding_severities", {})
@@ -181,24 +180,13 @@ class FindingsApplet(BaseApplet):
         for finding_severity, count in finding_severities.items():
             severity_stats[finding_severity] = severity_stats.get(finding_severity, 0) + count
 
-        max_severity_score = max([asset.finding_max_severity_score, finding_stats.get("max_severity_score", 0)])
-        finding_stats["max_severity_score"] = max_severity_score
-        if max_severity_score > 0:
-            max_severity = SeverityScore.to_str(max_severity_score)
-        else:
-            max_severity = None
-        finding_stats["max_severity"] = max_severity
-
-        if asset.finding_max_severity_score > 0:
-            severities_by_host[asset.host] = {
-                "max_severity": asset.finding_max_severity,
-                "max_severity_score": asset.finding_max_severity_score,
-            }
+        if finding_severities:
+            severities_by_host[asset.host] = dict(sorted(finding_severities.items(), key=lambda x: x[1], reverse=True))
 
         finding_stats["names"] = dict(sorted(name_stats.items(), key=lambda x: x[1], reverse=True))
         finding_stats["counts_by_host"] = dict(sorted(counts_by_host.items(), key=lambda x: x[1], reverse=True))
         finding_stats["severities_by_host"] = dict(
-            sorted(severities_by_host.items(), key=lambda x: x[1]["max_severity_score"], reverse=True)
+            sorted(severities_by_host.items(), key=lambda x: sum(x[1].values()), reverse=True)
         )
         finding_stats["severities"] = dict(sorted(severity_stats.items(), key=lambda x: x[1], reverse=True))
         stats["findings"] = finding_stats
