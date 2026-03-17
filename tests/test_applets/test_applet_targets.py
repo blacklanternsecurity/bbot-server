@@ -491,6 +491,60 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         pass
 
 
+class TestTargetAddDomainPreservesExistingScope(BaseAppletTest):
+    """
+    Regression test for bug where adding a domain to an existing target
+    caused all previously-in-scope assets to lose their scope, leaving only
+    the newly added domain in scope.
+
+    Root cause: refresh_asset_scope treated a None return from _check_scope
+    (meaning "no change") as "out of scope", incorrectly removing the target
+    from assets that were already in scope.
+    """
+
+    needs_worker = True
+
+    async def setup(self):
+        assert await self.bbot_server.get_hosts() == []
+        assert await self.bbot_server.get_targets() == []
+
+        # create a target with just evilcorp.com
+        self.target = await self.bbot_server.create_target(
+            name="evilcorp",
+            description="evilcorp target",
+            target=["evilcorp.com"],
+        )
+
+    async def after_scan_1(self):
+        # verify evilcorp.com assets are in scope
+        assets = [a async for a in self.bbot_server.list_assets()]
+        target_assets = {a.host for a in assets if self.target.id in a.scope}
+        assert "evilcorp.com" in target_assets
+        assert len(target_assets) > 1, f"Expected multiple evilcorp.com assets in scope, got: {target_assets}"
+        self.original_target_assets = target_assets
+
+        # BUG REPRODUCTION: add a new domain to the target while keeping the existing one
+        self.target.target = ["evilcorp.com", "testevilcorp.com"]
+        await self.bbot_server.update_target(self.target.id, self.target)
+        await asyncio.sleep(1.0)
+
+        # verify that existing evilcorp.com assets are STILL in scope
+        assets = [a async for a in self.bbot_server.list_assets()]
+        target_assets_after = {a.host for a in assets if self.target.id in a.scope}
+
+        # the new domain should also be in scope
+        assert "testevilcorp.com" in target_assets_after, (
+            f"Newly added domain testevilcorp.com should be in scope, got: {target_assets_after}"
+        )
+
+        # all previously in-scope assets should still be in scope
+        missing = self.original_target_assets - target_assets_after
+        assert not missing, (
+            f"BUG: These assets lost their scope after adding a domain to the target: {missing}. "
+            f"Before: {self.original_target_assets}, After: {target_assets_after}"
+        )
+
+
 class TestTargetUpdateRemovesTargetFromAssets(BaseAppletTest):
     """
     Regression test for bug where editing or deleting a target to remove a domain

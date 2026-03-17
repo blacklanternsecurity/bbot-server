@@ -113,7 +113,7 @@ class TargetsApplet(BaseApplet):
         scope_result_type = getattr(scope_result, "type", None)
         if scope_result_type == "NEW_IN_SCOPE_ASSET":
             asset_scope = sorted(set(asset_scope) | set([target_id]))
-        else:
+        elif scope_result_type == "ASSET_SCOPE_CHANGED":
             asset_scope = sorted(set(asset_scope) - set([target_id]))
         asset_results = await self.root.assets.collection.update_many(
             {"host": host},
