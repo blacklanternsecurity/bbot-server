@@ -346,3 +346,83 @@ async def test_applet_target_filter(bbot_server, bbot_events):
     assert set(assets) == all_hosts_target2
     hosts = await bbot_server.get_hosts(target_id=target.id)
     assert set(hosts) == all_hosts_target2
+
+
+# test to make sure custom attributes on assets are queryable
+async def test_applet_custom_attributes(bbot_server, bbot_events):
+    bbot_server = await bbot_server(needs_worker=True)
+
+    # skip testing of the http interface (since insertion isn't supported)
+    if not bbot_server.is_native:
+        return
+
+    # ingest BBOT events to create some assets
+    scan1_events, scan2_events = bbot_events
+    for e in scan1_events:
+        await bbot_server.insert_event(e)
+
+    # wait for events to be processed
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
+
+    # verify assets exist
+    hosts = set(await bbot_server.get_hosts())
+    assert "evilcorp.com" in hosts
+    assert "www.evilcorp.com" in hosts
+    assert "api.evilcorp.com" in hosts
+
+    # manually add custom attributes to some assets via the collection
+    collection = bbot_server.assets.collection
+    await collection.update_one(
+        {"host": "evilcorp.com", "type": "Asset"},
+        {"$set": {"custom_tag": "important", "risk_score": 95}},
+    )
+    await collection.update_one(
+        {"host": "www.evilcorp.com", "type": "Asset"},
+        {"$set": {"custom_tag": "important", "risk_score": 50}},
+    )
+    await collection.update_one(
+        {"host": "api.evilcorp.com", "type": "Asset"},
+        {"$set": {"custom_tag": "low-priority", "risk_score": 10}},
+    )
+
+    # query by custom attribute - exact match
+    results = [a async for a in bbot_server.query_assets(query={"custom_tag": "important"})]
+    assert {a["host"] for a in results} == {"evilcorp.com", "www.evilcorp.com"}
+
+    # query by custom attribute - comparison operator
+    results = [a async for a in bbot_server.query_assets(query={"risk_score": {"$gte": 50}})]
+    assert {a["host"] for a in results} == {"evilcorp.com", "www.evilcorp.com"}
+
+    # query combining custom attribute with built-in filters
+    results = [a async for a in bbot_server.query_assets(query={"custom_tag": "important", "host": "evilcorp.com"})]
+    assert len(results) == 1
+    assert results[0]["host"] == "evilcorp.com"
+
+    # verify custom fields are returned in query results
+    results = [a async for a in bbot_server.query_assets(query={"host": "api.evilcorp.com"})]
+    assert len(results) == 1
+    assert results[0]["custom_tag"] == "low-priority"
+    assert results[0]["risk_score"] == 10
+
+    # query for a custom attribute value that doesn't exist
+    results = [a async for a in bbot_server.query_assets(query={"custom_tag": "nonexistent"})]
+    assert results == []
+
+    # aggregation on custom attributes
+    agg_results = [
+        a
+        async for a in bbot_server.query_assets(
+            aggregate=[
+                {"$group": {"_id": "$custom_tag", "avg_risk": {"$avg": "$risk_score"}}},
+                {"$sort": {"_id": 1}},
+            ],
+        )
+    ]
+    assert len(agg_results) == 3
+    assert agg_results[0] == {"_id": None, "avg_risk": None}
+    assert agg_results[1] == {"_id": "important", "avg_risk": 72.5}
+    assert agg_results[2] == {"_id": "low-priority", "avg_risk": 10.0}
+
+    # count with custom attribute filter
+    count = await bbot_server.count_assets(query={"custom_tag": "important"})
+    assert count == 2
