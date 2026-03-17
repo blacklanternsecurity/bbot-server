@@ -255,12 +255,13 @@ def combine_pydantic_models(models, model_name, base_model=BaseModel):
 
 
 # fmt: off
+# 20260417: removed $jsonSchema because it may reveal internal/private fields
 ALLOWED_QUERY_OPERATORS = {
     # Query Operators (excluding $where, $expr)
     "$eq", "$gt", "$gte", "$in", "$lt", "$lte", "$ne", "$nin",
     "$and", "$not", "$nor", "$or",
     "$exists", "$type",
-    "$jsonSchema", "$mod", "$search", "$text", "$regex",
+    "$mod", "$search", "$text", "$regex",
     "$geoIntersects", "$geoWithin", "$near", "$nearSphere",
     "$all", "$elemMatch", "$size",
     "$bitsAllClear", "$bitsAllSet", "$bitsAnyClear", "$bitsAnySet",
@@ -289,6 +290,7 @@ def _sanitize_mongo_query(data: Any) -> Any:
 
 
 # fmt: off
+# 20260417: removed $unionWith because it may allow fetches to other collections
 ALLOWED_AGG_OPERATORS = {
     # We intentionally exclude $match because it"s automatically added and sanitized separately
 
@@ -299,7 +301,7 @@ ALLOWED_AGG_OPERATORS = {
     "$planCacheStats", "$project", "$redact",
     "$replaceRoot", "$replaceWith", "$sample", "$search", "$searchMeta",
     "$set", "$setWindowFields", "$skip", "$sort", "$sortByCount",
-    "$unionWith", "$unset", "$unwind",
+    "$unset", "$unwind",
 
     # Aggregation Expression Operators (excluding $function, $accumulator)
     # Arithmetic
