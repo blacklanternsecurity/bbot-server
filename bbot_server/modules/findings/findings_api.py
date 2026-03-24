@@ -1,5 +1,5 @@
 from fastapi import Query
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
@@ -10,8 +10,18 @@ from bbot_server.modules.findings.findings_models import Finding, SEVERITY_COLOR
 class FindingFields(CustomAssetFields):
     findings: Annotated[list[str], "indexed", "indexed-text"] = []
     finding_severities: Annotated[dict[str, int], "indexed"] = {}
-    finding_max_severity: Optional[Annotated[str, "indexed"]] = None
+    finding_max_severity: Annotated[Optional[str], "indexed"] = None
     finding_max_severity_score: Annotated[int, "indexed"] = 0
+    # Effective risk level for this asset. Uses the same enum as severity:
+    # "INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL", or None.
+    # Auto-synced from finding_max_severity unless risk_override is True.
+    # IMPORTANT: Every code path that updates finding_max_severity must also
+    # update risk (when risk_override is False) to keep these fields in sync.
+    risk: Annotated[Optional[Literal["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]], "indexed"] = None
+    # Whether risk has been manually overridden. When True, new findings
+    # will NOT auto-update risk. Clearing the override resets this to False
+    # and reverts risk to finding_max_severity.
+    risk_override: Annotated[bool, "indexed"] = False
 
 
 class FindingsApplet(BaseApplet):
@@ -134,6 +144,50 @@ class FindingsApplet(BaseApplet):
         findings = dict(sorted(findings.items(), key=lambda x: x[1], reverse=True))
         return findings
 
+    @api_endpoint("/set_risk", methods=["PATCH"], summary="Set or clear a manual risk override for an asset")
+    async def set_risk(
+        self,
+        host: Annotated[str, Query(description="The host of the asset to update")],
+        risk: Annotated[
+            Optional[str],
+            Query(description="Risk level: INFO, LOW, MEDIUM, HIGH, or CRITICAL. Omit or set to null to clear the override and revert to finding_max_severity."),
+        ] = None,
+    ) -> dict:
+        """
+        Manually override an asset's risk level, or clear the override to revert
+        to the auto-calculated value (finding_max_severity).
+
+        IMPORTANT: When risk is set to a value different from finding_max_severity,
+        it is considered manually overridden and will not be auto-updated by new findings.
+        Clearing it (risk=null) reverts to finding_max_severity.
+        """
+        asset = await self.root._get_asset(host=host, fields=["finding_max_severity"])
+        if not asset:
+            raise self.BBOTServerNotFoundError(f"Asset {host} not found")
+
+        if risk is not None:
+            # Validate the risk value against known severity levels
+            risk = risk.upper()
+            SeverityScore.to_score(risk)  # raises if invalid
+            # IMPORTANT: Both risk and risk_override must be updated together.
+            update = {"risk": risk, "risk_override": True}
+            description = f"Risk manually set to [bold]{risk}[/bold] on [bold]{host}[/bold]"
+        else:
+            # Clear the override: revert risk to finding_max_severity.
+            # IMPORTANT: risk_override must be set to False and risk must be
+            # recalculated from finding_max_severity to restore the invariant.
+            finding_max_severity = asset.get("finding_max_severity", None)
+            update = {"risk": finding_max_severity, "risk_override": False}
+            description = f"Risk override cleared on [bold]{host}[/bold], reverted to [bold]{finding_max_severity}[/bold]"
+
+        await self.root._update_asset(host, update)
+        await self.emit_activity(
+            type="RISK_UPDATED",
+            description=description,
+            detail={"host": host, **update},
+        )
+        return {"host": host, "risk": update["risk"], "risk_override": update["risk_override"]}
+
     async def handle_event(self, event, asset):
         name = event.data_json["name"]
         description = event.data_json["description"]
@@ -233,13 +287,18 @@ class FindingsApplet(BaseApplet):
         else:
             asset.finding_max_severity_score = 0
             asset.finding_max_severity = None
+        # IMPORTANT: Only sync risk when not manually overridden.
+        # When risk_override is True, risk is user-controlled and must not be touched.
+        old_risk = getattr(asset, "risk", None)
+        if not getattr(asset, "risk_override", False):
+            asset.risk = asset.finding_max_severity
 
         # insert the new vulnerability
         await self.root._insert_asset(finding.model_dump())
 
         severity_color = SEVERITY_COLORS[finding.severity_score]
 
-        return [
+        activities = [
             self.make_activity(
                 type="NEW_FINDING",
                 description=f"New finding with severity [bold {severity_color}]{finding.severity}[/bold {severity_color}]: [[bold {severity_color}]{finding.name}[/bold {severity_color}]] on [bold]{finding.host}[/bold]",
@@ -247,3 +306,15 @@ class FindingsApplet(BaseApplet):
                 detail=finding.model_dump(),
             )
         ]
+
+        # emit RISK_UPDATED if risk actually changed
+        if asset.risk != old_risk:
+            activities.append(
+                self.make_activity(
+                    type="RISK_UPDATED",
+                    description=f"Risk updated from [bold]{old_risk}[/bold] to [bold]{asset.risk}[/bold] on [bold]{asset.host}[/bold]",
+                    detail={"host": asset.host, "risk": asset.risk, "old_risk": old_risk},
+                )
+            )
+
+        return activities
