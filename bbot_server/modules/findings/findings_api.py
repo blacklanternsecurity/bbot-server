@@ -150,7 +150,9 @@ class FindingsApplet(BaseApplet):
         host: Annotated[str, Query(description="The host of the asset to update")],
         risk: Annotated[
             Optional[str],
-            Query(description="Risk level: INFO, LOW, MEDIUM, HIGH, or CRITICAL. Omit or set to null to clear the override and revert to finding_max_severity."),
+            Query(
+                description="Risk level: INFO, LOW, MEDIUM, HIGH, or CRITICAL. Omit or set to null to clear the override and revert to finding_max_severity."
+            ),
         ] = None,
     ) -> dict:
         """
@@ -178,7 +180,9 @@ class FindingsApplet(BaseApplet):
             # recalculated from finding_max_severity to restore the invariant.
             finding_max_severity = asset.get("finding_max_severity", None)
             update = {"risk": finding_max_severity, "risk_override": False}
-            description = f"Risk override cleared on [bold]{host}[/bold], reverted to [bold]{finding_max_severity}[/bold]"
+            description = (
+                f"Risk override cleared on [bold]{host}[/bold], reverted to [bold]{finding_max_severity}[/bold]"
+            )
 
         await self.root._update_asset(host, update)
         await self.emit_activity(
