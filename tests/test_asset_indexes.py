@@ -82,8 +82,11 @@ async def test_asset_indexes():
         "url": ["indexed"],
         "cloud_providers": ["indexed"],
         "findings": ["indexed", "indexed-text"],
+        "finding_max_severity": ["indexed"],
         "finding_max_severity_score": ["indexed"],
         "finding_severities": ["indexed"],
+        "risk": ["indexed"],
+        "risk_override": ["indexed"],
     }
     for applet in bbot_server.all_child_applets(include_self=True):
         if applet.model is not None:
