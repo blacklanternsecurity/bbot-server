@@ -175,7 +175,9 @@ class TestAppletFindings(BaseAppletTest):
         # scan 2 added CRITICAL findings to www2, so finding_max_severity should be CRITICAL
         # but risk should still be LOW because of the override
         www2_asset = await self.bbot_server.get_asset(host="www2.evilcorp.com")
-        assert www2_asset.finding_max_severity == "CRITICAL", f"finding_max_severity should be CRITICAL, got {www2_asset.finding_max_severity}"
+        assert www2_asset.finding_max_severity == "CRITICAL", (
+            f"finding_max_severity should be CRITICAL, got {www2_asset.finding_max_severity}"
+        )
         assert www2_asset.risk == "LOW", f"risk should still be LOW (overridden), got {www2_asset.risk}"
         assert www2_asset.risk_override == True
 
@@ -194,6 +196,8 @@ class TestAppletFindings(BaseAppletTest):
         assert result["risk"] == "CRITICAL", f"Expected risk to revert to CRITICAL, got {result['risk']}"
         assert result["risk_override"] == False
         www2_asset = await self.bbot_server.get_asset(host="www2.evilcorp.com")
-        assert www2_asset.risk == "CRITICAL", f"Expected asset.risk=CRITICAL after clearing override, got {www2_asset.risk}"
+        assert www2_asset.risk == "CRITICAL", (
+            f"Expected asset.risk=CRITICAL after clearing override, got {www2_asset.risk}"
+        )
         assert www2_asset.finding_max_severity == "CRITICAL"
         assert www2_asset.risk_override == False
