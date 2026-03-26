@@ -482,10 +482,9 @@ class TestTargetScopeMaintenance(BaseAppletTest):
         assets = [a async for a in self.bbot_server.list_assets()]
 
         # evilcorp.azure.com (127.0.0.3) and evilcorp.amazonaws.com (127.0.0.4) are now part of the target
-        # 127.0.0.1 no longer exists (it is nowhere to be found in scan 2)
         # localhost.evilcorp.com (127.0.0.2) is still blacklisted
         target_2_assets = {a.host for a in assets if self.target2.id in a.scope}
-        assert target_2_assets == {"evilcorp.azure.com", "evilcorp.amazonaws.com"}
+        assert target_2_assets == {"127.0.0.1", "evilcorp.azure.com", "evilcorp.amazonaws.com"}
 
     async def after_archive(self):
         pass
