@@ -358,17 +358,17 @@ class TargetsApplet(BaseApplet):
         try:
             # we take the main host and its A/AAAA DNS records into account
             for rdtype, hosts in resolved_hosts.items():
-                for host in hosts:
+                for h in hosts:
                     # if any of the hosts are blacklisted, abort immediately
-                    if target.blacklisted(host):
-                        blacklisted_reason = f"{rdtype}->{host}"
+                    if target.blacklisted(h):
+                        blacklisted_reason = f"{rdtype}->{h}"
                         in_target_reason = ""
                         # break out of the loop
                         raise BlacklistedError
                     # check against whitelist
                     if not in_target_reason:
-                        if target.in_target(host):
-                            in_target_reason = f"{rdtype}->{host}"
+                        if target.in_target(h):
+                            in_target_reason = f"{rdtype}->{h}"
         except BlacklistedError:
             pass
 
