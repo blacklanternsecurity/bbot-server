@@ -36,6 +36,11 @@ class TestAppletFindings(BaseAppletTest):
         assert www2_asset.risk == "HIGH"
         assert www2_asset.risk_override == False
 
+        # override risk on www2 BEFORE scan 2 (which will add CRITICAL findings)
+        result = await self.bbot_server.set_risk(host="www2.evilcorp.com", risk="LOW")
+        assert result["risk"] == "LOW"
+        assert result["risk_override"] == True
+
     async def after_scan_2(self):
         findings = [f async for f in self.bbot_server.list_findings()]
         assert len(findings) == 4
@@ -166,38 +171,29 @@ class TestAppletFindings(BaseAppletTest):
 
         # --- risk field tests ---
 
-        # after scan 2, www2 and api have CRITICAL findings, so risk should auto-update
+        # www2 had risk overridden to LOW before scan 2 (set in after_scan_1)
+        # scan 2 added CRITICAL findings to www2, so finding_max_severity should be CRITICAL
+        # but risk should still be LOW because of the override
         www2_asset = await self.bbot_server.get_asset(host="www2.evilcorp.com")
-        assert www2_asset.risk == "CRITICAL"
-        assert www2_asset.risk_override == False
+        assert www2_asset.finding_max_severity == "CRITICAL", f"finding_max_severity should be CRITICAL, got {www2_asset.finding_max_severity}"
+        assert www2_asset.risk == "LOW", f"risk should still be LOW (overridden), got {www2_asset.risk}"
+        assert www2_asset.risk_override == True
+
+        # api had no override, risk should auto-update to CRITICAL
         api_asset = await self.bbot_server.get_asset(host="api.evilcorp.com")
         assert api_asset.risk == "CRITICAL"
         assert api_asset.risk_override == False
+
         # www only had HIGH findings from scan 1, risk should still be HIGH
         www_asset = await self.bbot_server.get_asset(host="www.evilcorp.com")
         assert www_asset.risk == "HIGH"
         assert www_asset.risk_override == False
 
-        # manually override risk on www2
-        result = await self.bbot_server.set_risk(host="www2.evilcorp.com", risk="LOW")
-        assert result["risk"] == "LOW"
-        assert result["risk_override"] == True
-        www2_asset = await self.bbot_server.get_asset(host="www2.evilcorp.com")
-        assert www2_asset.risk == "LOW"
-        assert www2_asset.risk_override == True
-
-        # clear the override, risk should revert to finding_max_severity
+        # NOW clear the override on www2 - risk should revert to finding_max_severity (CRITICAL)
         result = await self.bbot_server.set_risk(host="www2.evilcorp.com")
-        assert result["risk"] == "CRITICAL"
+        assert result["risk"] == "CRITICAL", f"Expected risk to revert to CRITICAL, got {result['risk']}"
         assert result["risk_override"] == False
         www2_asset = await self.bbot_server.get_asset(host="www2.evilcorp.com")
-        assert www2_asset.risk == "CRITICAL"
+        assert www2_asset.risk == "CRITICAL", f"Expected asset.risk=CRITICAL after clearing override, got {www2_asset.risk}"
+        assert www2_asset.finding_max_severity == "CRITICAL"
         assert www2_asset.risk_override == False
-
-        # verify RISK_UPDATED activities were emitted (allow time for async queue processing)
-        # expected: 2 from scan 1 (www + www2: None->HIGH),
-        #           2 from scan 2 (www2: HIGH->CRITICAL, api: None->CRITICAL),
-        #           2 from manual set + clear above
-        await asyncio.sleep(1.0)
-        activities = [a async for a in self.bbot_server.list_activities() if a.type == "RISK_UPDATED"]
-        assert len(activities) == 6

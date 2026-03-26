@@ -74,8 +74,12 @@ class BBOTWorker:
                 event_preview = ""
             self.log.info(f"Received event: {event.type}{event_preview}")
             # get the event's associated asset (this saves on database queries since it will be passed down to each applet)
-            asset, _activities = await self._get_or_create_asset(event.host, event=event)
-            activities.extend(_activities)
+            # skip IP_RANGE events since their .host is a CIDR, not a single host
+            if event.type == "IP_RANGE":
+                asset = None
+            else:
+                asset, _activities = await self._get_or_create_asset(event.host, event=event)
+                activities.extend(_activities)
 
             # let each applet process the event
             for applet in self.bbot_server.all_child_applets(include_self=True):
