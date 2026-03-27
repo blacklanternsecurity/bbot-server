@@ -191,13 +191,11 @@ class ScansApplet(BaseApplet):
     async def start_scans_loop(self):
         try:
             while True:
-                # get all queued scans
                 queued_scans = await self.get_queued_scans()
                 if not queued_scans:
                     await self.sleep(1)
                     continue
                 self.log.info(f"Found {len(queued_scans):,} queued scans")
-                # get all alive agents
                 ready_agents = {str(agent.id): agent for agent in await self.get_online_agents(status="READY")}
                 if not ready_agents:
                     self.log.warning("No agents are currently ready")
@@ -205,7 +203,9 @@ class ScansApplet(BaseApplet):
                     continue
                 self.log.info(f"Found {len(ready_agents):,} ready agents")
                 for scan in queued_scans:
-                    # find a suitable agent for the scan
+                    if not ready_agents:
+                        break
+
                     if scan.agent_id is None:
                         selected_agent = random.choice(list(ready_agents.values()))
                     else:
@@ -213,22 +213,23 @@ class ScansApplet(BaseApplet):
                             selected_agent = ready_agents[str(scan.agent_id)]
                         except KeyError:
                             self.log.warning(f"Agent {scan.agent_id} was selected for a scan, but it is not online")
-                            # check if agent doesn't exist anymore. if so, we'll clear it from the scan.
                             try:
-                                selected_agent = await self.root.get_agent(str(scan.agent_id))
+                                await self.root.get_agent(str(scan.agent_id))
+                                self.log.info(
+                                    f"Agent {scan.agent_id} exists but is not ready. "
+                                    "Clearing agent from scan so it can be re-assigned"
+                                )
                             except self.BBOTServerNotFoundError:
-                                self.log.warning(f"Scan's agent no longer exists. Clearing agent from scan")
-                                await self.collection.update_one({"id": str(scan.id)}, {"$set": {"agent_id": None}})
-                                continue
+                                self.log.warning("Scan's agent no longer exists. Clearing agent from scan")
+                            await self.collection.update_one({"id": str(scan.id)}, {"$set": {"agent_id": None}})
+                            continue
 
                     self.log.info(f"Selected agent: {selected_agent.name}")
 
-                    # assign the agent to the scan
                     await self.collection.update_one(
                         {"id": str(scan.id)}, {"$set": {"agent_id": str(selected_agent.id)}}
                     )
 
-                    # merge target and preset
                     scan_preset = dict(scan.preset.preset)
                     scan_preset["scan_name"] = scan.name
                     scan_preset["target"] = scan.target.target
@@ -240,7 +241,6 @@ class ScansApplet(BaseApplet):
                     config["scope"] = scope_config
                     scan_preset["config"] = config
 
-                    # send the scan to the agent
                     scan_start_response = await self.execute_agent_command(
                         str(selected_agent.id), "start_scan", scan_id=scan.id, preset=scan_preset
                     )
@@ -258,6 +258,12 @@ class ScansApplet(BaseApplet):
                                 "error": scan_start_response.error,
                             },
                         )
+                        await self.collection.update_one(
+                            {"id": str(scan.id)}, {"$set": {"agent_id": None}}
+                        )
+                        ready_agents.pop(str(selected_agent.id), None)
+                        if not ready_agents:
+                            break
                         await self.sleep(1)
                         continue
 
@@ -266,8 +272,10 @@ class ScansApplet(BaseApplet):
                         description=f"Scan [[COLOR]{scan.name}[/COLOR]] sent to agent [[bold]{selected_agent.name}[/bold]]",
                         detail={"scan_id": scan.id, "agent_id": str(selected_agent.id)},
                     )
-                    # make the scan as sent
                     await self.collection.update_one({"id": str(scan.id)}, {"$set": {"status": "SENT_TO_AGENT"}})
+                    ready_agents.pop(str(selected_agent.id), None)
+                    if not ready_agents:
+                        break
 
         except Exception as e:
             self.log.error(f"Error in scans loop: {e}")
