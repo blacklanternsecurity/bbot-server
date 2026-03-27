@@ -1,0 +1,52 @@
+---
+networks:
+  network:
+    name: ${NETWORK:-systemd-traefik}
+    external: true
+
+x-bbot-server-base: &bbot-server-base
+  build:
+    context: .
+  restart: always
+  image: ${IMAGE_NAME:-blacklanternsecurity/bbot-server}:${TAG:-latest}
+  networks:
+    network:
+  volumes:
+    - "${BBOT_SERVER_CONFIG:-~/.config/bbot_server/config.yml}:/home/bbot/.config/bbot_server/config.yml"
+  environment:
+    - BBOT_SERVER_URL=${BBOT_SERVER_URL:-http://server:8807/v1/}
+    - BBOT_SERVER_AUTH_ENABLED=${BBOT_SERVER_AUTH_ENABLED:-true}
+    - BBOT_SERVER_AUTH_HEADER=${BBOT_SERVER_AUTH_HEADER:-X-API-Key}
+    - BBOT_SERVER_API_KEY=${BBOT_SERVER_API_KEY:-CHANGE_ME}
+    - BBOT_SERVER_EVENT_STORE__URI=${BBOT_SERVER_EVENT_STORE__URI:-mongodb://CHANGE_ME:CHANGE_ME@mongodb:27017/bbot}
+    - BBOT_SERVER_ASSET_STORE__URI=${BBOT_SERVER_ASSET_STORE__URI:-mongodb://CHANGE_ME:CHANGE_ME@mongodb:27017/bbot}
+    - BBOT_SERVER_USER_STORE__URI=${BBOT_SERVER_USER_STORE__URI:-mongodb://CHANGE_ME:CHANGE_ME@mongodb:27017/bbot}
+    - BBOT_SERVER_MESSAGE_QUEUE__URI=${BBOT_SERVER_MESSAGE_QUEUE__URI:-redis://redis:6379/0}
+
+services:
+  server:
+    <<: *bbot-server-base
+    ports:
+      - "${BBOT_LISTEN_ADDRESS:-0.0.0.0}:${BBOT_PORT:-8807}:8807"
+    command: ["bbctl", "server", "start", "--api-only", "--listen", "0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8807/v1/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bbot_server.rule=Host(`bbot-server.example`)"
+      - "traefik.http.services.bbot_server.loadbalancer.server.port=8807"
+      - "io.containers.autoupdate=registry"
+
+  worker:
+    <<: *bbot-server-base
+    command: ["bbctl", "server", "start", "--worker-only"]
+    labels:
+      - "traefik.enable=false"
+      - "io.containers.autoupdate=registry"
+    depends_on:
+      server:
+        condition: service_healthy

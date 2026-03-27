@@ -1,6 +1,7 @@
 x-bbot-server-base: &bbot-server-base
   build:
     context: .
+  image: ${IMAGE_NAME:-blacklanternsecurity/bbot-server}:${TAG:-latest}
   restart: unless-stopped
   volumes:
     - "${BBOT_SERVER_CONFIG:-~/.config/bbot_server/config.yml}:/home/bbot/.config/bbot_server/config.yml"
@@ -21,6 +22,7 @@ services:
       start_period: 30s
     environment:
       - BBOT_SERVER_AUTH_ENABLED=${BBOT_SERVER_AUTH_ENABLED:-true}
+      - BBOT_SERVER_AUTH_HEADER=${BBOT_SERVER_AUTH_HEADER:-X-API-Key}
     depends_on:
       - mongodb
       - redis
