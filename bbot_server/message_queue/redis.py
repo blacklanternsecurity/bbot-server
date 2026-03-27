@@ -4,7 +4,7 @@ import traceback
 from contextlib import suppress
 
 import redis.asyncio as redis
-from taskiq_redis import RedisStreamBroker
+from taskiq_redis import RedisStreamBroker, RedisStreamClusterBroker
 
 from .base import BaseMessageQueue
 from bbot_server.utils.misc import smart_encode
@@ -29,6 +29,9 @@ class RedisMessageQueue(BaseMessageQueue):
     - bbot:stream:{subject}: for persistent, tailable streams - e.g. events, activities
     - bbot:work:{subject}: for one-time messages, e.g. tasks
 
+    Redis Cluster mode is enabled by using the redis+cluster:// URI scheme, e.g.:
+        redis+cluster://172.16.255.33:6379/0
+
     docker run --rm -p 127.0.0.1:6379:6379 redis
 
     To monitor Redis:
@@ -41,13 +44,21 @@ class RedisMessageQueue(BaseMessageQueue):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._active_subscriptions = []
+        self._cluster_mode = self.uri.startswith("redis+cluster://")
+
+    def _broker_uri(self):
+        """Normalise the URI to redis:// for libraries that don't understand redis+cluster://."""
+        return self.uri.replace("redis+cluster://", "redis://", 1)
 
     async def setup(self):
-        self.log.debug(f"Setting up Redis message queue at {self.uri}")
+        self.log.debug(f"Setting up Redis message queue at {self.uri} (cluster={self._cluster_mode})")
 
         while True:
             try:
-                self.redis = redis.from_url(self.uri)
+                if self._cluster_mode:
+                    self.redis = redis.RedisCluster.from_url(self._broker_uri())
+                else:
+                    self.redis = redis.from_url(self.uri)
                 await self.redis.ping()
                 break
             except Exception as e:
@@ -55,6 +66,8 @@ class RedisMessageQueue(BaseMessageQueue):
                 await asyncio.sleep(1)
 
     async def make_taskiq_broker(self):
+        if self._cluster_mode:
+            return RedisStreamClusterBroker(self._broker_uri())
         return RedisStreamBroker(self.uri)
 
     async def get(self, subject: str, timeout=None):
