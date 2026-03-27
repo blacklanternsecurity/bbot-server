@@ -13,6 +13,8 @@ x-bbot-server-base: &bbot-server-base
     network:
   volumes:
     - "${BBOT_SERVER_CONFIG:-~/.config/bbot_server/config.yml}:/home/bbot/.config/bbot_server/config.yml"
+    # inject custom CA bundle if necessary
+    #- /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:/etc/ssl/certs/ca-certificates.crt:ro
   environment:
     - BBOT_SERVER_URL=${BBOT_SERVER_URL:-http://server:8807/v1/}
     - BBOT_SERVER_AUTH_ENABLED=${BBOT_SERVER_AUTH_ENABLED:-true}
@@ -22,6 +24,8 @@ x-bbot-server-base: &bbot-server-base
     - BBOT_SERVER_ASSET_STORE__URI=${BBOT_SERVER_ASSET_STORE__URI:-mongodb://CHANGE_ME:CHANGE_ME@mongodb:27017/bbot}
     - BBOT_SERVER_USER_STORE__URI=${BBOT_SERVER_USER_STORE__URI:-mongodb://CHANGE_ME:CHANGE_ME@mongodb:27017/bbot}
     - BBOT_SERVER_MESSAGE_QUEUE__URI=${BBOT_SERVER_MESSAGE_QUEUE__URI:-redis://redis:6379/0}
+    # redirect python/certifi to use custom CA bundle if necessary
+    #- SSL_CERT_FILE=${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
 
 services:
   server:

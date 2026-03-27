@@ -258,9 +258,7 @@ class ScansApplet(BaseApplet):
                                 "error": scan_start_response.error,
                             },
                         )
-                        await self.collection.update_one(
-                            {"id": str(scan.id)}, {"$set": {"agent_id": None}}
-                        )
+                        await self.collection.update_one({"id": str(scan.id)}, {"$set": {"agent_id": None}})
                         ready_agents.pop(str(selected_agent.id), None)
                         if not ready_agents:
                             break
