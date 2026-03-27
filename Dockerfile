@@ -1,5 +1,5 @@
 FROM ghcr.io/astral-sh/uv:python3.11-trixie
-RUN apt-get -y update && apt-get -y install curl jq
+RUN apt-get -y update && apt-get -y install curl jq python3-pip pipx openssl tcpdump
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
