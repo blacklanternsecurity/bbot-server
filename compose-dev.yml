@@ -1,0 +1,67 @@
+x-bbot-server-base: &bbot-server-base
+  build:
+    context: .
+  image: ${IMAGE_NAME:-blacklanternsecurity/bbot-server}:${TAG:-latest}
+  restart: unless-stopped
+  volumes:
+    - "${BBOT_SERVER_CONFIG:-~/.config/bbot_server/config.yml}:/home/bbot/.config/bbot_server/config.yml"
+    - ./bbot_server:/app/bbot_server
+    - ./bbot_server/defaults_docker.yml:/app/bbot_server/defaults.yml
+
+x-bbot-agent-base: &bbot-agent-base
+  build:
+    context: .
+  image: ${IMAGE_NAME:-blacklanternsecurity/bbot-server}:${TAG:-latest}
+  user: root
+  command: ["bbctl", "agent", "start"]
+  entrypoint: ["bash", "/app/bbot_server/default_agent.sh"]
+  restart: unless-stopped
+  environment:
+    - BBOT_SERVER_URL=${BBOT_SERVER_URL:-http://server:8807/v1/}
+    - BBOT_SERVER_AUTH_ENABLED=${BBOT_SERVER_AUTH_ENABLED:-true}
+    - BBOT_SERVER_AUTH_HEADER=${BBOT_SERVER_AUTH_HEADER:-X-API-Key}
+    - BBOT_SERVER_API_KEY=${BBOT_SERVER_API_KEY:-}
+  volumes:
+    - ~/.bbot:/root/.bbot
+
+services:
+  server:
+    <<: *bbot-server-base
+    ports:
+      - "${BBOT_LISTEN_ADDRESS:-127.0.0.1}:${BBOT_PORT:-8807}:8807"
+    command: ["bbctl", "server", "start", "--api-only", "--listen", "0.0.0.0", "--reload"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8807/v1/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    environment:
+      - BBOT_SERVER_AUTH_ENABLED=${BBOT_SERVER_AUTH_ENABLED:-true}
+      - BBOT_SERVER_AUTH_HEADER=${BBOT_SERVER_AUTH_HEADER:-X-API-Key}
+    depends_on:
+      - mongodb
+      - redis
+
+  worker:
+    <<: *bbot-server-base
+    command: ["bbctl", "server", "start", "--worker-only"]
+    depends_on:
+      server:
+        condition: service_healthy
+
+  agent:
+    <<: *bbot-agent-base
+    depends_on:
+      server:
+        condition: service_healthy
+
+  mongodb:
+    image: mongo:latest
+    restart: unless-stopped
+    volumes:
+      - ./mongodb:/data/db
+
+  redis:
+    image: redis:latest
+    restart: unless-stopped
