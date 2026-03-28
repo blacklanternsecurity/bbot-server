@@ -37,6 +37,7 @@ services:
       retries: 3
       start_period: 30s
     environment:
+      - BBOT_SERVER_API_KEY=${BBOT_SERVER_API_KEY:-CHANGE_ME}
       - BBOT_SERVER_AUTH_ENABLED=${BBOT_SERVER_AUTH_ENABLED:-true}
       - BBOT_SERVER_AUTH_HEADER=${BBOT_SERVER_AUTH_HEADER:-X-API-Key}
     depends_on:
