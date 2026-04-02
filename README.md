@@ -31,8 +31,6 @@ uv tool install bbot-server
 pipx install bbot-server
 ```
 
-To install `uv`, see the [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/).
-
 ### From source (for development)
 
 ```bash
