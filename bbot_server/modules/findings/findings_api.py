@@ -9,10 +9,10 @@ from bbot_server.modules.findings.findings_models import Finding, SEVERITY_COLOR
 # Used to derive a default risk score from finding_max_severity.
 SEVERITY_TO_CVSS = {
     "INFO": 0.0,
-    "LOW": 3.9,
-    "MEDIUM": 6.9,
-    "HIGH": 8.9,
-    "CRITICAL": 10.0,
+    "LOW": 0.1,
+    "MEDIUM": 4.0,
+    "HIGH": 7.0,
+    "CRITICAL": 9.0,
 }
 
 
