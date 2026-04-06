@@ -194,16 +194,16 @@ class TestAppletFindings(BaseAppletTest):
 
         # --- risk field tests ---
 
-        # after scan 2, www2 and api have CRITICAL findings → CVSS 10.0
+        # after scan 2, www2 and api have CRITICAL findings → CVSS 9.0
         www2_asset = await self.bbot_server.get_asset(host="www2.evilcorp.com")
-        assert www2_asset.risk == 10.0
+        assert www2_asset.risk == 9.0
         assert www2_asset.risk_override == False
         api_asset = await self.bbot_server.get_asset(host="api.evilcorp.com")
-        assert api_asset.risk == 10.0
+        assert api_asset.risk == 9.0
         assert api_asset.risk_override == False
-        # www only had HIGH findings from scan 1 → CVSS 8.9
+        # www only had HIGH findings from scan 1 → CVSS 7.0
         www_asset = await self.bbot_server.get_asset(host="www.evilcorp.com")
-        assert www_asset.risk == 8.9
+        assert www_asset.risk == 7.0
         assert www_asset.risk_override == False
 
         # manually set risk on www2 (float 0.0-10.0)
@@ -235,18 +235,18 @@ class TestAppletFindings(BaseAppletTest):
         assert www2_asset.risk is None
         assert www2_asset.risk_override == True
 
-        # clear override — should revert to CVSS-derived value (CRITICAL → 10.0)
+        # clear override — should revert to CVSS-derived value (CRITICAL → 9.0)
         result = await self.bbot_server.set_risk(host="www2.evilcorp.com")
-        assert result["risk"] == 10.0
+        assert result["risk"] == 9.0
         assert result["risk_override"] == False
         www2_asset = await self.bbot_server.get_asset(host="www2.evilcorp.com")
-        assert www2_asset.risk == 10.0
+        assert www2_asset.risk == 9.0
         assert www2_asset.risk_override == False
 
         # verify RISK_UPDATED activities were emitted
-        # expected: 2 from scan 1 auto-sync (www + www2: None->8.9),
+        # expected: 2 from scan 1 auto-sync (www + www2: None->7.0),
         #           4 from after_scan_1 manual set_risk (api: set 5.0, clear, set None, clear),
-        #           2 from scan 2 auto-sync (www2: 8.9->10.0, api: None->10.0),
+        #           2 from scan 2 auto-sync (www2: 7.0->9.0, api: None->9.0),
         #           6 from after_scan_2 manual set_risk (7.5, 3.1, 0.0, 10.0, None, clear)
         await asyncio.sleep(1.0)
         activities = [a async for a in self.bbot_server.list_activities() if a.type == "RISK_UPDATED"]
