@@ -28,12 +28,12 @@ class TestAppletFindings(BaseAppletTest):
         assert {f.confidence for f in findings} == {"UNKNOWN"}
         assert {f.confidence_score for f in findings} == {1}
 
-        # risk should auto-sync from finding_max_severity via CVSS: HIGH -> 8.9
+        # risk should auto-sync from finding_max_severity via CVSS: HIGH -> 7.0
         www_asset = await self.bbot_server.get_asset(host="www.evilcorp.com")
-        assert www_asset.risk == 8.9
+        assert www_asset.risk == 7.0
         assert www_asset.risk_override == False
         www2_asset = await self.bbot_server.get_asset(host="www2.evilcorp.com")
-        assert www2_asset.risk == 8.9
+        assert www2_asset.risk == 7.0
         assert www2_asset.risk_override == False
 
         # api.evilcorp.com has no findings yet → risk should be None
