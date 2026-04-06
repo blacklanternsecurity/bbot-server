@@ -1,18 +1,20 @@
 from fastapi import Query
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Union
+
+from pydantic.experimental.missing_sentinel import MISSING
 
 from bbot_server.assets import CustomAssetFields
 from bbot_server.applets.base import BaseApplet, api_endpoint
 from bbot_server.modules.findings.findings_models import Finding, SEVERITY_COLORS, SeverityScore, FindingsQuery
 
-# Max CVSS score for each severity band (top of range).
+# Min CVSS score for each severity band (bottom of range).
 # Used to derive a default risk score from finding_max_severity.
 SEVERITY_TO_CVSS = {
     "INFO": 0.0,
-    "LOW": 3.9,
-    "MEDIUM": 6.9,
-    "HIGH": 8.9,
-    "CRITICAL": 10.0,
+    "LOW": 0.1,
+    "MEDIUM": 4.0,
+    "HIGH": 7.0,
+    "CRITICAL": 9.0,
 }
 
 
@@ -157,46 +159,33 @@ class FindingsApplet(BaseApplet):
         self,
         host: Annotated[str, Query(description="The host of the asset to update")],
         risk: Annotated[
-            Optional[float],
+            Union[float, None, MISSING],
             Query(
                 description=(
-                    "Risk score from 0.0 to 10.0 (1 decimal place). "
+                    "Risk score from 0.0 to 10.0 (1 decimal place). None/null to set to no risk."
                     "Omit to clear the override and revert to the auto-calculated CVSS value."
                 )
             ),
-        ] = None,
-        override_none: Annotated[
-            bool,
-            Query(
-                description=(
-                    "Set to true to explicitly override risk to None (no risk score). "
-                    "Takes precedence over the risk parameter."
-                )
-            ),
-        ] = False,
+        ] = MISSING
     ) -> dict:
         """
         Manually set or clear an asset's risk score.
 
-        Three modes:
-          - risk=<float>       → override risk to the given value (0.0–10.0, 1 decimal).
-          - override_none=true → override risk to None (e.g. "no risk score").
-          - (omit both)        → clear the override and revert to the CVSS-derived
-                                 value from finding_max_severity.
+        IMPORTANT: When risk is set to a value different from finding_max_severity,
+        it is considered manually overridden and will not be auto-updated by new findings.
+
+        Default is MISSING which means revert to finding_max_severity.
         """
         asset = await self.root._get_asset(host=host, fields=["finding_max_severity"])
         if not asset:
             raise self.BBOTServerNotFoundError(f"Asset {host} not found")
 
-        if override_none:
-            # Explicit override to None
-            update = {"risk": None, "risk_override": True}
-            description = f"Risk manually set to [bold]None[/bold] on [bold]{host}[/bold]"
-        elif risk is not None:
-            # Override to a specific float value
-            if risk < 0.0 or risk > 10.0:
-                raise self.BBOTServerValueError("risk must be between 0.0 and 10.0")
-            risk = round(risk, 1)
+        if risk is None or isinstance(risk, float):
+            if isinstance(risk, float):
+                # Override to a specific float value
+                if risk < 0.0 or risk > 10.0:
+                    raise self.BBOTServerValueError("risk must be between 0.0 and 10.0")
+                risk = round(risk, 1)
             update = {"risk": risk, "risk_override": True}
             description = f"Risk manually set to [bold]{risk}[/bold] on [bold]{host}[/bold]"
         else:
