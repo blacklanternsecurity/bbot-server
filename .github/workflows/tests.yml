@@ -42,7 +42,7 @@ jobs:
         run: |
           NO_COLOR=true uv run pytest --reruns 2 --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
       - name: Upload Code Coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./cov.xml
