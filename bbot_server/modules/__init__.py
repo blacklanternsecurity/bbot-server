@@ -10,7 +10,7 @@ from bbot_server.errors import BBOTServerError
 
 # needed for asset model preloading
 from bbot_server.assets import CustomAssetFields  # noqa: F401
-from typing import List, Optional, Dict, Any, Annotated  # noqa: F401
+from typing import List, Literal, Optional, Dict, Any, Annotated  # noqa: F401
 from pydantic import Field, BeforeValidator, AfterValidator, UUID4  # noqa: F401
 
 log = logging.getLogger(__name__)

@@ -6,6 +6,8 @@ import subprocess
 from subprocess import run
 from contextlib import suppress
 
+from pymongo import uri_parser
+
 from bbot_server.config import BBOT_SERVER_CONFIG as bbcfg, BBOT_SERVER_DIR
 from bbot_server.cli.base import BaseBBCTL, subcommand, Option, Annotated
 
@@ -158,7 +160,7 @@ class ServerCTL(BaseBBCTL):
             )
 
         for store_name, store_config, data_desc in stores_to_clear:
-            db_name = store_config.uri.split("/")[-1]
+            db_name = uri_parser.parse_uri(store_config.uri)["database"]
             prefix = store_config.collection_prefix
             if not db_name:
                 raise self.BBOTServerError(f"{store_name.title()} database not found in config")
