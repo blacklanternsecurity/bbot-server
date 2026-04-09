@@ -28,7 +28,7 @@ spec:
       - name: server
         securityContext:
           allowPrivilegeEscalation: false
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command: ["bbctl", "server", "start", "--api-only", "--listen", "0.0.0.0"]
         ports:
