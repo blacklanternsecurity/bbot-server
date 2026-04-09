@@ -253,9 +253,9 @@ async def test_target_size(bbot_server):
         target=["evilcorp.com", "1.2.3.4/29"],
         blacklist=["www.evilcorp.com", "test.evilcorp.com", "1.2.3.5/28"],
     )
-    assert target.seed_size == 5  # /30 (4 hosts) + 1 domain
-    assert target.target_size == 9  # /29 (8 hosts) + 1 domain
-    assert target.blacklist_size == 18  # /28 (16 hosts) + 2 domains
+    assert target.seed_size == 2  # 1 CIDR + 1 domain
+    assert target.target_size == 2  # 1 CIDR + 1 domain
+    assert target.blacklist_size == 3  # 1 CIDR + 2 domains
 
 
 async def test_scope_checks(bbot_server):
@@ -332,7 +332,7 @@ async def test_target_copy(bbot_server):
     assert target_copy.target == ["evilcorp.com"]
     assert target_copy.seeds is None
     assert target_copy.blacklist == []
-    assert target_copy.strict_dns_scope == False
+    assert target_copy.strict_scope == False
     assert target_copy.id != target.id
 
     with pytest.raises(BBOTServerValueError, match='Target with name "target" already exists'):
