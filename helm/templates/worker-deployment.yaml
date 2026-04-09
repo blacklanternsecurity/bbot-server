@@ -27,7 +27,7 @@ spec:
       # Wait for the API server to become healthy before starting the worker
       initContainers:
       - name: wait-for-server
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         securityContext:
           allowPrivilegeEscalation: false
@@ -45,7 +45,7 @@ spec:
       - name: worker
         securityContext:
           allowPrivilegeEscalation: false
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command: ["bbctl", "server", "start", "--worker-only"]
         env:
