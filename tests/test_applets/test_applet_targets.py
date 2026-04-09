@@ -253,9 +253,9 @@ async def test_target_size(bbot_server):
         target=["evilcorp.com", "1.2.3.4/29"],
         blacklist=["www.evilcorp.com", "test.evilcorp.com", "1.2.3.5/28"],
     )
-    assert target.seed_size == 5  # /30 (4 hosts) + 1 domain
-    assert target.target_size == 9  # /29 (8 hosts) + 1 domain
-    assert target.blacklist_size == 18  # /28 (16 hosts) + 2 domains
+    assert target.seed_size == 2  # 1 CIDR + 1 domain
+    assert target.target_size == 2  # 1 CIDR + 1 domain
+    assert target.blacklist_size == 3  # 1 CIDR + 2 domains
 
 
 async def test_scope_checks(bbot_server):
