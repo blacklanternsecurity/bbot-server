@@ -89,7 +89,7 @@ class TargetModal(ModalScreen[dict | None]):
         target_list = getattr(self.target, "target", []) or [] if self.target else []
         seeds_list = getattr(self.target, "seeds", None) or [] if self.target else []
         blacklist_list = getattr(self.target, "blacklist", []) or [] if self.target else []
-        strict_scope = getattr(self.target, "strict_dns_scope", False) if self.target else False
+        strict_scope = getattr(self.target, "strict_scope", False) if self.target else False
 
         title = "Edit Target" if self.is_edit_mode else "Create New Target"
         submit_label = "Save" if self.is_edit_mode else "Create"
@@ -164,7 +164,7 @@ class TargetModal(ModalScreen[dict | None]):
             "target": target_list if target_list else [],
             "seeds": seeds_list,
             "blacklist": blacklist_list,
-            "strict_dns_scope": strict_scope,
+            "strict_scope": strict_scope,
         }
 
         # Include ID for edit mode

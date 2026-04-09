@@ -332,7 +332,7 @@ async def test_target_copy(bbot_server):
     assert target_copy.target == ["evilcorp.com"]
     assert target_copy.seeds is None
     assert target_copy.blacklist == []
-    assert target_copy.strict_dns_scope == False
+    assert target_copy.strict_scope == False
     assert target_copy.id != target.id
 
     with pytest.raises(BBOTServerValueError, match='Target with name "target" already exists'):

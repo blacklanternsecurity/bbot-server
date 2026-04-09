@@ -69,8 +69,8 @@ def test_cli_targetctl(bbot_server_http):
     targets = {t.name: t for t in targets}
     assert set(targets["Target 1"].target) == {"evilcorp.com", "evilcorp.net"}
     assert set(targets["Target 2"].target) == {"evilcorp.org"}
-    assert targets["Target 1"].strict_dns_scope is False
-    assert targets["Target 2"].strict_dns_scope is True
+    assert targets["Target 1"].strict_scope is False
+    assert targets["Target 2"].strict_scope is True
 
     # list targets (csv)
     process = subprocess.run(BBCTL_COMMAND + ["scan", "target", "list", "--csv"], capture_output=True, text=True)

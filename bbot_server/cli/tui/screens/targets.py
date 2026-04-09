@@ -235,7 +235,7 @@ class TargetsScreen(Container):
                     target=result["target"],
                     seeds=result["seeds"],
                     blacklist=result["blacklist"],
-                    strict_dns_scope=result["strict_dns_scope"],
+                    strict_scope=result["strict_scope"],
                 )
 
                 self.notify("Target updated successfully!", timeout=3)
@@ -270,7 +270,7 @@ class TargetsScreen(Container):
                     target=result["target"],
                     seeds=result["seeds"],
                     blacklist=result["blacklist"],
-                    strict_dns_scope=result["strict_dns_scope"],
+                    strict_scope=result["strict_scope"],
                 )
 
                 self.notify("Target created successfully!", timeout=3)

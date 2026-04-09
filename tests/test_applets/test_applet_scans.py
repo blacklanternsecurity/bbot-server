@@ -120,7 +120,7 @@ async def test_basic_scan_run(bbot_server):
         assert False, "Agent did not become ready"
 
     target = CreateTarget(
-        name="target1", target=["127.0.0.2"], seeds=["127.0.0.1"], blacklist=["127.0.0.3"], strict_dns_scope=True
+        name="target1", target=["127.0.0.2"], seeds=["127.0.0.1"], blacklist=["127.0.0.3"], strict_scope=True
     )
     target = await bbot_server.create_target(target)
     preset = await bbot_server.create_preset(
@@ -160,7 +160,7 @@ async def test_basic_scan_run(bbot_server):
         assert scan_event.data_json["target"]["target"] == ["127.0.0.2"]
         assert scan_event.data_json["target"]["seeds"] == ["127.0.0.1"]
         assert scan_event.data_json["target"]["blacklist"] == ["127.0.0.3"]
-        assert scan_event.data_json["target"]["strict_dns_scope"] == True
+        assert scan_event.data_json["target"]["strict_scope"] == True
 
     ip_events = [e for e in events if e.type == "IP_ADDRESS"]
     assert "127.0.0.1" in [e.data for e in ip_events]
