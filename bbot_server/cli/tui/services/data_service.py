@@ -75,7 +75,7 @@ class DataService:
         target: Optional[List[str]] = None,
         seeds: Optional[List[str]] = None,
         blacklist: Optional[List[str]] = None,
-        strict_dns_scope: bool = False,
+        strict_scope: bool = False,
     ) -> Optional[Any]:
         try:
             target_data = {
@@ -83,7 +83,7 @@ class DataService:
                 "description": description,
                 "target": target or [],
                 "blacklist": blacklist or [],
-                "strict_dns_scope": strict_dns_scope,
+                "strict_scope": strict_scope,
             }
             if seeds is not None:
                 target_data["seeds"] = seeds
@@ -103,7 +103,7 @@ class DataService:
         target: Optional[List[str]] = None,
         seeds: Optional[List[str]] = None,
         blacklist: Optional[List[str]] = None,
-        strict_dns_scope: bool = False,
+        strict_scope: bool = False,
     ) -> Optional[Any]:
         try:
             from bbot_server.modules.targets.targets_models import Target as TargetModel
@@ -113,7 +113,7 @@ class DataService:
                 "description": description,
                 "target": target or [],
                 "blacklist": blacklist or [],
-                "strict_dns_scope": strict_dns_scope,
+                "strict_scope": strict_scope,
             }
             if seeds is not None:
                 target_data["seeds"] = seeds

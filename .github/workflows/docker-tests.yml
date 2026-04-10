@@ -96,9 +96,9 @@ jobs:
           type=ref,event=branch
           type=sha,prefix=sha-
           type=raw,value=latest,enable=${{ github.ref == 'refs/heads/stable' }}
-          type=raw,value=v${{ steps.version.outputs.major }},enable=${{ github.ref == 'refs/heads/stable' }}
-          type=raw,value=v${{ steps.version.outputs.minor }},enable=${{ github.ref == 'refs/heads/stable' }}
-          type=raw,value=v${{ steps.version.outputs.version }},enable=${{ github.ref == 'refs/heads/stable' }}
+          type=raw,value=${{ steps.version.outputs.major }},enable=${{ github.ref == 'refs/heads/stable' }}
+          type=raw,value=${{ steps.version.outputs.minor }},enable=${{ github.ref == 'refs/heads/stable' }}
+          type=raw,value=${{ steps.version.outputs.version }},enable=${{ github.ref == 'refs/heads/stable' }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v6
@@ -118,7 +118,7 @@ jobs:
         echo "Cleaning up bbot-server tags..."
 
         # Protected tags that should never be deleted
-        PROTECTED="latest stable dev v${{ steps.version.outputs.major }} v${{ steps.version.outputs.minor }} v${{ steps.version.outputs.version }}"
+        PROTECTED="latest stable dev ${{ steps.version.outputs.major }} ${{ steps.version.outputs.minor }} ${{ steps.version.outputs.version }}"
 
         tags_response=$(curl -s -H "Authorization: Bearer ${{ secrets.DOCKER_TOKEN }}" \
           "https://hub.docker.com/v2/repositories/blacklanternsecurity/bbot-server/tags/?page_size=100")
@@ -166,18 +166,15 @@ jobs:
       run: |
         VERSION="${{ steps.version.outputs.version }}"
         CHART_VERSION="$VERSION"
-        IMAGE_TAG="stable"
         if [ "${{ github.ref }}" = "refs/heads/dev" ]; then
           CHART_VERSION="${VERSION}-dev"
-          IMAGE_TAG="dev"
         fi
         sed -i "s/^version:.*/version: ${CHART_VERSION}/" helm/Chart.yaml
         sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" helm/Chart.yaml
-        # ensure the packaged chart defaults to the correct docker image tag
-        sed -i "s/^  tag:.*/  tag: \"${IMAGE_TAG}\"/" helm/values.yaml
+        # image.tag defaults to .Chart.AppVersion in the templates,
+        # so no need to sed values.yaml — the version flows automatically.
         echo "Chart version: $CHART_VERSION"
         echo "App version: $VERSION"
-        echo "Image tag: $IMAGE_TAG"
         cat helm/Chart.yaml
 
     - name: Add Helm repositories

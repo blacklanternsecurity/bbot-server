@@ -68,7 +68,7 @@ class BaseTarget(BaseBBOTServerModel):
         default_factory=list,
         description="Domains, IPs, CIDRs, URLs, etc. to blacklist from the scan. If a host is blacklisted, it will not be scanned.",
     )
-    strict_dns_scope: bool = Field(
+    strict_scope: bool = Field(
         False,
         description="If True, only the exact hosts themselves should be considered in-scope, not their subdomains",
     )
@@ -101,7 +101,7 @@ class Target(BaseTarget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._bbot_target = BBOTTarget(
-            target=self.target, seeds=self.seeds, blacklist=self.blacklist, strict_dns_scope=self.strict_dns_scope
+            target=self.target, seeds=self.seeds, blacklist=self.blacklist, strict_scope=self.strict_scope
         )
         # self.target = sorted(self.target.inputs)
 

@@ -113,7 +113,7 @@ class TargetsApplet(BaseApplet):
         scope_result_type = getattr(scope_result, "type", None)
         if scope_result_type == "NEW_IN_SCOPE_ASSET":
             asset_scope = sorted(set(asset_scope) | set([target_id]))
-        else:
+        elif scope_result_type == "ASSET_SCOPE_CHANGED":
             asset_scope = sorted(set(asset_scope) - set([target_id]))
         asset_results = await self.root.assets.collection.update_many(
             {"host": host},
@@ -219,7 +219,7 @@ class TargetsApplet(BaseApplet):
     @api_endpoint("/copy", methods=["POST"], summary="Create a duplicate of a target")
     async def copy_target(self, id: str, name: str = None) -> Target:
         target = await self._get_target(
-            id=id, fields=["name", "description", "target", "seeds", "blacklist", "strict_dns_scope"]
+            id=id, fields=["name", "description", "target", "seeds", "blacklist", "strict_scope"]
         )
         if not name:
             name = target["name"] + " Copy"
@@ -230,7 +230,7 @@ class TargetsApplet(BaseApplet):
                 target=target.get("target", []),
                 seeds=target.get("seeds", None),
                 blacklist=target.get("blacklist", []),
-                strict_dns_scope=target["strict_dns_scope"],
+                strict_scope=target["strict_scope"],
             )
         )
         return target_copy
@@ -358,17 +358,17 @@ class TargetsApplet(BaseApplet):
         try:
             # we take the main host and its A/AAAA DNS records into account
             for rdtype, hosts in resolved_hosts.items():
-                for host in hosts:
+                for h in hosts:
                     # if any of the hosts are blacklisted, abort immediately
-                    if target.blacklisted(host):
-                        blacklisted_reason = f"{rdtype}->{host}"
+                    if target.blacklisted(h):
+                        blacklisted_reason = f"{rdtype}->{h}"
                         in_target_reason = ""
                         # break out of the loop
                         raise BlacklistedError
                     # check against whitelist
                     if not in_target_reason:
-                        if target.in_target(host):
-                            in_target_reason = f"{rdtype}->{host}"
+                        if target.in_target(h):
+                            in_target_reason = f"{rdtype}->{h}"
         except BlacklistedError:
             pass
 
