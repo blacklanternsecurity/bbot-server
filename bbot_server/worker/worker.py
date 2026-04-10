@@ -73,7 +73,6 @@ class BBOTWorker:
             else:
                 event_preview = ""
             self.log.info(f"Received event: {event.type}{event_preview}")
-            # get the event's associated asset (this saves on database queries since it will be passed down to each applet)
             asset, _activities = await self._get_or_create_asset(event.host, event=event)
             activities.extend(_activities)
 
@@ -139,7 +138,8 @@ class BBOTWorker:
 
         Returns the asset and a list of activities that were generated (NEW_ASSET if the asset was created).
         """
-        if not host:
+        # if there's no host, or if the host is a CIDR, we skip.
+        if not host or "/" in str(host):
             return None, []
         activities = []
         try:
