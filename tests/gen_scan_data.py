@@ -52,10 +52,17 @@ class DummyScan:
         # first, clean up the existing output dir
         shutil.rmtree(cls.output_dir / cls.name, ignore_errors=True)
         scan = Scanner(scan_name=cls.name, output_dir=str(cls.output_dir), *cls.targets, config=cls.config)
+        await scan._prep()
         await scan.helpers.dns._mock_dns(cls.dns)
+        # add dummy modules after prep so they aren't cleared
         for i, dummy_module in enumerate(cls.dummy_modules):
             dummy_module = dummy_module(scan)
             scan.modules[f"dummy_module_{i}"] = dummy_module
+        # tell speculate that there are OPEN_TCP_PORT consumers
+        speculate = scan.modules.get("speculate")
+        if speculate is not None:
+            speculate.open_port_consumers = True
+            speculate.emit_open_ports = not speculate.portscanner_enabled
         events = []
         async for e in scan.async_start():
             event = Event(**e.json())

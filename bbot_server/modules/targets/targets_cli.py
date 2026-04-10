@@ -29,7 +29,7 @@ class TargetCTL(BaseBBCTL):
         blacklist: Annotated[Path, Option("--blacklist", "-b", help="File containing blacklist")] = None,
         name: Annotated[str, Option("--name", "-n", help="Target name")] = "",
         description: Annotated[str, Option("--description", "-d", help="Target description")] = "",
-        strict_dns_scope: Annotated[
+        strict_scope: Annotated[
             bool,
             Option(
                 "--strict-scope",
@@ -55,7 +55,7 @@ class TargetCTL(BaseBBCTL):
             target=target,
             seeds=seeds,
             blacklist=blacklist,
-            strict_dns_scope=strict_dns_scope,
+            strict_scope=strict_scope,
             allow_duplicate_hash=allow_duplicates,
         )
         target = self.bbot_server.create_target(target)
@@ -91,7 +91,7 @@ class TargetCTL(BaseBBCTL):
                     "target": target.target_size,
                     "seeds": target.seed_size,
                     "blacklist": target.blacklist_size,
-                    "strict_scope": "Yes" if target.strict_dns_scope else "No",
+                    "strict_scope": "Yes" if target.strict_scope else "No",
                     "created": self.timestamp_to_human(target.created),
                     "modified": self.timestamp_to_human(target.modified),
                 }
@@ -129,7 +129,7 @@ class TargetCTL(BaseBBCTL):
                 f"{target.target_size:,}",
                 f"{target.seed_size:,}",
                 f"{target.blacklist_size:,}",
-                "Yes" if target.strict_dns_scope else "No",
+                "Yes" if target.strict_scope else "No",
                 self.timestamp_to_human(target.created),
                 self.timestamp_to_human(target.modified),
             )

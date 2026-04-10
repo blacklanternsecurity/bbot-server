@@ -236,7 +236,7 @@ class ScansApplet(BaseApplet):
                     scan_preset["blacklist"] = scan.target.blacklist
                     config = scan_preset.get("config", {})
                     scope_config = config.get("scope", {})
-                    scope_config["strict"] = scan.target.strict_dns_scope
+                    scope_config["strict"] = scan.target.strict_scope
                     config["scope"] = scope_config
                     scan_preset["config"] = config
 

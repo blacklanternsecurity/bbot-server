@@ -68,7 +68,7 @@ class TargetDetail(VerticalScroll):
             details.append(f"[bold]Blacklist ({len(blacklist)}):[/bold] {blacklist_str}")
 
         # Strict DNS scope
-        strict_dns = getattr(target, "strict_dns_scope", False)
+        strict_dns = getattr(target, "strict_scope", False)
         details.append(f"[bold]Strict DNS Scope:[/bold] {'Yes' if strict_dns else 'No'}")
 
         # Sizes

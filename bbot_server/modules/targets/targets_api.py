@@ -219,7 +219,7 @@ class TargetsApplet(BaseApplet):
     @api_endpoint("/copy", methods=["POST"], summary="Create a duplicate of a target")
     async def copy_target(self, id: str, name: str = None) -> Target:
         target = await self._get_target(
-            id=id, fields=["name", "description", "target", "seeds", "blacklist", "strict_dns_scope"]
+            id=id, fields=["name", "description", "target", "seeds", "blacklist", "strict_scope"]
         )
         if not name:
             name = target["name"] + " Copy"
@@ -230,7 +230,7 @@ class TargetsApplet(BaseApplet):
                 target=target.get("target", []),
                 seeds=target.get("seeds", None),
                 blacklist=target.get("blacklist", []),
-                strict_dns_scope=target["strict_dns_scope"],
+                strict_scope=target["strict_scope"],
             )
         )
         return target_copy

@@ -3,9 +3,9 @@
 # =============================================================================
 
 # -- Docker image configuration
+# image.tag defaults to .Chart.AppVersion (e.g. "0.1.5") if not overridden.
 image:
   repository: blacklanternsecurity/bbot-server
-  tag: "stable"
   pullPolicy: IfNotPresent
 
 # -- Image pull secrets for private registries
