@@ -64,6 +64,11 @@ class TestAppletFindings(BaseAppletTest):
         assert result["risk"] is None
         assert result["risk_override"] == False
 
+        # override risk on www2 BEFORE scan 2 (which will add CRITICAL findings)
+        result = await self.bbot_server.set_risk(host="www2.evilcorp.com", risk=2.0)
+        assert result["risk"] == 2.0
+        assert result["risk_override"] == True
+
     async def after_scan_2(self):
         findings = [f async for f in self.bbot_server.list_findings()]
         assert len(findings) == 4
@@ -194,17 +199,27 @@ class TestAppletFindings(BaseAppletTest):
 
         # --- risk field tests ---
 
-        # after scan 2, www2 and api have CRITICAL findings → CVSS 9.0
+        # www2 had risk overridden to 2.0 before scan 2 (set in after_scan_1)
+        # scan 2 added CRITICAL findings to www2, but risk should still be 2.0 because of the override
         www2_asset = await self.bbot_server.get_asset(host="www2.evilcorp.com")
-        assert www2_asset.risk == 9.0
-        assert www2_asset.risk_override == False
+        assert www2_asset.risk == 2.0, f"risk should still be 2.0 (overridden), got {www2_asset.risk}"
+        assert www2_asset.risk_override == True
         api_asset = await self.bbot_server.get_asset(host="api.evilcorp.com")
         assert api_asset.risk == 9.0
         assert api_asset.risk_override == False
+
         # www only had HIGH findings from scan 1 → CVSS 7.0
         www_asset = await self.bbot_server.get_asset(host="www.evilcorp.com")
         assert www_asset.risk == 7.0
         assert www_asset.risk_override == False
+
+        # clear the override on www2 — risk should revert to CVSS-derived value (CRITICAL → 9.0)
+        result = await self.bbot_server.set_risk(host="www2.evilcorp.com")
+        assert result["risk"] == 9.0, f"Expected risk to revert to 9.0, got {result['risk']}"
+        assert result["risk_override"] == False
+        www2_asset = await self.bbot_server.get_asset(host="www2.evilcorp.com")
+        assert www2_asset.risk == 9.0
+        assert www2_asset.risk_override == False
 
         # manually set risk on www2 (float 0.0-10.0)
         result = await self.bbot_server.set_risk(host="www2.evilcorp.com", risk=7.5)
@@ -246,8 +261,10 @@ class TestAppletFindings(BaseAppletTest):
         # verify RISK_UPDATED activities were emitted
         # expected: 2 from scan 1 auto-sync (www + www2: None->7.0),
         #           4 from after_scan_1 manual set_risk (api: set 5.0, clear, set None, clear),
-        #           2 from scan 2 auto-sync (www2: 7.0->9.0, api: None->9.0),
+        #           1 from after_scan_1 override on www2 (7.0->2.0),
+        #           1 from scan 2 auto-sync (api: None->9.0),
+        #           1 from after_scan_2 clear override on www2 (2.0->9.0),
         #           6 from after_scan_2 manual set_risk (7.5, 3.1, 0.0, 10.0, None, clear)
         await asyncio.sleep(1.0)
         activities = [a async for a in self.bbot_server.list_activities() if a.type == "RISK_UPDATED"]
-        assert len(activities) == 14
+        assert len(activities) == 15
