@@ -84,6 +84,9 @@ class BBOTServerSettings(BaseSettings):
     user_store: StoreConfig
     message_queue: MessageQueueConfig
 
+    # index management
+    reconcile_indexes: bool = True
+
     # misc nested config we know about
     agent: Optional[AgentConfig] = Field(default_factory=AgentConfig)
     cli: Optional[CLIConfig] = Field(default_factory=CLIConfig)

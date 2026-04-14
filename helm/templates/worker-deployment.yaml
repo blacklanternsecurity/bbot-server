@@ -62,6 +62,9 @@ spec:
             secretKeyRef:
               name: {{ .Values.redis.auth.existingSecret | default (printf "%s-redis" .Release.Name) | quote }}
               key: redis-password
+        # Index reconciliation is handled by Server, not the worker
+        - name: BBOT_SERVER_RECONCILE_INDEXES
+          value: "false"
         # BBOT Server configuration
         - name: BBOT_SERVER_URL
           value: "http://{{ .Release.Name }}-server:{{ .Values.server.service.port }}/v1/"
