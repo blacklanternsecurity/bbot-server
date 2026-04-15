@@ -101,6 +101,7 @@ class BaseAssetFacet(BaseHostModel):
 
     # scope is an array of target IDs, which are dynamically maintained as new scan data arrives, or as targets are created/updated.
     scope: Annotated[list[UUID], "indexed"] = []
+    last_seen: Annotated[Optional[float], "indexed"] = None
 
     # unless overridden, all asset facets are stored in the asset store
     __store_type__ = "asset"

@@ -69,6 +69,7 @@ async def test_asset_indexes():
     assert bbot_server.assets.model.indexed_fields() == {
         "host": ["indexed"],
         "scope": ["indexed"],
+        "last_seen": ["indexed"],
         "created": ["indexed"],
         "modified": ["indexed"],
         "dns_links": ["indexed"],
