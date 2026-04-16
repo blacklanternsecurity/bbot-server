@@ -29,6 +29,14 @@ class TargetCTL(BaseBBCTL):
         blacklist: Annotated[Path, Option("--blacklist", "-b", help="File containing blacklist")] = None,
         name: Annotated[str, Option("--name", "-n", help="Target name")] = "",
         description: Annotated[str, Option("--description", "-d", help="Target description")] = "",
+        append_seeds: Annotated[
+            bool,
+            Option(
+                "--append-seeds",
+                "-as",
+                help="Append seeds to the default target-based seeds instead of replacing them",
+            ),
+        ] = False,
         strict_scope: Annotated[
             bool,
             Option(
@@ -54,6 +62,7 @@ class TargetCTL(BaseBBCTL):
             description=description,
             target=target,
             seeds=seeds,
+            append_seeds=append_seeds,
             blacklist=blacklist,
             strict_scope=strict_scope,
             allow_duplicate_hash=allow_duplicates,

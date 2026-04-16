@@ -125,3 +125,67 @@ def test_cli_targetctl(bbot_server_http):
     )
     assert process.returncode == 1
     assert "Target not found" in process.stderr
+
+
+def test_cli_targetctl_append_seeds(bbot_server_http):
+    target_file = BBOT_SERVER_TEST_DIR / "target.txt"
+    seeds_file = BBOT_SERVER_TEST_DIR / "seeds.txt"
+
+    target_file.write_text("evilcorp.com\nevilcorp.org")
+    seeds_file.write_text("extra-seed.com")
+
+    # create target with --append-seeds
+    process = subprocess.run(
+        BBCTL_COMMAND
+        + [
+            "--no-color",
+            "scan",
+            "target",
+            "create",
+            "--target",
+            str(target_file),
+            "--seeds",
+            str(seeds_file),
+            "--append-seeds",
+            "--name",
+            "append_test",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert process.returncode == 0
+    assert "Target created successfully" in process.stderr
+    target = orjson.loads(process.stdout)
+    assert set(target["target"]) == {"evilcorp.com", "evilcorp.org"}
+    assert target["seeds"] == ["extra-seed.com"]
+    assert target["append_seeds"] is True
+    # seed_size should reflect targets + extra seeds (3 total)
+    assert target["seed_size"] == 3
+
+    # create target WITHOUT --append-seeds for comparison
+    process = subprocess.run(
+        BBCTL_COMMAND
+        + [
+            "--no-color",
+            "scan",
+            "target",
+            "create",
+            "--target",
+            str(target_file),
+            "--seeds",
+            str(seeds_file),
+            "--name",
+            "no_append_test",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert process.returncode == 0
+    target_no_append = orjson.loads(process.stdout)
+    assert target_no_append["seeds"] == ["extra-seed.com"]
+    assert target_no_append["append_seeds"] is False
+    # seed_size should be just the explicit seeds (1)
+    assert target_no_append["seed_size"] == 1
+
+    target_file.unlink()
+    seeds_file.unlink()
