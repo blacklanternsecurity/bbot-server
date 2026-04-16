@@ -64,6 +64,10 @@ class BaseTarget(BaseBBOTServerModel):
         None,
         description="Domains, IPs, CIDRs, URLs, etc. to seed the scan. If not provided, the target list will be used as seeds.",
     )
+    append_seeds: bool = Field(
+        False,
+        description="If True, seeds are appended to the default target-based seeds instead of replacing them. This is useful when you want to add a few extra seeds without having to duplicate all the targets.",
+    )
     blacklist: Optional[list[str]] = Field(
         default_factory=list,
         description="Domains, IPs, CIDRs, URLs, etc. to blacklist from the scan. If a host is blacklisted, it will not be scanned.",
@@ -100,8 +104,11 @@ class Target(BaseTarget):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        seeds = self.seeds
+        if self.append_seeds and seeds is not None:
+            seeds = list(self.target or []) + list(seeds)
         self._bbot_target = BBOTTarget(
-            target=self.target, seeds=self.seeds, blacklist=self.blacklist, strict_scope=self.strict_scope
+            target=self.target, seeds=seeds, blacklist=self.blacklist, strict_scope=self.strict_scope
         )
         # self.target = sorted(self.target.inputs)
 
