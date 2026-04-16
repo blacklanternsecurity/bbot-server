@@ -309,22 +309,21 @@ class ScansApplet(BaseApplet):
             agent_id = getattr(existing_scan, "agent_id", None)
             if agent_id is not None:
                 detail["agent_id"] = agent_id
-            if scan.duration_seconds:
-                await self.collection.update_one(
-                    {"id": scan_id},
-                    {
-                        "$set": {
-                            "started_at": scan.started_at,
-                            "finished_at": scan.finished_at,
-                            "duration": scan.duration,
-                            "duration_seconds": scan.duration_seconds,
-                        }
-                    },
-                )
-                status_changed = await self.update_scan_status(scan_id=scan_id, status_code=scan.status_code)
-            else:
-                self.log.warning(f'Scan "{scan.name}" found in database, but event has no duration_seconds')
-                status_changed = False
+            # Only set duration/started_at/finished_at fields if the event
+            # actually carries them — aborted-before-start scans (FAILED
+            # direct from QUEUED, for example) have no duration_seconds but
+            # still represent a valid status transition that must persist.
+            set_fields: dict = {}
+            if scan.started_at is not None:
+                set_fields["started_at"] = scan.started_at
+            if scan.finished_at is not None:
+                set_fields["finished_at"] = scan.finished_at
+            if scan.duration_seconds is not None:
+                set_fields["duration"] = scan.duration
+                set_fields["duration_seconds"] = scan.duration_seconds
+            if set_fields:
+                await self.collection.update_one({"id": scan_id}, {"$set": set_fields})
+            status_changed = await self.update_scan_status(scan_id=scan_id, status_code=scan.status_code)
         # otherwise, assume the scan is starting and create a new run
         else:
             description = f"Scan [[COLOR]{scan.name}[/COLOR]] started"

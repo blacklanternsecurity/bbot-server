@@ -54,7 +54,11 @@ class Scan(BaseBBOTServerModel):
     __store_type__ = "user"
 
     id: Annotated[str, "indexed", "unique"] = Field(default_factory=lambda: f"SCAN:{uuid.uuid4()}")
-    name: Annotated[str, "indexed", "indexed-text", "unique"]
+    # `name` is indexed but NOT unique — scans can legitimately share a name
+    # across runs (e.g. scheduled re-runs, retries), and the unique index
+    # causes same-name scans to silently lose state updates via
+    # DuplicateKeyError on insert.
+    name: Annotated[str, "indexed", "indexed-text"]
     description: Annotated[Optional[str], "indexed", "indexed-text"] = None
     status_code: Annotated[int, "indexed", Field(ge=min(SCAN_STATUS_CODES), le=max(SCAN_STATUS_CODES))] = 0
     agent_id: Annotated[Optional[uuid.UUID], "indexed"] = None
