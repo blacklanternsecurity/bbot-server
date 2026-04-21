@@ -143,6 +143,7 @@ class TargetsApplet(BaseApplet):
         "/",
         methods=["GET"],
         summary="Get a single scan target by its name, id, or hash. If no ID or hash is provided, the default target is returned.",
+        mcp=True,
     )
     async def get_target(self, id: str = None, hash: str = None) -> Target:
         """
@@ -151,11 +152,11 @@ class TargetsApplet(BaseApplet):
         target = await self._get_target(id=id, hash=hash)
         return Target(**target)
 
-    @api_endpoint("/count", methods=["POST"], summary="Get the number of scan targets")
+    @api_endpoint("/count", methods=["POST"], summary="Get the number of scan targets", mcp=True)
     async def count_targets(self, query: TargetQuery | None = None) -> int:
         return await query.mongo_count(self)
 
-    @api_endpoint("/set_default/{id}", methods=["POST"], summary="Set a target as the default target")
+    @api_endpoint("/set_default/{id}", methods=["POST"], summary="Set a target as the default target", mcp=True)
     async def set_default_target(self, id: str):
         """
         'id' can be either a target's ID (UUID) or its name.
@@ -167,7 +168,7 @@ class TargetsApplet(BaseApplet):
         # finally, set default=false on all other targets
         await self.collection.update_many({"id": {"$ne": target_id}}, {"$set": {"default": False}})
 
-    @api_endpoint("/create", methods=["POST"], summary="Create a new scan target")
+    @api_endpoint("/create", methods=["POST"], summary="Create a new scan target", mcp=True)
     async def create_target(
         self,
         target: CreateTarget,
@@ -196,7 +197,7 @@ class TargetsApplet(BaseApplet):
         self._target_ids_modified = None
         return db_target
 
-    @api_endpoint("/{id}", methods=["PATCH"], summary="Update a scan target by its id")
+    @api_endpoint("/{id}", methods=["PATCH"], summary="Update a scan target by its id", mcp=True)
     async def update_target(self, id: UUID, target: Target, allow_duplicate_hash=True) -> Target:
         target.id = id
         target.modified = utc_now()
@@ -216,7 +217,7 @@ class TargetsApplet(BaseApplet):
         self._cache_put(target)
         return target
 
-    @api_endpoint("/copy", methods=["POST"], summary="Create a duplicate of a target")
+    @api_endpoint("/copy", methods=["POST"], summary="Create a duplicate of a target", mcp=True)
     async def copy_target(self, id: str, name: str = None) -> Target:
         target = await self._get_target(
             id=id, fields=["name", "description", "target", "seeds", "blacklist", "strict_scope"]
@@ -235,7 +236,7 @@ class TargetsApplet(BaseApplet):
         )
         return target_copy
 
-    @api_endpoint("/", methods=["DELETE"], summary="Delete a scan target by its id")
+    @api_endpoint("/", methods=["DELETE"], summary="Delete a scan target by its id", mcp=True)
     async def delete_target(self, id: str, new_default_target_id: str = None) -> None:
         target = await self._get_target(id=id, fields=["id", "default"])
         target_id = str(target["id"])
@@ -277,22 +278,22 @@ class TargetsApplet(BaseApplet):
             {"$pull": {"scope": target_id}},  # Remove this target ID from the scope array
         )
 
-    @api_endpoint("/in_scope", methods=["GET"], summary="Check if a host or URL is in scope")
+    @api_endpoint("/in_scope", methods=["GET"], summary="Check if a host or URL is in scope", mcp=True)
     async def in_scope(self, host: str, target_id: UUID = None) -> bool:
         bbot_target = await self._get_bbot_target(target_id)
         return bbot_target.in_scope(host)
 
-    @api_endpoint("/in-target", methods=["GET"], summary="Check if a host or URL is in the target")
+    @api_endpoint("/in-target", methods=["GET"], summary="Check if a host or URL is in the target", mcp=True)
     async def is_in_target(self, host: str, target_id: UUID = None) -> bool:
         bbot_target = await self._get_bbot_target(target_id)
         return bbot_target.in_target(host)
 
-    @api_endpoint("/blacklisted", methods=["GET"], summary="Check if a host or URL is blacklisted")
+    @api_endpoint("/blacklisted", methods=["GET"], summary="Check if a host or URL is blacklisted", mcp=True)
     async def is_blacklisted(self, host: str, target_id: UUID = None) -> bool:
         bbot_target = await self._get_bbot_target(target_id)
         return bbot_target.blacklisted(host)
 
-    @api_endpoint("/list", methods=["GET"], summary="List targets")
+    @api_endpoint("/list", methods=["GET"], summary="List targets", mcp=True)
     async def get_targets(self) -> list[Target]:
         cursor = self.collection.find()
         targets = await cursor.to_list(length=None)
@@ -305,6 +306,7 @@ class TargetsApplet(BaseApplet):
         type="http_stream",
         response_model=dict,
         summary="List targets with customizeable fields and optional pagination",
+        mcp=True,
     )
     async def query_targets(self, query: TargetQuery | None = None):
         """
@@ -313,7 +315,7 @@ class TargetsApplet(BaseApplet):
         async for target in query.mongo_iter(self):
             yield target
 
-    @api_endpoint("/list_ids", methods=["GET"], summary="List all target IDs")
+    @api_endpoint("/list_ids", methods=["GET"], summary="List all target IDs", mcp=True)
     async def get_target_ids(self, debounce: float = 5.0) -> list[UUID]:
         if self._target_ids_modified is None or utc_now() - self._target_ids_modified > debounce:
             self._target_ids = set(await self.collection.distinct("id"))

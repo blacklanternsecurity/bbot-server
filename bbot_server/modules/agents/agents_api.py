@@ -43,7 +43,7 @@ class AgentsApplet(BaseApplet):
             agents.append(agent)
         return agents
 
-    @api_endpoint("/", methods=["POST"], summary="Create an agent")
+    @api_endpoint("/", methods=["POST"], summary="Create an agent", mcp=True)
     async def create_agent(self, name: str, description: str = "") -> Agent:
         agent = Agent(name=name, description=description)
         try:
@@ -52,12 +52,12 @@ class AgentsApplet(BaseApplet):
             raise self.BBOTServerError(f"Error creating agent {name}: {e}") from e
         return agent
 
-    @api_endpoint("/", methods=["DELETE"], summary="Delete an agent")
+    @api_endpoint("/", methods=["DELETE"], summary="Delete an agent", mcp=True)
     async def delete_agent(self, id: str):
         agent = await self.get_agent(id)
         await self.collection.delete_one({"id": str(agent.id)})
 
-    @api_endpoint("/", methods=["GET"], summary="Get an agent by its id")
+    @api_endpoint("/", methods=["GET"], summary="Get an agent by its id", mcp=True)
     async def get_agent(self, id: str) -> Agent:
         try:
             query = {"id": str(UUID(str(id)))}
@@ -92,7 +92,7 @@ class AgentsApplet(BaseApplet):
             agent_status = {"agent_status": "OFFLINE", "scan_status": "UNKNOWN"}
         return agent_status
 
-    @api_endpoint("/scan_status", methods=["GET"], summary="Get the status of an agent's scan")
+    @api_endpoint("/scan_status", methods=["GET"], summary="Get the status of an agent's scan", mcp=True)
     async def get_scan_status(self, id: UUID, detailed: bool = False) -> dict[str, str]:
         command_response = await self.connection_manager.execute_command(
             str(id), "get_scan_status", timeout=10, detailed=detailed

@@ -23,7 +23,7 @@ class EventsApplet(BaseApplet):
         # write the event to the database
         await self.collection.insert_one(event.model_dump())
 
-    @api_endpoint("/", methods=["POST"], summary="Insert a BBOT event into the asset database")
+    @api_endpoint("/", methods=["POST"], summary="Insert a BBOT event into the asset database", mcp=True)
     async def insert_event(self, event: Event):
         """
         Insert a BBOT event into the asset database
@@ -32,14 +32,14 @@ class EventsApplet(BaseApplet):
         # it will be picked up by the worker and ingested
         await self.root.message_queue.publish_event(event)
 
-    @api_endpoint("/get/{uuid}", methods=["GET"], summary="Get an event by its UUID")
+    @api_endpoint("/get/{uuid}", methods=["GET"], summary="Get an event by its UUID", mcp=True)
     async def get_event(self, uuid: str) -> Event:
         event = await self.collection.find_one({"uuid": uuid})
         if event is None:
             raise self.BBOTServerNotFoundError(f"Event {uuid} not found")
         return Event(**event)
 
-    @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Event, summary="Stream all events")
+    @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Event, summary="Stream all events", mcp=True)
     async def list_events(
         self,
         type: str = None,
@@ -64,7 +64,7 @@ class EventsApplet(BaseApplet):
         async for event in query.mongo_iter(self):
             yield Event(**event)
 
-    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query events")
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query events", mcp=True)
     async def query_events(self, query: EventsQuery | None = None):
         """
         Advanced querying of events. Choose your own filters and fields.
@@ -72,7 +72,7 @@ class EventsApplet(BaseApplet):
         async for event in query.mongo_iter(self):
             yield event
 
-    @api_endpoint("/count", methods=["POST"], summary="Count events")
+    @api_endpoint("/count", methods=["POST"], summary="Count events", mcp=True)
     async def count_events(self, query: EventsQuery | None = None) -> int:
         """
         Same as query_events, except only returns the count
@@ -84,7 +84,7 @@ class EventsApplet(BaseApplet):
         async for event in self.message_queue.tail_events(n=n):
             yield event
 
-    @api_endpoint("/archive", methods=["POST"], summary="Archive old events")
+    @api_endpoint("/archive", methods=["POST"], summary="Archive old events", mcp=True)
     async def archive_old_events(
         self,
         older_than: Annotated[int, Query(description="Archive events older than this many days")],

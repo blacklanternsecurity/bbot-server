@@ -13,7 +13,7 @@ class AssetsApplet(BaseApplet):
 
     model = Asset
 
-    @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets")
+    @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Asset, summary="Stream all assets", mcp=True)
     async def list_assets(
         self,
         domain: Annotated[str, Query(description="Filter assets by domain or subdomain")] = None,
@@ -27,7 +27,7 @@ class AssetsApplet(BaseApplet):
         async for asset in query.mongo_iter(self):
             yield self.model(**asset)
 
-    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query assets")
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query assets", mcp=True)
     async def query_assets(self, query: AdvancedAssetQuery | None = None):
         """
         Advanced querying of assets. Choose your own filters and fields.
@@ -35,14 +35,14 @@ class AssetsApplet(BaseApplet):
         async for asset in query.mongo_iter(self):
             yield asset
 
-    @api_endpoint("/count", methods=["POST"], summary="Count assets")
+    @api_endpoint("/count", methods=["POST"], summary="Count assets", mcp=True)
     async def count_assets(self, query: AdvancedAssetQuery | None = None) -> int:
         """
         Same as query_assets, except only returns the count
         """
         return await query.mongo_count(self)
 
-    @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host")
+    @api_endpoint("/{host}/detail", methods=["GET"], summary="Get a single asset by its host", mcp=True)
     async def get_asset(self, host: Annotated[str, Path(description="The host of the asset to get")]) -> Asset:
         asset = await self.collection.find_one({"host": host})
         if not asset:
@@ -63,7 +63,7 @@ class AssetsApplet(BaseApplet):
             history.append(activity["description"])
         return history
 
-    @api_endpoint("/hosts", methods=["GET"], summary="List hosts")
+    @api_endpoint("/hosts", methods=["GET"], summary="List hosts", mcp=True)
     async def get_hosts(self, domain: str = None, target_id: str = None) -> list[str]:
         """
         List all hosts.

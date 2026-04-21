@@ -13,7 +13,7 @@ class EmailsApplet(BaseApplet):
     class AssetFields(BaseModel):
         emails: list[str] = Field(default_factory=list)
 
-    @api_endpoint("/emails/{domain}", methods=["GET"], summary="Get emails by domain")
+    @api_endpoint("/emails/{domain}", methods=["GET"], summary="Get emails by domain", mcp=True)
     async def get_emails(self, domain: str) -> list[str]:
         matching_assets = await self.root.assets.list_assets(host=domain)
         emails = set()
