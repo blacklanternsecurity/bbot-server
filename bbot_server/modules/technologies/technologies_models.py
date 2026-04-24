@@ -1,7 +1,6 @@
 from pydantic import Field, computed_field
 from typing import Annotated
 
-from bbot_server.utils.misc import utc_now
 from bbot_server.models.base import AssetQuery, BaseAssetFacet
 
 
@@ -20,7 +19,6 @@ class TechnologyQuery(AssetQuery):
 
 class Technology(BaseAssetFacet):
     technology: Annotated[str, "indexed", "indexed-text"]
-    last_seen: Annotated[float, "indexed"] = Field(default_factory=utc_now)
 
     @computed_field
     @property

@@ -45,7 +45,7 @@ class RootApplet(BaseApplet):
         await self._setup()
 
         # Reconcile indexes after all applets are set up
-        if self.is_native:
+        if self.is_native and bbcfg.reconcile_indexes:
             await self.reconcile_all_indexes()
 
         return True, ""

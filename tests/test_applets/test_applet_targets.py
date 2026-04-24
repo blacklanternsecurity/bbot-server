@@ -245,6 +245,59 @@ async def test_target_default_names(bbot_server):
     assert target3.name == "Target 3"
 
 
+async def test_append_seeds(bbot_server):
+    bbot_server = await bbot_server()
+
+    # default behavior: seeds=None means targets are used as seeds
+    target_default = await bbot_server.create_target(
+        name="default_seeds",
+        target=["evilcorp.com", "evilcorp.org"],
+    )
+    assert target_default.seeds is None
+    assert target_default.seed_size == 0
+    # internally, bbot_target uses targets as seeds
+    assert len(target_default.bbot_target.seeds) == 2
+
+    # default behavior: explicit seeds replace targets-as-seeds
+    target_override = await bbot_server.create_target(
+        name="override_seeds",
+        target=["evilcorp.com", "evilcorp.org"],
+        seeds=["only-this.com"],
+    )
+    assert target_override.seeds == ["only-this.com"]
+    assert target_override.seed_size == 1
+
+    # append_seeds=True with seeds: targets + extra seeds
+    target_append = await bbot_server.create_target(
+        name="append_seeds",
+        target=["evilcorp.com", "evilcorp.org"],
+        seeds=["extra-seed.com"],
+        append_seeds=True,
+    )
+    # the model still stores the original seeds field as-is
+    assert target_append.seeds == ["extra-seed.com"]
+    # but the bbot_target has all three as seeds
+    seed_inputs = {str(s) for s in target_append.bbot_target.seeds.inputs}
+    assert "evilcorp.com" in seed_inputs
+    assert "evilcorp.org" in seed_inputs
+    assert "extra-seed.com" in seed_inputs
+    assert target_append.seed_size == 3
+
+    # append_seeds=True with seeds=None: no-op, same as default
+    target_append_none = await bbot_server.create_target(
+        name="append_seeds_none",
+        target=["evilcorp.com"],
+        append_seeds=True,
+    )
+    assert target_append_none.seeds is None
+    assert target_append_none.seed_size == 0
+    # internally still uses targets as seeds
+    assert len(target_append_none.bbot_target.seeds) == 1
+
+    # append_seeds hashes differently from override
+    assert target_append.seed_hash != target_override.seed_hash
+
+
 async def test_target_size(bbot_server):
     bbot_server = await bbot_server()
 

@@ -190,4 +190,4 @@ jobs:
       run: echo "${{ secrets.DOCKER_TOKEN }}" | helm registry login registry-1.docker.io -u blacklanternsecurity --password-stdin
 
     - name: Push Helm chart to Docker Hub
-      run: helm push bbot-server-*.tgz oci://registry-1.docker.io/blacklanternsecurity
+      run: helm push bbot-server-helm-*.tgz oci://registry-1.docker.io/blacklanternsecurity
