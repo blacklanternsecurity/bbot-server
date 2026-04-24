@@ -75,13 +75,13 @@ BBOT Server can be deployed to Kubernetes using its official Helm chart. The cha
 helm repo add blacklanternsecurity https://blacklanternsecurity.github.io/bbot-server
 
 # Install
-helm install bbot blacklanternsecurity/bbot-server
+helm install bbot blacklanternsecurity/bbot-server-helm
 ```
 
 Or install directly from the OCI registry:
 
 ```bash
-helm install bbot oci://registry-1.docker.io/blacklanternsecurity/bbot-server
+helm install bbot oci://registry-1.docker.io/blacklanternsecurity/bbot-server-helm
 ```
 
 ### Configuration
@@ -89,7 +89,7 @@ helm install bbot oci://registry-1.docker.io/blacklanternsecurity/bbot-server
 Key values can be overridden with `--set` or a custom values file:
 
 ```bash
-helm install bbot blacklanternsecurity/bbot-server \
+helm install bbot blacklanternsecurity/bbot-server-helm \
   --set ingress.enabled=true \
   --set ingress.hosts[0].host=bbot.example.com \
   --set ingress.hosts[0].paths[0].path=/ \
@@ -121,7 +121,7 @@ secrets:
 ```
 
 ```bash
-helm install bbot blacklanternsecurity/bbot-server -f custom-values.yaml
+helm install bbot blacklanternsecurity/bbot-server-helm -f custom-values.yaml
 ```
 
 ### Retrieving the API Key
@@ -136,7 +136,7 @@ kubectl get secret bbot-api-key -o jsonpath='{.data.api-key}' | base64 -d
 
 ```bash
 helm repo update
-helm upgrade bbot blacklanternsecurity/bbot-server
+helm upgrade bbot blacklanternsecurity/bbot-server-helm
 ```
 
 ## Interacting with BBOT Server Remotely (Multiplayer)
