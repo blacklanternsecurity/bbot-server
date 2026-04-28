@@ -15,10 +15,9 @@ class EmailsApplet(BaseApplet):
 
     @api_endpoint("/emails/{domain}", methods=["GET"], summary="Get emails by domain", mcp=True)
     async def get_emails(self, domain: str) -> list[str]:
-        matching_assets = await self.root.assets.list_assets(host=domain)
         emails = set()
-        for asset in matching_assets:
-            emails.update(asset.fields.get("emails", []))
+        async for asset in self.root.assets.list_assets(domain=domain):
+            emails.update(asset.emails)
         return sorted(emails)
 
     # async def handle_event(self, asset: Asset, event: Event) -> list[Activity]:
