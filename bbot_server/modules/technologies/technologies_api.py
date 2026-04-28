@@ -73,6 +73,8 @@ class TechnologiesApplet(BaseApplet):
         """
         Same as query_technologies, except only returns the count
         """
+        if query is None:
+            query = TechnologyQuery()
         return await query.mongo_count(self)
 
     @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database", mcp=True)

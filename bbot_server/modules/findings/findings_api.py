@@ -97,6 +97,8 @@ class FindingsApplet(BaseApplet):
         """
         Same as query_findings, except only returns the count
         """
+        if query is None:
+            query = FindingsQuery()
         return await query.mongo_count(self)
 
     @api_endpoint(

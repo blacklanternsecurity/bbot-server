@@ -77,6 +77,8 @@ class EventsApplet(BaseApplet):
         """
         Same as query_events, except only returns the count
         """
+        if query is None:
+            query = EventsQuery()
         return await query.mongo_count(self)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Event)

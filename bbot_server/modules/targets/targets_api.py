@@ -154,6 +154,8 @@ class TargetsApplet(BaseApplet):
 
     @api_endpoint("/count", methods=["POST"], summary="Get the number of scan targets", mcp=True)
     async def count_targets(self, query: TargetQuery | None = None) -> int:
+        if query is None:
+            query = TargetQuery()
         return await query.mongo_count(self)
 
     @api_endpoint("/set_default/{id}", methods=["POST"], summary="Set a target as the default target", mcp=True)

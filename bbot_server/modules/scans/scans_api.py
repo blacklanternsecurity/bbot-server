@@ -103,6 +103,8 @@ class ScansApplet(BaseApplet):
         """
         Same as query_scans, except only returns the count.
         """
+        if query is None:
+            query = ScanQuery()
         return await query.mongo_count(self)
 
     @api_endpoint(
