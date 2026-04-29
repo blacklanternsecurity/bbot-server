@@ -426,3 +426,66 @@ async def test_applet_custom_attributes(bbot_server, bbot_events):
     # count with custom attribute filter
     count = await bbot_server.count_assets(query={"custom_tag": "important"})
     assert count == 2
+
+
+# Verifies the MongoDB predicates the frontend's isEmpty / isNotEmpty operators emit
+# (`$in: [null, []]` and `$nin: [null, []]`) correctly distinguish missing-field, explicit-null,
+# empty-list, and populated documents on an array field like `open_ports`.
+async def test_applet_assets_empty_query_open_ports(bbot_server, bbot_events):
+    bbot_server = await bbot_server(needs_worker=True)
+
+    # skip testing of the http interface (since direct collection mutation isn't supported)
+    if not bbot_server.is_native:
+        return
+
+    # ingest BBOT events to create some assets
+    scan1_events, _scan2_events = bbot_events
+    for e in scan1_events:
+        await bbot_server.insert_event(e)
+    await asyncio.sleep(INGEST_PROCESSING_DELAY)
+
+    # pick four distinct hosts and force each into a different open_ports shape
+    host_absent = "evilcorp.com"          # field removed entirely
+    host_null = "www.evilcorp.com"        # explicit null
+    host_empty = "api.evilcorp.com"       # empty list
+    host_populated = "cname.evilcorp.com"  # populated
+
+    collection = bbot_server.assets.collection
+    await collection.update_one({"host": host_absent, "type": "Asset"}, {"$unset": {"open_ports": ""}})
+    await collection.update_one({"host": host_null, "type": "Asset"}, {"$set": {"open_ports": None}})
+    await collection.update_one({"host": host_empty, "type": "Asset"}, {"$set": {"open_ports": []}})
+    await collection.update_one({"host": host_populated, "type": "Asset"}, {"$set": {"open_ports": [80]}})
+
+    # sanity: confirm the four documents are in the expected shapes
+    docs = {
+        d["host"]: d
+        async for d in collection.find(
+            {"host": {"$in": [host_absent, host_null, host_empty, host_populated]}, "type": "Asset"}
+        )
+    }
+    assert "open_ports" not in docs[host_absent]
+    assert docs[host_null]["open_ports"] is None
+    assert docs[host_empty]["open_ports"] == []
+    assert docs[host_populated]["open_ports"] == [80]
+
+    target_hosts = {host_absent, host_null, host_empty, host_populated}
+
+    # isEmpty contract: $in: [null, []] matches missing-field, explicit-null, and empty-list documents.
+    is_empty_results = [
+        a
+        async for a in bbot_server.query_assets(
+            type="Asset",
+            query={"host": {"$in": list(target_hosts)}, "open_ports": {"$in": [None, []]}},
+        )
+    ]
+    assert {a["host"] for a in is_empty_results} == {host_absent, host_null, host_empty}
+
+    # isNotEmpty contract: $nin: [null, []] matches only the populated document.
+    is_not_empty_results = [
+        a
+        async for a in bbot_server.query_assets(
+            type="Asset",
+            query={"host": {"$in": list(target_hosts)}, "open_ports": {"$nin": [None, []]}},
+        )
+    ]
+    assert {a["host"] for a in is_not_empty_results} == {host_populated}
