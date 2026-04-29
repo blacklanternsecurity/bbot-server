@@ -445,9 +445,9 @@ async def test_applet_assets_empty_query_open_ports(bbot_server, bbot_events):
     await asyncio.sleep(INGEST_PROCESSING_DELAY)
 
     # pick four distinct hosts and force each into a different open_ports shape
-    host_absent = "evilcorp.com"          # field removed entirely
-    host_null = "www.evilcorp.com"        # explicit null
-    host_empty = "api.evilcorp.com"       # empty list
+    host_absent = "evilcorp.com"  # field removed entirely
+    host_null = "www.evilcorp.com"  # explicit null
+    host_empty = "api.evilcorp.com"  # empty list
     host_populated = "cname.evilcorp.com"  # populated
 
     collection = bbot_server.assets.collection
