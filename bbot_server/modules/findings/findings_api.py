@@ -89,6 +89,8 @@ class FindingsApplet(BaseApplet):
         """
         Advanced querying of findings. Choose your own filters and fields.
         """
+        if query is None:
+            query = FindingsQuery()
         async for finding in query.mongo_iter(self):
             yield finding
 

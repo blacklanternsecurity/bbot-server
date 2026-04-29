@@ -65,6 +65,8 @@ class TechnologiesApplet(BaseApplet):
         """
         Advanced querying of technologies. Choose your own filters and fields.
         """
+        if query is None:
+            query = TechnologyQuery()
         async for technology in query.mongo_iter(self):
             yield technology
 

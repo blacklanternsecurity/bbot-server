@@ -28,18 +28,22 @@ class ActivityApplet(BaseApplet):
             yield self.model(**activity)
 
     @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="List activities", mcp=True)
-    async def query_activities(self, query: ActivityQuery):
+    async def query_activities(self, query: ActivityQuery | None = None):
         """
         Advanced querying of activities. Choose your own filters and fields.
         """
+        if query is None:
+            query = ActivityQuery()
         async for activity in query.mongo_iter(self):
             yield activity
 
     @api_endpoint("/count", methods=["POST"], summary="Count activities", mcp=True)
-    async def count_activities(self, query: ActivityQuery) -> int:
+    async def count_activities(self, query: ActivityQuery | None = None) -> int:
         """
         Same as query_activities, except only returns the count
         """
+        if query is None:
+            query = ActivityQuery()
         return await query.mongo_count(self)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Activity)

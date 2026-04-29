@@ -1,5 +1,10 @@
 # from bbot_server.workers.emails import EmailWorker
-from bbot_server.applets.base import BaseApplet, api_endpoint, BaseModel, Field
+from bbot_server.assets import CustomAssetFields
+from bbot_server.applets.base import BaseApplet, api_endpoint, Field
+
+
+class EmailsFields(CustomAssetFields):
+    emails: list[str] = Field(default_factory=list)
 
 
 class EmailsApplet(BaseApplet):
@@ -10,14 +15,11 @@ class EmailsApplet(BaseApplet):
     # workers = [EmailWorker]
     attach_to = "assets"
 
-    class AssetFields(BaseModel):
-        emails: list[str] = Field(default_factory=list)
-
     @api_endpoint("/emails/{domain}", methods=["GET"], summary="Get emails by domain", mcp=True)
     async def get_emails(self, domain: str) -> list[str]:
         emails = set()
         async for asset in self.root.assets.list_assets(domain=domain):
-            emails.update(asset.emails)
+            emails.update(getattr(asset, "emails", []))
         return sorted(emails)
 
     # async def handle_event(self, asset: Asset, event: Event) -> list[Activity]:

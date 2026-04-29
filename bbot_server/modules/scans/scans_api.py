@@ -95,6 +95,8 @@ class ScansApplet(BaseApplet):
         """
         Advanced querying of scans. Choose your own filters and fields.
         """
+        if query is None:
+            query = ScanQuery()
         async for scan in query.mongo_iter(self):
             yield scan
 

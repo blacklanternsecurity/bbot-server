@@ -32,6 +32,8 @@ class AssetsApplet(BaseApplet):
         """
         Advanced querying of assets. Choose your own filters and fields.
         """
+        if query is None:
+            query = AdvancedAssetQuery()
         async for asset in query.mongo_iter(self):
             yield asset
 

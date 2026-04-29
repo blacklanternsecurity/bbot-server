@@ -283,16 +283,22 @@ class TargetsApplet(BaseApplet):
     @api_endpoint("/in_scope", methods=["GET"], summary="Check if a host or URL is in scope", mcp=True)
     async def in_scope(self, host: str, target_id: UUID = None) -> bool:
         bbot_target = await self._get_bbot_target(target_id)
+        if bbot_target is None:
+            return False
         return bbot_target.in_scope(host)
 
     @api_endpoint("/in-target", methods=["GET"], summary="Check if a host or URL is in the target", mcp=True)
     async def is_in_target(self, host: str, target_id: UUID = None) -> bool:
         bbot_target = await self._get_bbot_target(target_id)
+        if bbot_target is None:
+            return False
         return bbot_target.in_target(host)
 
     @api_endpoint("/blacklisted", methods=["GET"], summary="Check if a host or URL is blacklisted", mcp=True)
     async def is_blacklisted(self, host: str, target_id: UUID = None) -> bool:
         bbot_target = await self._get_bbot_target(target_id)
+        if bbot_target is None:
+            return False
         return bbot_target.blacklisted(host)
 
     @api_endpoint("/list", methods=["GET"], summary="List targets", mcp=True)
@@ -314,6 +320,8 @@ class TargetsApplet(BaseApplet):
         """
         Advanced querying of targets. Choose your own filters and fields.
         """
+        if query is None:
+            query = TargetQuery()
         async for target in query.mongo_iter(self):
             yield target
 
@@ -468,6 +476,9 @@ class TargetsApplet(BaseApplet):
 
         # get the target modified date
         target = await self._get_target(id=target_id, fields=["modified"])
+        if target is None:
+            return None
+
         db_modified_date = target["modified"]
 
         # if the modified date matches, return the cached target

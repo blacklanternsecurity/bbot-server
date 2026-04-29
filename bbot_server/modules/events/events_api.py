@@ -69,6 +69,8 @@ class EventsApplet(BaseApplet):
         """
         Advanced querying of events. Choose your own filters and fields.
         """
+        if query is None:
+            query = EventsQuery()
         async for event in query.mongo_iter(self):
             yield event
 
