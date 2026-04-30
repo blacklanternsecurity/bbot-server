@@ -1,7 +1,23 @@
 import asyncio
 from hashlib import sha1
 from tests.test_applets.base import BaseAppletTest
+from bbot_server.modules.findings.findings_models import Finding
 from bbot_server.modules.targets.targets_models import CreateTarget
+
+
+def test_finding_confidence_kwarg():
+    # string form
+    f = Finding(name="X", host="x.com", description="d", severity="HIGH", confidence="HIGH")
+    assert f.confidence == "HIGH"
+    assert f.confidence_score == 4
+    # numeric form
+    f = Finding(name="X", host="x.com", description="d", severity="HIGH", confidence=5)
+    assert f.confidence == "CONFIRMED"
+    assert f.confidence_score == 5
+    # MEDIUM (renamed from MODERATE) — regression for the rename
+    f = Finding(name="X", host="x.com", description="d", severity="HIGH", confidence="MEDIUM")
+    assert f.confidence == "MEDIUM"
+    assert f.confidence_score == 3
 
 
 class TestAppletFindings(BaseAppletTest):
@@ -25,8 +41,8 @@ class TestAppletFindings(BaseAppletTest):
         assert {f.host for f in findings} == {"www.evilcorp.com", "www2.evilcorp.com"}
         assert {f.severity for f in findings} == {"HIGH"}
         assert {f.severity_score for f in findings} == {4}
-        assert {f.confidence for f in findings} == {"UNKNOWN"}
-        assert {f.confidence_score for f in findings} == {1}
+        assert {f.confidence for f in findings} == {"HIGH"}
+        assert {f.confidence_score for f in findings} == {4}
 
         # risk should auto-sync from finding_max_severity via CVSS: HIGH -> 7.0
         www_asset = await self.bbot_server.get_asset(host="www.evilcorp.com")
@@ -76,8 +92,8 @@ class TestAppletFindings(BaseAppletTest):
         assert {f.host for f in findings} == {"www.evilcorp.com", "www2.evilcorp.com", "api.evilcorp.com"}
         assert {f.severity for f in findings} == {"HIGH", "CRITICAL"}
         assert {f.severity_score for f in findings} == {4, 5}
-        assert {f.confidence for f in findings} == {"UNKNOWN"}
-        assert {f.confidence_score for f in findings} == {1}
+        assert {f.confidence for f in findings} == {"HIGH"}
+        assert {f.confidence_score for f in findings} == {4}
         assert {f.url for f in findings} == {
             "http://www.evilcorp.com/",
             "http://www2.evilcorp.com/",
@@ -107,8 +123,8 @@ class TestAppletFindings(BaseAppletTest):
         assert finding_by_id.host == "api.evilcorp.com"
         assert finding_by_id.severity == "CRITICAL"
         assert finding_by_id.severity_score == 5
-        assert finding_by_id.confidence == "UNKNOWN"
-        assert finding_by_id.confidence_score == 1
+        assert finding_by_id.confidence == "HIGH"
+        assert finding_by_id.confidence_score == 4
         assert finding_by_id.url == "https://api.evilcorp.com/"
         assert finding_by_id.description == "That's a whippin'"
 

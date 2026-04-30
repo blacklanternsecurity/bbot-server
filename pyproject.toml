@@ -1,6 +1,6 @@
 [project]
 name = "bbot-server"
-version = "0.3.0"
+version = "0.3.1"
 description = ""
 authors = [{name = "TheTechromancer"}]
 license = "AGPL-3.0"
@@ -17,7 +17,6 @@ dependencies = [
     "redis>=5.2.1",
     "taskiq-redis>=1.0.3",
     "fastapi-mcp>=0.3.3",
-    "bbot",
     "click==8.1.8",
     "mcp==1.7.0",
     "jmespath>=1.0.1",
@@ -25,6 +24,7 @@ dependencies = [
     "pymongo>=4.15.3",
     "cloudcheck>=9.2.0",
     "textual>=7.5.0",
+    "bbot",
 ]
 
 [project.scripts]
@@ -47,11 +47,11 @@ build-backend = "uv_build"
 [tool.uv]
 default-groups = ["dev"]
 
-[tool.uv.sources]
-bbot = { git = "https://github.com/blacklanternsecurity/bbot", rev = "3.0" }
-
 [tool.uv.build-backend]
 module-root = ""
+
+[tool.uv.sources]
+bbot = { git = "https://github.com/blacklanternsecurity/bbot", rev = "dev" }
 
 [tool.ruff]
 line-length = 119
