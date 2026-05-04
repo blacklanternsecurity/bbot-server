@@ -41,10 +41,10 @@ jobs:
       run: pip install requests
 
     - name: Install kubectl
-      uses: azure/setup-kubectl@v4
+      uses: azure/setup-kubectl@v5
 
     - name: Install Helm
-      uses: azure/setup-helm@v4
+      uses: azure/setup-helm@v5
 
     - name: Install minikube
       uses: medyagh/setup-minikube@latest
@@ -79,17 +79,17 @@ jobs:
         echo "minor=$(echo $VERSION | cut -d. -f1-2)" >> $GITHUB_OUTPUT
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
 
     - name: Log in to Docker Hub
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         username: blacklanternsecurity
         password: ${{ secrets.DOCKER_TOKEN }}
 
     - name: Extract metadata
       id: meta
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v6
       with:
         images: blacklanternsecurity/bbot-server
         tags: |
@@ -102,7 +102,7 @@ jobs:
           type=raw,value=${{ steps.version.outputs.version }}-dev,enable=${{ github.ref == 'refs/heads/dev' }}
 
     - name: Build and push Docker image
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: .
         push: true
@@ -161,7 +161,7 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Install Helm
-      uses: azure/setup-helm@v4
+      uses: azure/setup-helm@v5
 
     - name: Update Chart.yaml version and appVersion
       run: |
