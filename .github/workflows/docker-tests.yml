@@ -99,6 +99,7 @@ jobs:
           type=raw,value=${{ steps.version.outputs.major }},enable=${{ github.ref == 'refs/heads/stable' }}
           type=raw,value=${{ steps.version.outputs.minor }},enable=${{ github.ref == 'refs/heads/stable' }}
           type=raw,value=${{ steps.version.outputs.version }},enable=${{ github.ref == 'refs/heads/stable' }}
+          type=raw,value=${{ steps.version.outputs.version }}-dev,enable=${{ github.ref == 'refs/heads/dev' }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v6
@@ -118,7 +119,7 @@ jobs:
         echo "Cleaning up bbot-server tags..."
 
         # Protected tags that should never be deleted
-        PROTECTED="latest stable dev ${{ steps.version.outputs.major }} ${{ steps.version.outputs.minor }} ${{ steps.version.outputs.version }}"
+        PROTECTED="latest stable dev ${{ steps.version.outputs.major }} ${{ steps.version.outputs.minor }} ${{ steps.version.outputs.version }} ${{ steps.version.outputs.version }}-dev"
 
         tags_response=$(curl -s -H "Authorization: Bearer ${{ secrets.DOCKER_TOKEN }}" \
           "https://hub.docker.com/v2/repositories/blacklanternsecurity/bbot-server/tags/?page_size=100")
