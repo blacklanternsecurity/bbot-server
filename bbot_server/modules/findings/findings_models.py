@@ -8,7 +8,7 @@ from bbot_server.models.base import AssetQuery, BaseScore, BaseAssetFacet
 SEVERITY_LEVELS = {"INFO": 1, "LOW": 2, "MEDIUM": 3, "HIGH": 4, "CRITICAL": 5}
 
 # Confidence levels as constants
-CONFIDENCE_LEVELS = {"UNKNOWN": 1, "LOW": 2, "MODERATE": 3, "HIGH": 4, "CONFIRMED": 5}
+CONFIDENCE_LEVELS = {"UNKNOWN": 1, "LOW": 2, "MEDIUM": 3, "HIGH": 4, "CONFIRMED": 5}
 
 # severity colors for rich, etc. (bash color names)
 SEVERITY_COLORS = {
@@ -81,8 +81,6 @@ class Finding(BaseAssetFacet):
         description="Numeric confidence score of the vulnerability (1-5)",
         ge=1,
         le=5,
-        default=1,
-        alias="confidence",
     )
     temptation: Optional[Annotated[int, "indexed"]] = Field(
         description="Likelihood of an attacker taking interest in this finding (1-5)",

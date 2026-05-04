@@ -37,6 +37,10 @@ services:
   mongodb:
     image: mongo:latest
     restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 64000
+        hard: 64000
     volumes:
       - ./mongodb:/data/db
 
