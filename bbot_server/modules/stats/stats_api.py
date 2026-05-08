@@ -27,7 +27,7 @@ class StatsApplet(BaseApplet):
     route_prefix = ""
     attach_to = "assets"
 
-    @api_endpoint("/stats", methods=["GET"], summary="Get statistics for a given target or domain")
+    @api_endpoint("/stats", methods=["GET"], summary="Get statistics for a given target or domain", mcp=True)
     async def get_stats(self, domain: str = None, host: str = None, target_id: str = None) -> dict[str, Any]:
         stats = {}
         query = AssetQuery(domain=domain, host=host, target_id=target_id)

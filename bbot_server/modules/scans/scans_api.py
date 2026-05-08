@@ -37,14 +37,14 @@ class ScansApplet(BaseApplet):
             self.scan_watch_task = self.create_task(self.start_scans_loop())
         return True, ""
 
-    @api_endpoint("/get/{id}", methods=["GET"], summary="Get a single scan by its name or ID")
+    @api_endpoint("/get/{id}", methods=["GET"], summary="Get a single scan by its name or ID", mcp=True)
     async def get_scan(self, id: str) -> Scan:
         scan = await self.collection.find_one({"$or": [{"id": str(id)}, {"name": str(id)}]})
         if scan is None:
             raise self.BBOTServerNotFoundError("Scan not found")
         return Scan(**scan)
 
-    @api_endpoint("/start", methods=["POST"], summary="Create a new scan")
+    @api_endpoint("/start", methods=["POST"], summary="Create a new scan", mcp=True)
     async def start_scan(
         self,
         target_id: str,
@@ -85,24 +85,28 @@ class ScansApplet(BaseApplet):
         )
         return scan
 
-    @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Scan, summary="Get all scans")
+    @api_endpoint("/list", methods=["GET"], type="http_stream", response_model=Scan, summary="Get all scans", mcp=True)
     async def get_scans(self):
         async for scan in self.collection.find():
             yield Scan(**scan)
 
-    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query scans")
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query scans", mcp=True)
     async def query_scans(self, query: ScanQuery | None = None):
         """
         Advanced querying of scans. Choose your own filters and fields.
         """
+        if query is None:
+            query = ScanQuery()
         async for scan in query.mongo_iter(self):
             yield scan
 
-    @api_endpoint("/count", methods=["POST"], summary="Count scans")
+    @api_endpoint("/count", methods=["POST"], summary="Count scans", mcp=True)
     async def count_scans(self, query: ScanQuery | None = None) -> int:
         """
         Same as query_scans, except only returns the count.
         """
+        if query is None:
+            query = ScanQuery()
         return await query.mongo_count(self)
 
     @api_endpoint(
@@ -124,13 +128,13 @@ class ScansApplet(BaseApplet):
                 valid_name = True
         return name
 
-    @api_endpoint("/queued", methods=["GET"], summary="List queued scans")
+    @api_endpoint("/queued", methods=["GET"], summary="List queued scans", mcp=True)
     async def get_queued_scans(self) -> list[Scan]:
         # we sort by `created` ascending to get the oldest queued scans first
         cursor = self.collection.find({"status": "QUEUED"}, sort=[("created", ASCENDING)])
         return [Scan(**run) for run in await cursor.to_list(length=None)]
 
-    @api_endpoint("/cancel/{id}", methods=["POST"], summary="Cancel a scan by its name or ID")
+    @api_endpoint("/cancel/{id}", methods=["POST"], summary="Cancel a scan by its name or ID", mcp=True)
     async def cancel_scan(self, id: str, force: bool = False):
         # get the scan
         scan = await self.get_scan(id)

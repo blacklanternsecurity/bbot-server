@@ -26,12 +26,13 @@ class TechnologiesApplet(BaseApplet):
         "/get/{id}",
         methods=["GET"],
         summary="Get a technology by ID. This returns a single technology for a single host.",
+        mcp=True,
     )
     async def get_technology(self, id: str) -> Technology:
         return Technology(**(await self.root._get_asset(type="Technology", id=id)))
 
     @api_endpoint(
-        "/list", methods=["GET"], type="http_stream", response_model=Technology, summary="List all technologies"
+        "/list", methods=["GET"], type="http_stream", response_model=Technology, summary="List all technologies", mcp=True
     )
     async def list_technologies(
         self,
@@ -59,22 +60,26 @@ class TechnologiesApplet(BaseApplet):
         async for technology in query.mongo_iter(self):
             yield Technology(**technology)
 
-    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query technologies")
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query technologies", mcp=True)
     async def query_technologies(self, query: TechnologyQuery | None = None):
         """
         Advanced querying of technologies. Choose your own filters and fields.
         """
+        if query is None:
+            query = TechnologyQuery()
         async for technology in query.mongo_iter(self):
             yield technology
 
-    @api_endpoint("/count", methods=["POST"], summary="Count technologies")
+    @api_endpoint("/count", methods=["POST"], summary="Count technologies", mcp=True)
     async def count_technologies(self, query: TechnologyQuery | None = None) -> int:
         """
         Same as query_technologies, except only returns the count
         """
+        if query is None:
+            query = TechnologyQuery()
         return await query.mongo_count(self)
 
-    @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database")
+    @api_endpoint("/summarize", methods=["GET"], summary="List hosts for each technology in the database", mcp=True)
     async def get_technologies_summary(
         self,
         domain: Annotated[str, Query(description="filter by domain (subdomains included)")] = None,

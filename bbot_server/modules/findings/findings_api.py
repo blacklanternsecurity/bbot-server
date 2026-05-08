@@ -84,19 +84,23 @@ class FindingsApplet(BaseApplet):
         async for finding in query.mongo_iter(self):
             yield Finding(**finding)
 
-    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings")
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="Query findings", mcp=True)
     async def query_findings(self, query: FindingsQuery | None = None):
         """
         Advanced querying of findings. Choose your own filters and fields.
         """
+        if query is None:
+            query = FindingsQuery()
         async for finding in query.mongo_iter(self):
             yield finding
 
-    @api_endpoint("/count", methods=["POST"], summary="Count findings")
+    @api_endpoint("/count", methods=["POST"], summary="Count findings", mcp=True)
     async def count_findings(self, query: FindingsQuery | None = None) -> int:
         """
         Same as query_findings, except only returns the count
         """
+        if query is None:
+            query = FindingsQuery()
         return await query.mongo_count(self)
 
     @api_endpoint(
@@ -152,7 +156,7 @@ class FindingsApplet(BaseApplet):
         findings = dict(sorted(findings.items(), key=lambda x: x[1], reverse=True))
         return findings
 
-    @api_endpoint("/set_risk", methods=["PATCH"], summary="Set or clear a manual risk score for an asset")
+    @api_endpoint("/set_risk", methods=["PATCH"], summary="Set or clear a manual risk score for an asset", mcp=True)
     async def set_risk(
         self,
         host: Annotated[str, Query(description="The host of the asset to update")],

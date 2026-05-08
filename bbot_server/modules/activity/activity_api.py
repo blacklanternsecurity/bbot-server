@@ -16,7 +16,7 @@ class ActivityApplet(BaseApplet):
         await self.collection.insert_one(activity.model_dump())
 
     @api_endpoint(
-        "/list", methods=["GET"], type="http_stream", response_model=Activity, summary="Stream all activities"
+        "/list", methods=["GET"], type="http_stream", response_model=Activity, summary="Stream all activities", mcp=True
     )
     async def list_activities(self, host: str = None, type: str = None):
         query = {}
@@ -27,19 +27,23 @@ class ActivityApplet(BaseApplet):
         async for activity in self.collection.find(query, sort=[("timestamp", 1), ("created", 1)]):
             yield self.model(**activity)
 
-    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="List activities")
-    async def query_activities(self, query: ActivityQuery):
+    @api_endpoint("/query", methods=["POST"], type="http_stream", response_model=dict, summary="List activities", mcp=True)
+    async def query_activities(self, query: ActivityQuery | None = None):
         """
         Advanced querying of activities. Choose your own filters and fields.
         """
+        if query is None:
+            query = ActivityQuery()
         async for activity in query.mongo_iter(self):
             yield activity
 
-    @api_endpoint("/count", methods=["POST"], summary="Count activities")
-    async def count_activities(self, query: ActivityQuery) -> int:
+    @api_endpoint("/count", methods=["POST"], summary="Count activities", mcp=True)
+    async def count_activities(self, query: ActivityQuery | None = None) -> int:
         """
         Same as query_activities, except only returns the count
         """
+        if query is None:
+            query = ActivityQuery()
         return await query.mongo_count(self)
 
     @api_endpoint("/tail", type="websocket_stream_outgoing", response_model=Activity)

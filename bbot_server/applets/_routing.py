@@ -218,7 +218,6 @@ class HTTPStreamRoute(BaseServerRoute):
         """
 
         # Define a new async function that wraps the original function
-        @functools.wraps(self.orig_function)
         async def wrapper(*args, **kwargs):
             generator = self.orig_function(*args, **kwargs)
 
@@ -237,7 +236,12 @@ class HTTPStreamRoute(BaseServerRoute):
 
             return StreamingResponse(async_generator())
 
-        # Set the wrapper's signature to match the original function
+        # Preserve the original function's name and signature for FastAPI routing,
+        # but do NOT use @functools.wraps as it preserves async generator markers
+        # that cause FastAPI to mishandle the StreamingResponse
+        wrapper.__name__ = self.orig_function.__name__
+        wrapper.__qualname__ = self.orig_function.__qualname__
+        wrapper.__signature__ = inspect.signature(self.orig_function)
         return wrapper
 
     def add_to_router(self, router, **fastapi_kwargs):
