@@ -1,5 +1,5 @@
 apiVersion: v2
-name: bbot-server
+name: bbot-server-helm
 description: Helm chart for BBOT Server (API + Worker)
 type: application
 version: 0.1.0
