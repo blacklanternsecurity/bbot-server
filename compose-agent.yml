@@ -1,0 +1,22 @@
+---
+services:
+  agent:
+    image: ${IMAGE_NAME:-blacklanternsecurity/bbot-server}:${TAG:-latest}
+    user: root
+    # use the following to utilise an explicit agent ID
+    # NOTE: --name has no effect, but bbctl presently requires that it is provided.
+    command: ["bbctl", "agent", "start", "--id", "${BBOT_AGENT_ID:-CHANGE_ME}", "--name", "${BBOT_AGENT_NAME:-Example Agent}"]
+    # use the following to auto-create the agent as "Docker Default Agent"
+    #entrypoint: ["bash", "/app/bbot_server/default_agent.sh"]
+    restart: always
+    environment:
+      - BBOT_SERVER_URL=${BBOT_SERVER_URL:-http://server:8807/v1/}
+      - BBOT_SERVER_AUTH_ENABLED=${BBOT_SERVER_AUTH_ENABLED:-true}
+      - BBOT_SERVER_AUTH_HEADER=${BBOT_SERVER_AUTH_HEADER:-X-API-Key}
+      - BBOT_SERVER_API_KEY=${BBOT_SERVER_API_KEY:-CHANGE_ME}
+      # redirect python/certifi to use custom CA bundle if necessary
+      #- SSL_CERT_FILE=${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
+    volumes:
+      # inject custom CA bundle if necessary
+      #- /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:/etc/ssl/certs/ca-certificates.crt:ro
+      - ~/.bbot:/root/.bbot

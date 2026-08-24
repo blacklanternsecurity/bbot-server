@@ -8,6 +8,22 @@ x-bbot-server-base: &bbot-server-base
     - ./bbot_server:/app/bbot_server
     - ./bbot_server/defaults_docker.yml:/app/bbot_server/defaults.yml
 
+x-bbot-agent-base: &bbot-agent-base
+  build:
+    context: .
+  image: ${IMAGE_NAME:-blacklanternsecurity/bbot-server}:${TAG:-latest}
+  user: root
+  command: ["bbctl", "agent", "start"]
+  entrypoint: ["bash", "/app/bbot_server/default_agent.sh"]
+  restart: unless-stopped
+  environment:
+    - BBOT_SERVER_URL=${BBOT_SERVER_URL:-http://server:8807/v1/}
+    - BBOT_SERVER_AUTH_ENABLED=${BBOT_SERVER_AUTH_ENABLED:-true}
+    - BBOT_SERVER_AUTH_HEADER=${BBOT_SERVER_AUTH_HEADER:-X-API-Key}
+    - BBOT_SERVER_API_KEY=${BBOT_SERVER_API_KEY:-}
+  volumes:
+    - ~/.bbot:/root/.bbot
+
 services:
   server:
     <<: *bbot-server-base
@@ -21,6 +37,7 @@ services:
       retries: 3
       start_period: 30s
     environment:
+      - BBOT_SERVER_API_KEY=${BBOT_SERVER_API_KEY:-CHANGE_ME}
       - BBOT_SERVER_AUTH_ENABLED=${BBOT_SERVER_AUTH_ENABLED:-true}
       - BBOT_SERVER_AUTH_HEADER=${BBOT_SERVER_AUTH_HEADER:-X-API-Key}
     depends_on:
@@ -30,8 +47,12 @@ services:
   worker:
     <<: *bbot-server-base
     command: ["bbctl", "server", "start", "--worker-only"]
-    environment:
-      - BBOT_SERVER_RECONCILE_INDEXES=false
+    depends_on:
+      server:
+        condition: service_healthy
+
+  agent:
+    <<: *bbot-agent-base
     depends_on:
       server:
         condition: service_healthy
@@ -39,10 +60,6 @@ services:
   mongodb:
     image: mongo:latest
     restart: unless-stopped
-    ulimits:
-      nofile:
-        soft: 64000
-        hard: 64000
     volumes:
       - ./mongodb:/data/db
 

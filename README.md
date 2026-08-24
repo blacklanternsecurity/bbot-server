@@ -194,8 +194,11 @@ export BBOT_SERVER_EVENT_STORE__URI="mongodb://localhost:27017/bbot_server"
 export BBOT_SERVER_ASSET_STORE__URI="mongodb://localhost:27017/bbot_server"
 export BBOT_SERVER_USER_STORE__URI="mongodb://localhost:27017/bbot_server"
 
-# Message Queue URI
+# Message Queue URI (standalone Redis)
 export BBOT_SERVER_MESSAGE_QUEUE__URI="redis://localhost:6379/0"
+
+# Message Queue URI (Redis Cluster - use redis+cluster:// scheme)
+export BBOT_SERVER_MESSAGE_QUEUE__URI="redis+cluster://your-redis-cluster-entrypoint:6379/0"
 
 # Agent configuration
 export BBOT_SERVER_AGENT__BASE_PRESET='{"modules": ["nmap"]}'

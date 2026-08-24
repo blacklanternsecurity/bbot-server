@@ -1,3 +1,11 @@
+# container environment variables
+.env
+
+# cached python stuff
 __pycache__/
+
+# ??
 textual/
+
+# mongodb content
 mongodb
