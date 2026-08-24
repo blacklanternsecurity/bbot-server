@@ -8,6 +8,14 @@ from bbot.models.pydantic import Event
 from tests.conftest import BBCTL_COMMAND, INGEST_PROCESSING_DELAY
 
 
+def assert_ingest_progress(stderr, num_events):
+    # the ingester logs progress every 10 events, counting from zero
+    last_milestone = ((num_events - 1) // 10) * 10
+    for milestone in range(10, last_milestone + 1, 10):
+        assert f"Ingested {milestone:,} events" in stderr
+    assert f"Ingested {last_milestone + 10:,} events" not in stderr
+
+
 def test_cli_events(bbot_server_http, bbot_worker, bbot_out_file, bbot_events):
     scan1_out_file, scan2_out_file = bbot_out_file
     scan1_events, scan2_events = bbot_events
@@ -26,10 +34,7 @@ def test_cli_events(bbot_server_http, bbot_worker, bbot_out_file, bbot_events):
     process = subprocess.run(BBCTL_COMMAND + ["event", "ingest", "-f", str(json_file)], capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout == ""
-    assert "Ingested 10 events" in process.stderr
-    assert "Ingested 20 events" in process.stderr
-    assert "Ingested 30 events" in process.stderr
-    assert "Ingested 40 events" not in process.stderr
+    assert_ingest_progress(process.stderr, len(scan1_events))
 
     sleep(INGEST_PROCESSING_DELAY)
 
@@ -42,10 +47,7 @@ def test_cli_events(bbot_server_http, bbot_worker, bbot_out_file, bbot_events):
     process = subprocess.run(BBCTL_COMMAND + ["event", "ingest"], input=scan2_out_file, capture_output=True, text=True)
     assert process.returncode == 0
     assert process.stdout == ""
-    assert "Ingested 10 events" in process.stderr
-    assert "Ingested 20 events" in process.stderr
-    assert "Ingested 30 events" in process.stderr
-    assert "Ingested 40 events" not in process.stderr
+    assert_ingest_progress(process.stderr, len(scan2_events))
 
     sleep(INGEST_PROCESSING_DELAY)
 

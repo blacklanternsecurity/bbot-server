@@ -1,4 +1,5 @@
 import shutil
+import orjson
 import pytest_asyncio
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -63,14 +64,17 @@ class DummyScan:
         if speculate is not None:
             speculate.open_port_consumers = True
             speculate._always_emit_open_ports = speculate.portscanner is None
-        events = []
-        async for e in scan.async_start():
-            event = Event(**e.json())
-            events.append(event)
-        events.sort(key=lambda x: x.timestamp)
+        async for _ in scan.async_start():
+            pass
 
         out_file = scan.home / "output.json"
-        return events, out_file.read_text()
+        out_file_text = out_file.read_text()
+        # events are read back from the output file, not the live stream: bbot strips
+        # dns_children etc. from in-memory events once their module consumers finish
+        events = [Event(**orjson.loads(line)) for line in out_file_text.splitlines() if line.strip()]
+        events.sort(key=lambda x: x.timestamp)
+
+        return events, out_file_text
 
 
 class DummyScan1(DummyScan):

@@ -217,10 +217,10 @@ class BBOTAgent:
 
         # agent-specific overrides for output url etc.
         agent_preset = Preset(
-            output_modules=["http"],
+            output_modules=["webhook"],
             config={
                 "modules": {
-                    "http": {"url": self.scan_output_url, "headers": {bbcfg.auth_header: str(bbcfg.get_api_key())}}
+                    "webhook": {"url": self.scan_output_url, "headers": {bbcfg.auth_header: str(bbcfg.get_api_key())}}
                 }
             },
         )

@@ -232,11 +232,11 @@ You can output a BBOT scan directly to BBOT server with the following preset:
 # bbot-server.yml
 
 output_modules:
-  - http
+  - webhook
 
 config:
   modules:
-    http:
+    webhook:
       # URL of BBOT Server
       url: http://localhost:8807/v1/events/
       # API Key header
