@@ -62,7 +62,7 @@ class DummyScan:
         speculate = scan.modules.get("speculate")
         if speculate is not None:
             speculate.open_port_consumers = True
-            speculate.emit_open_ports = not speculate.portscanner_enabled
+            speculate._always_emit_open_ports = speculate.portscanner is None
         events = []
         async for e in scan.async_start():
             event = Event(**e.json())
