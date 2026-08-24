@@ -5,6 +5,7 @@ from bson import ObjectId
 from functools import wraps
 from types import UnionType
 from inspect import signature
+from collections.abc import Mapping
 from pydantic import BaseModel, create_model
 from datetime import datetime, timezone, timedelta
 from typing import Any, Union, get_origin, get_args, get_type_hints, Annotated
@@ -150,6 +151,31 @@ def human_friendly_kwargs(fn):
         return wrapper
 
     return fn
+
+
+def select_dotted(obj: Any, key: str, default: Any = None) -> Any:
+    """
+    Resolve a dotted config key against a pydantic model or mapping.
+
+    Args:
+        obj: Root config object to traverse
+        key: Dotted path, e.g. "modules.foo.cron"
+        default: Returned if any segment is missing or resolves to None
+
+    Returns:
+        The resolved value, or default.
+    """
+    current = obj
+    for segment in key.split("."):
+        if isinstance(current, Mapping):
+            if segment not in current:
+                return default
+            current = current[segment]
+        else:
+            if not hasattr(current, segment):
+                return default
+            current = getattr(current, segment)
+    return default if current is None else current
 
 
 def utc_now() -> float:
