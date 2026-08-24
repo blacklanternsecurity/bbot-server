@@ -57,13 +57,12 @@ class TestAppletEvents(BaseAppletTest):
 
     async def after_scan_1(self):
         events = [e async for e in self.bbot_server.list_events()]
-        # TODO: why does this change sometimes?
-        assert 30 <= len(events) <= 40
+        assert len(events) == len(self.scan1_events)
         assert len(self.event_messages) == len(events)
 
     async def after_scan_2(self):
         events = [e async for e in self.bbot_server.list_events()]
-        assert 60 <= len(events) <= 80
+        assert len(events) == len(self.scan1_events) + len(self.scan2_events)
         assert len(self.event_messages) == len(events)
 
         # filter events by type
