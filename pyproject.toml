@@ -24,7 +24,6 @@ dependencies = [
     "pymongo>=4.15.3",
     "cloudcheck>=9.2.0",
     "textual>=7.5.0",
-    "omegaconf>=2.3.0,<3",
     "bbot",
 ]
 

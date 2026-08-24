@@ -5,7 +5,6 @@ import logging
 import traceback
 
 from fastapi import APIRouter
-from omegaconf import OmegaConf
 from typing import Annotated, Any, get_origin, get_args, Union, Callable, cast  # noqa
 from functools import cached_property
 from pydantic import BaseModel, Field  # noqa
@@ -309,7 +308,7 @@ class BaseApplet:
                     raise ValueError(
                         f"{self.name}.{method_name}: When specifying a crontab config value, you must also give a default crontab value (kwarg: 'cron')"
                     )
-                cron = OmegaConf.select(self.global_config, cron_config_key, default=cron_default)
+                cron = bbot_server_misc.select_dotted(self.global_config, cron_config_key, default=cron_default)
                 kwargs["schedule"] = [{"cron": cron}]
             elif cron_default is not None:
                 kwargs["schedule"] = [{"cron": cron_default}]
