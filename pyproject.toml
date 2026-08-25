@@ -18,7 +18,7 @@ dependencies = [
     "taskiq-redis>=1.0.3",
     "fastapi-mcp>=0.3.3",
     "click==8.1.8",
-    "mcp==1.7.0",
+    "mcp==2.0.0",
     "jmespath>=1.0.1",
     "uvicorn>=0.35.0",
     "pymongo>=4.15.3",
