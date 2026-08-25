@@ -6,7 +6,7 @@ authors = [{name = "TheTechromancer"}]
 license = "AGPL-3.0"
 requires-python = ">=3.10"
 dependencies = [
-    "fastapi>=0.111.0",
+    "fastapi>=0.141.1",
     "orjson>=3.10.12",
     "rich>=13.9.4",
     "cachetools>=5.5.0",
