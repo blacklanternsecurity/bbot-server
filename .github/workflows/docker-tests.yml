@@ -14,7 +14,7 @@ jobs:
   docker-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install uv
         uses: astral-sh/setup-uv@v7
       - name: Set up Python
@@ -30,10 +30,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.x'
 
@@ -65,7 +65,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Install uv
       uses: astral-sh/setup-uv@v7
@@ -149,7 +149,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Install uv
       uses: astral-sh/setup-uv@v7
