@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   docker-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
@@ -26,7 +26,7 @@ jobs:
           BBOT_SERVER_TEST_DOCKER_COMPOSE=true uv run pytest --disable-warnings --log-cli-level=INFO -k test_docker_compose
 
   helm-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Checkout code
@@ -47,7 +47,7 @@ jobs:
       uses: azure/setup-helm@v5
 
     - name: Install minikube
-      uses: medyagh/setup-minikube@latest
+      uses: medyagh/setup-minikube@e9e035a86bbc3caea26a450bd4dbf9d0c453682e # v0.0.21
 
     - name: Run helm deployment tests
       run: python helm_deployment_test.py
@@ -57,7 +57,7 @@ jobs:
       run: minikube delete
 
   docker-publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - helm-test
       - docker-test
@@ -141,7 +141,7 @@ jobs:
 
 
   helm-publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - helm-test
       - docker-test
