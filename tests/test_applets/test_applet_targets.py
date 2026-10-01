@@ -371,6 +371,33 @@ async def test_scope_checks(bbot_server):
     assert await bbot_server.in_scope("www.test.external.evilcorp.org", target_id=target2.id) == False
 
 
+# a target created with only seeds (no target list) should consider its own seeds in scope
+async def test_seeds_only_target_scope(bbot_server):
+    bbot_server = await bbot_server()
+
+    # seeds-only target
+    target1 = await bbot_server.create_target(name="seeds_only", seeds=["evilcorp.com"])
+    assert target1.target == []
+    assert await bbot_server.in_scope("evilcorp.com", target_id=target1.id) == True
+    assert await bbot_server.in_scope("www.evilcorp.com", target_id=target1.id) == True
+    assert await bbot_server.in_scope("test.evilcorp.net", target_id=target1.id) == False
+
+    # target-only target: scope comes from the target list, seeds are derived from it
+    target2 = await bbot_server.create_target(name="target_only", target=["evilcorp.com"])
+    assert target2.seeds is None
+    assert await bbot_server.in_scope("evilcorp.com", target_id=target2.id) == True
+    assert await bbot_server.in_scope("www.evilcorp.com", target_id=target2.id) == True
+    assert await bbot_server.in_scope("test.evilcorp.net", target_id=target2.id) == False
+
+    # scope checks against a nonexistent target must raise, not fail open
+    with pytest.raises(BBOTServerNotFoundError):
+        await bbot_server.in_scope("evilcorp.com", target_id="00000000-0000-0000-0000-000000000000")
+    with pytest.raises(BBOTServerNotFoundError):
+        await bbot_server.is_in_target("evilcorp.com", target_id="00000000-0000-0000-0000-000000000000")
+    with pytest.raises(BBOTServerNotFoundError):
+        await bbot_server.is_blacklisted("evilcorp.com", target_id="00000000-0000-0000-0000-000000000000")
+
+
 async def test_target_copy(bbot_server):
     bbot_server = await bbot_server()
     target = await bbot_server.create_target(

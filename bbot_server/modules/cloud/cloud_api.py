@@ -47,6 +47,7 @@ class CloudApplet(BaseApplet):
         "/check/{host}",
         methods=["GET"],
         summary="Check a hostname or IP address against the cloud provider database",
+        mcp=True,
     )
     async def cloudcheck(self, host: str) -> list[dict[str, str]]:
         # cloudcheck v9+ uses async API and handles caching internally
