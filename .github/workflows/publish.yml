@@ -2,7 +2,7 @@ name: publish
 
 on:
   push:
-    tags: ["v*", "!archive/**"]
+    tags: ["v*"]
 
 permissions:
   contents: read
@@ -56,6 +56,10 @@ jobs:
   pypi:
     needs: [version, tests, docker-tests]
     runs-on: ubuntu-24.04
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,8 +67,6 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       - run: uv build
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
 
   docker:
     # Docker tags must not move unless the PyPI release shipped
@@ -79,7 +81,7 @@ jobs:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
-          username: blacklanternsecurity
+          username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
@@ -108,6 +110,7 @@ jobs:
     env:
       CHART_VERSION: ${{ needs.version.outputs.semver }}
       APP_VERSION: ${{ needs.version.outputs.version }}
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -117,5 +120,14 @@ jobs:
       - run: helm repo add bitnami https://charts.bitnami.com/bitnami
       - run: helm dependency build helm/
       - run: helm package helm/ --version "$CHART_VERSION" --app-version "$APP_VERSION"
-      - run: echo "$DOCKER_TOKEN" | helm registry login registry-1.docker.io -u blacklanternsecurity --password-stdin
+      - run: echo "$DOCKER_TOKEN" | helm registry login registry-1.docker.io -u "$DOCKER_USERNAME" --password-stdin
       - run: helm push "bbot-server-helm-${CHART_VERSION}.tgz" oci://registry-1.docker.io/blacklanternsecurity
+
+  release:
+    needs: [version, helm]
+    permissions:
+      contents: write
+    uses: blacklanternsecurity/.github/.github/workflows/publish.yml@main
+    with:
+      manifest: pyproject.toml
+      images: '["blacklanternsecurity/bbot-server:${{ needs.version.outputs.version }}"]'

@@ -574,3 +574,7 @@ See [AGENTS.md](AGENTS.md) for test setup and instructions.
 Connect to the default URL at [http://localhost:8807](http://localhost:8807/) to view and use the interactive API documentation.
 
 ![rest-api](https://github.com/user-attachments/assets/567bd266-b047-4005-bc0b-22d5bfd2a12b)
+
+## Releasing
+
+A release is a tag a human pushes. Set `version` in `pyproject.toml` by pull request, merge it, then run the org [release.sh](https://github.com/blacklanternsecurity/.github/blob/main/scripts/release.sh) with the version spelled out (`release.sh v0.2.0`, or `release.sh v0.2.0-rc.1` for `0.2.0rc1`). The tag starts `publish.yml`, which refuses a tag that does not match `pyproject.toml`, runs the tests, publishes to PyPI via trusted publishing, pushes the image and Helm chart, and creates the GitHub Release with SPDX SBOMs.
