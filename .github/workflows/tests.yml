@@ -5,10 +5,14 @@ on:
       - stable
       - dev
   pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: tests-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -27,9 +31,9 @@ jobs:
         ports:
           - 127.0.0.1:6379:6379
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       - name: Set up Python
         run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
@@ -42,50 +46,8 @@ jobs:
         run: |
           NO_COLOR=true uv run pytest --reruns 2 --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
       - name: Upload Code Coverage
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6.0.2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./cov.xml
           verbose: true
-
-  publish_pypi:
-    needs: test
-    runs-on: ubuntu-24.04
-    if: github.event_name == 'push' && github.ref == 'refs/heads/stable'
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Get version
-        id: calc_version
-        run: |
-          VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
-      - name: Build PyPI package
-        run: uv build
-      - name: Publish PyPI package
-        uses: pypa/gh-action-pypi-publish@release/v1.14
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-    outputs:
-      VERSION: ${{ steps.calc_version.outputs.VERSION }}
-
-  tag_commit:
-    needs: publish_pypi
-    runs-on: ubuntu-24.04
-    if: github.event_name == 'push' && github.ref == 'refs/heads/stable'
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Configure git
-        run: |
-          git config --local user.email "info@blacklanternsecurity.com"
-          git config --local user.name "GitHub Actions"
-      - name: Tag commit
-        run: |
-          VERSION="${{ needs.publish_pypi.outputs.VERSION }}"
-          git tag -a "$VERSION" -m "Stable Release $VERSION"
-          git push origin "$VERSION"
