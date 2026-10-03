@@ -3,8 +3,10 @@ import unittest
 import subprocess
 import time
 import json
+import yaml
 import base64
 import requests
+from pathlib import Path
 import atexit
 from contextlib import contextmanager
 
@@ -216,9 +218,10 @@ class TestHelmDeployment(unittest.TestCase):
         )
         print("Image loaded successfully")
 
-        # Add Helm repositories and update dependencies
         print("Adding Helm repositories...")
-        cls.helm("repo", "add", "bitnami", "https://charts.bitnami.com/bitnami", timeout=30)
+        chart = yaml.safe_load(Path("helm/Chart.yaml").read_text())
+        for url in sorted({d["repository"] for d in chart.get("dependencies", [])}):
+            cls.helm("repo", "add", "--force-update", url.rstrip("/").rsplit("/", 1)[-1], url, timeout=30)
         print("Building Helm dependencies (will fail if Chart.lock is out of sync)...")
         cls.helm("dependency", "build", "helm/", timeout=60)
 

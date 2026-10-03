@@ -20,6 +20,7 @@ jobs:
       prerelease: ${{ steps.version.outputs.prerelease }}
       major: ${{ steps.version.outputs.major }}
       minor: ${{ steps.version.outputs.minor }}
+      image: ${{ steps.image.outputs.image }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,6 +43,8 @@ jobs:
           print(f"major={declared.major}")
           print(f"minor={declared.major}.{declared.minor}")
           PY
+      - id: image
+        run: echo "image=$(yq -r '.image.repository' helm/values.yaml)" >> "$GITHUB_OUTPUT"
 
   tests:
     needs: version
@@ -86,7 +89,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: blacklanternsecurity/bbot-server
+          images: ${{ needs.version.outputs.image }}
           flavor: latest=false
           tags: |
             type=raw,value=${{ needs.version.outputs.version }}
@@ -108,8 +111,7 @@ jobs:
     needs: [version, docker]
     runs-on: ubuntu-24.04
     env:
-      CHART_VERSION: ${{ needs.version.outputs.semver }}
-      APP_VERSION: ${{ needs.version.outputs.version }}
+      IMAGE: ${{ needs.version.outputs.image }}
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
     steps:
@@ -117,11 +119,13 @@ jobs:
         with:
           persist-credentials: false
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
-      - run: helm repo add bitnami https://charts.bitnami.com/bitnami
+      - run: yq -r '.dependencies[].repository' helm/Chart.yaml | sort -u | while read -r url; do helm repo add "${url##*/}" "$url"; done
       - run: helm dependency build helm/
-      - run: helm package helm/ --version "$CHART_VERSION" --app-version "$APP_VERSION"
+      - id: package
+        run: |
+          helm package helm/ | sed -n 's|.*saved it to: |chart=|p' >> "$GITHUB_OUTPUT"
       - run: echo "$DOCKER_TOKEN" | helm registry login registry-1.docker.io -u "$DOCKER_USERNAME" --password-stdin
-      - run: helm push "bbot-server-helm-${CHART_VERSION}.tgz" oci://registry-1.docker.io/blacklanternsecurity
+      - run: helm push "${{ steps.package.outputs.chart }}" "oci://registry-1.docker.io/${IMAGE%/*}"
 
   release:
     needs: [version, helm]
@@ -141,9 +145,9 @@ jobs:
           upload-release-assets: false
       - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
-          image: blacklanternsecurity/bbot-server:${{ needs.version.outputs.version }}
+          image: ${{ needs.version.outputs.image }}:${{ needs.version.outputs.version }}
           format: spdx-json
-          output-file: bbot-server-image-${{ github.ref_name }}.spdx.json
+          output-file: ${{ github.event.repository.name }}-image-${{ github.ref_name }}.spdx.json
           upload-artifact: false
           upload-release-assets: false
       - name: GitHub Release with SBOMs

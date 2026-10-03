@@ -21,8 +21,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
-      - name: Set up Python
-        run: uv python install 3.11
       - name: Install dependencies
         run: uv sync
       - name: Run tests
@@ -36,13 +34,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Set up Python
-      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-      with:
-        python-version: '3.x'
+    - name: Install uv
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
 
-    - name: Install Python dependencies
-      run: pip install requests
+    - name: Install dependencies
+      run: uv sync
 
     - name: Install kubectl
       uses: azure/setup-kubectl@829323503d1be3d00ca8346e5391ca0b07a9ab0d # v5.1.0
@@ -54,7 +50,7 @@ jobs:
       uses: medyagh/setup-minikube@e9e035a86bbc3caea26a450bd4dbf9d0c453682e # v0.0.21
 
     - name: Run helm deployment tests
-      run: python helm_deployment_test.py
+      run: uv run python helm_deployment_test.py
 
     - name: Cleanup minikube
       if: always()
