@@ -16,31 +16,11 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
-      - name: Set up Python
-        run: uv python install ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: uv sync
-      - name: Start MongoDB and Redis from compose.yml
-        run: docker compose -f compose.yml -f tests/compose.yml up -d --wait mongodb redis
-      - name: Lint
-        run: |
-          uv run ruff check
-          uv run ruff format --diff
-      - name: Run tests
-        run: |
-          NO_COLOR=true uv run pytest --reruns 2 --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
-      - name: Upload Code Coverage
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6.0.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./cov.xml
-          verbose: true
+    uses: blacklanternsecurity/CLA/.github/workflows/python-tests.yml@883bfbc89464cadbeb10307b2b82891ba7853f56 # feat/shared-workflows
+    secrets: inherit
+    with:
+      uv-sync-args: ""
+      setup-script: tests/ci/services.sh
+      pytest-args: --reruns 2 --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
+      env: '{"NO_COLOR": "true"}'
+      coverage: true
