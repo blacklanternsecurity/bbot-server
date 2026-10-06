@@ -66,7 +66,17 @@ class DataService:
         return await self._fetch_paginated("query_technologies", "count_technologies", skip, limit, **filters)
 
     async def get_targets_paginated(self, skip: int = 0, limit: int = 25, **filters) -> tuple[List[Any], int]:
-        return await self._fetch_paginated("query_targets", "count_targets", skip, limit, **filters)
+        items, total = await self._fetch_paginated(
+            "query_targets", "count_targets", skip, limit, **filters
+        )
+
+        from bbot_server.modules.targets.targets_models import Target as TargetModel
+
+        items = [
+            TargetModel(**item) if isinstance(item, dict) else item
+            for item in items
+        ]
+        return items, total
 
     async def create_target(
         self,
