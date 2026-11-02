@@ -40,6 +40,7 @@ async def test_applet_stats(bbot_server, bbot_events):
                 "HPE": 2,
                 "Microsoft": 3,
                 "Microsoft365": 1,
+                "Yandex": 2,
             },
             "findings": {
                 "names": {
@@ -92,6 +93,7 @@ async def test_applet_stats(bbot_server, bbot_events):
                 "GitHub": 1,
                 "HPE": 1,
                 "Microsoft": 1,
+                "Yandex": 1,
             },
             "findings": {
                 "names": {
