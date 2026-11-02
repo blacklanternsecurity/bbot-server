@@ -61,7 +61,7 @@ jobs:
     needs:
       - helm-test
       - docker-test
-    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/dev') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/stable' }}
 
     steps:
     - name: Checkout code
@@ -111,41 +111,12 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Clean up old Docker Hub tags (keep 50 most recent plus protected tags)
-      run: |
-        # Install jq for JSON processing
-        sudo apt-get update && sudo apt-get install -y jq
-
-        echo "Cleaning up bbot-server tags..."
-
-        # Protected tags that should never be deleted
-        PROTECTED="latest stable dev ${{ steps.version.outputs.major }} ${{ steps.version.outputs.minor }} ${{ steps.version.outputs.version }} ${{ steps.version.outputs.version }}-dev"
-
-        tags_response=$(curl -s -H "Authorization: Bearer ${{ secrets.DOCKER_TOKEN }}" \
-          "https://hub.docker.com/v2/repositories/blacklanternsecurity/bbot-server/tags/?page_size=100")
-
-        tags_to_delete=$(echo "$tags_response" | jq -r '.results[].name' | sort -r | tail -n +51)
-
-        for tag in $tags_to_delete; do
-          # Skip protected tags
-          if echo "$PROTECTED" | grep -qw "$tag"; then
-            echo "Skipping protected tag: $tag"
-            continue
-          fi
-          echo "Deleting bbot-server tag: $tag"
-          curl -X DELETE -H "Authorization: Bearer ${{ secrets.DOCKER_TOKEN }}" \
-            "https://hub.docker.com/v2/repositories/blacklanternsecurity/bbot-server/tags/$tag/"
-        done
-
-        echo "Cleanup completed for bbot-server."
-
-
   helm-publish:
     runs-on: ubuntu-24.04
     needs:
       - helm-test
       - docker-test
-    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/dev') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/stable' }}
 
     steps:
     - name: Checkout code
