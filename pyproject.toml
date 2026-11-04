@@ -18,10 +18,10 @@ dependencies = [
     "taskiq-redis>=1.0.3",
     "fastapi-mcp>=0.3.3",
     "click==8.1.8",
-    "mcp==1.7.0",
+    "mcp==1.30.0",
     "jmespath>=1.0.1",
     "uvicorn>=0.35.0",
-    "pymongo>=4.15.3",
+    "pymongo>=4.18.3",
     "cloudcheck>=9.2.0",
     "textual>=7.5.0",
     "omegaconf>=2.3.0,<3",
@@ -34,7 +34,7 @@ bbctl = "bbot_server.cli.bbctl:main"
 [dependency-groups]
 dev = [
     "pytest-cov>=5.0.0",
-    "pytest>=8.3.2",
+    "pytest>=9.0.3",
     "pytest-env>=1.7.1",
     "pytest-asyncio>=0.25.0",
     "ruff>=0.9.7",
