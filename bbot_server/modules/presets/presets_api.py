@@ -12,7 +12,7 @@ class PresetsApplet(BaseApplet):
     model = Preset
     attach_to = "scans"
 
-    @api_endpoint("/get/{preset_id}", methods=["GET"], summary="Get a preset by its name or id")
+    @api_endpoint("/get/{preset_id}", methods=["GET"], summary="Get a preset by its name or id", mcp=True)
     async def get_preset(self, preset_id: UUID | str) -> Preset:
         try:
             query = {"id": str(UUID(str(preset_id)))}
@@ -23,12 +23,12 @@ class PresetsApplet(BaseApplet):
             raise self.BBOTServerNotFoundError(f"Preset not found: {query}")
         return Preset(**preset)
 
-    @api_endpoint("/list", methods=["GET"], summary="List all presets")
+    @api_endpoint("/list", methods=["GET"], summary="List all presets", mcp=True)
     async def get_presets(self) -> list[Preset]:
         presets = await self.collection.find().to_list(length=None)
         return [Preset(**preset) for preset in presets]
 
-    @api_endpoint("/create", methods=["POST"], summary="Create a new preset")
+    @api_endpoint("/create", methods=["POST"], summary="Create a new preset", mcp=True)
     async def create_preset(self, preset: dict[str, Any]) -> Preset:
         preset = Preset(preset=preset)
         if not preset.name:
@@ -39,7 +39,7 @@ class PresetsApplet(BaseApplet):
             raise self.BBOTServerValueError(f"Preset with name '{preset.name}' already exists")
         return preset
 
-    @api_endpoint("/update/{preset_id}", methods=["PATCH"], summary="Update a preset by its name or id")
+    @api_endpoint("/update/{preset_id}", methods=["PATCH"], summary="Update a preset by its name or id", mcp=True)
     async def update_preset(self, preset_id: UUID | str, preset: dict[str, Any]) -> Preset:
         existing_preset = await self.get_preset(preset_id)
         # Create new preset with the updated dictionary
@@ -54,7 +54,7 @@ class PresetsApplet(BaseApplet):
             raise self.BBOTServerValueError(f"Preset with name '{new_preset.name}' already exists")
         return new_preset
 
-    @api_endpoint("/delete/{preset_id}", methods=["DELETE"], summary="Delete a preset by its name or id")
+    @api_endpoint("/delete/{preset_id}", methods=["DELETE"], summary="Delete a preset by its name or id", mcp=True)
     async def delete_preset(self, preset_id: UUID | str) -> None:
         existing_preset = await self.get_preset(preset_id)
         await self.collection.delete_one({"id": str(existing_preset.id)})

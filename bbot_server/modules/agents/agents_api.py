@@ -43,7 +43,7 @@ class AgentsApplet(BaseApplet):
             agents.append(agent)
         return agents
 
-    @api_endpoint("/", methods=["POST"], summary="Create an agent")
+    @api_endpoint("/", methods=["POST"], summary="Create an agent", mcp=True)
     async def create_agent(self, name: str, description: str = "") -> Agent:
         agent = Agent(name=name, description=description)
         try:
@@ -52,12 +52,12 @@ class AgentsApplet(BaseApplet):
             raise self.BBOTServerError(f"Error creating agent {name}: {e}") from e
         return agent
 
-    @api_endpoint("/", methods=["DELETE"], summary="Delete an agent")
+    @api_endpoint("/", methods=["DELETE"], summary="Delete an agent", mcp=True)
     async def delete_agent(self, id: str):
         agent = await self.get_agent(id)
         await self.collection.delete_one({"id": str(agent.id)})
 
-    @api_endpoint("/", methods=["GET"], summary="Get an agent by its id")
+    @api_endpoint("/", methods=["GET"], summary="Get an agent by its id", mcp=True)
     async def get_agent(self, id: str) -> Agent:
         try:
             query = {"id": str(UUID(str(id)))}
@@ -92,14 +92,29 @@ class AgentsApplet(BaseApplet):
             agent_status = {"agent_status": "OFFLINE", "scan_status": "UNKNOWN"}
         return agent_status
 
-    @api_endpoint("/scan_status", methods=["GET"], summary="Get the status of an agent's scan")
-    async def get_scan_status(self, id: UUID, detailed: bool = False) -> dict[str, str]:
-        command_response = await self.connection_manager.execute_command(
-            str(id), "get_scan_status", timeout=10, detailed=detailed
-        )
-        if command_response.error:
-            raise self.BBOTServerValueError(command_response.error)
-        return command_response.response
+    @api_endpoint("/scan_status", methods=["GET"], summary="Get the status of an agent's scan", mcp=True)
+    async def get_scan_status(self, id: str, detailed: bool = False) -> dict:
+        """
+        Get the status of a scan, along with the status of the agent running it.
+        """
+        # look up the scan to find its agent
+        scan = await self.parent.get_scan(id=id)
+        agent_id = scan.agent_id
+        if agent_id is not None:
+            # there is no "get_scan_status" agent command, so we use "get_agent_status",
+            # which includes the status of the agent's current scan
+            try:
+                command_response = await self.connection_manager.execute_command(
+                    str(agent_id), "get_agent_status", timeout=10, detailed=detailed
+                )
+                if command_response.error:
+                    raise self.BBOTServerValueError(command_response.error)
+                return command_response.response
+            except TimeoutError:
+                return {"agent_status": "TIMEOUT", "scan_status": scan.status}
+            except (KeyError, self.BBOTServerValueError):
+                return {"agent_status": "OFFLINE", "scan_status": scan.status}
+        return {"agent_status": None, "scan_status": scan.status}
 
     @api_endpoint("/online", methods=["GET"], summary="Get all online agents", mcp=True)
     async def get_online_agents(self, status: str = "READY") -> list[Agent]:

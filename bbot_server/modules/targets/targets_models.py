@@ -107,8 +107,13 @@ class Target(BaseTarget):
         seeds = self.seeds
         if self.append_seeds and seeds is not None:
             seeds = list(self.target or []) + list(seeds)
+        # when no explicit scope (target) is given, the seeds also define the scope
+        # otherwise a seeds-only target would consider even its own seeds out of scope
+        target = self.target
+        if not target and seeds:
+            target = seeds
         self._bbot_target = BBOTTarget(
-            target=self.target, seeds=seeds, blacklist=self.blacklist, strict_scope=self.strict_scope
+            target=target, seeds=seeds, blacklist=self.blacklist, strict_scope=self.strict_scope
         )
         # self.target = sorted(self.target.inputs)
 
