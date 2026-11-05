@@ -238,6 +238,9 @@ class HTTPStreamRoute(BaseServerRoute):
             return StreamingResponse(async_generator())
 
         # Set the wrapper's signature to match the original function
+        wrapper.__signature__ = inspect.signature(self.orig_function)
+        # FastAPI 0.162 follows __wrapped__ to the async generator and bypasses the StreamingResponse
+        del wrapper.__wrapped__
         return wrapper
 
     def add_to_router(self, router, **fastapi_kwargs):
