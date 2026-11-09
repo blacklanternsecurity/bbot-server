@@ -33,7 +33,7 @@ bbctl = "bbot_server.cli.bbctl:main"
 
 [dependency-groups]
 dev = [
-    "pytest-cov>=5.0.0",
+    "pytest-cov>=7.1.0",
     "pytest>=9.0.3",
     "pytest-env>=1.7.1",
     "pytest-asyncio>=0.25.0",
