@@ -507,6 +507,7 @@ You can interact fully with BBOT Server as a Python library. It supports either 
 import asyncio
 from bbot_server import BBOTServer
 
+
 async def main():
     # talk directly to local MongoDB + Redis
     bbot_server = BBOTServer(interface="python")
@@ -519,6 +520,7 @@ async def main():
 
     hosts = await bbot_server.get_hosts()
     print(f"hosts: {hosts}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

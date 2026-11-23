@@ -36,7 +36,7 @@ async def test_applet_stats(bbot_server, bbot_events):
             },
             "cloud_providers": {
                 "Amazon": 2,
-                "GitHub": 2,
+                "GitHub": 3,
                 "HPE": 2,
                 "Microsoft": 3,
                 "Microsoft365": 1,
