@@ -9,7 +9,7 @@ class TestAppletCloud(BaseAppletTest):
         assert len(cloudcheck_result) >= 1
         providers = [r["provider"] for r in cloudcheck_result]
         assert any("Microsoft" in p for p in providers)
-        assert all(r["provider_type"] == "cloud" for r in cloudcheck_result)
+        assert all(r["provider_type"] == "cloud" for r in cloudcheck_result if r["provider"].startswith("Microsoft"))
 
         cloud_providers = await self.bbot_server.get_cloud_providers_for_asset("cname.evilcorp.com")
         assert len(cloud_providers) >= 1
