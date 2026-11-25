@@ -2,90 +2,28 @@ name: tests
 on:
   push:
     branches:
-      - stable
       - dev
   pull_request:
+  workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+permissions:
+  contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: tests-${{ github.workflow_ref }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-    services:
-      mongo:
-        image: mongo
-        ports:
-          - 127.0.0.1:27017:27017
-      redis:
-        image: redis
-        ports:
-          - 127.0.0.1:6379:6379
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Set up Python
-        run: uv python install ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: uv sync
-      - name: Lint
-        run: |
-          uv run ruff check
-          uv run ruff format --diff
-      - name: Run tests
-        run: |
-          NO_COLOR=true uv run pytest --reruns 2 --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
-      - name: Upload Code Coverage
-        uses: codecov/codecov-action@v6
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./cov.xml
-          verbose: true
-
-  publish_pypi:
-    needs: test
-    runs-on: ubuntu-24.04
-    if: github.event_name == 'push' && github.ref == 'refs/heads/stable'
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Get version
-        id: calc_version
-        run: |
-          VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
-      - name: Build PyPI package
-        run: uv build
-      - name: Publish PyPI package
-        uses: pypa/gh-action-pypi-publish@release/v1.14
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-    outputs:
-      VERSION: ${{ steps.calc_version.outputs.VERSION }}
-
-  tag_commit:
-    needs: publish_pypi
-    runs-on: ubuntu-24.04
-    if: github.event_name == 'push' && github.ref == 'refs/heads/stable'
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Configure git
-        run: |
-          git config --local user.email "info@blacklanternsecurity.com"
-          git config --local user.name "GitHub Actions"
-      - name: Tag commit
-        run: |
-          VERSION="${{ needs.publish_pypi.outputs.VERSION }}"
-          git tag -a "$VERSION" -m "Stable Release $VERSION"
-          git push origin "$VERSION"
+  python:
+    uses: blacklanternsecurity/release-workflows/.github/workflows/python-tests.yml@4f32510b1cdfe7305aa27daa3f6fd72e4c03c21b # v1.5.0
+    with:
+      uv-sync-args: ""
+      setup-script: tests/ci/services.sh
+      pytest-args: --reruns 2 --disable-warnings --log-cli-level=INFO --cov-report xml:cov.xml --cov=bbot_server .
+      env: '{"NO_COLOR": "true"}'
+      coverage: true
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

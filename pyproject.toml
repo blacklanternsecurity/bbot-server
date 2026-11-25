@@ -1,10 +1,10 @@
 [project]
 name = "bbot-server"
-version = "0.3.1"
+version = "0.3.2"
 description = ""
 authors = [{name = "TheTechromancer"}]
 license = "AGPL-3.0"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.15"
 dependencies = [
     "fastapi>=0.111.0",
     "orjson>=3.10.12",
@@ -25,7 +25,7 @@ dependencies = [
     "cloudcheck>=9.2.0",
     "textual>=7.5.0",
     "omegaconf>=2.3.0,<3",
-    "bbot",
+    "bbot==3.0.2",
 ]
 
 [project.scripts]
@@ -50,9 +50,6 @@ default-groups = ["dev"]
 
 [tool.uv.build-backend]
 module-root = ""
-
-[tool.uv.sources]
-bbot = { git = "https://github.com/blacklanternsecurity/bbot", tag = "v3.0.2" }
 
 [tool.ruff]
 line-length = 119
