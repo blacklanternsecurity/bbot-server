@@ -168,7 +168,7 @@ wheels = [
 [[package]]
 name = "bbot"
 version = "3.0.2"
-source = { git = "https://github.com/blacklanternsecurity/bbot?tag=v3.0.2#a6fb827bb144cdb85b52e142a4d6e14ed5f94b69" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ansible-core", version = "2.17.14", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "ansible-core", version = "2.19.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
@@ -210,10 +210,14 @@ dependencies = [
     { name = "yara-python" },
     { name = "zstandard" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/78/3c/d75416669c46b2731f7207545efd0eb54037b1ca5e1e68dd1dd9118bef73/bbot-3.0.2.tar.gz", hash = "sha256:92bd672b306d500d8b24787ee3750ff0317a347b66322b21dae4323afcf11c45", size = 4280764, upload-time = "2026-08-24T14:14:57.336Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8f/71/ba4fd8ee02d8ad8f04e7f3367de2696038fe8f2fb5885158f6fe34bc06ba/bbot-3.0.2-py3-none-any.whl", hash = "sha256:0851c9e003829890886c184708115e25b908cf4a9f7f547fc2a04f934b214be0", size = 1853712, upload-time = "2026-08-24T14:14:54.59Z" },
+]
 
 [[package]]
 name = "bbot-server"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "." }
 dependencies = [
     { name = "bbot" },
@@ -250,7 +254,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bbot", git = "https://github.com/blacklanternsecurity/bbot?tag=v3.0.2" },
+    { name = "bbot", specifier = "==3.0.2" },
     { name = "cachetools", specifier = ">=7.2.7" },
     { name = "click", specifier = "==8.1.8" },
     { name = "cloudcheck", specifier = ">=9.2.0" },

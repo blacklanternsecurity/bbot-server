@@ -1,0 +1,158 @@
+name: publish
+
+# A merge into stable that changes the version releases bbot-server: the image and the Helm chart to
+# Docker Hub, the package to PyPI (trusted publishing), then the v<version> tag and the GitHub release,
+# created by the release App. Every publish runs in the release environment, after a lead's approval.
+on:
+  push:
+    branches: [stable]
+
+permissions: {}
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: blacklanternsecurity/release-workflows/.github/workflows/release-check.yml@4f32510b1cdfe7305aa27daa3f6fd72e4c03c21b # v1.5.0
+    secrets:
+      BLS_RELEASE_PRIVATE_KEY: ${{ secrets.BLS_RELEASE_PRIVATE_KEY }}
+    with:
+      image: blacklanternsecurity/bbot-server
+
+  tests:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/tests.yml # zizmor: ignore[self-repository]
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  docker-tests:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/docker-tests.yml # zizmor: ignore[self-repository]
+
+  build:
+    needs: [tests, docker-tests]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      - run: uv build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  # The chart is packaged and checked outside the release environment; only the push needs the token.
+  chart:
+    needs: [check, tests, docker-tests]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
+      - name: The chart is not on Docker Hub at this version yet
+        run: |
+          if helm show chart oci://registry-1.docker.io/blacklanternsecurity/bbot-server-helm --version "$VERSION" >/dev/null 2>&1; then
+            echo "::error::bbot-server-helm $VERSION is already on Docker Hub"; exit 1
+          fi
+      - run: helm repo add bitnami https://charts.bitnami.com/bitnami
+      - run: helm dependency build helm/
+      - run: helm package helm/ --destination dist
+      - name: The chart is the released version
+        run: test -f "dist/bbot-server-helm-$VERSION.tgz"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: helm-chart
+          path: dist/*.tgz
+          if-no-files-found: error
+
+  # Images first: their tags can be overwritten, PyPI versions can't.
+  docker:
+    needs: [check, build, chart]
+    permissions:
+      contents: read
+    uses: blacklanternsecurity/release-workflows/.github/workflows/docker.yml@4f32510b1cdfe7305aa27daa3f6fd72e4c03c21b # v1.5.0
+    with:
+      image: blacklanternsecurity/bbot-server
+      version: ${{ needs.check.outputs.version }}
+      major: ${{ needs.check.outputs.major }}
+      minor: ${{ needs.check.outputs.minor }}
+    # docker.yml logs in from a release-environment job, which receives an environment secret only
+    # when the caller maps it by name.
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+
+  helm-publish:
+    needs: [check, chart, docker]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions: {}
+    env:
+      CHART: dist/bbot-server-helm-${{ needs.check.outputs.version }}.tgz
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: helm-chart
+          path: dist
+      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
+      - run: test -f "$CHART"
+      - name: Log in to Docker Hub OCI registry
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+        run: echo "$DOCKER_TOKEN" | helm registry login registry-1.docker.io -u "$DOCKER_USERNAME" --password-stdin
+      - run: helm push "$CHART" oci://registry-1.docker.io/blacklanternsecurity
+
+  pypi:
+    needs: [build, docker, helm-publish]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          skip-existing: true
+
+  release:
+    needs: [check, docker, helm-publish, pypi]
+    if: needs.check.outputs.release == 'true'
+    permissions:
+      contents: read
+    uses: blacklanternsecurity/release-workflows/.github/workflows/publish.yml@4f32510b1cdfe7305aa27daa3f6fd72e4c03c21b # v1.5.0
+    secrets:
+      BLS_RELEASE_PRIVATE_KEY: ${{ secrets.BLS_RELEASE_PRIVATE_KEY }}
+    with:
+      tag: ${{ needs.check.outputs.tag }}
+      version: ${{ needs.check.outputs.version }}
+      images: ${{ needs.docker.outputs.images }}
+      artifacts: helm-chart
+      assets: dist/*.tgz
